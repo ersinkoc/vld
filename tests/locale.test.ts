@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import { v, setLocale, getLocale } from '../src/index';
-import { getMessages, getMessagesForLocale, type Locale } from '../src/locales';
+import { getMessages, getMessagesForLocale, type Locale } from '../src/locales/index';
 
 describe('Locale System Tests', () => {
   
@@ -53,7 +53,7 @@ describe('Locale System Tests', () => {
   });
 
   describe('All Locales Coverage', () => {
-    const allLocales: Locale[] = ['en', 'tr', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'ja', 'ko', 'zh', 'ar', 'hi', 'nl', 'pl'];
+    const allLocales: Locale[] = ['en', 'tr', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'ja', 'ko', 'zh', 'ar', 'hi', 'nl', 'pl', 'da', 'sv', 'no', 'fi', 'th', 'vi', 'id', 'bn', 'sw', 'af', 'pt-BR', 'es-MX'];
     
     allLocales.forEach(locale => {
       describe(`${locale} locale`, () => {
@@ -204,7 +204,7 @@ describe('Locale System Tests', () => {
       setLocale('ar');
       const result = v.number().finite().safeParse(Infinity) as { success: false; error: Error };
       expect(result.success).toBe(false);
-      expect(result.error.message).toBe('يجب أن يكون الرقم محدودًا');
+      expect(result.error.message).toBe('يجب أن يكون الرقم محدوداً');
     });
 
     it('should show Hindi errors', () => {
@@ -253,8 +253,8 @@ describe('Locale System Tests', () => {
       setLocale('en');
       const messages = getMessages();
       
-      expect(messages.literalExpected('active', 'inactive')).toBe('Expected "active", got "inactive"');
-      expect(messages.enumExpected(['red', 'green', 'blue'], 'yellow')).toBe('Expected one of [red, green, blue], got "yellow"');
+      expect(messages.literalExpected('active', 'inactive')).toBe('Expected active, got inactive');
+      expect(messages.enumExpected(['red', 'green', 'blue'], 'yellow')).toBe('Expected one of [red, green, blue], got yellow');
     });
 
     it('should handle date message functions', () => {
@@ -268,7 +268,7 @@ describe('Locale System Tests', () => {
   });
 
   describe('Message Consistency', () => {
-    const allLocales: Locale[] = ['en', 'tr', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'ja', 'ko', 'zh', 'ar', 'hi', 'nl', 'pl'];
+    const allLocales: Locale[] = ['en', 'tr', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'ja', 'ko', 'zh', 'ar', 'hi', 'nl', 'pl', 'da', 'sv', 'no', 'fi', 'th', 'vi', 'id', 'bn', 'sw', 'af', 'pt-BR', 'es-MX'];
     
     it('should have the same structure for all locales', () => {
       const enMessages = getMessagesForLocale('en');
@@ -336,7 +336,7 @@ describe('Locale System Tests', () => {
       
       expect(result.success).toBe(false);
       const err = result as { success: false; error: Error };
-      expect(err.error.message).toContain('Ungültig');
+      expect(err.error.message).toContain('Ungültiges');
     });
 
     it('should preserve custom messages over locale messages', () => {

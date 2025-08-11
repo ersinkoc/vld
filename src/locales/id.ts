@@ -1,0 +1,69 @@
+import { LocaleMessages } from './types';
+
+export const id: LocaleMessages = {
+  // String validation messages
+  invalidString: 'String tidak valid',
+  stringMin: (min: number) => `String harus memiliki minimal ${min} karakter`,
+  stringMax: (max: number) => `String tidak boleh lebih dari ${max} karakter`,
+  stringLength: (length: number) => `String harus memiliki tepat ${length} karakter`,
+  stringEmail: 'Alamat email tidak valid',
+  stringUrl: 'URL tidak valid',
+  stringUuid: 'UUID tidak valid',
+  stringRegex: 'Format tidak valid',
+  stringStartsWith: (prefix: string) => `String harus diawali dengan "${prefix}"`,
+  stringEndsWith: (suffix: string) => `String harus diakhiri dengan "${suffix}"`,
+  stringIncludes: (substring: string) => `String harus mengandung "${substring}"`,
+  stringIp: 'Alamat IP tidak valid',
+  stringIpv4: 'Alamat IPv4 tidak valid',
+  stringIpv6: 'Alamat IPv6 tidak valid',
+  stringEmpty: 'String tidak boleh kosong',
+
+  // Number validation messages
+  invalidNumber: 'Angka tidak valid',
+  numberMin: (min: number) => `Angka harus minimal ${min}`,
+  numberMax: (max: number) => `Angka tidak boleh lebih dari ${max}`,
+  numberInt: 'Angka harus berupa bilangan bulat',
+  numberPositive: 'Angka harus positif',
+  numberNegative: 'Angka harus negatif',
+  numberNonnegative: 'Angka tidak boleh negatif',
+  numberNonpositive: 'Angka tidak boleh positif',
+  numberFinite: 'Angka harus terhingga',
+  numberSafe: 'Angka harus berupa bilangan bulat yang aman',
+  numberMultipleOf: (value: number) => `Angka harus kelipatan dari ${value}`,
+
+  // Boolean validation messages
+  invalidBoolean: 'Nilai boolean tidak valid',
+
+  // Date validation messages
+  invalidDate: 'Tanggal tidak valid',
+  dateMin: (date: Date) => `Tanggal harus setelah ${date.toISOString()}`,
+  dateMax: (date: Date) => `Tanggal harus sebelum ${date.toISOString()}`,
+
+  // Object validation messages
+  invalidObject: 'Object tidak valid',
+  unexpectedKeys: (keys: string[]) => `Kunci yang tidak diharapkan: ${keys.join(', ')}`,
+
+  // Array validation messages
+  invalidArray: 'Array tidak valid',
+  arrayMin: (min: number) => `Array harus memiliki minimal ${min} elemen`,
+  arrayMax: (max: number) => `Array tidak boleh lebih dari ${max} elemen`,
+  arrayLength: (length: number) => `Array harus memiliki tepat ${length} elemen`,
+  arrayEmpty: 'Array tidak boleh kosong',
+  arrayItem: (index: number, error: string) => `Elemen tidak valid pada indeks ${index}: ${error}`,
+
+  // Object field validation
+  objectField: (field: string, error: string) => `Field "${field}" tidak valid: ${error}`,
+
+  // Union validation messages
+  unionNoMatch: (errors: string[]) => `Tidak ada anggota union yang cocok: ${errors.join(', ')}`,
+
+  // Literal validation messages
+  literalExpected: (expected: string, received: string) => `Diharapkan ${expected}, diterima ${received}`,
+
+  // Enum validation messages
+  enumExpected: (values: any[], received: string) => `Diharapkan salah satu dari [${values.join(', ')}], diterima ${received}`,
+
+  // Special type validation messages
+  expectedUndefined: 'Diharapkan undefined',
+  neverType: 'Tipe never tidak dapat diparse'
+};

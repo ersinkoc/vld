@@ -1,7 +1,7 @@
 // VLD - Fast, Type-Safe Validation Library
 // Zero dependencies, blazing fast performance
 
-import { getMessages, setLocale, getLocale, type Locale } from './locales';
+import { getMessages, setLocale, getLocale, type Locale } from './locales/index';
 
 export type ParseResult<T> = 
   | { readonly success: true; readonly data: T }

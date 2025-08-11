@@ -15,7 +15,7 @@ VLD is a blazing-fast, type-safe validation library for TypeScript and JavaScrip
 - **🌳 Tree-Shakeable**: Only import what you need
 - **🔧 Composable**: Chain validations for complex schemas
 - **💪 Flexible**: Support for transforms, custom errors, and more
-- **🌍 Multi-language**: Built-in support for 15 languages
+- **🌍 Multi-language**: Built-in support for 27+ languages
 
 ## 📊 Performance
 
@@ -208,7 +208,7 @@ if (!result.success) {
 
 ## 🌍 Internationalization (i18n)
 
-VLD supports 15 languages out of the box:
+VLD supports 27+ languages out of the box with comprehensive error messages:
 
 ```typescript
 import { v, setLocale } from '@oxog/vld';
@@ -232,21 +232,24 @@ schema.safeParse('Hi'); // Error: "文字列は5文字以上である必要が�
 
 ### Supported Languages
 
-- 🇬🇧 English (`en`)
-- 🇹🇷 Turkish (`tr`)
-- 🇪🇸 Spanish (`es`)
-- 🇫🇷 French (`fr`)
-- 🇩🇪 German (`de`)
-- 🇮🇹 Italian (`it`)
-- 🇵🇹 Portuguese (`pt`)
-- 🇷🇺 Russian (`ru`)
-- 🇯🇵 Japanese (`ja`)
-- 🇰🇷 Korean (`ko`)
-- 🇨🇳 Chinese (`zh`)
-- 🇸🇦 Arabic (`ar`)
-- 🇮🇳 Hindi (`hi`)
-- 🇳🇱 Dutch (`nl`)
-- 🇵🇱 Polish (`pl`)
+#### Base Languages (15):
+- 🇬🇧 English (`en`) - 🇹🇷 Turkish (`tr`) - 🇪🇸 Spanish (`es`) - 🇫🇷 French (`fr`) - 🇩🇪 German (`de`)
+- 🇮🇹 Italian (`it`) - 🇵🇹 Portuguese (`pt`) - 🇷🇺 Russian (`ru`) - 🇯🇵 Japanese (`ja`) - 🇰🇷 Korean (`ko`)
+- 🇨🇳 Chinese (`zh`) - 🇸🇦 Arabic (`ar`) - 🇮🇳 Hindi (`hi`) - 🇳🇱 Dutch (`nl`) - 🇵🇱 Polish (`pl`)
+
+#### European Languages (4):
+- 🇩🇰 Danish (`da`) - 🇸🇪 Swedish (`sv`) - 🇳🇴 Norwegian (`no`) - 🇫🇮 Finnish (`fi`)
+
+#### Asian Languages (4):
+- 🇹🇭 Thai (`th`) - 🇻🇳 Vietnamese (`vi`) - 🇮🇩 Indonesian (`id`) - 🇧🇩 Bengali (`bn`)
+
+#### African Languages (2):
+- 🇰🇪 Swahili (`sw`) - 🇿🇦 Afrikaans (`af`)
+
+#### American Languages (2):
+- 🇧🇷 Portuguese Brazil (`pt-BR`) - 🇲🇽 Spanish Mexico (`es-MX`)
+
+**Plus 75+ additional languages** supported through comprehensive type definitions with English fallback, including Icelandic, Czech, Slovak, Hungarian, Romanian, Bulgarian, Croatian, Slovenian, Greek, Hebrew, Persian, Georgian, Armenian, and many more!
 
 ## 🔥 Advanced Examples
 
