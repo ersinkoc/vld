@@ -65,5 +65,21 @@ export const zh: LocaleMessages = {
 
   // Special type validation messages
   expectedUndefined: '期望undefined',
-  neverType: 'never类型无法解析'
+  neverType: 'never类型无法解析',
+
+  // New advanced type validation messages
+  invalidBigint: '无效bigint',
+  invalidSymbol: '无效符号',
+  invalidTuple: '无效元组',
+  tupleLength: (expected: number, received: number) => `元组必须正好有${expected}个元素，得到${received}个`,
+  invalidRecord: '无效记录',
+  invalidSet: '无效Set',
+  invalidMap: '无效Map',
+  
+  // Transformation and refinement messages
+  transformError: (error: string) => `转换失败: ${error}`,
+  refinementError: (error: string) => `细化失败: ${error}`,
+  
+  // Coercion messages
+  coercionFailed: (type: string, value: unknown) => `无法将${JSON.stringify(value)}强制转换为${type}`
 };

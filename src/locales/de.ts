@@ -65,5 +65,21 @@ export const de: LocaleMessages = {
 
   // Special type validation messages
   expectedUndefined: 'Undefined erwartet',
-  neverType: 'Never-Typ kann nicht geparst werden'
+  neverType: 'Never-Typ kann nicht geparst werden',
+
+  // New advanced type validation messages
+  invalidBigint: 'Ungültiger Bigint',
+  invalidSymbol: 'Ungültiges Symbol',
+  invalidTuple: 'Ungültiges Tupel',
+  tupleLength: (expected: number, received: number) => `Tupel muss genau ${expected} Elemente haben, ${received} erhalten`,
+  invalidRecord: 'Ungültiger Datensatz',
+  invalidSet: 'Ungültiges Set',
+  invalidMap: 'Ungültige Map',
+  
+  // Transformation and refinement messages
+  transformError: (error: string) => `Transformation fehlgeschlagen: ${error}`,
+  refinementError: (error: string) => `Verfeinerung fehlgeschlagen: ${error}`,
+  
+  // Coercion messages
+  coercionFailed: (type: string, value: unknown) => `Kann ${JSON.stringify(value)} nicht zu ${type} konvertieren`
 };

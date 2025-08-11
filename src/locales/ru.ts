@@ -65,5 +65,21 @@ export const ru: LocaleMessages = {
 
   // Special type validation messages
   expectedUndefined: 'Ожидалось undefined',
-  neverType: 'Тип never не может быть разобран'
+  neverType: 'Тип never не может быть разобран',
+
+  // New advanced type validation messages
+  invalidBigint: 'Некорректный bigint',
+  invalidSymbol: 'Некорректный символ',
+  invalidTuple: 'Некорректный кортеж',
+  tupleLength: (expected: number, received: number) => `Кортеж должен содержать ровно ${expected} элементов, получено ${received}`,
+  invalidRecord: 'Некорректная запись',
+  invalidSet: 'Некорректный set',
+  invalidMap: 'Некорректная map',
+  
+  // Transformation and refinement messages
+  transformError: (error: string) => `Преобразование не удалось: ${error}`,
+  refinementError: (error: string) => `Уточнение не удалось: ${error}`,
+  
+  // Coercion messages
+  coercionFailed: (type: string, value: unknown) => `Невозможно привести ${JSON.stringify(value)} к типу ${type}`
 };

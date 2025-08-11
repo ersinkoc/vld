@@ -44,5 +44,21 @@ export const fr: LocaleMessages = {
   literalExpected: (expected: string, received: string) => `Attendu ${expected}, reçu ${received}`,
   enumExpected: (values: any[], received: string) => `Attendu un de [${values.join(', ')}], reçu ${received}`,
   expectedUndefined: 'Undefined attendu',
-  neverType: 'Le type never ne peut pas être analysé'
+  neverType: 'Le type never ne peut pas être analysé',
+
+  // New advanced type validation messages
+  invalidBigint: 'Bigint invalide',
+  invalidSymbol: 'Symbole invalide',
+  invalidTuple: 'Tuple invalide',
+  tupleLength: (expected: number, received: number) => `Le tuple doit contenir exactement ${expected} éléments, ${received} reçus`,
+  invalidRecord: 'Enregistrement invalide',
+  invalidSet: 'Set invalide',
+  invalidMap: 'Map invalide',
+  
+  // Transformation and refinement messages
+  transformError: (error: string) => `Transformation échouée : ${error}`,
+  refinementError: (error: string) => `Raffinement échoué : ${error}`,
+  
+  // Coercion messages
+  coercionFailed: (type: string, value: unknown) => `Impossible de convertir ${JSON.stringify(value)} en ${type}`
 };

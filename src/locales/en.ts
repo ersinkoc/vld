@@ -65,5 +65,21 @@ export const en: LocaleMessages = {
 
   // Special type validation messages
   expectedUndefined: 'Expected undefined',
-  neverType: 'Never type cannot be parsed'
+  neverType: 'Never type cannot be parsed',
+
+  // New advanced type validation messages
+  invalidBigint: 'Invalid bigint',
+  invalidSymbol: 'Invalid symbol',
+  invalidTuple: 'Invalid tuple',
+  tupleLength: (expected: number, received: number) => `Tuple must have exactly ${expected} elements, got ${received}`,
+  invalidRecord: 'Invalid record',
+  invalidSet: 'Invalid set',
+  invalidMap: 'Invalid map',
+  
+  // Transformation and refinement messages
+  transformError: (error: string) => `Transform failed: ${error}`,
+  refinementError: (error: string) => `Refinement failed: ${error}`,
+  
+  // Coercion messages
+  coercionFailed: (type: string, value: unknown) => `Cannot coerce ${JSON.stringify(value)} to ${type}`
 };

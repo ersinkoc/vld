@@ -655,13 +655,371 @@ export class VldNever extends VldBase<never> {
   }
 }
 
+// BigInt validator
+export class VldBigInt extends VldBase<bigint> {
+  private checks: Array<(v: bigint) => boolean> = [];
+  private errorMessage = getMessages().invalidBigint;
+
+  parse(value: unknown): bigint {
+    if (typeof value !== 'bigint') {
+      throw new Error(this.errorMessage || getMessages().invalidBigint);
+    }
+
+    for (const check of this.checks) {
+      if (!check(value)) {
+        throw new Error(this.errorMessage || getMessages().invalidBigint);
+      }
+    }
+
+    return value;
+  }
+
+  safeParse(value: unknown): ParseResult<bigint> {
+    try {
+      return { success: true, data: this.parse(value) };
+    } catch (error) {
+      return { success: false, error: error as Error };
+    }
+  }
+}
+
+// Symbol validator
+export class VldSymbol extends VldBase<symbol> {
+  private errorMessage = getMessages().invalidSymbol;
+
+  parse(value: unknown): symbol {
+    if (typeof value !== 'symbol') {
+      throw new Error(this.errorMessage || getMessages().invalidSymbol);
+    }
+    return value;
+  }
+
+  safeParse(value: unknown): ParseResult<symbol> {
+    if (typeof value === 'symbol') {
+      return { success: true, data: value };
+    }
+    return { success: false, error: new Error(this.errorMessage) };
+  }
+}
+
+// Tuple validator
+export class VldTuple<T extends readonly VldBase<any>[]> extends VldBase<{ [K in keyof T]: T[K] extends VldBase<infer U> ? U : never }> {
+  constructor(private validators: T) {
+    super();
+  }
+
+  parse(value: unknown): { [K in keyof T]: T[K] extends VldBase<infer U> ? U : never } {
+    if (!Array.isArray(value)) {
+      throw new Error(getMessages().invalidTuple);
+    }
+
+    if (value.length !== this.validators.length) {
+      throw new Error(getMessages().tupleLength(this.validators.length, value.length));
+    }
+
+    const result: any[] = [];
+    for (let i = 0; i < this.validators.length; i++) {
+      try {
+        result[i] = this.validators[i].parse(value[i]);
+      } catch (error) {
+        throw new Error(getMessages().arrayItem(i, (error as Error).message));
+      }
+    }
+
+    return result as { [K in keyof T]: T[K] extends VldBase<infer U> ? U : never };
+  }
+
+  safeParse(value: unknown): ParseResult<{ [K in keyof T]: T[K] extends VldBase<infer U> ? U : never }> {
+    try {
+      return { success: true, data: this.parse(value) };
+    } catch (error) {
+      return { success: false, error: error as Error };
+    }
+  }
+}
+
+// Record validator
+export class VldRecord<T> extends VldBase<Record<string, T>> {
+  constructor(private valueValidator: VldBase<T>) {
+    super();
+  }
+
+  parse(value: unknown): Record<string, T> {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+      throw new Error(getMessages().invalidRecord);
+    }
+
+    const result: Record<string, T> = {};
+    const obj = value as Record<string, unknown>;
+
+    for (const [key, val] of Object.entries(obj)) {
+      try {
+        result[key] = this.valueValidator.parse(val);
+      } catch (error) {
+        throw new Error(getMessages().objectField(key, (error as Error).message));
+      }
+    }
+
+    return result;
+  }
+
+  safeParse(value: unknown): ParseResult<Record<string, T>> {
+    try {
+      return { success: true, data: this.parse(value) };
+    } catch (error) {
+      return { success: false, error: error as Error };
+    }
+  }
+}
+
+// Set validator
+export class VldSet<T> extends VldBase<Set<T>> {
+  constructor(private itemValidator: VldBase<T>) {
+    super();
+  }
+
+  parse(value: unknown): Set<T> {
+    if (!(value instanceof Set)) {
+      throw new Error(getMessages().invalidSet);
+    }
+
+    const result = new Set<T>();
+    for (const item of value) {
+      try {
+        result.add(this.itemValidator.parse(item));
+      } catch (error) {
+        throw new Error((error as Error).message);
+      }
+    }
+
+    return result;
+  }
+
+  safeParse(value: unknown): ParseResult<Set<T>> {
+    try {
+      return { success: true, data: this.parse(value) };
+    } catch (error) {
+      return { success: false, error: error as Error };
+    }
+  }
+}
+
+// Map validator
+export class VldMap<K, V> extends VldBase<Map<K, V>> {
+  constructor(private keyValidator: VldBase<K>, private valueValidator: VldBase<V>) {
+    super();
+  }
+
+  parse(value: unknown): Map<K, V> {
+    if (!(value instanceof Map)) {
+      throw new Error(getMessages().invalidMap);
+    }
+
+    const result = new Map<K, V>();
+    for (const [key, val] of value) {
+      try {
+        const validKey = this.keyValidator.parse(key);
+        const validValue = this.valueValidator.parse(val);
+        result.set(validKey, validValue);
+      } catch (error) {
+        throw new Error((error as Error).message);
+      }
+    }
+
+    return result;
+  }
+
+  safeParse(value: unknown): ParseResult<Map<K, V>> {
+    try {
+      return { success: true, data: this.parse(value) };
+    } catch (error) {
+      return { success: false, error: error as Error };
+    }
+  }
+}
+
+// Coercion classes
+export class VldCoerceString extends VldString {
+  parse(value: unknown): string {
+    try {
+      // Attempt coercion to string
+      if (value === null || value === undefined) {
+        throw new Error(getMessages().coercionFailed('string', value));
+      }
+      const coerced = String(value);
+      // Call parent parse with coerced value
+      return super.parse(coerced);
+    } catch (error) {
+      const errorMessage = (error as Error).message;
+      // If it's a coercion error, re-throw as is
+      if (errorMessage.includes('Cannot coerce')) {
+        throw error;
+      }
+      // If it's a validation error from parent, re-throw as is
+      if (errorMessage.includes('String must') || errorMessage.includes('Invalid')) {
+        throw error;
+      }
+      // Otherwise, it's a coercion failure
+      throw new Error(getMessages().coercionFailed('string', value));
+    }
+  }
+
+  safeParse(value: unknown): ParseResult<string> {
+    try {
+      return { success: true, data: this.parse(value) };
+    } catch (error) {
+      return { success: false, error: error as Error };
+    }
+  }
+}
+
+export class VldCoerceNumber extends VldNumber {
+  parse(value: unknown): number {
+    try {
+      // Attempt coercion to number
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (trimmed === '') {
+          throw new Error(getMessages().coercionFailed('number', value));
+        }
+        const coerced = Number(trimmed);
+        if (isNaN(coerced)) {
+          throw new Error(getMessages().coercionFailed('number', value));
+        }
+        return super.parse(coerced);
+      } else if (typeof value === 'boolean') {
+        return super.parse(value ? 1 : 0);
+      } else if (value === null || value === undefined) {
+        throw new Error(getMessages().coercionFailed('number', value));
+      }
+      return super.parse(Number(value));
+    } catch (error) {
+      if ((error as Error).message.includes('coercionFailed')) {
+        throw error;
+      }
+      throw new Error(getMessages().coercionFailed('number', value));
+    }
+  }
+
+  safeParse(value: unknown): ParseResult<number> {
+    try {
+      return { success: true, data: this.parse(value) };
+    } catch (error) {
+      return { success: false, error: error as Error };
+    }
+  }
+}
+
+export class VldCoerceBoolean extends VldBoolean {
+  parse(value: unknown): boolean {
+    try {
+      // Attempt coercion to boolean
+      if (typeof value === 'string') {
+        const lower = value.toLowerCase().trim();
+        if (lower === 'true' || lower === '1' || lower === 'yes') return true;
+        if (lower === 'false' || lower === '0' || lower === 'no') return false;
+        throw new Error(getMessages().coercionFailed('boolean', value));
+      } else if (typeof value === 'number') {
+        if (value === 1) return true;
+        if (value === 0) return false;
+        throw new Error(getMessages().coercionFailed('boolean', value));
+      } else if (value === null || value === undefined) {
+        throw new Error(getMessages().coercionFailed('boolean', value));
+      }
+      return super.parse(Boolean(value));
+    } catch (error) {
+      if ((error as Error).message.includes('coercionFailed')) {
+        throw error;
+      }
+      throw new Error(getMessages().coercionFailed('boolean', value));
+    }
+  }
+
+  safeParse(value: unknown): ParseResult<boolean> {
+    try {
+      return { success: true, data: this.parse(value) };
+    } catch (error) {
+      return { success: false, error: error as Error };
+    }
+  }
+}
+
+export class VldCoerceBigInt extends VldBigInt {
+  parse(value: unknown): bigint {
+    try {
+      // Attempt coercion to bigint
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (trimmed === '') {
+          throw new Error(getMessages().coercionFailed('bigint', value));
+        }
+        return super.parse(BigInt(trimmed));
+      } else if (typeof value === 'number') {
+        if (!Number.isInteger(value)) {
+          throw new Error(getMessages().coercionFailed('bigint', value));
+        }
+        return super.parse(BigInt(value));
+      } else if (value === null || value === undefined) {
+        throw new Error(getMessages().coercionFailed('bigint', value));
+      }
+      return super.parse(BigInt(value as any));
+    } catch (error) {
+      if ((error as Error).message.includes('coercionFailed')) {
+        throw error;
+      }
+      throw new Error(getMessages().coercionFailed('bigint', value));
+    }
+  }
+
+  safeParse(value: unknown): ParseResult<bigint> {
+    try {
+      return { success: true, data: this.parse(value) };
+    } catch (error) {
+      return { success: false, error: error as Error };
+    }
+  }
+}
+
+export class VldCoerceDate extends VldDate {
+  parse(value: unknown): Date {
+    try {
+      // Attempt coercion to date
+      if (typeof value === 'string' || typeof value === 'number') {
+        return super.parse(new Date(value));
+      } else if (value === null || value === undefined) {
+        throw new Error(getMessages().coercionFailed('date', value));
+      }
+      return super.parse(value);
+    } catch (error) {
+      if ((error as Error).message.includes('coercionFailed')) {
+        throw error;
+      }
+      throw new Error(getMessages().coercionFailed('date', value));
+    }
+  }
+
+  safeParse(value: unknown): ParseResult<Date> {
+    try {
+      return { success: true, data: this.parse(value) };
+    } catch (error) {
+      return { success: false, error: error as Error };
+    }
+  }
+}
+
 // Main API
 export const v = {
   string: () => new VldString(),
   number: () => new VldNumber(),
   boolean: () => new VldBoolean(),
+  bigint: () => new VldBigInt(),
+  symbol: () => new VldSymbol(),
   array: <T>(item: VldBase<T>) => new VldArray(item),
+  tuple: <T extends readonly VldBase<any>[]>(...validators: T) => new VldTuple(validators),
   object: <T extends Record<string, any>>(shape: { [K in keyof T]: VldBase<T[K]> }) => new VldObject(shape),
+  record: <T>(valueValidator: VldBase<T>) => new VldRecord(valueValidator),
+  set: <T>(item: VldBase<T>) => new VldSet(item),
+  map: <K, V>(key: VldBase<K>, value: VldBase<V>) => new VldMap(key, value),
   optional: <T>(validator: VldBase<T>) => new VldOptional(validator),
   nullable: <T>(validator: VldBase<T>) => new VldNullable(validator),
   union: <T extends readonly VldBase<any>[]>(...validators: T) => new VldUnion(validators),
@@ -672,6 +1030,15 @@ export const v = {
   unknown: () => new VldUnknown(),
   void: () => new VldVoid(),
   never: () => new VldNever(),
+  
+  // Coercion API
+  coerce: {
+    string: () => new VldCoerceString(),
+    number: () => new VldCoerceNumber(),
+    boolean: () => new VldCoerceBoolean(),
+    bigint: () => new VldCoerceBigInt(),
+    date: () => new VldCoerceDate(),
+  }
 };
 
 // Type inference helpers

@@ -65,5 +65,21 @@ export const bn: LocaleMessages = {
 
   // Special type validation messages
   expectedUndefined: 'undefined প্রত্যাশিত',
-  neverType: 'Never টাইপ পার্স করা যায় না'
+  neverType: 'Never টাইপ পার্স করা যায় না',
+
+  // New advanced type validation messages
+  invalidBigint: 'অবৈধ bigint',
+  invalidSymbol: 'অবৈধ সিম্বল',
+  invalidTuple: 'অবৈধ টুপল',
+  tupleLength: (expected: number, received: number) => `টুপলে ঠিক ${expected}টি উপাদান থাকতে হবে, পেয়েছি ${received}`,
+  invalidRecord: 'অবৈধ রেকর্ড',
+  invalidSet: 'অবৈধ Set',
+  invalidMap: 'অবৈধ Map',
+  
+  // Transformation and refinement messages
+  transformError: (error: string) => `রূপান্তর ব্যর্থ: ${error}`,
+  refinementError: (error: string) => `পরিমার্জনা ব্যর্থ: ${error}`,
+  
+  // Coercion messages
+  coercionFailed: (type: string, value: unknown) => `${JSON.stringify(value)} কে ${type} এ রূপান্তর করা যায়নি`
 };

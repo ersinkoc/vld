@@ -65,5 +65,21 @@ export const hi: LocaleMessages = {
 
   // Special type validation messages
   expectedUndefined: 'undefined अपेक्षित',
-  neverType: 'never प्रकार का विश्लेषण नहीं किया जा सकता'
+  neverType: 'never प्रकार का विश्लेषण नहीं किया जा सकता',
+
+  // New advanced type validation messages
+  invalidBigint: 'अमान्य bigint',
+  invalidSymbol: 'अमान्य प्रतीक',
+  invalidTuple: 'अमान्य ट्यूपल',
+  tupleLength: (expected: number, received: number) => `ट्यूपल में ठीक ${expected} तत्व होने चाहिए, ${received} प्राप्त हुए`,
+  invalidRecord: 'अमान्य रिकॉर्ड',
+  invalidSet: 'अमान्य Set',
+  invalidMap: 'अमान्य Map',
+  
+  // Transformation and refinement messages
+  transformError: (error: string) => `रूपांतरण विफल: ${error}`,
+  refinementError: (error: string) => `शुद्धीकरण विफल: ${error}`,
+  
+  // Coercion messages
+  coercionFailed: (type: string, value: unknown) => `${JSON.stringify(value)} को ${type} में परिवर्तित नहीं किया जा सकता`
 };

@@ -65,5 +65,21 @@ export const ja: LocaleMessages = {
 
   // Special type validation messages
   expectedUndefined: 'undefinedが期待されました',
-  neverType: 'neverタイプは解析できません'
+  neverType: 'neverタイプは解析できません',
+
+  // New advanced type validation messages
+  invalidBigint: '無効なbigint',
+  invalidSymbol: '無効なシンボル',
+  invalidTuple: '無効なタプル',
+  tupleLength: (expected: number, received: number) => `タプルはちょうど${expected}個の要素が必要ですが、${received}個を受け取りました`,
+  invalidRecord: '無効なレコード',
+  invalidSet: '無効なSet',
+  invalidMap: '無効なMap',
+  
+  // Transformation and refinement messages
+  transformError: (error: string) => `変換に失敗しました: ${error}`,
+  refinementError: (error: string) => `リファインメントに失敗しました: ${error}`,
+  
+  // Coercion messages
+  coercionFailed: (type: string, value: unknown) => `${JSON.stringify(value)}を${type}に変換できません`
 };

@@ -65,5 +65,21 @@ export const fi: LocaleMessages = {
 
   // Special type validation messages
   expectedUndefined: 'Odotettiin undefined',
-  neverType: 'Never-tyyppiä ei voida jäsentää'
+  neverType: 'Never-tyyppiä ei voida jäsentää',
+
+  // New advanced type validation messages
+  invalidBigint: 'Virheellinen bigint',
+  invalidSymbol: 'Virheellinen symboli',
+  invalidTuple: 'Virheellinen monikko',
+  tupleLength: (expected: number, received: number) => `Monikossa tulee olla täsmälleen ${expected} alkiota, saatiin ${received}`,
+  invalidRecord: 'Virheellinen tietue',
+  invalidSet: 'Virheellinen Set',
+  invalidMap: 'Virheellinen Map',
+  
+  // Transformation and refinement messages
+  transformError: (error: string) => `Muunnos epäonnistui: ${error}`,
+  refinementError: (error: string) => `Hiominen epäonnistui: ${error}`,
+  
+  // Coercion messages
+  coercionFailed: (type: string, value: unknown) => `Arvoa ${JSON.stringify(value)} ei voida pakottaa tyyppiin ${type}`
 };

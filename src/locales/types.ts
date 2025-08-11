@@ -78,4 +78,20 @@ export interface LocaleMessages {
   // Special type validation messages
   expectedUndefined: string;
   neverType: string;
+
+  // New advanced type validation messages
+  invalidBigint: string;
+  invalidSymbol: string;
+  invalidTuple: string;
+  tupleLength: (expected: number, received: number) => string;
+  invalidRecord: string;
+  invalidSet: string;
+  invalidMap: string;
+  
+  // Transformation and refinement messages
+  transformError: (error: string) => string;
+  refinementError: (error: string) => string;
+  
+  // Coercion messages
+  coercionFailed: (type: string, value: unknown) => string;
 }

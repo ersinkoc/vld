@@ -65,5 +65,21 @@ export const esMX: LocaleMessages = {
 
   // Special type validation messages
   expectedUndefined: 'Se esperaba undefined',
-  neverType: 'El tipo never no se puede analizar'
+  neverType: 'El tipo never no se puede analizar',
+
+  // New advanced type validation messages
+  invalidBigint: 'Bigint inválido',
+  invalidSymbol: 'Símbolo inválido',
+  invalidTuple: 'Tupla inválida',
+  tupleLength: (expected: number, received: number) => `La tupla debe tener exactamente ${expected} elementos, se recibieron ${received}`,
+  invalidRecord: 'Registro inválido',
+  invalidSet: 'Set inválido',
+  invalidMap: 'Map inválido',
+  
+  // Transformation and refinement messages
+  transformError: (error: string) => `Transformación falló: ${error}`,
+  refinementError: (error: string) => `Refinamiento falló: ${error}`,
+  
+  // Coercion messages
+  coercionFailed: (type: string, value: unknown) => `No se puede coaccionar ${JSON.stringify(value)} a ${type}`
 };

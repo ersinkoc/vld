@@ -65,5 +65,21 @@ export const tr: LocaleMessages = {
 
   // Special type validation messages
   expectedUndefined: 'Undefined beklendi',
-  neverType: 'Never tipi parse edilemez'
+  neverType: 'Never tipi parse edilemez',
+
+  // New advanced type validation messages
+  invalidBigint: 'Geçersiz bigint',
+  invalidSymbol: 'Geçersiz symbol',
+  invalidTuple: 'Geçersiz tuple',
+  tupleLength: (expected: number, received: number) => `Tuple tam olarak ${expected} elemana sahip olmalı, ${received} aldı`,
+  invalidRecord: 'Geçersiz record',
+  invalidSet: 'Geçersiz set',
+  invalidMap: 'Geçersiz map',
+  
+  // Transformation and refinement messages
+  transformError: (error: string) => `Dönüştürme başarısız: ${error}`,
+  refinementError: (error: string) => `Doğrulama başarısız: ${error}`,
+  
+  // Coercion messages
+  coercionFailed: (type: string, value: unknown) => `${JSON.stringify(value)} değeri ${type} tipine dönüştürülemez`
 };

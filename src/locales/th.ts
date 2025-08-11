@@ -65,5 +65,21 @@ export const th: LocaleMessages = {
 
   // Special type validation messages
   expectedUndefined: 'คาดหวัง undefined',
-  neverType: 'ไม่สามารถ parse ประเภท never ได้'
+  neverType: 'ไม่สามารถ parse ประเภท never ได้',
+
+  // New advanced type validation messages
+  invalidBigint: 'bigint ไม่ถูกต้อง',
+  invalidSymbol: 'symbol ไม่ถูกต้อง',
+  invalidTuple: 'tuple ไม่ถูกต้อง',
+  tupleLength: (expected: number, received: number) => `tuple ต้องมีสมาชิกเท่ากับ ${expected} ตัว, ได้รับ ${received} ตัว`,
+  invalidRecord: 'record ไม่ถูกต้อง',
+  invalidSet: 'Set ไม่ถูกต้อง',
+  invalidMap: 'Map ไม่ถูกต้อง',
+  
+  // Transformation and refinement messages
+  transformError: (error: string) => `การแปลงล้มเหลว: ${error}`,
+  refinementError: (error: string) => `การปรับแต่งล้มเหลว: ${error}`,
+  
+  // Coercion messages
+  coercionFailed: (type: string, value: unknown) => `ไม่สามารถแปลง ${JSON.stringify(value)} เป็น ${type} ได้`
 };

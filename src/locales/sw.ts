@@ -65,5 +65,21 @@ export const sw: LocaleMessages = {
 
   // Special type validation messages
   expectedUndefined: 'Ilitegemewa undefined',
-  neverType: 'Aina ya never haiwezi kuchakatwa'
+  neverType: 'Aina ya never haiwezi kuchakatwa',
+
+  // New advanced type validation messages
+  invalidBigint: 'Bigint si sahihi',
+  invalidSymbol: 'Ishara si sahihi',
+  invalidTuple: 'Jozi si sahihi',
+  tupleLength: (expected: number, received: number) => `Jozi lazima iwe na vipengele ${expected} haswa, ilipokewa ${received}`,
+  invalidRecord: 'Rekodi si sahihi',
+  invalidSet: 'Set si sahihi',
+  invalidMap: 'Ramani si sahihi',
+  
+  // Transformation and refinement messages
+  transformError: (error: string) => `Mageuzi yameshindwa: ${error}`,
+  refinementError: (error: string) => `Uboresha umeshindwa: ${error}`,
+  
+  // Coercion messages
+  coercionFailed: (type: string, value: unknown) => `Haiwezi kulazimisha ${JSON.stringify(value)} kuwa ${type}`
 };

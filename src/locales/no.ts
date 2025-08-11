@@ -65,5 +65,21 @@ export const no: LocaleMessages = {
 
   // Special type validation messages
   expectedUndefined: 'Forventet undefined',
-  neverType: 'Never-type kan ikke parses'
+  neverType: 'Never-type kan ikke parses',
+
+  // New advanced type validation messages
+  invalidBigint: 'Ugyldig bigint',
+  invalidSymbol: 'Ugyldig symbol',
+  invalidTuple: 'Ugyldig tuppel',
+  tupleLength: (expected: number, received: number) => `Tuppel må ha nøyaktig ${expected} elementer, fikk ${received}`,
+  invalidRecord: 'Ugyldig post',
+  invalidSet: 'Ugyldig Set',
+  invalidMap: 'Ugyldig Map',
+  
+  // Transformation and refinement messages
+  transformError: (error: string) => `Transformasjon mislyktes: ${error}`,
+  refinementError: (error: string) => `Foredling mislyktes: ${error}`,
+  
+  // Coercion messages
+  coercionFailed: (type: string, value: unknown) => `Kan ikke konvertere ${JSON.stringify(value)} til ${type}`
 };

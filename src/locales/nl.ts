@@ -65,5 +65,21 @@ export const nl: LocaleMessages = {
 
   // Special type validation messages
   expectedUndefined: 'Verwacht undefined',
-  neverType: 'Never type kan niet worden geparseerd'
+  neverType: 'Never type kan niet worden geparseerd',
+
+  // New advanced type validation messages
+  invalidBigint: 'Ongeldige bigint',
+  invalidSymbol: 'Ongeldig symbool',
+  invalidTuple: 'Ongeldige tuple',
+  tupleLength: (expected: number, received: number) => `Tuple moet precies ${expected} elementen hebben, ontvangen ${received}`,
+  invalidRecord: 'Ongeldig record',
+  invalidSet: 'Ongeldige set',
+  invalidMap: 'Ongeldige map',
+  
+  // Transformation and refinement messages
+  transformError: (error: string) => `Transformatie mislukt: ${error}`,
+  refinementError: (error: string) => `Verfijning mislukt: ${error}`,
+  
+  // Coercion messages
+  coercionFailed: (type: string, value: unknown) => `Kan ${JSON.stringify(value)} niet omzetten naar ${type}`
 };

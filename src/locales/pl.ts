@@ -65,5 +65,21 @@ export const pl: LocaleMessages = {
 
   // Special type validation messages
   expectedUndefined: 'Oczekiwano undefined',
-  neverType: 'Typ never nie może być przeanalizowany'
+  neverType: 'Typ never nie może być przeanalizowany',
+
+  // New advanced type validation messages
+  invalidBigint: 'Nieprawidłowy bigint',
+  invalidSymbol: 'Nieprawidłowy symbol',
+  invalidTuple: 'Nieprawidłowa krotka',
+  tupleLength: (expected: number, received: number) => `Krotka musi mieć dokładnie ${expected} elementów, otrzymano ${received}`,
+  invalidRecord: 'Nieprawidłowy rekord',
+  invalidSet: 'Nieprawidłowy Set',
+  invalidMap: 'Nieprawidłowa Map',
+  
+  // Transformation and refinement messages
+  transformError: (error: string) => `Transformacja nie powiodła się: ${error}`,
+  refinementError: (error: string) => `Rafinacja nie powiodła się: ${error}`,
+  
+  // Coercion messages
+  coercionFailed: (type: string, value: unknown) => `Nie można przekształcić ${JSON.stringify(value)} na ${type}`
 };

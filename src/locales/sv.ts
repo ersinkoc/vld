@@ -65,5 +65,21 @@ export const sv: LocaleMessages = {
 
   // Special type validation messages
   expectedUndefined: 'Förväntade undefined',
-  neverType: 'Never-typ kan inte parsas'
+  neverType: 'Never-typ kan inte parsas',
+
+  // New advanced type validation messages
+  invalidBigint: 'Ogiltig bigint',
+  invalidSymbol: 'Ogiltig symbol',
+  invalidTuple: 'Ogiltig tupel',
+  tupleLength: (expected: number, received: number) => `Tupel måste ha exakt ${expected} element, fick ${received}`,
+  invalidRecord: 'Ogiltig post',
+  invalidSet: 'Ogiltig Set',
+  invalidMap: 'Ogiltig Map',
+  
+  // Transformation and refinement messages
+  transformError: (error: string) => `Transformation misslyckades: ${error}`,
+  refinementError: (error: string) => `Förfining misslyckades: ${error}`,
+  
+  // Coercion messages
+  coercionFailed: (type: string, value: unknown) => `Kan inte konvertera ${JSON.stringify(value)} till ${type}`
 };

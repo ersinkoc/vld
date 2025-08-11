@@ -65,5 +65,21 @@ export const id: LocaleMessages = {
 
   // Special type validation messages
   expectedUndefined: 'Diharapkan undefined',
-  neverType: 'Tipe never tidak dapat diparse'
+  neverType: 'Tipe never tidak dapat diparse',
+
+  // New advanced type validation messages
+  invalidBigint: 'Bigint tidak valid',
+  invalidSymbol: 'Simbol tidak valid',
+  invalidTuple: 'Tuple tidak valid',
+  tupleLength: (expected: number, received: number) => `Tuple harus memiliki tepat ${expected} elemen, diterima ${received}`,
+  invalidRecord: 'Record tidak valid',
+  invalidSet: 'Set tidak valid',
+  invalidMap: 'Map tidak valid',
+  
+  // Transformation and refinement messages
+  transformError: (error: string) => `Transformasi gagal: ${error}`,
+  refinementError: (error: string) => `Penyempurnaan gagal: ${error}`,
+  
+  // Coercion messages
+  coercionFailed: (type: string, value: unknown) => `Tidak dapat memaksa ${JSON.stringify(value)} menjadi ${type}`
 };

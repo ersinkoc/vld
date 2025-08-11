@@ -65,5 +65,21 @@ export const ptBR: LocaleMessages = {
 
   // Special type validation messages
   expectedUndefined: 'Esperado undefined',
-  neverType: 'Tipo never não pode ser analisado'
+  neverType: 'Tipo never não pode ser analisado',
+
+  // New advanced type validation messages
+  invalidBigint: 'Bigint inválido',
+  invalidSymbol: 'Símbolo inválido',
+  invalidTuple: 'Tupla inválida',
+  tupleLength: (expected: number, received: number) => `Tupla deve ter exatamente ${expected} elementos, recebido ${received}`,
+  invalidRecord: 'Registro inválido',
+  invalidSet: 'Set inválido',
+  invalidMap: 'Map inválido',
+  
+  // Transformation and refinement messages
+  transformError: (error: string) => `Transformação falhou: ${error}`,
+  refinementError: (error: string) => `Refinamento falhou: ${error}`,
+  
+  // Coercion messages
+  coercionFailed: (type: string, value: unknown) => `Não é possível converter ${JSON.stringify(value)} para ${type}`
 };

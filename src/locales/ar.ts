@@ -65,5 +65,21 @@ export const ar: LocaleMessages = {
 
   // Special type validation messages
   expectedUndefined: 'متوقع undefined',
-  neverType: 'لا يمكن تحليل نوع never'
+  neverType: 'لا يمكن تحليل نوع never',
+
+  // New advanced type validation messages
+  invalidBigint: 'bigint غير صحيح',
+  invalidSymbol: 'رمز غير صحيح',
+  invalidTuple: 'صف غير صحيح',
+  tupleLength: (expected: number, received: number) => `يجب أن يحتوي الصف على ${expected} عنصر بالضبط، تم استلام ${received}`,
+  invalidRecord: 'سجل غير صحيح',
+  invalidSet: 'Set غير صحيح',
+  invalidMap: 'Map غير صحيح',
+  
+  // Transformation and refinement messages
+  transformError: (error: string) => `فشل التحويل: ${error}`,
+  refinementError: (error: string) => `فشل التنقيح: ${error}`,
+  
+  // Coercion messages
+  coercionFailed: (type: string, value: unknown) => `لا يمكن إكراه ${JSON.stringify(value)} إلى ${type}`
 };

@@ -65,5 +65,21 @@ export const ko: LocaleMessages = {
 
   // Special type validation messages
   expectedUndefined: 'undefined가 예상되었습니다',
-  neverType: 'never 타입은 파싱할 수 없습니다'
+  neverType: 'never 타입은 파싱할 수 없습니다',
+
+  // New advanced type validation messages
+  invalidBigint: '유효하지 않은 bigint',
+  invalidSymbol: '유효하지 않은 심볼',
+  invalidTuple: '유효하지 않은 튜플',
+  tupleLength: (expected: number, received: number) => `튜플은 정확히 ${expected}개의 요소가 있어야 하지만 ${received}개를 받았습니다`,
+  invalidRecord: '유효하지 않은 레코드',
+  invalidSet: '유효하지 않은 Set',
+  invalidMap: '유효하지 않은 Map',
+  
+  // Transformation and refinement messages
+  transformError: (error: string) => `변환 실패: ${error}`,
+  refinementError: (error: string) => `정제 실패: ${error}`,
+  
+  // Coercion messages
+  coercionFailed: (type: string, value: unknown) => `${JSON.stringify(value)}를 ${type}로 강제 변환할 수 없습니다`
 };

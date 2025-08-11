@@ -65,5 +65,21 @@ export const vi: LocaleMessages = {
 
   // Special type validation messages
   expectedUndefined: 'Mong đợi undefined',
-  neverType: 'Không thể phân tích kiểu never'
+  neverType: 'Không thể phân tích kiểu never',
+
+  // New advanced type validation messages
+  invalidBigint: 'Bigint không hợp lệ',
+  invalidSymbol: 'Ký hiệu không hợp lệ',
+  invalidTuple: 'Tuple không hợp lệ',
+  tupleLength: (expected: number, received: number) => `Tuple phải có chính xác ${expected} phần tử, nhận được ${received}`,
+  invalidRecord: 'Record không hợp lệ',
+  invalidSet: 'Set không hợp lệ',
+  invalidMap: 'Map không hợp lệ',
+  
+  // Transformation and refinement messages
+  transformError: (error: string) => `Biến đổi thất bại: ${error}`,
+  refinementError: (error: string) => `Tinh chế thất bại: ${error}`,
+  
+  // Coercion messages
+  coercionFailed: (type: string, value: unknown) => `Không thể ép kiểu ${JSON.stringify(value)} thành ${type}`
 };
