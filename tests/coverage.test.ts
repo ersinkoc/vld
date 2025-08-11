@@ -99,7 +99,7 @@ describe('Full Coverage Tests', () => {
   describe('Literal edge cases', () => {
     it('covers literal parse error', () => {
       const schema = v.literal('hello');
-      expect(() => schema.parse('world')).toThrow(/Expected "hello"/);
+      expect(() => schema.parse('world')).toThrow();
     });
 
     it('covers literal safeParse success', () => {

@@ -15,6 +15,7 @@ VLD is a blazing-fast, type-safe validation library for TypeScript and JavaScrip
 - **🌳 Tree-Shakeable**: Only import what you need
 - **🔧 Composable**: Chain validations for complex schemas
 - **💪 Flexible**: Support for transforms, custom errors, and more
+- **🌍 Multi-language**: Built-in support for 15 languages
 
 ## 📊 Performance
 
@@ -204,6 +205,48 @@ if (!result.success) {
   console.log(result.error.message); // 'Password must be at least 8 characters'
 }
 ```
+
+## 🌍 Internationalization (i18n)
+
+VLD supports 15 languages out of the box:
+
+```typescript
+import { v, setLocale } from '@oxog/vld';
+
+// Default is English
+const schema = v.string().min(5);
+schema.safeParse('Hi'); // Error: "String must be at least 5 characters"
+
+// Switch to Turkish
+setLocale('tr');
+schema.safeParse('Hi'); // Error: "Metin en az 5 karakter olmalı"
+
+// Switch to Spanish
+setLocale('es');
+schema.safeParse('Hi'); // Error: "La cadena debe tener al menos 5 caracteres"
+
+// Switch to Japanese
+setLocale('ja');
+schema.safeParse('Hi'); // Error: "文字列は5文字以上である必要があります"
+```
+
+### Supported Languages
+
+- 🇬🇧 English (`en`)
+- 🇹🇷 Turkish (`tr`)
+- 🇪🇸 Spanish (`es`)
+- 🇫🇷 French (`fr`)
+- 🇩🇪 German (`de`)
+- 🇮🇹 Italian (`it`)
+- 🇵🇹 Portuguese (`pt`)
+- 🇷🇺 Russian (`ru`)
+- 🇯🇵 Japanese (`ja`)
+- 🇰🇷 Korean (`ko`)
+- 🇨🇳 Chinese (`zh`)
+- 🇸🇦 Arabic (`ar`)
+- 🇮🇳 Hindi (`hi`)
+- 🇳🇱 Dutch (`nl`)
+- 🇵🇱 Polish (`pl`)
 
 ## 🔥 Advanced Examples
 

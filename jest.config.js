@@ -56,12 +56,6 @@ export default {
     '^(\\.{1,2}/.*)\\.js$': '$1'
   },
   
-  // Test globals for ts-jest
-  globals: {
-    'ts-jest': {
-      useESM: true
-    }
-  },
   
   // Verbose output
   verbose: true,
