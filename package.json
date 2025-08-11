@@ -16,13 +16,16 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsc && node scripts/fix-imports.js",
-    "build:optimize": "rollup -c",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
+    "test": "jest --coverage",
     "test:types": "tsc --noEmit",
-    "test:perf": "node tests/benchmarks/index.js",
+    "benchmark": "node benchmarks/quick-bench.cjs",
+    "benchmark:full": "node benchmarks/performance.cjs",
+    "benchmark:memory": "node --expose-gc benchmarks/memory.cjs",
+    "benchmark:startup": "node benchmarks/startup.cjs",
+    "benchmark:all": "npm run benchmark && npm run benchmark:memory && npm run benchmark:startup",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
-    "prepublishOnly": "npm run build && npm test && npm run test:perf"
+    "prepublishOnly": "npm run build && npm test"
   },
   "keywords": [
     "validation",
@@ -61,13 +64,16 @@
     "@types/node": "^20.10.5",
     "@typescript-eslint/eslint-plugin": "^6.15.0",
     "@typescript-eslint/parser": "^6.15.0",
+    "benchmark": "^2.1.4",
     "eslint": "^8.56.0",
+    "fast-glob": "^3.3.3",
     "jest": "^29.7.0",
     "jest-junit": "^16.0.0",
     "prettier": "^3.1.1",
     "rollup": "^4.46.2",
     "rollup-plugin-typescript2": "^0.36.0",
     "ts-jest": "^29.4.1",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "zod": "^4.0.17"
   }
 }

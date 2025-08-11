@@ -1,43 +1,35 @@
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { readdir, readFile, writeFile } from 'fs/promises';
+import { join } from 'path';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const distDir = path.join(__dirname, '..', 'dist');
+async function fixImports(dir) {
+  const files = await readdir(dir, { withFileTypes: true });
+  
+  for (const file of files) {
+    const fullPath = join(dir, file.name);
+    
+    if (file.isDirectory()) {
+      await fixImports(fullPath);
+    } else if (file.name.endsWith('.js')) {
+      let content = await readFile(fullPath, 'utf-8');
+      
+      // Fix relative imports
+      content = content.replace(
+        /from\s+['"](\.[^'"]+)(?<!\.js)['"]/g,
+        'from \'$1.js\''
+      );
+      
+      // Fix export statements
+      content = content.replace(
+        /export\s+\*\s+from\s+['"](\.[^'"]+)(?<!\.js)['"]/g,
+        'export * from \'$1.js\''
+      );
+      
+      await writeFile(fullPath, content);
+    }
+  }
+}
 
-// Fix imports in dist/index.js
-const indexPath = path.join(distDir, 'index.js');
-let indexContent = fs.readFileSync(indexPath, 'utf8');
-indexContent = indexContent.replace(
-  "import { getMessages } from './locales/index';",
-  "import { getMessages } from './locales/index.js';"
-);
-indexContent = indexContent.replace(
-  "export { setLocale, getLocale, getMessages } from './locales';",
-  "export { setLocale, getLocale, getMessages } from './locales/index.js';"
-);
-indexContent = indexContent.replace(
-  "export { VldError, treeifyError, prettifyError, flattenError } from './errors';",
-  "export { VldError, treeifyError, prettifyError, flattenError } from './errors.js';"
-);
-fs.writeFileSync(indexPath, indexContent);
-
-// Fix imports in dist/locales/index.js
-const localesIndexPath = path.join(distDir, 'locales', 'index.js');
-let localesContent = fs.readFileSync(localesIndexPath, 'utf8');
-
-// Replace all locale imports to include .js extension
-const localeFiles = [
-  'en', 'tr', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'ja', 'ko', 'zh',
-  'ar', 'hi', 'nl', 'pl', 'da', 'sv', 'no', 'fi', 'th', 'vi', 'id',
-  'bn', 'sw', 'af', 'pt-BR', 'es-MX'
-];
-
-localeFiles.forEach(locale => {
-  const regex = new RegExp(`from '\\./${locale}'`, 'g');
-  localesContent = localesContent.replace(regex, `from './${locale}.js'`);
-});
-
-fs.writeFileSync(localesIndexPath, localesContent);
-
-console.log('✅ Fixed ES module imports in dist files');
+// Fix imports in dist directory
+fixImports('./dist')
+  .then(() => console.log('✅ Fixed all imports'))
+  .catch(console.error);

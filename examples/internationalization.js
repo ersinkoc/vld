@@ -1,7 +1,7 @@
 // VLD Internationalization Example  
 // Demonstrates 27+ language support for validation errors
 
-const { v, setLocale, getLocale } = require('../dist/index.js');
+import { v, setLocale, getLocale } from '../dist/index.js';
 
 console.log('🌍 VLD Internationalization Examples\n');
 console.log('Demonstrating 27+ language support for validation errors\n');

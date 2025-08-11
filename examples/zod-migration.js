@@ -1,7 +1,7 @@
 // VLD Zod Migration Example
 // Shows how to migrate from Zod to VLD with identical syntax
 
-const { v } = require('../dist/index.js');
+import { v } from '../dist/index.js';
 
 console.log('🔄 VLD Zod Migration Examples\n');
 console.log('All Zod syntax works identically in VLD!\n');

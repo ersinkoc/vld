@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
-import { v, setLocale, getLocale, VldIntersection } from '../src/index';
+import { v, setLocale, getLocale } from '../src/index';
 import { getMessages, getMessagesForLocale, type Locale } from '../src/locales/index';
 
 // Import all locale files to ensure they're covered
@@ -476,10 +476,10 @@ describe('Locale System Tests', () => {
       
       testLocales.forEach(locale => {
         setLocale(locale);
-        const messages = getMessages();
+        getMessages(); // Verify locale is set
         
         // Create an intersection that will fail
-        const schema = new VldIntersection(
+        const schema = v.intersection(
           v.object({ a: v.string() }),
           v.object({ a: v.number() })
         );
