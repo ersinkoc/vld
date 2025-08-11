@@ -684,3 +684,15 @@ export {
 
 // Export locale functionality
 export { setLocale, getLocale, type Locale } from './locales';
+
+// Export error formatting utilities
+export { 
+  VldError, 
+  VldIssue, 
+  VldErrorCode,
+  VldErrorTree,
+  VldFlattenedError,
+  treeifyError, 
+  prettifyError, 
+  flattenError 
+} from './errors';
