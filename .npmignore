@@ -1,0 +1,38 @@
+# Source files
+src/
+*.ts
+\!dist/*.d.ts
+
+# Configuration
+tsconfig.json
+rollup.config.js
+jest.config.js
+.eslintrc*
+.prettierrc*
+
+# Testing
+test/
+tests/
+coverage/
+*.test.js
+*.spec.js
+
+# Documentation
+docs/
+examples/
+benchmarks/
+
+# Development
+.vscode/
+.idea/
+.github/
+
+# Git
+.git/
+.gitignore
+
+# Misc
+*.log
+*.tmp
+node_modules/
+CONTRIBUTING.md

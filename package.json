@@ -1,0 +1,70 @@
+{
+  "name": "@oxog/vld",
+  "version": "1.0.0",
+  "description": "Ultra-fast TypeScript-first schema validation with zero dependencies",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./dist/index.js",
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc",
+    "build:optimize": "rollup -c",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
+    "test:types": "tsc --noEmit",
+    "test:perf": "node tests/benchmarks/index.js",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "prepublishOnly": "npm run build && npm test && npm run test:perf"
+  },
+  "keywords": [
+    "validation",
+    "schema",
+    "typescript",
+    "zod",
+    "alternative",
+    "zero-dependency",
+    "fast",
+    "type-safe",
+    "runtime-validation"
+  ],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "author": "Ersin Koc",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ersinkoc/vld.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ersinkoc/vld/issues"
+  },
+  "homepage": "https://github.com/ersinkoc/vld#readme",
+  "devDependencies": {
+    "@rollup/plugin-terser": "^0.4.4",
+    "@rollup/plugin-typescript": "^12.1.4",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^20.10.5",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "eslint": "^8.56.0",
+    "jest": "^29.7.0",
+    "jest-junit": "^16.0.0",
+    "prettier": "^3.1.1",
+    "rollup": "^4.46.2",
+    "rollup-plugin-typescript2": "^0.36.0",
+    "ts-jest": "^29.4.1",
+    "typescript": "^5.3.3"
+  }
+}

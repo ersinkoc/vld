@@ -1,0 +1,77 @@
+export default {
+  // Test environment
+  testEnvironment: 'node',
+  
+  // ESM support
+  extensionsToTreatAsEsm: ['.ts'],
+  preset: 'ts-jest/presets/default-esm',
+  
+  // Transform configuration for ESM
+  transform: {
+    '^.+\\.ts$': ['ts-jest', {
+      useESM: true,
+      tsconfig: {
+        module: 'ESNext',
+        target: 'ES2020',
+        allowJs: true,
+        esModuleInterop: true,
+        skipLibCheck: true
+      }
+    }]
+  },
+  
+  // Coverage configuration
+  collectCoverage: true,
+  coverageDirectory: 'coverage',
+  coverageReporters: ['text', 'lcov', 'html', 'json-summary'],
+  
+  // Coverage thresholds - MUST be 100%
+  coverageThreshold: {
+    global: {
+      branches: 100,
+      functions: 100,
+      lines: 100,
+      statements: 100
+    }
+  },
+  
+  // Files to collect coverage from
+  collectCoverageFrom: [
+    'src/**/*.ts',
+    '!src/**/*.d.ts',
+    '!**/node_modules/**'
+  ],
+  
+  // Test match patterns
+  testMatch: [
+    '**/tests/**/*.test.ts',
+    '**/test/**/*.test.ts'
+  ],
+  
+  // Module file extensions
+  moduleFileExtensions: ['ts', 'js', 'json'],
+  
+  // Module name mapper for imports
+  moduleNameMapper: {
+    '^(\\.{1,2}/.*)\\.js$': '$1'
+  },
+  
+  // Test globals for ts-jest
+  globals: {
+    'ts-jest': {
+      useESM: true
+    }
+  },
+  
+  // Verbose output
+  verbose: true,
+  
+  // Clear mocks between tests
+  clearMocks: true,
+  
+  // Restore mocks between tests
+  restoreMocks: true,
+  
+  // Test timeout
+  testTimeout: 10000
+};
