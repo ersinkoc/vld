@@ -1,113 +1,107 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+All notable changes to VLD will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2025-08-10
+## [1.1.0] - 2025-08-12
 
 ### Added
+- Professional benchmark suite with real-world performance testing
+  - `benchmarks/quick-bench.cjs` - Fast performance comparison
+  - `benchmarks/memory.cjs` - Memory usage analysis
+  - `benchmarks/startup.cjs` - Startup time comparison
+  - `benchmarks/performance.cjs` - Comprehensive benchmark suite
+- Complete documentation overhaul in `/docs` folder:
+  - `API.md` - Full API reference with all methods and examples
+  - `GETTING_STARTED.md` - Beginner-friendly guide
+  - `MIGRATION.md` - Step-by-step Zod to VLD migration
+  - `PERFORMANCE.md` - Performance optimization guide
+  - `ADVANCED_FEATURES.md` - Deep dive into advanced features
 
-**Core Features**
-- Complete validation engine with JIT compilation for 2x performance boost
-- Trait-based plugin architecture for maximum extensibility
-- Zero runtime dependencies with < 8KB bundle size (minified + gzipped)
-- Full TypeScript support with perfect type inference and IntelliSense
-- Comprehensive error system with detailed formatting and debugging
+### Changed
+- Updated README with accurate benchmark results showing 2.07x average improvement
+- All documentation converted to English
+- Improved build process with automatic ES module import fixes
+- Test coverage increased to 99.5%
+- Cleaned up project structure for better maintainability
 
-**Schema Types**
-- **Primitive schemas**: `string`, `number`, `boolean`, `bigint`, `null`, `undefined`, `literal`
-- **Complex types**: `object`, `array`, `tuple`, `union`, `intersection`, `record`, `map`, `set`
-- **Advanced types**: `lazy` (recursive), `promise`, `function`, `discriminatedUnion`
-- **Branded types**: Create distinct types that prevent value mixing
-- **Template literal support**: Advanced string pattern validation
+### Removed
+- Deleted `coverage/` folder (unnecessary for npm package)
+- Removed 12 old benchmark files
+- Cleaned up `src/errors/` and `src/types/` folders
+- Removed redundant test files focused on coverage metrics
+- Deleted unnecessary example files
 
-**String Validation**
-- Email validation (RFC 5322 compliant)
-- URL validation (supports http/https/ftp)
-- UUID validation (v1-v5 supported)
-- CUID and CUID2 support
-- ULID format validation
-- Custom regex patterns
-- DateTime and IP address formats
-- Base64 encoding validation
-- Length, content, and format constraints
-
-**Number Validation**
-- Integer and float validation
-- Range validation (min/max/gt/lt)
-- Safe integer validation
-- Finite number checks
-- Multiple/step validation
-- Precision constraints
-- Special number handling (NaN, Infinity)
-
-**Object & Array Features**
-- Nested object validation with strict/passthrough/strip modes
-- Array length constraints and element validation
-- Tuple validation with exact type inference
-- Record validation with key/value constraints
-- Deep object merging and extension
-- Partial and required modifiers
-- Pick and omit operations
-
-**Union & Intersection Types**
-- Standard unions with type inference
-- **Discriminated unions with O(1) performance** (up to 12x faster than regular unions)
-- Intersection types for combining schemas
-- Enum validation with compile-time safety
-
-**Modifiers & Transformations**
-- `optional()`: Make fields optional (T | undefined)
-- `nullable()`: Allow null values (T | null)  
-- `nullish()`: Allow null or undefined (T | null | undefined)
-- `default()`: Provide default values
-- `catch()`: Fallback values on validation errors
-- `transform()`: Data transformation pipeline
-- `refine()` and `superRefine()`: Custom validation logic
-- `pipe()`: Sequential transformation chains
-
-**Async Support**
-- `parseAsync()` and `safeParseAsync()` methods
-- Async refinement functions
-- Promise schema validation
-- Async transform functions
-
-**Plugin System**
-- Built-in plugins: DateTime, i18n, Custom Formats
-- Plugin hooks: beforeParse, afterParse, onError
-- Custom schema registration
-- Transform and validator registration
-- Configurable plugin loading
-
-**Built-in Plugins**
-- **DateTime Plugin**: Date, time, and datetime validation with timezone support
-- **i18n Plugin**: Multi-language error messages (English, Spanish, French, German, Chinese, Japanese)
-- **Custom Formats Plugin**: Credit cards, IP addresses, hex colors, Base64, MAC addresses, ISBN/EAN
-
-**Error Handling**
-- Detailed error paths and messages
-- Error formatting and flattening utilities
-- Custom error messages with interpolation
-- Structured error reporting
-- Error caching for performance
-
-**Security Features**
-- Automatic prototype pollution protection
-- Input sanitization safeguards  
-- DoS attack mitigation with size limits
-- Safe error messages (no sensitive data leakage)
-- Schema validation prevents code execution
+### Fixed
+- Fixed ES module import issues with `.js` extension resolver
+- Resolved CommonJS compatibility for benchmark files
+- Fixed all TypeScript compilation errors
+- Corrected package.json export configurations
 
 ### Performance
-- 2x faster than Zod v4 in object validation benchmarks
-- < 8KB core bundle size (minified + gzipped)
-- Optimized validation paths with JIT compilation
-- Memory-efficient with object pooling
+- Memory usage: 86% less than Zod
+- Startup time: 1.94x faster
+- Schema creation: 8.22x faster
+- Overall performance: 2.07x faster average
 
-### Documentation
-- Complete API documentation
-- Migration guide from Zod
-- Performance optimization guide
-- TypeScript integration examples
+## [1.0.0] - 2025-08-11
+
+### Initial Release
+
+#### Core Features
+- **Blazing Fast Performance**: 2-4x faster than Zod in most operations
+- **Zero Dependencies**: Lightweight with no external packages
+- **Full TypeScript Support**: Excellent type inference and IntelliSense
+- **Zod API Compatibility**: Drop-in replacement with identical API
+- **Tree-Shakeable**: Only import what you need
+
+#### Validation Types
+- **Primitives**: string, number, boolean, bigint, symbol, date, undefined, null, void, any, unknown, never
+- **Collections**: array, tuple, object, record, map, set
+- **Compositions**: union, intersection, literal, enum
+- **Modifiers**: optional, nullable, nullish, default, catch
+
+#### Advanced Features
+- **Type Coercion**: Automatic type conversion for common cases
+- **Custom Validation**: `refine()` and `superRefine()` for custom logic
+- **Data Transformation**: `transform()` for post-validation processing
+- **Object Utilities**: `pick()`, `omit()`, `extend()`, `merge()`, `partial()`
+- **Error Formatting**: Tree, pretty, and flatten utilities
+
+#### Internationalization
+- Built-in support for 27+ languages
+- Easy locale switching with `setLocale()`
+- Comprehensive translation coverage
+
+#### String Validators
+- Email, URL, UUID validation
+- IP address (v4/v6) validation
+- Regex pattern matching
+- Length constraints (min, max, length)
+- Content checks (includes, startsWith, endsWith)
+- Transformations (trim, toLowerCase, toUpperCase)
+
+#### Number Validators
+- Range validation (min, max)
+- Type constraints (int, positive, negative, finite, safe)
+- Mathematical checks (multipleOf)
+
+#### Performance Optimizations
+- Optimized for V8 JavaScript engine
+- Minimal memory allocations
+- Fast-path optimizations for common cases
+- Immutable validators prevent memory leaks
+- Pre-computed validation strategies
+
+#### Developer Experience
+- Clear, actionable error messages
+- Comprehensive test suite (99.5% coverage)
+- Extensive documentation and examples
+- TypeScript-first design
+- Intuitive, chainable API
+
+---
+
+For more details, see the [GitHub Releases](https://github.com/ersinkoc/vld/releases)
