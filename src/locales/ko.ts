@@ -57,6 +57,9 @@ export const ko: LocaleMessages = {
   // Union validation messages
   unionNoMatch: (errors: string[]) => `어떤 유니온 멤버도 일치하지 않았습니다: ${errors.join(', ')}`,
 
+  // Intersection validation messages
+  intersectionError: (error: string) => `교집합 검증에 실패했습니다: ${error}`,
+
   // Literal validation messages
   literalExpected: (expected: string, received: string) => `${expected}가 예상되었지만 ${received}를 받았습니다`,
 
@@ -79,6 +82,7 @@ export const ko: LocaleMessages = {
   // Transformation and refinement messages
   transformError: (error: string) => `변환 실패: ${error}`,
   refinementError: (error: string) => `정제 실패: ${error}`,
+  customValidationError: (error: string) => `사용자 정의 유효성 검사 실패: ${error}`,
   
   // Coercion messages
   coercionFailed: (type: string, value: unknown) => `${JSON.stringify(value)}를 ${type}로 강제 변환할 수 없습니다`

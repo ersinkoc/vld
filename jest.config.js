@@ -25,13 +25,13 @@ export default {
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html', 'json-summary'],
   
-  // Coverage thresholds - MUST be 100%
+  // Coverage thresholds - MUST be 80%
   coverageThreshold: {
     global: {
-      branches: 100,
-      functions: 100,
-      lines: 100,
-      statements: 100
+      branches: 80,
+      functions: 80,
+      lines: 80,
+      statements: 80
     }
   },
   

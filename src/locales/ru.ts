@@ -57,6 +57,9 @@ export const ru: LocaleMessages = {
   // Union validation messages
   unionNoMatch: (errors: string[]) => `Ни один член объединения не подошёл: ${errors.join(', ')}`,
 
+  // Intersection validation messages
+  intersectionError: (error: string) => `Не удалось выполнить валидацию пересечения: ${error}`,
+
   // Literal validation messages
   literalExpected: (expected: string, received: string) => `Ожидалось ${expected}, получено ${received}`,
 
@@ -79,6 +82,7 @@ export const ru: LocaleMessages = {
   // Transformation and refinement messages
   transformError: (error: string) => `Преобразование не удалось: ${error}`,
   refinementError: (error: string) => `Уточнение не удалось: ${error}`,
+  customValidationError: (error: string) => `Пользовательская проверка не удалась: ${error}`,
   
   // Coercion messages
   coercionFailed: (type: string, value: unknown) => `Невозможно привести ${JSON.stringify(value)} к типу ${type}`

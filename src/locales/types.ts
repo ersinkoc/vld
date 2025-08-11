@@ -69,6 +69,9 @@ export interface LocaleMessages {
   // Union validation messages
   unionNoMatch: (errors: string[]) => string;
 
+  // Intersection validation messages
+  intersectionError: (error: string) => string;
+
   // Literal validation messages
   literalExpected: (expected: string, received: string) => string;
 
@@ -91,6 +94,7 @@ export interface LocaleMessages {
   // Transformation and refinement messages
   transformError: (error: string) => string;
   refinementError: (error: string) => string;
+  customValidationError: (error: string) => string;
   
   // Coercion messages
   coercionFailed: (type: string, value: unknown) => string;

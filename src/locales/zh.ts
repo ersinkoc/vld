@@ -57,6 +57,9 @@ export const zh: LocaleMessages = {
   // Union validation messages
   unionNoMatch: (errors: string[]) => `没有匹配的联合成员: ${errors.join(', ')}`,
 
+  // Intersection validation messages
+  intersectionError: (error: string) => `交集验证失败: ${error}`,
+
   // Literal validation messages
   literalExpected: (expected: string, received: string) => `期望${expected}，得到${received}`,
 
@@ -79,6 +82,7 @@ export const zh: LocaleMessages = {
   // Transformation and refinement messages
   transformError: (error: string) => `转换失败: ${error}`,
   refinementError: (error: string) => `细化失败: ${error}`,
+  customValidationError: (error: string) => `自定义验证失败: ${error}`,
   
   // Coercion messages
   coercionFailed: (type: string, value: unknown) => `无法将${JSON.stringify(value)}强制转换为${type}`

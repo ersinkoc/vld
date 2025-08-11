@@ -57,6 +57,9 @@ export const sw: LocaleMessages = {
   // Union validation messages
   unionNoMatch: (errors: string[]) => `Hakuna mwanachama wa umoja aliyelingana: ${errors.join(', ')}`,
 
+  // Intersection validation messages
+  intersectionError: (error: string) => `Uthibitisho wa intersection umeshindwa: ${error}`,
+
   // Literal validation messages
   literalExpected: (expected: string, received: string) => `Ilitegemewa ${expected}, ilipokewa ${received}`,
 
@@ -79,6 +82,7 @@ export const sw: LocaleMessages = {
   // Transformation and refinement messages
   transformError: (error: string) => `Mageuzi yameshindwa: ${error}`,
   refinementError: (error: string) => `Uboresha umeshindwa: ${error}`,
+  customValidationError: (error: string) => `Uthibitisho wa kawaida umeshindwa: ${error}`,
   
   // Coercion messages
   coercionFailed: (type: string, value: unknown) => `Haiwezi kulazimisha ${JSON.stringify(value)} kuwa ${type}`

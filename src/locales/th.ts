@@ -57,6 +57,9 @@ export const th: LocaleMessages = {
   // Union validation messages
   unionNoMatch: (errors: string[]) => `ไม่มี union member ที่ตรงกัน: ${errors.join(', ')}`,
 
+  // Intersection validation messages
+  intersectionError: (error: string) => `การตรวจสอบ intersection ล้มเหลว: ${error}`,
+
   // Literal validation messages
   literalExpected: (expected: string, received: string) => `คาดหวัง ${expected}, ได้รับ ${received}`,
 
@@ -79,6 +82,7 @@ export const th: LocaleMessages = {
   // Transformation and refinement messages
   transformError: (error: string) => `การแปลงล้มเหลว: ${error}`,
   refinementError: (error: string) => `การปรับแต่งล้มเหลว: ${error}`,
+  customValidationError: (error: string) => `การตรวจสอบแบบกำหนดเองล้มเหลว: ${error}`,
   
   // Coercion messages
   coercionFailed: (type: string, value: unknown) => `ไม่สามารถแปลง ${JSON.stringify(value)} เป็น ${type} ได้`

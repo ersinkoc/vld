@@ -57,6 +57,9 @@ export const id: LocaleMessages = {
   // Union validation messages
   unionNoMatch: (errors: string[]) => `Tidak ada anggota union yang cocok: ${errors.join(', ')}`,
 
+  // Intersection validation messages
+  intersectionError: (error: string) => `Validasi intersection gagal: ${error}`,
+
   // Literal validation messages
   literalExpected: (expected: string, received: string) => `Diharapkan ${expected}, diterima ${received}`,
 
@@ -79,6 +82,7 @@ export const id: LocaleMessages = {
   // Transformation and refinement messages
   transformError: (error: string) => `Transformasi gagal: ${error}`,
   refinementError: (error: string) => `Penyempurnaan gagal: ${error}`,
+  customValidationError: (error: string) => `Validasi kustom gagal: ${error}`,
   
   // Coercion messages
   coercionFailed: (type: string, value: unknown) => `Tidak dapat memaksa ${JSON.stringify(value)} menjadi ${type}`

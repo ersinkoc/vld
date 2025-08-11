@@ -1,6 +1,35 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
-import { v, setLocale, getLocale } from '../src/index';
+import { v, setLocale, getLocale, VldIntersection } from '../src/index';
 import { getMessages, getMessagesForLocale, type Locale } from '../src/locales/index';
+
+// Import all locale files to ensure they're covered
+import '../src/locales/en';
+import '../src/locales/tr';
+import '../src/locales/es';
+import '../src/locales/fr';
+import '../src/locales/de';
+import '../src/locales/it';
+import '../src/locales/pt';
+import '../src/locales/ru';
+import '../src/locales/ja';
+import '../src/locales/ko';
+import '../src/locales/zh';
+import '../src/locales/ar';
+import '../src/locales/hi';
+import '../src/locales/nl';
+import '../src/locales/pl';
+import '../src/locales/da';
+import '../src/locales/sv';
+import '../src/locales/no';
+import '../src/locales/fi';
+import '../src/locales/th';
+import '../src/locales/vi';
+import '../src/locales/id';
+import '../src/locales/bn';
+import '../src/locales/sw';
+import '../src/locales/af';
+import '../src/locales/pt-BR';
+import '../src/locales/es-MX';
 
 describe('Locale System Tests', () => {
   
@@ -117,6 +146,28 @@ describe('Locale System Tests', () => {
           expect(messages.enumExpected(['val1', 'val2'], 'got')).toContain('val1');
           expect(messages.expectedUndefined).toBeDefined();
           expect(messages.neverType).toBeDefined();
+          
+          // Test new advanced type messages
+          expect(messages.invalidBigint).toBeDefined();
+          expect(messages.invalidSymbol).toBeDefined();
+          expect(messages.invalidTuple).toBeDefined();
+          expect(messages.tupleLength(3, 2)).toContain('3');
+          expect(messages.tupleLength(3, 2)).toContain('2');
+          expect(messages.invalidRecord).toBeDefined();
+          expect(messages.invalidSet).toBeDefined();
+          expect(messages.invalidMap).toBeDefined();
+          
+          // Test intersection error
+          expect(messages.intersectionError('validation failed')).toContain('validation');
+          
+          // Test transformation and refinement messages
+          expect(messages.transformError('transform failed')).toContain('transform');
+          expect(messages.refinementError('refinement failed')).toContain('refin');
+          expect(messages.customValidationError('custom error')).toContain('custom');
+          
+          // Test coercion message
+          expect(messages.coercionFailed('string', 123)).toBeDefined();
+          expect(messages.coercionFailed('number', 'abc')).toBeDefined();
         });
       });
     });
@@ -348,6 +399,94 @@ describe('Locale System Tests', () => {
       expect(result.success).toBe(false);
       const err = result as { success: false; error: Error };
       expect(err.error.message).toBe('Custom error message');
+    });
+  });
+
+  describe('Advanced Type Messages Coverage', () => {
+    it('should test all advanced type error messages in multiple locales', () => {
+      const testLocales: Locale[] = ['en', 'tr', 'es', 'fr', 'de'];
+      
+      testLocales.forEach(locale => {
+        setLocale(locale);
+        const messages = getMessages();
+        
+        // Test BigInt validation
+        const bigintResult = v.bigint().safeParse('not bigint') as { success: false; error: Error };
+        expect(bigintResult.success).toBe(false);
+        expect(bigintResult.error.message).toBe(messages.invalidBigint);
+        
+        // Test Symbol validation
+        const symbolResult = v.symbol().safeParse('not symbol') as { success: false; error: Error };
+        expect(symbolResult.success).toBe(false);
+        expect(symbolResult.error.message).toBe(messages.invalidSymbol);
+        
+        // Test Tuple validation
+        const tupleResult = v.tuple(v.string(), v.number()).safeParse(['test']) as { success: false; error: Error };
+        expect(tupleResult.success).toBe(false);
+        expect(tupleResult.error.message).toContain(messages.tupleLength(2, 1));
+        
+        // Test Record validation
+        const recordResult = v.record(v.string()).safeParse('not object') as { success: false; error: Error };
+        expect(recordResult.success).toBe(false);
+        expect(recordResult.error.message).toBe(messages.invalidRecord);
+        
+        // Test Set validation  
+        const setResult = v.set(v.string()).safeParse('not set') as { success: false; error: Error };
+        expect(setResult.success).toBe(false);
+        expect(setResult.error.message).toBe(messages.invalidSet);
+        
+        // Test Map validation
+        const mapResult = v.map(v.string(), v.number()).safeParse('not map') as { success: false; error: Error };
+        expect(mapResult.success).toBe(false);
+        expect(mapResult.error.message).toBe(messages.invalidMap);
+      });
+    });
+
+    it('should test transformation and refinement error messages', () => {
+      const testLocales: Locale[] = ['en', 'ja', 'zh', 'ar'];
+      
+      testLocales.forEach(locale => {
+        setLocale(locale);
+        const messages = getMessages();
+        
+        // Test transform error
+        const transformSchema = v.string().transform(() => {
+          throw new Error('Transform failed');
+        });
+        const transformResult = transformSchema.safeParse('test') as { success: false; error: Error };
+        expect(transformResult.success).toBe(false);
+        expect(transformResult.error.message).toContain('Transform failed');
+        
+        // Test refinement error
+        const refineSchema = v.string().refine(() => false, 'Refinement failed');
+        const refineResult = refineSchema.safeParse('test') as { success: false; error: Error };
+        expect(refineResult.success).toBe(false);
+        // The error message will be localized, so just check it contains the custom message
+        expect(refineResult.error.message).toContain('Refinement failed');
+        
+        // Test coercion error
+        const coerceResult = v.coerce.number().safeParse('not a number') as { success: false; error: Error };
+        expect(coerceResult.success).toBe(false);
+        expect(coerceResult.error.message).toBe(messages.coercionFailed('number', 'not a number'));
+      });
+    });
+
+    it('should test intersection error messages', () => {
+      const testLocales: Locale[] = ['nl', 'pl', 'sv', 'no'];
+      
+      testLocales.forEach(locale => {
+        setLocale(locale);
+        const messages = getMessages();
+        
+        // Create an intersection that will fail
+        const schema = new VldIntersection(
+          v.object({ a: v.string() }),
+          v.object({ a: v.number() })
+        );
+        
+        const result = schema.safeParse({ a: 'test' });
+        expect(result.success).toBe(false);
+      });
     });
   });
 });

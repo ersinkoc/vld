@@ -57,6 +57,9 @@ export const esMX: LocaleMessages = {
   // Union validation messages
   unionNoMatch: (errors: string[]) => `Ningún miembro de la unión coincidió: ${errors.join(', ')}`,
 
+  // Intersection validation messages
+  intersectionError: (error: string) => `Error de validación de intersección: ${error}`,
+
   // Literal validation messages
   literalExpected: (expected: string, received: string) => `Se esperaba ${expected}, se recibió ${received}`,
 
@@ -79,6 +82,7 @@ export const esMX: LocaleMessages = {
   // Transformation and refinement messages
   transformError: (error: string) => `Transformación falló: ${error}`,
   refinementError: (error: string) => `Refinamiento falló: ${error}`,
+  customValidationError: (error: string) => `Validación personalizada falló: ${error}`,
   
   // Coercion messages
   coercionFailed: (type: string, value: unknown) => `No se puede coaccionar ${JSON.stringify(value)} a ${type}`

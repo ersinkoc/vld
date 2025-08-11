@@ -57,6 +57,9 @@ export const bn: LocaleMessages = {
   // Union validation messages
   unionNoMatch: (errors: string[]) => `কোন ইউনিয়ন সদস্য মিলেনি: ${errors.join(', ')}`,
 
+  // Intersection validation messages
+  intersectionError: (error: string) => `ইন্টারসেকশন যাচাই ব্যর্থ: ${error}`,
+
   // Literal validation messages
   literalExpected: (expected: string, received: string) => `প্রত্যাশিত ${expected}, পেয়েছি ${received}`,
 
@@ -79,6 +82,7 @@ export const bn: LocaleMessages = {
   // Transformation and refinement messages
   transformError: (error: string) => `রূপান্তর ব্যর্থ: ${error}`,
   refinementError: (error: string) => `পরিমার্জনা ব্যর্থ: ${error}`,
+  customValidationError: (error: string) => `কাস্টম যাচাইকরণ ব্যর্থ: ${error}`,
   
   // Coercion messages
   coercionFailed: (type: string, value: unknown) => `${JSON.stringify(value)} কে ${type} এ রূপান্তর করা যায়নি`

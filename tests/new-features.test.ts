@@ -437,4 +437,661 @@ describe('New Advanced Features Tests', () => {
       });
     });
   });
+
+  describe('Intersection Validation', () => {
+    it('should validate intersection of object types', () => {
+      const userSchema = v.object({
+        name: v.string(),
+        age: v.number()
+      });
+      
+      const adminSchema = v.object({
+        role: v.string(),
+        permissions: v.array(v.string())
+      });
+      
+      const userAdminSchema = v.intersection(userSchema, adminSchema);
+      
+      const valid = {
+        name: 'John',
+        age: 30,
+        role: 'admin',
+        permissions: ['read', 'write']
+      };
+      
+      const result = userAdminSchema.parse(valid);
+      expect(result).toEqual(valid);
+      expect(result.name).toBe('John'); // User property
+      expect(result.role).toBe('admin'); // Admin property
+    });
+
+    it('should validate intersection with overlapping properties', () => {
+      const schema1 = v.object({
+        id: v.string(),
+        name: v.string()
+      });
+      
+      const schema2 = v.object({
+        id: v.string(), // Same property
+        email: v.string()
+      });
+      
+      const intersectionSchema = v.intersection(schema1, schema2);
+      
+      const valid = {
+        id: '123',
+        name: 'John',
+        email: 'john@example.com'
+      };
+      
+      expect(intersectionSchema.parse(valid)).toEqual(valid);
+    });
+
+    it('should validate intersection of primitive types with same value', () => {
+      const literalA = v.literal('test');
+      const literalB = v.literal('test');
+      
+      const intersectionSchema = v.intersection(literalA, literalB);
+      
+      expect(intersectionSchema.parse('test')).toBe('test');
+    });
+
+    it('should reject intersection of different primitive values', () => {
+      const literalA = v.literal('test1');
+      const literalB = v.literal('test2');
+      
+      const intersectionSchema = v.intersection(literalA, literalB);
+      
+      expect(() => intersectionSchema.parse('test1')).toThrow('Intersection validation failed');
+    });
+
+    it('should reject when first validator fails', () => {
+      const stringSchema = v.string();
+      const numberSchema = v.number();
+      
+      const intersectionSchema = v.intersection(stringSchema, numberSchema);
+      
+      expect(() => intersectionSchema.parse('not-a-number')).toThrow('Intersection validation failed');
+    });
+
+    it('should reject when second validator fails', () => {
+      const userSchema = v.object({
+        name: v.string()
+      });
+      
+      const adminSchema = v.object({
+        role: v.string(),
+        level: v.number()
+      });
+      
+      const intersectionSchema = v.intersection(userSchema, adminSchema);
+      
+      // Missing required 'level' property for adminSchema
+      const invalid = {
+        name: 'John',
+        role: 'admin'
+        // missing level
+      };
+      
+      expect(() => intersectionSchema.parse(invalid)).toThrow('Intersection validation failed');
+    });
+
+    it('should work with safeParse', () => {
+      const schema1 = v.object({ a: v.string() });
+      const schema2 = v.object({ b: v.number() });
+      
+      const intersectionSchema = v.intersection(schema1, schema2);
+      
+      const valid = intersectionSchema.safeParse({ a: 'test', b: 123 });
+      expect(valid.success).toBe(true);
+      if (valid.success) {
+        expect(valid.data).toEqual({ a: 'test', b: 123 });
+      }
+
+      const invalid = intersectionSchema.safeParse({ a: 'test' }); // missing b
+      expect(invalid.success).toBe(false);
+    });
+
+    it('should work with complex nested objects', () => {
+      const baseSchema = v.object({
+        id: v.string(),
+        metadata: v.object({
+          created: v.date()
+        })
+      });
+      
+      const extendedSchema = v.object({
+        name: v.string(),
+        metadata: v.object({
+          updated: v.date()
+        })
+      });
+      
+      const intersectionSchema = v.intersection(baseSchema, extendedSchema);
+      
+      const now = new Date();
+      const valid = {
+        id: '123',
+        name: 'Test',
+        metadata: {
+          created: now,
+          updated: now
+        }
+      };
+      
+      const result = intersectionSchema.parse(valid);
+      expect(result.id).toBe('123');
+      expect(result.name).toBe('Test');
+      expect(result.metadata.created).toBe(now);
+      expect(result.metadata.updated).toBe(now);
+    });
+
+    it('should infer correct intersection types', () => {
+      const schema1 = v.object({ a: v.string() });
+      const schema2 = v.object({ b: v.number() });
+      const intersectionSchema = v.intersection(schema1, schema2);
+      
+      type Expected = { a: string } & { b: number };
+      type Actual = Infer<typeof intersectionSchema>;
+      
+      // Type test - will fail to compile if types don't match
+      const _: Expected = null as any as Actual;
+      const __: Actual = null as any as Expected;
+    });
+  });
+
+  describe('Refine Validation', () => {
+    it('should allow custom validation with refine', () => {
+      const positiveNumberSchema = v.number().refine(n => n > 0, 'Number must be positive');
+      
+      expect(positiveNumberSchema.parse(5)).toBe(5);
+      expect(() => positiveNumberSchema.parse(-5)).toThrow('Custom validation failed: Number must be positive');
+      expect(() => positiveNumberSchema.parse(0)).toThrow('Custom validation failed: Number must be positive');
+    });
+
+    it('should work with string refinements', () => {
+      const emailSchema = v.string()
+        .refine(s => s.includes('@'), 'Must contain @')
+        .refine(s => s.includes('.'), 'Must contain a domain');
+      
+      expect(emailSchema.parse('test@example.com')).toBe('test@example.com');
+      expect(() => emailSchema.parse('invalid-email')).toThrow('Custom validation failed: Must contain @');
+      expect(() => emailSchema.parse('test@example')).toThrow('Custom validation failed: Must contain a domain');
+    });
+
+    it('should work with object refinements', () => {
+      const userSchema = v.object({
+        name: v.string(),
+        age: v.number()
+      }).refine(user => user.age >= 18, 'User must be an adult');
+      
+      const adult = { name: 'John', age: 25 };
+      expect(userSchema.parse(adult)).toEqual(adult);
+      
+      const minor = { name: 'Jane', age: 16 };
+      expect(() => userSchema.parse(minor)).toThrow('Custom validation failed: User must be an adult');
+    });
+
+    it('should work with safeParse', () => {
+      const evenNumberSchema = v.number().refine(n => n % 2 === 0, 'Number must be even');
+      
+      const valid = evenNumberSchema.safeParse(4);
+      expect(valid.success).toBe(true);
+      if (valid.success) {
+        expect(valid.data).toBe(4);
+      }
+
+      const invalid = evenNumberSchema.safeParse(3);
+      expect(invalid.success).toBe(false);
+    });
+
+    it('should handle refine errors properly', () => {
+      const schema = v.string().refine(() => {
+        throw new Error('Custom error');
+      });
+      
+      expect(() => schema.parse('test')).toThrow('Custom validation failed: Custom error');
+    });
+  });
+
+  describe('Transform Validation', () => {
+    it('should transform data after validation', () => {
+      const uppercaseSchema = v.string().transform(s => s.toUpperCase());
+      
+      expect(uppercaseSchema.parse('hello')).toBe('HELLO');
+      expect(uppercaseSchema.parse('World')).toBe('WORLD');
+    });
+
+    it('should transform numbers', () => {
+      const doubleSchema = v.number().transform(n => n * 2);
+      
+      expect(doubleSchema.parse(5)).toBe(10);
+      expect(doubleSchema.parse(-3)).toBe(-6);
+    });
+
+    it('should transform objects', () => {
+      const userSchema = v.object({
+        firstName: v.string(),
+        lastName: v.string()
+      }).transform(user => ({
+        ...user,
+        fullName: `${user.firstName} ${user.lastName}`
+      }));
+      
+      const input = { firstName: 'John', lastName: 'Doe' };
+      const expected = { firstName: 'John', lastName: 'Doe', fullName: 'John Doe' };
+      
+      expect(userSchema.parse(input)).toEqual(expected);
+    });
+
+    it('should work with safeParse', () => {
+      const schema = v.string().transform(s => s.length);
+      
+      const result = schema.safeParse('hello');
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data).toBe(5);
+      }
+    });
+
+    it('should handle transform errors', () => {
+      const errorSchema = v.string().transform(() => {
+        throw new Error('Transform error');
+      });
+      
+      expect(() => errorSchema.parse('test')).toThrow('Transform failed: Transform error');
+    });
+
+    it('should chain with other validators', () => {
+      const schema = v.string()
+        .min(3)
+        .transform(s => s.toUpperCase())
+        .refine(s => s.startsWith('H'), 'Must start with H after uppercase');
+      
+      expect(schema.parse('hello')).toBe('HELLO');
+      expect(() => schema.parse('world')).toThrow('Custom validation failed: Must start with H after uppercase');
+      expect(() => schema.parse('hi')).toThrow('String must be at least 3 characters');
+    });
+  });
+
+  describe('Default Values', () => {
+    it('should provide default value for undefined', () => {
+      const schema = v.string().default('default-value');
+      
+      expect(schema.parse('actual-value')).toBe('actual-value');
+      expect(schema.parse(undefined)).toBe('default-value');
+    });
+
+    it('should work with numbers', () => {
+      const schema = v.number().default(42);
+      
+      expect(schema.parse(10)).toBe(10);
+      expect(schema.parse(undefined)).toBe(42);
+    });
+
+    it('should work with objects', () => {
+      const defaultUser = { name: 'Anonymous', role: 'guest' };
+      const schema = v.object({
+        name: v.string(),
+        role: v.string()
+      }).default(defaultUser);
+      
+      const customUser = { name: 'John', role: 'admin' };
+      expect(schema.parse(customUser)).toEqual(customUser);
+      expect(schema.parse(undefined)).toEqual(defaultUser);
+    });
+
+    it('should work with safeParse', () => {
+      const schema = v.string().default('fallback');
+      
+      const withValue = schema.safeParse('test');
+      expect(withValue.success).toBe(true);
+      if (withValue.success) {
+        expect(withValue.data).toBe('test');
+      }
+
+      const withUndefined = schema.safeParse(undefined);
+      expect(withUndefined.success).toBe(true);
+      if (withUndefined.success) {
+        expect(withUndefined.data).toBe('fallback');
+      }
+    });
+
+    it('should not apply default for null or other falsy values', () => {
+      const schema = v.string().default('default');
+      
+      expect(() => schema.parse(null)).toThrow('Invalid string');
+      expect(schema.parse('')).toBe(''); // Empty string should validate as string
+      expect(() => schema.parse(0)).toThrow('Invalid string');
+    });
+  });
+
+  describe('Catch Fallback', () => {
+    it('should provide fallback value on validation error', () => {
+      const schema = v.string().catch('fallback');
+      
+      expect(schema.parse('valid-string')).toBe('valid-string');
+      expect(schema.parse(123)).toBe('fallback'); // Invalid input -> fallback
+      expect(schema.parse(null)).toBe('fallback'); // Invalid input -> fallback
+    });
+
+    it('should work with numbers', () => {
+      const schema = v.number().catch(-1);
+      
+      expect(schema.parse(42)).toBe(42);
+      expect(schema.parse('not-a-number')).toBe(-1);
+      expect(schema.parse(null)).toBe(-1);
+    });
+
+    it('should work with complex validation', () => {
+      const schema = v.number()
+        .min(10)
+        .max(100)
+        .catch(50);
+      
+      expect(schema.parse(25)).toBe(25);
+      expect(schema.parse(5)).toBe(50); // Below min -> fallback
+      expect(schema.parse(150)).toBe(50); // Above max -> fallback
+      expect(schema.parse('invalid')).toBe(50); // Invalid type -> fallback
+    });
+
+    it('should work with safeParse', () => {
+      const schema = v.string().catch('error-fallback');
+      
+      const valid = schema.safeParse('test');
+      expect(valid.success).toBe(true);
+      if (valid.success) {
+        expect(valid.data).toBe('test');
+      }
+
+      const invalid = schema.safeParse(123);
+      expect(invalid.success).toBe(true); // catch makes it succeed
+      if (invalid.success) {
+        expect(invalid.data).toBe('error-fallback');
+      }
+    });
+
+    it('should work with refine errors', () => {
+      const schema = v.number()
+        .refine(n => n > 0, 'Must be positive')
+        .catch(-999);
+      
+      expect(schema.parse(5)).toBe(5);
+      expect(schema.parse(-5)).toBe(-999); // Refine error -> fallback
+    });
+  });
+
+  describe('Object Methods', () => {
+    const baseSchema = v.object({
+      name: v.string(),
+      age: v.number(),
+      email: v.string(),
+      role: v.string()
+    });
+
+    describe('pick()', () => {
+      it('should create schema with only picked properties', () => {
+        const pickedSchema = baseSchema.pick('name', 'age');
+        
+        const validData = { name: 'John', age: 30 };
+        expect(pickedSchema.parse(validData)).toEqual(validData);
+      });
+
+      it('should reject data with unpicked properties', () => {
+        const pickedSchema = baseSchema.pick('name');
+        
+        // Should work with just name
+        expect(pickedSchema.parse({ name: 'John' })).toEqual({ name: 'John' });
+        
+        // Should ignore extra properties that aren't in picked shape
+        expect(pickedSchema.parse({ name: 'John', extraProp: 'ignored' })).toEqual({ name: 'John' });
+      });
+
+      it('should work with empty pick', () => {
+        const emptySchema = baseSchema.pick();
+        
+        expect(emptySchema.parse({})).toEqual({});
+      });
+
+      it('should work with safeParse', () => {
+        const pickedSchema = baseSchema.pick('name', 'age');
+        
+        const valid = pickedSchema.safeParse({ name: 'John', age: 30 });
+        expect(valid.success).toBe(true);
+        if (valid.success) {
+          expect(valid.data).toEqual({ name: 'John', age: 30 });
+        }
+
+        const invalid = pickedSchema.safeParse({ name: 'John', age: 'not-a-number' });
+        expect(invalid.success).toBe(false);
+      });
+
+      it('should infer correct types', () => {
+        const pickedSchema = baseSchema.pick('name', 'age');
+        type Expected = { name: string; age: number };
+        type Actual = Infer<typeof pickedSchema>;
+        
+        // Type test - will fail to compile if types don't match
+        const _: Expected = null as any as Actual;
+        const __: Actual = null as any as Expected;
+      });
+    });
+
+    describe('omit()', () => {
+      it('should create schema without omitted properties', () => {
+        const omittedSchema = baseSchema.omit('email', 'role');
+        
+        const validData = { name: 'John', age: 30 };
+        expect(omittedSchema.parse(validData)).toEqual(validData);
+      });
+
+      it('should reject data missing non-omitted properties', () => {
+        const omittedSchema = baseSchema.omit('email');
+        
+        // Should work without email
+        const validData = { name: 'John', age: 30, role: 'admin' };
+        expect(omittedSchema.parse(validData)).toEqual(validData);
+        
+        // Should fail without required non-omitted property
+        expect(() => omittedSchema.parse({ name: 'John', age: 30 })).toThrow();
+      });
+
+      it('should work with empty omit', () => {
+        const fullSchema = baseSchema.omit();
+        
+        const validData = { name: 'John', age: 30, email: 'john@example.com', role: 'admin' };
+        expect(fullSchema.parse(validData)).toEqual(validData);
+      });
+
+      it('should work with safeParse', () => {
+        const omittedSchema = baseSchema.omit('role');
+        
+        const valid = omittedSchema.safeParse({ name: 'John', age: 30, email: 'john@example.com' });
+        expect(valid.success).toBe(true);
+
+        const invalid = omittedSchema.safeParse({ name: 'John' }); // missing age and email
+        expect(invalid.success).toBe(false);
+      });
+
+      it('should infer correct types', () => {
+        const omittedSchema = baseSchema.omit('email', 'role');
+        type Expected = { name: string; age: number };
+        type Actual = Infer<typeof omittedSchema>;
+        
+        // Type test - will fail to compile if types don't match
+        const _: Expected = null as any as Actual;
+        const __: Actual = null as any as Expected;
+      });
+    });
+
+    describe('extend()', () => {
+      it('should create schema with extended properties', () => {
+        const extendedSchema = baseSchema.extend({
+          phone: v.string(),
+          isActive: v.boolean()
+        });
+        
+        const validData = {
+          name: 'John',
+          age: 30,
+          email: 'john@example.com',
+          role: 'admin',
+          phone: '123-456-7890',
+          isActive: true
+        };
+        
+        expect(extendedSchema.parse(validData)).toEqual(validData);
+      });
+
+      it('should override existing properties', () => {
+        const extendedSchema = baseSchema.extend({
+          age: v.string() // Override age from number to string
+        });
+        
+        const validData = {
+          name: 'John',
+          age: '30', // Now a string
+          email: 'john@example.com',
+          role: 'admin'
+        };
+        
+        expect(extendedSchema.parse(validData)).toEqual(validData);
+        
+        // Should reject number for age now
+        expect(() => extendedSchema.parse({
+          name: 'John',
+          age: 30, // Number should now fail
+          email: 'john@example.com',
+          role: 'admin'
+        })).toThrow();
+      });
+
+      it('should work with complex extensions', () => {
+        const extendedSchema = baseSchema.extend({
+          metadata: v.object({
+            createdAt: v.date(),
+            tags: v.array(v.string())
+          }),
+          settings: v.object({
+            theme: v.string(),
+            notifications: v.boolean()
+          })
+        });
+        
+        const now = new Date();
+        const validData = {
+          name: 'John',
+          age: 30,
+          email: 'john@example.com',
+          role: 'admin',
+          metadata: {
+            createdAt: now,
+            tags: ['user', 'premium']
+          },
+          settings: {
+            theme: 'dark',
+            notifications: true
+          }
+        };
+        
+        const result = extendedSchema.parse(validData);
+        expect(result.name).toBe('John');
+        expect(result.metadata.tags).toEqual(['user', 'premium']);
+        expect(result.settings.theme).toBe('dark');
+      });
+
+      it('should work with safeParse', () => {
+        const extendedSchema = baseSchema.extend({
+          phone: v.string()
+        });
+        
+        const validData = {
+          name: 'John',
+          age: 30,
+          email: 'john@example.com',
+          role: 'admin',
+          phone: '123-456-7890'
+        };
+        
+        const valid = extendedSchema.safeParse(validData);
+        expect(valid.success).toBe(true);
+        if (valid.success) {
+          expect(valid.data).toEqual(validData);
+        }
+
+        const invalid = extendedSchema.safeParse({
+          name: 'John',
+          age: 30,
+          email: 'john@example.com',
+          role: 'admin'
+          // missing phone
+        });
+        expect(invalid.success).toBe(false);
+      });
+
+      it('should infer correct types', () => {
+        const extendedSchema = baseSchema.extend({
+          phone: v.string(),
+          isActive: v.boolean()
+        });
+        
+        type Expected = {
+          name: string;
+          age: number;
+          email: string;
+          role: string;
+          phone: string;
+          isActive: boolean;
+        };
+        type Actual = Infer<typeof extendedSchema>;
+        
+        // Type test - will fail to compile if types don't match
+        const _: Expected = null as any as Actual;
+        const __: Actual = null as any as Expected;
+      });
+    });
+
+    describe('chaining object methods', () => {
+      it('should allow chaining pick and extend', () => {
+        const schema = baseSchema
+          .pick('name', 'age')
+          .extend({
+            phone: v.string()
+          });
+        
+        const validData = { name: 'John', age: 30, phone: '123-456-7890' };
+        expect(schema.parse(validData)).toEqual(validData);
+      });
+
+      it('should allow chaining omit and extend', () => {
+        const schema = baseSchema
+          .omit('email', 'role')
+          .extend({
+            department: v.string()
+          });
+        
+        const validData = { name: 'John', age: 30, department: 'Engineering' };
+        expect(schema.parse(validData)).toEqual(validData);
+      });
+
+      it('should work with multiple extends', () => {
+        const schema = baseSchema
+          .extend({ phone: v.string() })
+          .extend({ department: v.string() })
+          .extend({ isActive: v.boolean() });
+        
+        const validData = {
+          name: 'John',
+          age: 30,
+          email: 'john@example.com',
+          role: 'admin',
+          phone: '123-456-7890',
+          department: 'Engineering',
+          isActive: true
+        };
+        
+        expect(schema.parse(validData)).toEqual(validData);
+      });
+    });
+  });
 });

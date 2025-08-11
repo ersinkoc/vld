@@ -41,6 +41,7 @@ export const fr: LocaleMessages = {
   arrayItem: (index: number, error: string) => `Élément invalide à l'index ${index}: ${error}`,
   objectField: (field: string, error: string) => `Champ invalide "${field}": ${error}`,
   unionNoMatch: (errors: string[]) => `Aucun membre de l'union n'a correspondu: ${errors.join(', ')}`,
+  intersectionError: (error: string) => `Échec de validation d'intersection: ${error}`,
   literalExpected: (expected: string, received: string) => `Attendu ${expected}, reçu ${received}`,
   enumExpected: (values: any[], received: string) => `Attendu un de [${values.join(', ')}], reçu ${received}`,
   expectedUndefined: 'Undefined attendu',
@@ -58,6 +59,7 @@ export const fr: LocaleMessages = {
   // Transformation and refinement messages
   transformError: (error: string) => `Transformation échouée : ${error}`,
   refinementError: (error: string) => `Raffinement échoué : ${error}`,
+  customValidationError: (error: string) => `Validation personnalisée échouée : ${error}`,
   
   // Coercion messages
   coercionFailed: (type: string, value: unknown) => `Impossible de convertir ${JSON.stringify(value)} en ${type}`

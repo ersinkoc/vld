@@ -11,6 +11,28 @@ export type ParseResult<T> =
 abstract class VldBase<T> {
   abstract parse(value: unknown): T;
   abstract safeParse(value: unknown): ParseResult<T>;
+
+  // Refine with custom validation
+  refine<R extends T>(predicate: (value: T) => value is R, message?: string): VldRefine<T, R>;
+  refine(predicate: (value: T) => boolean, message?: string): VldRefine<T, T>;
+  refine(predicate: (value: T) => boolean, message?: string): VldRefine<T, T> {
+    return new VldRefine(this, predicate, message);
+  }
+
+  // Transform data after validation
+  transform<U>(fn: (value: T) => U): VldTransform<T, U> {
+    return new VldTransform(this, fn);
+  }
+
+  // Add default value
+  default(value: T): VldDefault<T> {
+    return new VldDefault(this, value);
+  }
+
+  // Catch validation errors and provide fallback
+  catch(value: T): VldCatch<T> {
+    return new VldCatch(this, value);
+  }
 }
 
 // Pre-compiled regex patterns
@@ -19,6 +41,24 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-
 const URL_REGEX = /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$/;
 const IPV4_REGEX = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
 const IPV6_REGEX = /^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$/;
+
+// Helper function for deep merging objects in intersection
+function deepMerge(obj1: any, obj2: any): any {
+  const result = { ...obj1 };
+  
+  for (const key in obj2) {
+    if (obj2.hasOwnProperty(key)) {
+      if (typeof obj2[key] === 'object' && obj2[key] !== null && !Array.isArray(obj2[key]) &&
+          typeof obj1[key] === 'object' && obj1[key] !== null && !Array.isArray(obj1[key])) {
+        result[key] = deepMerge(obj1[key], obj2[key]);
+      } else {
+        result[key] = obj2[key];
+      }
+    }
+  }
+  
+  return result;
+}
 
 // String validator
 export class VldString extends VldBase<string> {
@@ -438,6 +478,36 @@ export class VldObject<T extends Record<string, any>> extends VldBase<T> {
     };
     return this;
   }
+
+  pick<K extends keyof T>(...keys: K[]): VldObject<Pick<T, K>> {
+    const pickedShape: any = {};
+    for (const key of keys) {
+      if (key in this.shape) {
+        pickedShape[key] = this.shape[key];
+      }
+    }
+    return new VldObject(pickedShape);
+  }
+
+  omit<K extends keyof T>(...keys: K[]): VldObject<Omit<T, K>> {
+    const omittedShape: any = {};
+    for (const [key, validator] of Object.entries(this.shape)) {
+      if (!keys.includes(key as K)) {
+        omittedShape[key] = validator;
+      }
+    }
+    return new VldObject(omittedShape);
+  }
+
+  extend<U extends Record<string, any>>(
+    extension: { [K in keyof U]: VldBase<U[K]> }
+  ): VldObject<T & U> {
+    const extendedShape: any = { ...this.shape };
+    for (const [key, validator] of Object.entries(extension)) {
+      extendedShape[key] = validator;
+    }
+    return new VldObject(extendedShape);
+  }
 }
 
 // Optional validator
@@ -503,6 +573,46 @@ export class VldUnion<T extends readonly VldBase<any>[]> extends VldBase<T[numbe
   }
 
   safeParse(value: unknown): ParseResult<T[number] extends VldBase<infer U> ? U : never> {
+    try {
+      return { success: true, data: this.parse(value) };
+    } catch (error) {
+      return { success: false, error: error as Error };
+    }
+  }
+}
+
+// Intersection validator
+export class VldIntersection<A, B> extends VldBase<A & B> {
+  constructor(private validatorA: VldBase<A>, private validatorB: VldBase<B>) {
+    super();
+  }
+
+  parse(value: unknown): A & B {
+    try {
+      // Both validators must pass
+      const resultA = this.validatorA.parse(value);
+      const resultB = this.validatorB.parse(value);
+      
+      // For object types, deep merge the results
+      if (typeof resultA === 'object' && resultA !== null && 
+          typeof resultB === 'object' && resultB !== null &&
+          !Array.isArray(resultA) && !Array.isArray(resultB)) {
+        return deepMerge(resultA, resultB) as A & B;
+      }
+      
+      // For primitive types, both must be the same value
+      if ((resultA as any) === (resultB as any)) {
+        return resultA as A & B;
+      }
+      
+      // If they're different primitive values, this is an error
+      throw new Error(getMessages().intersectionError('Values must be identical for intersection of primitive types'));
+    } catch (error) {
+      throw new Error(getMessages().intersectionError((error as Error).message));
+    }
+  }
+
+  safeParse(value: unknown): ParseResult<A & B> {
     try {
       return { success: true, data: this.parse(value) };
     } catch (error) {
@@ -1007,6 +1117,118 @@ export class VldCoerceDate extends VldDate {
   }
 }
 
+// Refine validator - adds custom validation
+export class VldRefine<T, U extends T = T> extends VldBase<U> {
+  constructor(
+    private baseValidator: VldBase<T>,
+    private predicate: (value: T) => boolean,
+    private customMessage?: string
+  ) {
+    super();
+  }
+
+  parse(value: unknown): U {
+    const baseResult = this.baseValidator.parse(value);
+    
+    try {
+      if (!this.predicate(baseResult)) {
+        throw new Error(this.customMessage || 'Refinement condition not met');
+      }
+    } catch (error) {
+      throw new Error(getMessages().customValidationError((error as Error).message));
+    }
+    
+    return baseResult as U;
+  }
+
+  safeParse(value: unknown): ParseResult<U> {
+    try {
+      return { success: true, data: this.parse(value) };
+    } catch (error) {
+      return { success: false, error: error as Error };
+    }
+  }
+}
+
+// Transform validator - transforms data after validation
+export class VldTransform<T, U> extends VldBase<U> {
+  constructor(
+    private baseValidator: VldBase<T>,
+    private transformer: (value: T) => U
+  ) {
+    super();
+  }
+
+  parse(value: unknown): U {
+    const baseResult = this.baseValidator.parse(value);
+    
+    try {
+      return this.transformer(baseResult);
+    } catch (error) {
+      throw new Error(getMessages().transformError((error as Error).message));
+    }
+  }
+
+  safeParse(value: unknown): ParseResult<U> {
+    try {
+      return { success: true, data: this.parse(value) };
+    } catch (error) {
+      return { success: false, error: error as Error };
+    }
+  }
+}
+
+// Default validator - provides default value for undefined
+export class VldDefault<T> extends VldBase<T> {
+  constructor(
+    private baseValidator: VldBase<T>,
+    private defaultValue: T
+  ) {
+    super();
+  }
+
+  parse(value: unknown): T {
+    if (value === undefined) {
+      return this.defaultValue;
+    }
+    return this.baseValidator.parse(value);
+  }
+
+  safeParse(value: unknown): ParseResult<T> {
+    if (value === undefined) {
+      return { success: true, data: this.defaultValue };
+    }
+    return this.baseValidator.safeParse(value);
+  }
+}
+
+// Catch validator - provides fallback value on validation error
+export class VldCatch<T> extends VldBase<T> {
+  constructor(
+    private baseValidator: VldBase<T>,
+    private fallbackValue: T
+  ) {
+    super();
+  }
+
+  parse(value: unknown): T {
+    try {
+      return this.baseValidator.parse(value);
+    } catch {
+      return this.fallbackValue;
+    }
+  }
+
+  safeParse(value: unknown): ParseResult<T> {
+    const result = this.baseValidator.safeParse(value);
+    if (result.success) {
+      return result;
+    } else {
+      return { success: true, data: this.fallbackValue };
+    }
+  }
+}
+
 // Main API
 export const v = {
   string: () => new VldString(),
@@ -1023,6 +1245,7 @@ export const v = {
   optional: <T>(validator: VldBase<T>) => new VldOptional(validator),
   nullable: <T>(validator: VldBase<T>) => new VldNullable(validator),
   union: <T extends readonly VldBase<any>[]>(...validators: T) => new VldUnion(validators),
+  intersection: <A, B>(a: VldBase<A>, b: VldBase<B>) => new VldIntersection(a, b),
   literal: <T extends string | number | boolean>(value: T) => new VldLiteral(value),
   enum: <T extends readonly [string, ...string[]]>(...values: T) => new VldEnum(values),
   date: () => new VldDate(),
@@ -1050,7 +1273,7 @@ export {
 };
 
 // Export locale functionality
-export { setLocale, getLocale, type Locale } from './locales';
+export { setLocale, getLocale, getMessages, type Locale } from './locales';
 
 // Export error formatting utilities
 export { 

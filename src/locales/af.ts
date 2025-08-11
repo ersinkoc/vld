@@ -57,6 +57,9 @@ export const af: LocaleMessages = {
   // Union validation messages
   unionNoMatch: (errors: string[]) => `Geen union lid het gepas nie: ${errors.join(', ')}`,
 
+  // Intersection validation messages
+  intersectionError: (error: string) => `Intersection validasie het gefaal: ${error}`,
+
   // Literal validation messages
   literalExpected: (expected: string, received: string) => `Verwag ${expected}, ontvang ${received}`,
 
@@ -79,6 +82,7 @@ export const af: LocaleMessages = {
   // Transformation and refinement messages
   transformError: (error: string) => `Transformasie het gefaal: ${error}`,
   refinementError: (error: string) => `Verfyning het gefaal: ${error}`,
+  customValidationError: (error: string) => `Pasgemaakte validasie het misluk: ${error}`,
   
   // Coercion messages
   coercionFailed: (type: string, value: unknown) => `Kan nie ${JSON.stringify(value)} na ${type} dwing nie`

@@ -57,6 +57,9 @@ export const vi: LocaleMessages = {
   // Union validation messages
   unionNoMatch: (errors: string[]) => `Không có thành viên union nào khớp: ${errors.join(', ')}`,
 
+  // Intersection validation messages
+  intersectionError: (error: string) => `Xác thực intersection thất bại: ${error}`,
+
   // Literal validation messages
   literalExpected: (expected: string, received: string) => `Mong đợi ${expected}, nhận được ${received}`,
 
@@ -79,6 +82,7 @@ export const vi: LocaleMessages = {
   // Transformation and refinement messages
   transformError: (error: string) => `Biến đổi thất bại: ${error}`,
   refinementError: (error: string) => `Tinh chế thất bại: ${error}`,
+  customValidationError: (error: string) => `Xác thực tùy chỉnh thất bại: ${error}`,
   
   // Coercion messages
   coercionFailed: (type: string, value: unknown) => `Không thể ép kiểu ${JSON.stringify(value)} thành ${type}`

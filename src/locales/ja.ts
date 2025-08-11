@@ -57,6 +57,9 @@ export const ja: LocaleMessages = {
   // Union validation messages
   unionNoMatch: (errors: string[]) => `どのユニオンメンバーもマッチしませんでした: ${errors.join(', ')}`,
 
+  // Intersection validation messages
+  intersectionError: (error: string) => `交差検証に失敗しました: ${error}`,
+
   // Literal validation messages
   literalExpected: (expected: string, received: string) => `${expected}が期待されましたが、${received}を受け取りました`,
 
@@ -79,6 +82,7 @@ export const ja: LocaleMessages = {
   // Transformation and refinement messages
   transformError: (error: string) => `変換に失敗しました: ${error}`,
   refinementError: (error: string) => `リファインメントに失敗しました: ${error}`,
+  customValidationError: (error: string) => `カスタム検証が失敗しました: ${error}`,
   
   // Coercion messages
   coercionFailed: (type: string, value: unknown) => `${JSON.stringify(value)}を${type}に変換できません`

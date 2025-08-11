@@ -57,6 +57,9 @@ export const tr: LocaleMessages = {
   // Union validation messages
   unionNoMatch: (errors: string[]) => `Hiçbir union üyesi eşleşmedi: ${errors.join(', ')}`,
 
+  // Intersection validation messages
+  intersectionError: (error: string) => `Intersection doğrulaması başarısız: ${error}`,
+
   // Literal validation messages
   literalExpected: (expected: string, received: string) => `${expected} beklendi, ${received} alındı`,
 
@@ -79,6 +82,7 @@ export const tr: LocaleMessages = {
   // Transformation and refinement messages
   transformError: (error: string) => `Dönüştürme başarısız: ${error}`,
   refinementError: (error: string) => `Doğrulama başarısız: ${error}`,
+  customValidationError: (error: string) => `Özel doğrulama başarısız: ${error}`,
   
   // Coercion messages
   coercionFailed: (type: string, value: unknown) => `${JSON.stringify(value)} değeri ${type} tipine dönüştürülemez`

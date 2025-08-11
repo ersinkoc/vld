@@ -57,6 +57,9 @@ export const no: LocaleMessages = {
   // Union validation messages
   unionNoMatch: (errors: string[]) => `Ingen union-medlem passet: ${errors.join(', ')}`,
 
+  // Intersection validation messages
+  intersectionError: (error: string) => `Intersection validering feilet: ${error}`,
+
   // Literal validation messages
   literalExpected: (expected: string, received: string) => `Forventet ${expected}, fikk ${received}`,
 
@@ -79,6 +82,7 @@ export const no: LocaleMessages = {
   // Transformation and refinement messages
   transformError: (error: string) => `Transformasjon mislyktes: ${error}`,
   refinementError: (error: string) => `Foredling mislyktes: ${error}`,
+  customValidationError: (error: string) => `Tilpasset validering mislyktes: ${error}`,
   
   // Coercion messages
   coercionFailed: (type: string, value: unknown) => `Kan ikke konvertere ${JSON.stringify(value)} til ${type}`

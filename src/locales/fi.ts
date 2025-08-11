@@ -57,6 +57,9 @@ export const fi: LocaleMessages = {
   // Union validation messages
   unionNoMatch: (errors: string[]) => `Mikään union-jäsen ei täsmännyt: ${errors.join(', ')}`,
 
+  // Intersection validation messages
+  intersectionError: (error: string) => `Intersection validointi epäonnistui: ${error}`,
+
   // Literal validation messages
   literalExpected: (expected: string, received: string) => `Odotettiin ${expected}, saatiin ${received}`,
 
@@ -79,6 +82,7 @@ export const fi: LocaleMessages = {
   // Transformation and refinement messages
   transformError: (error: string) => `Muunnos epäonnistui: ${error}`,
   refinementError: (error: string) => `Hiominen epäonnistui: ${error}`,
+  customValidationError: (error: string) => `Mukautettu validointi epäonnistui: ${error}`,
   
   // Coercion messages
   coercionFailed: (type: string, value: unknown) => `Arvoa ${JSON.stringify(value)} ei voida pakottaa tyyppiin ${type}`

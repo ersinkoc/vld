@@ -57,6 +57,9 @@ export const it: LocaleMessages = {
   // Union validation messages
   unionNoMatch: (errors: string[]) => `Nessun membro dell'unione corrisponde: ${errors.join(', ')}`,
 
+  // Intersection validation messages
+  intersectionError: (error: string) => `Validazione intersezione fallita: ${error}`,
+
   // Literal validation messages
   literalExpected: (expected: string, received: string) => `Previsto ${expected}, ricevuto ${received}`,
 
@@ -79,6 +82,7 @@ export const it: LocaleMessages = {
   // Transformation and refinement messages
   transformError: (error: string) => `Trasformazione fallita: ${error}`,
   refinementError: (error: string) => `Raffinamento fallito: ${error}`,
+  customValidationError: (error: string) => `Validazione personalizzata fallita: ${error}`,
   
   // Coercion messages
   coercionFailed: (type: string, value: unknown) => `Impossibile convertire ${JSON.stringify(value)} in ${type}`
