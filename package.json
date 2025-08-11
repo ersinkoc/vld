@@ -15,7 +15,7 @@
   },
   "sideEffects": false,
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node scripts/fix-imports.js",
     "build:optimize": "rollup -c",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
     "test:types": "tsc --noEmit",
