@@ -1,0 +1,93 @@
+# VLD
+
+> Ultra-fast TypeScript-first schema validation library with zero dependencies and 27+ language support
+
+VLD is a blazing-fast validation library designed as a high-performance alternative to Zod. It provides complete feature parity with Zod while being 2-4x faster on average, with optimizations that make it up to 110x faster for certain operations like union type validation.
+
+## Core Features
+
+- **Type-safe validation** with excellent TypeScript inference
+- **Zero dependencies** - lightweight and tree-shakeable
+- **27+ languages** built-in internationalization support
+- **99.5% test coverage** ensuring reliability
+- **Full Zod compatibility** including coercion, refinement, and transformation
+
+## API Documentation
+
+- [Getting Started Guide](docs/GETTING_STARTED.md): Quick start and basic usage
+- [API Reference](docs/API.md): Complete API documentation
+- [Performance Guide](docs/PERFORMANCE.md): Benchmarks and optimization details
+- [Advanced Features](docs/ADVANCED_FEATURES.md): Complex validation patterns
+- [Migration from Zod](docs/MIGRATION.md): Step-by-step migration guide
+
+## Key Validators
+
+### Primitives
+- `v.string()`: String validation with email, url, uuid, regex patterns
+- `v.number()`: Number validation with min, max, int, positive constraints
+- `v.boolean()`: Boolean validation
+- `v.date()`: Date validation with min/max constraints
+- `v.bigint()`: BigInt support
+- `v.symbol()`: Symbol validation
+
+### Complex Types
+- `v.object()`: Object schemas with pick, omit, extend, partial methods
+- `v.array()`: Array validation with length constraints
+- `v.tuple()`: Fixed-length tuple validation
+- `v.union()`: Union types for multiple valid schemas
+- `v.intersection()`: Combine multiple schemas
+- `v.record()`: Dynamic key-value validation
+- `v.map()`: Map validation
+- `v.set()`: Set validation
+
+### Type Coercion
+- `v.coerce.string()`: Coerce to string
+- `v.coerce.number()`: Coerce to number
+- `v.coerce.boolean()`: Coerce to boolean
+- `v.coerce.date()`: Coerce to date
+- `v.coerce.bigint()`: Coerce to bigint
+
+## Installation
+
+```bash
+npm install @oxog/vld
+```
+
+## Quick Example
+
+```typescript
+import { v } from '@oxog/vld';
+
+// Define schema
+const userSchema = v.object({
+  name: v.string().min(3),
+  email: v.string().email(),
+  age: v.number().min(18).max(100),
+  isActive: v.boolean().optional()
+});
+
+// Parse data
+const result = userSchema.safeParse(data);
+if (result.success) {
+  console.log(result.data);
+} else {
+  console.log(result.errors);
+}
+```
+
+## Performance Advantages
+
+- **2.07x faster** than Zod on average
+- **98% less memory** for validator creation
+- **110x improvement** in union type validation
+- Optimized for V8 engine with inline type checks and pre-computed keys
+
+## Repository
+
+- [GitHub](https://github.com/ersinkoc/vld)
+- [NPM Package](https://www.npmjs.com/package/@oxog/vld)
+- [Issues](https://github.com/ersinkoc/vld/issues)
+
+## License
+
+MIT License - Created by Ersin Koc
