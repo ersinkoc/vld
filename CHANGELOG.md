@@ -5,6 +5,27 @@ All notable changes to VLD will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2025-08-18
+
+### Security
+- **CRITICAL**: Fixed prototype pollution vulnerability in VldObject passthrough mode
+  - Added protection against `__proto__`, `constructor`, and `prototype` key pollution
+  - Comprehensive security test suite added
+
+### Fixed
+- Removed unnecessary escape characters in regex patterns (URL validation)
+- Fixed escape characters in locale files (Afrikaans)
+- Added ESLint configuration for code quality
+
+### Added
+- Security test suite with prototype pollution prevention tests
+- Coverage improvement tests for better code quality
+- ESLint configuration with TypeScript support
+
+### Changed
+- Improved test coverage to 97.1% statements
+- All linting issues resolved
+
 ## [1.1.0] - 2025-08-12
 
 ### Added
