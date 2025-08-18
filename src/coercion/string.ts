@@ -52,7 +52,7 @@ export class VldCoerceString extends VldString {
   
   url(message?: string): VldCoerceString {
     return new VldCoerceString({
-      checks: [...this.config.checks, (v: string) => /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$/.test(v)],
+      checks: [...this.config.checks, (v: string) => /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)$/.test(v)],
       transforms: this.config.transforms,
       errorMessage: message || getMessages().stringUrl
     });

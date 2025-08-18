@@ -22,14 +22,14 @@ export const af: LocaleMessages = {
   invalidNumber: 'Ongeldige getal',
   numberMin: (min: number) => `Getal moet ten minste ${min} wees`,
   numberMax: (max: number) => `Getal mag hoogstens ${max} wees`,
-  numberInt: 'Getal moet \'n heelgetal wees',
+  numberInt: "Getal moet 'n heelgetal wees",
   numberPositive: 'Getal moet positief wees',
   numberNegative: 'Getal moet negatief wees',
   numberNonnegative: 'Getal mag nie negatief wees nie',
   numberNonpositive: 'Getal mag nie positief wees nie',
   numberFinite: 'Getal moet eindig wees',
-  numberSafe: 'Getal moet \'n veilige heelgetal wees',
-  numberMultipleOf: (value: number) => `Getal moet \'n veelvoud van ${value} wees`,
+  numberSafe: "Getal moet 'n veilige heelgetal wees",
+  numberMultipleOf: (value: number) => `Getal moet 'n veelvoud van ${value} wees`,
 
   // Boolean validation messages
   invalidBoolean: 'Ongeldige boolean waarde',

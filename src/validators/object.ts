@@ -112,12 +112,14 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
       }
     }
     
-    // Handle passthrough mode - optimized
+    // Handle passthrough mode - optimized with prototype pollution protection
     if (this.config.passthrough) {
+      const DANGEROUS_KEYS = ['__proto__', 'constructor', 'prototype'];
       const objKeys = Object.keys(obj);
       for (let i = 0; i < objKeys.length; i++) {
         const key = objKeys[i];
-        if (!this.shapeKeysSet.has(key)) {
+        // Skip dangerous keys to prevent prototype pollution
+        if (!this.shapeKeysSet.has(key) && !DANGEROUS_KEYS.includes(key)) {
           result[key] = obj[key];
         }
       }
@@ -179,12 +181,14 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
       }
     }
     
-    // Handle passthrough mode
+    // Handle passthrough mode with prototype pollution protection
     if (this.config.passthrough) {
+      const DANGEROUS_KEYS = ['__proto__', 'constructor', 'prototype'];
       const objKeys = Object.keys(obj);
       for (let i = 0; i < objKeys.length; i++) {
         const key = objKeys[i];
-        if (!this.shapeKeysSet.has(key)) {
+        // Skip dangerous keys to prevent prototype pollution
+        if (!this.shapeKeysSet.has(key) && !DANGEROUS_KEYS.includes(key)) {
           result[key] = obj[key];
         }
       }
