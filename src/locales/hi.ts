@@ -85,5 +85,23 @@ export const hi: LocaleMessages = {
   customValidationError: (error: string) => `कस्टम सत्यापन विफल: ${error}`,
   
   // Coercion messages
-  coercionFailed: (type: string, value: unknown) => `${JSON.stringify(value)} को ${type} में परिवर्तित नहीं किया जा सकता`
+  coercionFailed: (type: string, value: unknown) => `${JSON.stringify(value)} को ${type} में परिवर्तित नहीं किया जा सकता`,
+  
+  // Codec messages
+  codecDecodeFailed: 'Failed to decode value',
+  codecEncodeFailed: 'Failed to encode value',
+  codecAsyncNotSupported: 'Async codec operations require using parseAsync/encodeAsync methods',
+  
+  // Base64/Hex messages
+  invalidBase64: 'Invalid base64 string',
+  invalidHex: 'Invalid hexadecimal string',
+  
+  // Uint8Array messages
+  expectedUint8Array: 'Expected Uint8Array',
+  uint8ArrayMinLength: 'Uint8Array must have at least {min} bytes',
+  uint8ArrayMaxLength: 'Uint8Array must have at most {max} bytes',
+  uint8ArrayExactLength: 'Uint8Array must have exactly {length} bytes',
+  
+  // Generic type error messages
+  expectedString: 'Expected string'
 };

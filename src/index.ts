@@ -36,6 +36,10 @@ import { VldNever } from './validators/never';
 import { VldOptional } from './validators/base';
 import { VldNullable } from './validators/base';
 import { VldNullish } from './validators/base';
+import { VldCodec } from './validators/codec';
+import { VldBase64 } from './validators/base64';
+import { VldHex } from './validators/hex';
+import { VldUint8Array } from './validators/uint8array';
 
 // Import coercion validators
 import { VldCoerceString } from './coercion/string';
@@ -66,6 +70,56 @@ export {
   prettifyError, 
   flattenError 
 } from './errors';
+
+// Re-export codec utilities
+export { 
+  base64ToUint8Array,
+  uint8ArrayToBase64,
+  uint8ArrayToBase64Url,
+  hexToUint8Array,
+  uint8ArrayToHex,
+  stringToUint8Array,
+  uint8ArrayToString
+} from './utils/codec-utils';
+
+// Re-export codec types
+export type { CodecTransform } from './validators/codec';
+
+// Re-export predefined codecs
+export {
+  // String conversion codecs
+  stringToNumber,
+  stringToInt,
+  stringToBigInt,
+  numberToBigInt,
+  stringToBoolean,
+  
+  // Date conversion codecs  
+  isoDatetimeToDate,
+  epochSecondsToDate,
+  epochMillisToDate,
+  
+  // JSON codec
+  jsonCodec,
+  
+  // URL codecs
+  stringToURL,
+  stringToHttpURL,
+  uriComponent,
+  
+  // Byte conversion codecs
+  base64ToBytes,
+  base64UrlToBytes,
+  base64urlToBytes,
+  hexToBytes,
+  hexLowerToBytes,
+  utf8ToBytes,
+  bytesToUtf8,
+  
+  // Complex codecs
+  base64Json,
+  jwtPayload
+} from './codecs';
 
 /**
  * Main API object with factory methods for all validators
@@ -117,7 +171,22 @@ export const v = {
     boolean: () => VldCoerceBoolean.create(),
     date: () => VldCoerceDate.create(),
     bigint: () => VldCoerceBigInt.create(),
-  }
+  },
+  
+  // Codec validators
+  base64: () => VldBase64.create(),
+  hex: () => VldHex.create(),
+  uint8Array: () => VldUint8Array.create(),
+  
+  // Codec factory
+  codec: <TInput, TOutput>(
+    inputValidator: VldBase<unknown, TInput>,
+    outputValidator: VldBase<unknown, TOutput>,
+    transform: {
+      decode: (value: TInput) => TOutput | Promise<TOutput>;
+      encode: (value: TOutput) => TInput | Promise<TInput>;
+    }
+  ) => VldCodec.create(inputValidator, outputValidator, transform)
 };
 
 // For backward compatibility during migration

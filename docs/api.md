@@ -14,6 +14,9 @@ Complete API documentation for the VLD validation library.
 - [Type Modifiers](#type-modifiers)
 - [Validation Methods](#validation-methods)
 - [Transformation Methods](#transformation-methods)
+- [Codecs - Bidirectional Transformations](#codecs---bidirectional-transformations)
+- [Built-in Codecs](#built-in-codecs)
+- [Custom Codecs](#custom-codecs)
 - [Error Handling](#error-handling)
 - [Type Inference](#type-inference)
 
@@ -559,6 +562,302 @@ const schema = v.coerce.bigint();
 
 schema.parse("123");      // 123n
 schema.parse(456);        // 456n
+```
+
+## Codecs - Bidirectional Transformations
+
+Codecs enable bidirectional data transformations. Unlike simple transforms, codecs can both decode (input → output) and encode (output → input).
+
+### Basic Codec Usage
+
+```typescript
+import { v } from '@oxog/vld';
+
+// Create a custom codec
+const stringToNumberCodec = v.codec(
+  v.string(),    // Input validator
+  v.number(),    // Output validator
+  {
+    decode: (str: string) => parseFloat(str),    // string → number
+    encode: (num: number) => num.toString()      // number → string
+  }
+);
+
+// Use the codec
+const number = stringToNumberCodec.parse("42.5");   // 42.5 (number)
+const string = stringToNumberCodec.encode(99.9);    // "99.9" (string)
+```
+
+### Async Codecs
+
+```typescript
+const asyncCodec = v.codec(
+  v.string(),
+  v.object({ result: v.string() }),
+  {
+    decode: async (input: string) => {
+      const response = await fetch(`/api/process?data=${input}`);
+      return response.json();
+    },
+    encode: async (output) => {
+      const response = await fetch('/api/serialize', {
+        method: 'POST',
+        body: JSON.stringify(output)
+      });
+      return response.text();
+    }
+  }
+);
+
+// Use async methods
+const result = await asyncCodec.parseAsync("input");
+const serialized = await asyncCodec.encodeAsync({ result: "output" });
+```
+
+## Built-in Codecs
+
+VLD includes 19 ready-to-use codecs for common transformations:
+
+### String Conversion Codecs
+
+```typescript
+import { 
+  stringToNumber, 
+  stringToInt, 
+  stringToBigInt, 
+  numberToBigInt,
+  stringToBoolean 
+} from '@oxog/vld';
+
+// String to number with validation
+const age = stringToNumber.parse("25");    // 25
+const ageStr = stringToNumber.encode(30);  // "30"
+
+// String to integer (validates integer constraint)
+const count = stringToInt.parse("42");     // 42
+stringToInt.parse("42.5");                 // ❌ Error: must be integer
+
+// String to BigInt for large numbers
+const bigNum = stringToBigInt.parse("999999999999999999999");  // BigInt
+
+// Number to BigInt conversion
+const converted = numberToBigInt.parse(123);  // 123n
+
+// Flexible boolean parsing
+stringToBoolean.parse("true");    // true
+stringToBoolean.parse("1");       // true  
+stringToBoolean.parse("yes");     // true
+stringToBoolean.parse("on");      // true
+stringToBoolean.parse("false");   // false
+stringToBoolean.parse("0");       // false
+```
+
+### Date Conversion Codecs
+
+```typescript
+import { 
+  isoDatetimeToDate, 
+  epochSecondsToDate, 
+  epochMillisToDate 
+} from '@oxog/vld';
+
+// ISO string to Date
+const date1 = isoDatetimeToDate.parse("2023-12-25T10:30:00.000Z");
+const isoString = isoDatetimeToDate.encode(new Date());
+
+// Unix seconds to Date  
+const date2 = epochSecondsToDate.parse(1703505000);
+const seconds = epochSecondsToDate.encode(new Date());
+
+// Unix milliseconds to Date
+const date3 = epochMillisToDate.parse(1703505000000);
+const millis = epochMillisToDate.encode(new Date());
+```
+
+### JSON and Complex Data
+
+```typescript
+import { jsonCodec, base64Json } from '@oxog/vld';
+
+// Generic JSON codec
+const json = jsonCodec();
+const data = json.parse('{"name":"John","age":30}');
+const jsonString = json.encode({ name: "Jane", age: 25 });
+
+// Typed JSON codec with schema validation
+const userSchema = v.object({
+  name: v.string(),
+  age: v.number()
+});
+const typedJson = jsonCodec(userSchema);
+const user = typedJson.parse('{"name":"Alice","age":30}'); // Fully typed!
+
+// Base64-encoded JSON
+const b64Json = base64Json(userSchema);
+const encoded = b64Json.encode({ name: "Bob", age: 40 });
+const decoded = b64Json.parse(encoded);
+```
+
+### URL and Web Codecs
+
+```typescript
+import { stringToURL, stringToHttpURL, uriComponent } from '@oxog/vld';
+
+// String to URL object
+const url = stringToURL.parse("https://example.com/path?param=value");
+console.log(url.hostname);  // "example.com"
+console.log(url.pathname);  // "/path"
+
+// HTTP/HTTPS only URLs
+const httpUrl = stringToHttpURL.parse("https://api.example.com");
+stringToHttpURL.parse("ftp://files.com");  // ❌ Error: Must be HTTP/HTTPS
+
+// URI component encoding
+const encoded = uriComponent.parse("Hello World!");  // "Hello%20World!"
+const decoded = uriComponent.encode("Hello%20World!");  // "Hello World!"
+```
+
+### Binary Data Codecs
+
+```typescript
+import { 
+  base64ToBytes, 
+  base64urlToBytes,
+  hexToBytes, 
+  utf8ToBytes, 
+  bytesToUtf8 
+} from '@oxog/vld';
+
+// Base64 to Uint8Array
+const bytes1 = base64ToBytes.parse("SGVsbG8gV29ybGQ=");
+const base64 = base64ToBytes.encode(bytes1);
+
+// Base64URL to Uint8Array (URL-safe)
+const bytes2 = base64urlToBytes.parse("SGVsbG8gV29ybGQ");  // No padding
+
+// Hex to Uint8Array
+const bytes3 = hexToBytes.parse("48656c6c6f");
+const hex = hexToBytes.encode(bytes3);
+
+// UTF-8 string to bytes
+const bytes4 = utf8ToBytes.parse("Hello! 👋");
+const text = bytesToUtf8.parse(bytes4);
+```
+
+### JWT Payload Decoder
+
+```typescript
+import { jwtPayload } from '@oxog/vld';
+
+// Decode JWT payload (read-only)
+const payloadSchema = v.object({
+  sub: v.string(),
+  name: v.string(),
+  iat: v.number()
+});
+
+const decoder = jwtPayload(payloadSchema);
+const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...";
+const payload = decoder.parse(token);
+console.log(payload.name);  // "John Doe" (fully typed!)
+```
+
+## Custom Codecs
+
+Create your own codecs for specific use cases:
+
+### Simple Custom Codec
+
+```typescript
+// CSV to array codec
+const csvToArray = v.codec(
+  v.string(),
+  v.array(v.string()),
+  {
+    decode: (csv: string) => csv.split(',').map(s => s.trim()),
+    encode: (arr: string[]) => arr.join(', ')
+  }
+);
+
+const tags = csvToArray.parse("react, typescript, vld");
+const csv = csvToArray.encode(["node", "express", "api"]);
+```
+
+### Complex Custom Codec
+
+```typescript
+// Environment variables codec
+const envCodec = v.codec(
+  v.string(),
+  v.object({
+    port: v.number(),
+    debug: v.boolean(),
+    dbUrl: v.string().url()
+  }),
+  {
+    decode: (envString: string) => {
+      const config: any = {};
+      envString.split('\n').forEach(line => {
+        const [key, value] = line.split('=');
+        if (key === 'PORT') config.port = parseInt(value, 10);
+        if (key === 'DEBUG') config.debug = value === 'true';
+        if (key === 'DB_URL') config.dbUrl = value;
+      });
+      return config;
+    },
+    encode: (config) => [
+      `PORT=${config.port}`,
+      `DEBUG=${config.debug}`,
+      `DB_URL=${config.dbUrl}`
+    ].join('\n')
+  }
+);
+```
+
+### Error Handling with Codecs
+
+```typescript
+// Safe parse
+const result = stringToNumber.safeParse("not-a-number");
+if (!result.success) {
+  console.error("Parse failed:", result.error.message);
+} else {
+  console.log("Parsed:", result.data);
+}
+
+// Safe encode  
+const encodeResult = stringToNumber.safeEncode("invalid-input");
+if (!encodeResult.success) {
+  console.error("Encode failed:", encodeResult.error.message);
+}
+```
+
+### Codec vs Transform Comparison
+
+| Feature | Codec | Transform |
+|---------|--------|-----------|
+| **Direction** | Bidirectional (parse/encode) | Unidirectional (transform only) |
+| **Type Safety** | Input and output validation | Output validation only |
+| **Use Cases** | Serialization, API boundaries | Data cleaning, formatting |
+| **Methods** | `parse()`, `encode()`, `safeParse()`, `safeEncode()` | `parse()`, `safeParse()` |
+
+```typescript
+// Transform: One-way only
+const upperTransform = v.string().transform(s => s.toUpperCase());
+const result = upperTransform.parse("hello"); // "HELLO"
+// ❌ No way to get back to "hello"
+
+// Codec: Two-way conversion
+const upperCodec = v.codec(
+  v.string(),
+  v.string(),
+  {
+    decode: s => s.toUpperCase(),
+    encode: s => s.toLowerCase()  
+  }
+);
+const upper = upperCodec.parse("hello");    // "HELLO" 
+const lower = upperCodec.encode("HELLO");   // "hello"
 ```
 
 ---

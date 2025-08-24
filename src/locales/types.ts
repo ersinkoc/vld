@@ -98,4 +98,22 @@ export interface LocaleMessages {
   
   // Coercion messages
   coercionFailed: (type: string, value: unknown) => string;
+  
+  // Codec messages
+  codecDecodeFailed: string;
+  codecEncodeFailed: string;
+  codecAsyncNotSupported: string;
+  
+  // Base64/Hex messages
+  invalidBase64: string;
+  invalidHex: string;
+  
+  // Uint8Array messages
+  expectedUint8Array: string;
+  uint8ArrayMinLength: string;
+  uint8ArrayMaxLength: string;
+  uint8ArrayExactLength: string;
+  
+  // Generic type error messages
+  expectedString: string;
 }

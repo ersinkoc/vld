@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
 [![Zero Dependencies](https://img.shields.io/badge/Dependencies-0-green.svg)](package.json)
-[![Test Coverage](https://img.shields.io/badge/Coverage-99.5%25-brightgreen.svg)](package.json)
+[![Test Coverage](https://img.shields.io/badge/Coverage-97.3%25-brightgreen.svg)](package.json)
 
 VLD is a blazing-fast, type-safe validation library for TypeScript and JavaScript with **full Zod feature parity**. Built with performance in mind, it provides a simple and intuitive API while maintaining excellent type inference and 27+ language internationalization support.
 
@@ -18,7 +18,7 @@ VLD is a blazing-fast, type-safe validation library for TypeScript and JavaScrip
 - **🔧 Composable**: Chain validations for complex schemas
 - **⚠️ Advanced Error Formatting**: Tree, pretty, and flatten error utilities
 - **🌍 Multi-language**: Built-in support for 27+ languages
-- **✅ 99.5% Test Coverage**: Rigorously tested with comprehensive test suite
+- **✅ 97.3% Test Coverage**: Rigorously tested with 569 passing tests
 - **🏆 Industry Leading Performance**: 2.07x faster than Zod on average
 
 ### Advanced Zod-Compatible Features  
@@ -30,6 +30,14 @@ VLD is a blazing-fast, type-safe validation library for TypeScript and JavaScrip
 - **🏠 Default Values**: `default()` for handling undefined inputs elegantly  
 - **🛡️ Fallback Handling**: `catch()` for graceful error recovery
 - **🎯 Object Utilities**: `pick()`, `omit()`, `extend()` for flexible object schemas
+
+### 🚀 **NEW** Codec System - Beyond Zod
+- **↔️ Bidirectional Transformations**: Full encode/decode support for data conversion
+- **📦 19 Built-in Codecs**: String conversions, date parsing, JSON, URL, binary data
+- **🔗 Zod-Compatible**: All `stringToNumber`, `jsonCodec`, `base64ToBytes`, etc.
+- **⚡ Async Support**: Both sync and async codec operations
+- **🛠 Custom Codecs**: Create your own bidirectional transformations
+- **🎯 Type-Safe**: Full TypeScript support with perfect type inference
 
 ## 📊 Performance
 
@@ -768,6 +776,269 @@ schema.extend({ email: v.string().email() })
       .catch({ name: 'Unknown', email: 'no-email@example.com' });
 ```
 
+## 🔄 Codecs - Bidirectional Transformations
+
+VLD introduces **codecs** - powerful bidirectional transformations that can convert data between different representations. Unlike simple transformations, codecs can both **decode** (input → output) and **encode** (output → input).
+
+### 🎯 What are Codecs?
+
+Codecs enable safe, type-checked conversions between different data formats. They're perfect for:
+- **API boundaries**: Convert strings to structured data
+- **Database serialization**: Transform objects to/from storage formats
+- **Network protocols**: Handle data encoding/decoding
+- **Configuration parsing**: Convert config strings to typed values
+
+### 📦 Built-in Codecs
+
+VLD provides all Zod-compatible codecs plus additional utilities:
+
+#### **String Conversion Codecs**
+
+```typescript
+import { stringToNumber, stringToInt, stringToBigInt, stringToBoolean } from '@oxog/vld';
+
+// String to number conversion
+const age = stringToNumber.parse('25'); // 25
+const price = stringToNumber.encode(99.99); // "99.99"
+
+// String to integer (validates integer constraint)
+const count = stringToInt.parse('42'); // 42
+stringToInt.parse('42.5'); // ❌ Validation error: must be integer
+
+// String to BigInt for large numbers
+const bigNum = stringToBigInt.parse('123456789012345678901234567890'); // 123456789012345678901234567890n
+
+// String to boolean (flexible parsing)
+stringToBoolean.parse('true'); // true
+stringToBoolean.parse('1'); // true
+stringToBoolean.parse('yes'); // true
+stringToBoolean.parse('on'); // true
+stringToBoolean.parse('false'); // false
+stringToBoolean.parse('0'); // false
+```
+
+#### **Date Conversion Codecs**
+
+```typescript
+import { isoDatetimeToDate, epochSecondsToDate, epochMillisToDate } from '@oxog/vld';
+
+// ISO datetime string to Date
+const date1 = isoDatetimeToDate.parse('2023-12-25T10:30:00.000Z');
+console.log(date1.toISOString()); // "2023-12-25T10:30:00.000Z"
+
+// Unix epoch seconds to Date
+const date2 = epochSecondsToDate.parse(1703505000);
+console.log(date2.getFullYear()); // 2023
+
+// Unix epoch milliseconds to Date
+const date3 = epochMillisToDate.parse(1703505000000);
+console.log(date3.getMonth()); // 11 (December)
+
+// All support bidirectional conversion
+const backToEpoch = epochSecondsToDate.encode(new Date()); // Unix timestamp
+```
+
+#### **JSON and Complex Data Codecs**
+
+```typescript
+import { jsonCodec, base64Json } from '@oxog/vld';
+
+// Generic JSON codec
+const userJson = jsonCodec();
+const user = userJson.parse('{"name":"John","age":30}'); // { name: "John", age: 30 }
+const jsonString = userJson.encode(user); // '{"name":"John","age":30}'
+
+// JSON codec with schema validation
+const userSchema = v.object({
+  name: v.string(),
+  age: v.number()
+});
+const typedJsonCodec = jsonCodec(userSchema);
+const validatedUser = typedJsonCodec.parse('{"name":"John","age":30}'); // Fully typed!
+
+// Base64-encoded JSON
+const b64JsonCodec = base64Json(userSchema);
+const encoded = b64JsonCodec.encode({ name: "Alice", age: 25 }); // Base64 string
+const decoded = b64JsonCodec.parse(encoded); // { name: "Alice", age: 25 }
+```
+
+#### **URL and Web Codecs**
+
+```typescript
+import { stringToURL, stringToHttpURL, uriComponent } from '@oxog/vld';
+
+// String to URL object
+const url = stringToURL.parse('https://example.com/path?param=value');
+console.log(url.hostname); // "example.com"
+console.log(url.searchParams.get('param')); // "value"
+
+// Restrict to HTTP/HTTPS only
+const httpUrl = stringToHttpURL.parse('https://api.example.com');
+stringToHttpURL.parse('ftp://files.example.com'); // ❌ Error: Must be HTTP/HTTPS
+
+// URI component encoding/decoding
+const encoded = uriComponent.parse('Hello World! 🚀'); // "Hello%20World!%20%F0%9F%9A%80"
+const decoded = uriComponent.encode(encoded); // "Hello World! 🚀"
+```
+
+#### **Binary Data Codecs**
+
+```typescript
+import { base64ToBytes, hexToBytes, utf8ToBytes, bytesToUtf8 } from '@oxog/vld';
+
+// Base64 to byte array
+const bytes1 = base64ToBytes.parse('SGVsbG8gV29ybGQ='); // Uint8Array([72, 101, 108, 108, 111, 32, 87, 111, 114, 108, 100])
+
+// Hex to byte array
+const bytes2 = hexToBytes.parse('48656c6c6f'); // Uint8Array([72, 101, 108, 108, 111])
+
+// UTF-8 string to bytes
+const bytes3 = utf8ToBytes.parse('Hello! 👋'); // Uint8Array([...])
+
+// Bytes to UTF-8 string
+const text = bytesToUtf8.parse(bytes3); // "Hello! 👋"
+
+// All support round-trip conversion
+const original = 'Hello World!';
+const roundTrip = bytesToUtf8.parse(utf8ToBytes.parse(original)); // "Hello World!"
+```
+
+### 🛠 Custom Codecs
+
+Create your own codecs for specific use cases:
+
+```typescript
+import { v } from '@oxog/vld';
+
+// Custom CSV to array codec
+const csvToArray = v.codec(
+  v.string(), // Input: CSV string
+  v.array(v.string()), // Output: Array of strings
+  {
+    decode: (csv: string) => csv.split(',').map(s => s.trim()),
+    encode: (arr: string[]) => arr.join(', ')
+  }
+);
+
+const tags = csvToArray.parse('react, typescript, vld'); // ["react", "typescript", "vld"]
+const csvString = csvToArray.encode(['node', 'express', 'api']); // "node, express, api"
+
+// Complex: Environment config codec
+const envConfigCodec = v.codec(
+  v.string(),
+  v.object({
+    port: v.number(),
+    debug: v.boolean(),
+    dbUrl: v.string()
+  }),
+  {
+    decode: (envString: string) => {
+      const config = {};
+      envString.split('\n').forEach(line => {
+        const [key, value] = line.split('=');
+        if (key === 'PORT') config.port = parseInt(value, 10);
+        if (key === 'DEBUG') config.debug = value === 'true';
+        if (key === 'DB_URL') config.dbUrl = value;
+      });
+      return config;
+    },
+    encode: (config) => [
+      `PORT=${config.port}`,
+      `DEBUG=${config.debug}`,
+      `DB_URL=${config.dbUrl}`
+    ].join('\n')
+  }
+);
+```
+
+### 🚀 Advanced Codec Features
+
+#### **Async Codecs**
+```typescript
+const asyncCodec = v.codec(
+  v.string(),
+  v.object({ data: v.string() }),
+  {
+    decode: async (str: string) => {
+      // Simulate API call
+      const response = await fetch(`/api/decode?data=${str}`);
+      return response.json();
+    },
+    encode: async (obj) => {
+      const response = await fetch('/api/encode', {
+        method: 'POST',
+        body: JSON.stringify(obj)
+      });
+      return response.text();
+    }
+  }
+);
+
+// Use async methods
+const result = await asyncCodec.parseAsync('input-data');
+const encoded = await asyncCodec.encodeAsync({ data: 'output' });
+```
+
+#### **Error Handling**
+```typescript
+const safeParseResult = stringToNumber.safeParse('not-a-number');
+if (!safeParseResult.success) {
+  console.error('Parse failed:', safeParseResult.error.message);
+}
+
+const safeEncodeResult = stringToNumber.safeEncode('invalid-input');
+if (!safeEncodeResult.success) {
+  console.error('Encode failed:', safeEncodeResult.error.message);
+}
+```
+
+#### **JWT Payload Decoder**
+```typescript
+import { jwtPayload } from '@oxog/vld';
+
+// Decode JWT payload (read-only)
+const payloadSchema = v.object({
+  sub: v.string(),
+  name: v.string(),
+  iat: v.number()
+});
+
+const decoder = jwtPayload(payloadSchema);
+const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c';
+
+const payload = decoder.parse(token);
+console.log(payload.name); // "John Doe"
+console.log(payload.sub); // "1234567890"
+```
+
+### 🎯 Codec vs Transform
+
+| Feature | Codec | Transform |
+|---------|--------|-----------|
+| **Direction** | Bidirectional (encode/decode) | Unidirectional (transform only) |
+| **Type Safety** | Input and output validation | Output validation only |
+| **Use Case** | Data serialization, API boundaries | Data cleaning, formatting |
+| **Performance** | Optimized for round-trips | Optimized for single direction |
+
+```typescript
+// Transform: One-way conversion
+const upperCase = v.string().transform(s => s.toUpperCase());
+const result = upperCase.parse('hello'); // "HELLO"
+// No way to get back to "hello"
+
+// Codec: Two-way conversion
+const upperCaseCodec = v.codec(
+  v.string(),
+  v.string(), 
+  {
+    decode: s => s.toUpperCase(),
+    encode: s => s.toLowerCase()
+  }
+);
+const encoded = upperCaseCodec.parse('hello'); // "HELLO"
+const original = upperCaseCodec.encode('HELLO'); // "hello"
+```
+
 ## 🔄 Migrating from Zod
 
 VLD provides 100% feature parity with Zod, making migration seamless:
@@ -789,7 +1060,7 @@ const schema = v.string().email();
 - **🌍 Internationalization**: Built-in 27+ language support
 - **📦 Bundle Size**: Smaller with zero dependencies
 - **🔒 Security**: Immutable validators prevent memory leaks
-- **✅ Testing**: 99.5% test coverage with 584 tests
+- **✅ Testing**: 97.3% test coverage with 569 tests
 
 ## 📈 Benchmarks
 

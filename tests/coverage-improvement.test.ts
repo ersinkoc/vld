@@ -1,4 +1,4 @@
-import { v } from '../src';
+import { v, VldBase } from '../src';
 
 describe('Coverage Improvement Tests', () => {
   describe('Object Validator - Uncovered Paths', () => {
@@ -73,7 +73,7 @@ describe('Coverage Improvement Tests', () => {
 
   describe('Union Validator - Type Checker Coverage', () => {
     it('should use type checkers for VldNull', () => {
-      const schema = v.union(v.null(), v.string());
+      const schema = v.union(v.literal(null), v.string());
       
       const result1 = schema.parse(null);
       expect(result1).toBe(null);
@@ -120,8 +120,8 @@ describe('Coverage Improvement Tests', () => {
   describe('Index.ts - Uncovered Lines', () => {
     it('should have VldBase available', () => {
       // This covers the VldBase export
-      expect(v.base).toBeDefined();
-      expect(typeof v.base).toBe('function');
+      expect(VldBase).toBeDefined();
+      expect(typeof VldBase).toBe('function');
     });
 
     it('should handle complex validator chains', () => {

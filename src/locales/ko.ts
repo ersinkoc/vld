@@ -85,5 +85,23 @@ export const ko: LocaleMessages = {
   customValidationError: (error: string) => `사용자 정의 유효성 검사 실패: ${error}`,
   
   // Coercion messages
-  coercionFailed: (type: string, value: unknown) => `${JSON.stringify(value)}를 ${type}로 강제 변환할 수 없습니다`
+  coercionFailed: (type: string, value: unknown) => `${JSON.stringify(value)}를 ${type}로 강제 변환할 수 없습니다`,
+  
+  // Codec messages
+  codecDecodeFailed: 'Failed to decode value',
+  codecEncodeFailed: 'Failed to encode value',
+  codecAsyncNotSupported: 'Async codec operations require using parseAsync/encodeAsync methods',
+  
+  // Base64/Hex messages
+  invalidBase64: 'Invalid base64 string',
+  invalidHex: 'Invalid hexadecimal string',
+  
+  // Uint8Array messages
+  expectedUint8Array: 'Expected Uint8Array',
+  uint8ArrayMinLength: 'Uint8Array must have at least {min} bytes',
+  uint8ArrayMaxLength: 'Uint8Array must have at most {max} bytes',
+  uint8ArrayExactLength: 'Uint8Array must have exactly {length} bytes',
+  
+  // Generic type error messages
+  expectedString: 'Expected string'
 };

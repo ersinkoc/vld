@@ -85,5 +85,23 @@ export const af: LocaleMessages = {
   customValidationError: (error: string) => `Pasgemaakte validasie het misluk: ${error}`,
   
   // Coercion messages
-  coercionFailed: (type: string, value: unknown) => `Kan nie ${JSON.stringify(value)} na ${type} dwing nie`
+  coercionFailed: (type: string, value: unknown) => `Kan nie ${JSON.stringify(value)} na ${type} dwing nie`,
+  
+  // Codec messages
+  codecDecodeFailed: 'Failed to decode value',
+  codecEncodeFailed: 'Failed to encode value',
+  codecAsyncNotSupported: 'Async codec operations require using parseAsync/encodeAsync methods',
+  
+  // Base64/Hex messages
+  invalidBase64: 'Invalid base64 string',
+  invalidHex: 'Invalid hexadecimal string',
+  
+  // Uint8Array messages
+  expectedUint8Array: 'Expected Uint8Array',
+  uint8ArrayMinLength: 'Uint8Array must have at least {min} bytes',
+  uint8ArrayMaxLength: 'Uint8Array must have at most {max} bytes',
+  uint8ArrayExactLength: 'Uint8Array must have exactly {length} bytes',
+  
+  // Generic type error messages
+  expectedString: 'Expected string'
 };
