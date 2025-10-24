@@ -4,7 +4,6 @@ export default {
   
   // ESM support
   extensionsToTreatAsEsm: ['.ts'],
-  preset: 'ts-jest/presets/default-esm',
   
   // Transform configuration for ESM
   transform: {
