@@ -8,6 +8,23 @@
 
 VLD is a blazing-fast, type-safe validation library for TypeScript and JavaScript with **full Zod feature parity**. Built with performance in mind, it provides a simple and intuitive API while maintaining excellent type inference and 27+ language internationalization support.
 
+## 📚 Table of Contents
+
+- [🚀 Features](#-features)
+- [📊 Performance](#-performance)
+- [📦 Installation](#-installation)
+- [🎯 Quick Start](#-quick-start)
+- [📖 API Reference](#-api-reference)
+- [🌍 Internationalization (i18n)](#-internationalization-i18n)
+- [⚠️ Error Handling & Formatting](#️-error-handling--formatting)
+- [🔥 Advanced Examples](#-advanced-examples)
+- [🎯 Why VLD?](#-why-vld)
+- [🔄 Codecs - Bidirectional Transformations](#-codecs---bidirectional-transformations)
+- [🔄 Migrating from Zod](#-migrating-from-zod)
+- [📈 Benchmarks](#-benchmarks)
+- [🤝 Contributing](#-contributing)
+- [🔗 Links](#-links)
+
 ## 🚀 Features
 
 ### Core Features
@@ -109,6 +126,9 @@ pnpm add @oxog/vld
 ```typescript
 import { v } from '@oxog/vld';
 
+// It is recommended to import as `v` for consistency with Zod's `z`
+// and for a more concise syntax.
+
 // Define a schema
 const userSchema = v.object({
   name: v.string().min(2),
@@ -148,8 +168,9 @@ v.boolean()   // Boolean validation
 v.bigint()    // BigInt validation
 v.symbol()    // Symbol validation
 v.date()      // Date validation
+v.uint8array()// Uint8Array validation
 v.literal()   // Literal values
-v.enum()      // Enum values
+v.enum()      // Enum values (supports TypeScript enums)
 v.any()       // Any type
 v.unknown()   // Unknown type  
 v.void()      // Void type
