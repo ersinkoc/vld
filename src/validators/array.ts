@@ -71,7 +71,7 @@ export class VldArray<T> extends VldBase<unknown[], T[]> {
     if (this.config.unique) {
       const seen = new Set<any>();
       for (const item of result) {
-        const key = typeof item === 'object' ? JSON.stringify(item) : item;
+        const key = typeof item === 'object' ? this.stableStringify(item) : item;
         if (seen.has(key)) {
           throw new Error('Array must contain unique items');
         }
@@ -91,6 +91,19 @@ export class VldArray<T> extends VldBase<unknown[], T[]> {
     } catch (error) {
       return { success: false, error: error as Error };
     }
+  }
+
+  /**
+   * Create a stable string representation of an object for hashing
+   */
+  private stableStringify(obj: any): string {
+    const allKeys: string[] = [];
+    JSON.stringify(obj, (key, value) => {
+      allKeys.push(key);
+      return value;
+    });
+    allKeys.sort();
+    return JSON.stringify(obj, allKeys);
   }
   
   /**
