@@ -8,6 +8,23 @@
 
 VLD is a blazing-fast, type-safe validation library for TypeScript and JavaScript with **full Zod feature parity**. Built with performance in mind, it provides a simple and intuitive API while maintaining excellent type inference and 27+ language internationalization support.
 
+## 📚 Table of Contents
+
+- [🚀 Features](#-features)
+- [📊 Performance](#-performance)
+- [📦 Installation](#-installation)
+- [🎯 Quick Start](#-quick-start)
+- [📖 API Reference](#-api-reference)
+- [🌍 Internationalization (i18n)](#-internationalization-i18n)
+- [⚠️ Error Handling & Formatting](#️-error-handling--formatting)
+- [🔥 Advanced Examples](#-advanced-examples)
+- [🎯 Why VLD?](#-why-vld)
+- [🔄 Codecs - Bidirectional Transformations](#-codecs---bidirectional-transformations)
+- [🔄 Migrating from Zod](#-migrating-from-zod)
+- [📈 Benchmarks](#-benchmarks)
+- [🤝 Contributing](#-contributing)
+- [🔗 Links](#-links)
+
 ## 🚀 Features
 
 ### Core Features
@@ -65,9 +82,9 @@ VLD is designed for speed and efficiency with recent optimizations delivering ex
 - **86% less memory** for error handling
 - **78% less memory** overall average
 
-### 🎭 The Truth About Zod's Benchmarks
+### A Note on Real-World Benchmarking
 
-Many validation library benchmarks are misleading because they test with **reused schema instances**:
+Many validation library benchmarks can be misleading because they often test with **reused schema instances**:
 
 ```javascript
 // What benchmarks typically test (unrealistic):
@@ -109,6 +126,9 @@ pnpm add @oxog/vld
 ```typescript
 import { v } from '@oxog/vld';
 
+// It is recommended to import as `v` for consistency with Zod's `z`
+// and for a more concise syntax.
+
 // Define a schema
 const userSchema = v.object({
   name: v.string().min(2),
@@ -148,8 +168,9 @@ v.boolean()   // Boolean validation
 v.bigint()    // BigInt validation
 v.symbol()    // Symbol validation
 v.date()      // Date validation
+v.uint8array()// Uint8Array validation
 v.literal()   // Literal values
-v.enum()      // Enum values
+v.enum()      // Enum values (supports TypeScript enums)
 v.any()       // Any type
 v.unknown()   // Unknown type  
 v.void()      // Void type
@@ -421,6 +442,9 @@ VLD provides advanced error formatting utilities similar to Zod's error handling
 
 ```typescript
 import { v, VldError, treeifyError, prettifyError, flattenError } from '@oxog/vld';
+
+// Note: Error formatting utilities like `treeifyError` are separate named exports
+// and are not part of the main `v` object.
 
 const userSchema = v.object({
   username: v.string().min(3),
@@ -737,43 +761,36 @@ function handleLogin(data: unknown) {
 }
 ```
 
-## 🎯 Why VLD?
+## 🆚 VLD vs. Zod
 
-### 🚀 Full Zod Feature Parity + More
-VLD provides **complete Zod compatibility** with all advanced features including coercion, intersections, transformations, and object utilities - plus unique features like 27+ language internationalization.
+VLD is designed as a compelling alternative to Zod, offering full feature parity while delivering significant improvements in performance, bundle size, and internationalization.
 
-### ⚡ Performance First
-VLD is built from the ground up with performance in mind. Every line of code is optimized for the V8 engine, resulting in validation that doesn't slow down your application.
+### Feature Comparison
 
-### 🌍 Internationalization Leader
-The **only** major validation library with built-in support for 27+ languages. Perfect for global applications requiring localized error messages.
+| Feature                 | VLD                                | Zod                                  |
+| ----------------------- | ---------------------------------- | ------------------------------------ |
+| **Performance**         | **~2.07x faster** (average)        | Baseline                             |
+| **Memory Usage**        | **~78% less** overall              | Baseline                             |
+| **Internationalization**| ✅ **Built-in (27+ languages)**    | ❌ Requires third-party library      |
+| **Dependencies**        | **Zero**                           | `zod-i18n` for locales               |
+| **Bundle Size**         | Smaller                            | Larger                               |
+| **API**                 | 100% Zod-compatible                | Standard Zod API                     |
+| **Codecs**              | ✅ Built-in, bidirectional         | ✅ Via external `zod-codecs`         |
+| **Error Formatting**    | ✅ Advanced (tree, pretty, flatten)| ✅ Advanced (tree, pretty, flatten)|
+| **Type Inference**      | ✅ Excellent                       | ✅ Excellent                         |
 
-### 🎯 Real-World Testing  
-Our benchmarks test real-world scenarios, not just synthetic loops. VLD excels where it matters: in actual applications where schemas are created dynamically.
+### 🔄 Seamless Migration from Zod
 
-### 👨‍💻 Exceptional Developer Experience
-- **Full TypeScript integration** with perfect type inference
-- **Intuitive Zod-compatible API** for easy migration
-- **Advanced error formatting** with tree, pretty, and flatten utilities  
-- **95% test coverage** ensuring reliability
-- **Comprehensive documentation** with real-world examples
+Migration is straightforward due to 100% API compatibility. You can typically just swap the import statement.
 
-### 📦 Zero Dependencies  
-No dependencies means smaller bundle size, fewer security concerns, and better maintainability.
+```javascript
+// Before (Zod)
+import { z } from 'zod';
+const schema = z.string().email();
 
-### 🔄 Migration Ready
-Drop-in replacement for Zod with enhanced features:
-```typescript
-// Zod syntax works perfectly
-const schema = v.object({
-  name: v.string(),
-  age: v.number()
-}).refine(data => data.age > 0);
-
-// Plus VLD enhancements
-schema.extend({ email: v.string().email() })
-      .pick('name', 'email')  
-      .catch({ name: 'Unknown', email: 'no-email@example.com' });
+// After (VLD) - Exact same syntax!
+import { v } from '@oxog/vld';
+const schema = v.string().email();
 ```
 
 ## 🔄 Codecs - Bidirectional Transformations

@@ -62,7 +62,7 @@ export function hexToUint8Array(hex: string): Uint8Array {
   
   const bytes = new Uint8Array(paddedHex.length / 2);
   for (let i = 0; i < paddedHex.length; i += 2) {
-    bytes[i / 2] = parseInt(paddedHex.substr(i, 2), 16);
+    bytes[i / 2] = parseInt(paddedHex.substring(i, i + 2), 16);
   }
   
   return bytes;

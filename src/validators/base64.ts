@@ -7,6 +7,7 @@ import { getMessages } from '../locales';
  */
 export class VldBase64 extends VldBase<string, string> {
   private static readonly BASE64_REGEX = /^[A-Za-z0-9+/]*={0,2}$/;
+  // Note: RFC 4648 specifies URL-safe base64 should omit padding, but we allow it for compatibility
   private static readonly BASE64_URL_REGEX = /^[A-Za-z0-9_-]*={0,2}$/;
   
   private readonly urlSafe: boolean;
@@ -36,7 +37,7 @@ export class VldBase64 extends VldBase<string, string> {
     
     // Check if it's a valid base64 string
     const regex = this.urlSafe ? VldBase64.BASE64_URL_REGEX : VldBase64.BASE64_REGEX;
-    
+
     // Check basic format
     if (!regex.test(value)) {
       return {
@@ -46,9 +47,11 @@ export class VldBase64 extends VldBase<string, string> {
         ])
       };
     }
-    
-    // Check length is multiple of 4 (after padding)
-    if (value.length % 4 !== 0) {
+
+    // For standard base64, check length is multiple of 4 (after padding)
+    // Empty strings are valid (decode to empty buffer)
+    // For URL-safe base64, padding is not required
+    if (!this.urlSafe && value.length > 0 && value.length % 4 !== 0) {
       return {
         success: false,
         error: new VldError([

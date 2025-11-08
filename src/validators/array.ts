@@ -71,7 +71,7 @@ export class VldArray<T> extends VldBase<unknown[], T[]> {
     if (this.config.unique) {
       const seen = new Set<any>();
       for (const item of result) {
-        const key = typeof item === 'object' ? JSON.stringify(item) : item;
+        const key = typeof item === 'object' ? this.stableStringify(item) : item;
         if (seen.has(key)) {
           throw new Error('Array must contain unique items');
         }
@@ -90,6 +90,37 @@ export class VldArray<T> extends VldBase<unknown[], T[]> {
       return { success: true, data: this.parse(value) };
     } catch (error) {
       return { success: false, error: error as Error };
+    }
+  }
+
+  /**
+   * Create a stable string representation of an object for hashing
+   * Handles circular references gracefully
+   */
+  private stableStringify(obj: any): string {
+    const seen = new WeakSet();
+
+    const replacer = (_key: string, value: any): any => {
+      if (typeof value === 'object' && value !== null) {
+        if (seen.has(value)) {
+          return '[Circular]';
+        }
+        seen.add(value);
+      }
+      return value;
+    };
+
+    try {
+      const allKeys: string[] = [];
+      JSON.stringify(obj, (key, value) => {
+        allKeys.push(key);
+        return replacer(key, value);
+      });
+      allKeys.sort();
+      return JSON.stringify(obj, (_key, value) => replacer(_key, value));
+    } catch (error) {
+      // Fallback to safe representation if stringify fails
+      return String(obj);
     }
   }
   

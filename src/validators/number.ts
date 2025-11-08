@@ -162,7 +162,11 @@ export class VldNumber extends VldBase<number, number> {
    */
   multipleOf(value: number, message?: string): VldNumber {
     return new VldNumber({
-      checks: [...this.config.checks, (v: number) => v % value === 0],
+      checks: [...this.config.checks, (v: number) => {
+        // Use epsilon comparison for floating point precision
+        const remainder = Math.abs(v % value);
+        return remainder < Number.EPSILON || Math.abs(remainder - Math.abs(value)) < Number.EPSILON;
+      }],
       errorMessage: message || getMessages().numberMultipleOf(value)
     });
   }
@@ -189,7 +193,11 @@ export class VldNumber extends VldBase<number, number> {
    */
   even(message?: string): VldNumber {
     return new VldNumber({
-      checks: [...this.config.checks, (v: number) => v % 2 === 0],
+      checks: [...this.config.checks, (v: number) => {
+        // Use epsilon comparison for floating point precision
+        const remainder = Math.abs(v % 2);
+        return remainder < Number.EPSILON || Math.abs(remainder - 2) < Number.EPSILON;
+      }],
       errorMessage: message || 'Number must be even'
     });
   }
@@ -199,7 +207,12 @@ export class VldNumber extends VldBase<number, number> {
    */
   odd(message?: string): VldNumber {
     return new VldNumber({
-      checks: [...this.config.checks, (v: number) => v % 2 !== 0],
+      checks: [...this.config.checks, (v: number) => {
+        // Use epsilon comparison for floating point precision
+        const remainder = Math.abs(v % 2);
+        const isEven = remainder < Number.EPSILON || Math.abs(remainder - 2) < Number.EPSILON;
+        return !isEven;
+      }],
       errorMessage: message || 'Number must be odd'
     });
   }
