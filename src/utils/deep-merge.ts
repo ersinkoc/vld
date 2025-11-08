@@ -11,7 +11,35 @@ export function isPlainObject(obj: any): obj is Record<string, any> {
 }
 
 /**
+ * Check if a key could be dangerous for prototype pollution
+ */
+function isDangerousKey(key: string): boolean {
+  // Direct dangerous keys
+  const directDangerousKeys = ['__proto__', 'constructor', 'prototype'];
+  if (directDangerousKeys.includes(key)) {
+    return true;
+  }
+
+  // Nested prototype manipulation vectors
+  const nestedPatterns = [
+    'constructor.prototype',
+    '__proto__.toString',
+    'prototype.constructor'
+  ];
+
+  // Check for nested patterns
+  for (const pattern of nestedPatterns) {
+    if (key.includes(pattern)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
  * Safely deep merge two objects without prototype pollution vulnerability
+ * Optimized for performance with minimal object allocations
  * @param target The target object
  * @param source The source object to merge from
  * @returns A new merged object
@@ -20,26 +48,28 @@ export function deepMerge<T extends Record<string, any>>(
   target: T,
   source: Partial<T>
 ): T {
-  // Prevent prototype pollution
-  const DANGEROUS_KEYS = ['__proto__', 'constructor', 'prototype'];
-  
-  // Create a new object to avoid mutations
+  // Create a new object to avoid mutations (only once)
   const result = { ...target } as T;
-  
-  for (const key in source) {
+
+  // Get source keys directly for better performance
+  const sourceKeys = Object.keys(source);
+
+  for (let i = 0; i < sourceKeys.length; i++) {
+    const key = sourceKeys[i];
+
     // Skip dangerous keys that could lead to prototype pollution
-    if (DANGEROUS_KEYS.includes(key)) {
+    if (isDangerousKey(key)) {
       continue;
     }
-    
-    // Only process own properties, not inherited ones
+
+    // Only process own properties (redundant with Object.keys but safe)
     if (!Object.prototype.hasOwnProperty.call(source, key)) {
       continue;
     }
-    
+
     const sourceValue = source[key];
     const targetValue = target[key];
-    
+
     // If both values are plain objects, merge them recursively
     if (isPlainObject(sourceValue) && isPlainObject(targetValue)) {
       (result as any)[key] = deepMerge(targetValue as any, sourceValue as any);
@@ -48,7 +78,7 @@ export function deepMerge<T extends Record<string, any>>(
       (result as any)[key] = sourceValue;
     }
   }
-  
+
   return result;
 }
 

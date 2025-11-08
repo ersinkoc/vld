@@ -98,9 +98,9 @@ export const vi: LocaleMessages = {
   
   // Uint8Array messages
   expectedUint8Array: 'Expected Uint8Array',
-  uint8ArrayMinLength: 'Uint8Array must have at least {min} bytes',
-  uint8ArrayMaxLength: 'Uint8Array must have at most {max} bytes',
-  uint8ArrayExactLength: 'Uint8Array must have exactly {length} bytes',
+  uint8ArrayMinLength: (min: number) => `Uint8Array must have at least ${min} bytes`,
+  uint8ArrayMaxLength: (max: number) => `Uint8Array must have at most ${max} bytes`,
+  uint8ArrayExactLength: (length: number) => `Uint8Array must have exactly ${length} bytes`,
   
   // Generic type error messages
   expectedString: 'Expected string'

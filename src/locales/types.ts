@@ -110,9 +110,9 @@ export interface LocaleMessages {
   
   // Uint8Array messages
   expectedUint8Array: string;
-  uint8ArrayMinLength: string;
-  uint8ArrayMaxLength: string;
-  uint8ArrayExactLength: string;
+  uint8ArrayMinLength: (min: number) => string;
+  uint8ArrayMaxLength: (max: number) => string;
+  uint8ArrayExactLength: (length: number) => string;
   
   // Generic type error messages
   expectedString: string;

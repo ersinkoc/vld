@@ -33,7 +33,7 @@ export class VldUint8Array extends VldBase<Uint8Array, Uint8Array> {
       return {
         success: false,
         error: new VldError([
-          createIssue('custom', [], getMessages().uint8ArrayExactLength.replace('{length}', this.exactLength.toString()))
+          createIssue('custom', [], getMessages().uint8ArrayExactLength(this.exactLength))
         ])
       };
     }
@@ -43,7 +43,7 @@ export class VldUint8Array extends VldBase<Uint8Array, Uint8Array> {
       return {
         success: false,
         error: new VldError([
-          createIssue('custom', [], getMessages().uint8ArrayMinLength.replace('{min}', this.minLength.toString()))
+          createIssue('custom', [], getMessages().uint8ArrayMinLength(this.minLength))
         ])
       };
     }
@@ -53,7 +53,7 @@ export class VldUint8Array extends VldBase<Uint8Array, Uint8Array> {
       return {
         success: false,
         error: new VldError([
-          createIssue('custom', [], getMessages().uint8ArrayMaxLength.replace('{max}', this.maxLength.toString()))
+          createIssue('custom', [], getMessages().uint8ArrayMaxLength(this.maxLength))
         ])
       };
     }

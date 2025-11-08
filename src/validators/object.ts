@@ -112,14 +112,13 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
       }
     }
     
-    // Handle passthrough mode - optimized with prototype pollution protection
+    // Handle passthrough mode - optimized with comprehensive prototype pollution protection
     if (this.config.passthrough) {
-      const DANGEROUS_KEYS = ['__proto__', 'constructor', 'prototype'];
       const objKeys = Object.keys(obj);
       for (let i = 0; i < objKeys.length; i++) {
         const key = objKeys[i];
         // Skip dangerous keys to prevent prototype pollution
-        if (!this.shapeKeysSet.has(key) && !DANGEROUS_KEYS.includes(key)) {
+        if (!this.shapeKeysSet.has(key) && !this.isDangerousKey(key)) {
           result[key] = obj[key];
         }
       }
@@ -181,20 +180,81 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
       }
     }
     
-    // Handle passthrough mode with prototype pollution protection
+    // Handle passthrough mode with comprehensive prototype pollution protection
     if (this.config.passthrough) {
-      const DANGEROUS_KEYS = ['__proto__', 'constructor', 'prototype'];
       const objKeys = Object.keys(obj);
       for (let i = 0; i < objKeys.length; i++) {
         const key = objKeys[i];
         // Skip dangerous keys to prevent prototype pollution
-        if (!this.shapeKeysSet.has(key) && !DANGEROUS_KEYS.includes(key)) {
+        if (!this.shapeKeysSet.has(key) && !this.isDangerousKey(key)) {
           result[key] = obj[key];
         }
       }
     }
     
     return { success: true, data: result as T };
+  }
+
+  /**
+   * Comprehensive prototype pollution protection
+   * Checks for dangerous keys that could modify Object.prototype
+   */
+  private isDangerousKey(key: string): boolean {
+    // Direct dangerous keys
+    const directDangerousKeys = ['__proto__', 'constructor', 'prototype'];
+    if (directDangerousKeys.includes(key)) {
+      return true;
+    }
+
+    // Nested prototype manipulation vectors
+    // These patterns could allow prototype pollution through nested access
+    const nestedPatterns = [
+      'constructor.prototype',
+      '__proto__.toString',
+      'prototype.constructor',
+      '__defineGetter__',
+      '__defineSetter__',
+      '__lookupGetter__',
+      '__lookupSetter__'
+    ];
+
+    // Check for nested patterns
+    for (const pattern of nestedPatterns) {
+      if (key.includes(pattern)) {
+        return true;
+      }
+    }
+
+    // Check for property access chains that could lead to prototype pollution
+    // This covers patterns like "x.constructor.prototype.polluted"
+    const dangerousChains = [
+      'constructor.',
+      '__proto__.',
+      'prototype.'
+    ];
+
+    for (const chain of dangerousChains) {
+      if (key.includes(chain)) {
+        return true;
+      }
+    }
+
+    // Additional protection: reject keys that could be used for property shadowing
+    const shadowingPatterns = [
+      'hasOwnProperty',
+      'toString',
+      'valueOf',
+      'isPrototypeOf',
+      'propertyIsEnumerable'
+    ];
+
+    for (const pattern of shadowingPatterns) {
+      if (key === pattern || key.includes(`.${pattern}`)) {
+        return true;
+      }
+    }
+
+    return false;
   }
   
   /**
