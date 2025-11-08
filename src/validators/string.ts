@@ -247,7 +247,11 @@ export class VldString extends VldBase<string, string> {
    */
   ip(message?: string): VldString {
     return new VldString({
-      checks: [...this.config.checks, (v: string) => REGEX_PATTERNS.ipv4.test(v) || REGEX_PATTERNS.ipv6.test(v)],
+      checks: [...this.config.checks, (v: string) => {
+        // Prevent ReDoS: Check length before regex
+        if (v.length > 100) return false;
+        return REGEX_PATTERNS.ipv4.test(v) || REGEX_PATTERNS.ipv6.test(v);
+      }],
       transforms: this.config.transforms,
       errorMessage: message || getMessages().stringIp
     });
@@ -269,7 +273,12 @@ export class VldString extends VldBase<string, string> {
    */
   ipv6(message?: string): VldString {
     return new VldString({
-      checks: [...this.config.checks, (v: string) => REGEX_PATTERNS.ipv6.test(v)],
+      checks: [...this.config.checks, (v: string) => {
+        // Prevent ReDoS: IPv6 addresses should not exceed 45 characters
+        // Max length: 8 groups of 4 hex chars (32) + 7 colons (7) + potential zone ID = ~45 chars
+        if (v.length > 100) return false;
+        return REGEX_PATTERNS.ipv6.test(v);
+      }],
       transforms: this.config.transforms,
       errorMessage: message || getMessages().stringIpv6
     });

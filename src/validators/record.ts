@@ -29,18 +29,26 @@ export class VldRecord<T> extends VldBase<unknown, Record<string, T>> {
     if (typeof value !== 'object' || value === null || Array.isArray(value)) {
       throw new Error(this.errorMessage || getMessages().invalidRecord);
     }
-    
+
     const result: Record<string, T> = {};
     const obj = value as Record<string, unknown>;
-    
+
+    // Dangerous keys that could lead to prototype pollution
+    const DANGEROUS_KEYS = ['__proto__', 'constructor', 'prototype'];
+
     for (const [key, val] of Object.entries(obj)) {
+      // Skip dangerous keys to prevent prototype pollution
+      if (DANGEROUS_KEYS.includes(key)) {
+        continue;
+      }
+
       try {
         result[key] = this.valueValidator.parse(val);
       } catch (error) {
         throw new Error(getMessages().objectField(key, (error as Error).message));
       }
     }
-    
+
     return result;
   }
   
