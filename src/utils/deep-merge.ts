@@ -70,9 +70,9 @@ export function deepFreeze<T>(obj: T): Readonly<T> {
   
   // Freeze the object/function itself
   Object.freeze(obj);
-  
-  // Recursively freeze all properties
-  Object.getOwnPropertyNames(obj).forEach(prop => {
+
+  // Recursively freeze all properties (including Symbol properties)
+  Reflect.ownKeys(obj).forEach(prop => {
     const value = (obj as any)[prop];
     if (value !== null && (typeof value === 'object' || typeof value === 'function')) {
       deepFreeze(value);

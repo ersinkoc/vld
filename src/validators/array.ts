@@ -95,15 +95,33 @@ export class VldArray<T> extends VldBase<unknown[], T[]> {
 
   /**
    * Create a stable string representation of an object for hashing
+   * Handles circular references gracefully
    */
   private stableStringify(obj: any): string {
-    const allKeys: string[] = [];
-    JSON.stringify(obj, (key, value) => {
-      allKeys.push(key);
+    const seen = new WeakSet();
+
+    const replacer = (_key: string, value: any): any => {
+      if (typeof value === 'object' && value !== null) {
+        if (seen.has(value)) {
+          return '[Circular]';
+        }
+        seen.add(value);
+      }
       return value;
-    });
-    allKeys.sort();
-    return JSON.stringify(obj, allKeys);
+    };
+
+    try {
+      const allKeys: string[] = [];
+      JSON.stringify(obj, (key, value) => {
+        allKeys.push(key);
+        return replacer(key, value);
+      });
+      allKeys.sort();
+      return JSON.stringify(obj, (_key, value) => replacer(_key, value));
+    } catch (error) {
+      // Fallback to safe representation if stringify fails
+      return String(obj);
+    }
   }
   
   /**

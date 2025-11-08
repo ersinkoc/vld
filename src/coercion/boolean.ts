@@ -41,9 +41,14 @@ export class VldCoerceBoolean extends VldBoolean {
       if (value === null || value === undefined) {
         throw new Error(getMessages().coercionFailed('boolean', value));
       }
-      
-      // Use parent validation for actual booleans
-      return super.parse(Boolean(value));
+
+      // Handle actual boolean values
+      if (typeof value === 'boolean') {
+        return super.parse(value);
+      }
+
+      // Reject all other unsupported types (objects, arrays, etc.)
+      throw new Error(getMessages().coercionFailed('boolean', value));
     } catch (error) {
       if ((error as Error).message.includes('coercionFailed')) {
         throw error;
