@@ -95,28 +95,39 @@ export class VldArray<T> extends VldBase<unknown[], T[]> {
 
   /**
    * Create a stable string representation of an object for hashing
-   * Handles circular references gracefully
+   * Handles circular references and deep nesting gracefully
+   * BUG-006 FIX: Added depth limit to prevent stack overflow
    */
   private stableStringify(obj: any): string {
     const seen = new WeakSet();
+    const MAX_DEPTH = 100; // Reasonable depth limit to prevent stack overflow
+    let currentDepth = 0;
 
     const replacer = (_key: string, value: any): any => {
       if (typeof value === 'object' && value !== null) {
+        // Check depth limit before processing
+        if (currentDepth > MAX_DEPTH) {
+          return '[Max Depth Exceeded]';
+        }
+
         if (seen.has(value)) {
           return '[Circular]';
         }
         seen.add(value);
+        currentDepth++;
       }
       return value;
     };
 
     try {
       const allKeys: string[] = [];
+      currentDepth = 0;
       JSON.stringify(obj, (key, value) => {
         allKeys.push(key);
         return replacer(key, value);
       });
       allKeys.sort();
+      currentDepth = 0;
       return JSON.stringify(obj, (_key, value) => replacer(_key, value));
     } catch (error) {
       // Fallback to safe representation if stringify fails

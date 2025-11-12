@@ -127,8 +127,10 @@ export class VldCoerceString extends VldString {
   }
   
   email(message?: string): VldCoerceString {
+    // BUG-007 FIX: Use simpler, ReDoS-safe regex (consistent with VldString)
+    const FAST_EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return new VldCoerceString({
-      checks: [...this.config.checks, (v: string) => /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/.test(v)],
+      checks: [...this.config.checks, (v: string) => FAST_EMAIL_REGEX.test(v)],
       transforms: this.config.transforms,
       errorMessage: message || getMessages().stringEmail
     });
@@ -259,6 +261,7 @@ export class VldCoerceString extends VldString {
 
       // Sanitize control characters for security
       // Remove characters that could cause issues in logs, databases, or UI
+      // eslint-disable-next-line no-control-regex -- Intentional removal of control characters for security
       const sanitized = value.replace(/[\x00-\x1F\x7F]/g, '');
 
       // Use parent validation with sanitized string
@@ -316,6 +319,7 @@ export class VldCoerceString extends VldString {
 
     // Sanitize control characters for security
     // Remove characters that could cause issues in logs, databases, or UI
+    // eslint-disable-next-line no-control-regex -- Intentional removal of control characters for security
     const sanitized = coerced.replace(/[\x00-\x1F\x7F]/g, '');
 
     // Use parent validation with sanitized value

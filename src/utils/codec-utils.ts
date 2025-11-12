@@ -54,17 +54,23 @@ export function uint8ArrayToBase64Url(bytes: Uint8Array): string {
  * Convert hex string to Uint8Array
  */
 export function hexToUint8Array(hex: string): Uint8Array {
+  // BUG-010 FIX: Add length validation to prevent memory exhaustion
+  // 20 million characters = 10MB of data (consistent with base64 limits)
+  if (hex.length > 20000000) {
+    throw new Error('Hex string is too large (max 10MB)');
+  }
+
   // Remove any 0x prefix if present
   const cleanHex = hex.startsWith('0x') ? hex.slice(2) : hex;
-  
+
   // Ensure even length
   const paddedHex = cleanHex.length % 2 === 0 ? cleanHex : '0' + cleanHex;
-  
+
   const bytes = new Uint8Array(paddedHex.length / 2);
   for (let i = 0; i < paddedHex.length; i += 2) {
     bytes[i / 2] = parseInt(paddedHex.substring(i, i + 2), 16);
   }
-  
+
   return bytes;
 }
 

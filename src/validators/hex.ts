@@ -6,7 +6,8 @@ import { getMessages } from '../locales';
  * Hexadecimal string validator
  */
 export class VldHex extends VldBase<string, string> {
-  private static readonly HEX_REGEX = /^[0-9a-fA-F]+$/;
+  // BUG-008 FIX: Use * instead of + to allow empty hex strings (consistent with base64 validator)
+  private static readonly HEX_REGEX = /^[0-9a-fA-F]*$/;
   
   private readonly lowercase: boolean;
   

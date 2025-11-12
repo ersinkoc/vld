@@ -379,14 +379,19 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
       const validator = this.config.shape[key];
       // If it's optional, unwrap it
       if (validator instanceof VldOptional) {
-        requiredShape[key] = (validator as any).baseValidator;
+        // BUG-001 FIX: Add defensive check for baseValidator property
+        const unwrapped = (validator as any).baseValidator;
+        if (!unwrapped || typeof unwrapped.parse !== 'function') {
+          throw new Error(`Invalid VldOptional structure for field "${key}": missing or invalid baseValidator`);
+        }
+        requiredShape[key] = unwrapped;
       } else {
         requiredShape[key] = validator;
       }
     }
-    return new VldObject({ 
-      ...this.config, 
-      shape: requiredShape 
+    return new VldObject({
+      ...this.config,
+      shape: requiredShape
     }) as any;
   }
 }

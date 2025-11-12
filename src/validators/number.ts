@@ -190,28 +190,33 @@ export class VldNumber extends VldBase<number, number> {
   
   /**
    * Create a new validator that checks for even numbers
+   * BUG-011 FIX: Require integers for even/odd validation (more mathematically correct)
    */
   even(message?: string): VldNumber {
     return new VldNumber({
       checks: [...this.config.checks, (v: number) => {
-        // Use epsilon comparison for floating point precision
-        const remainder = Math.abs(v % 2);
-        return remainder < Number.EPSILON || Math.abs(remainder - 2) < Number.EPSILON;
+        // Even/odd only makes sense for integers
+        if (!Number.isInteger(v)) {
+          return false;
+        }
+        return v % 2 === 0;
       }],
       errorMessage: message || 'Number must be even'
     });
   }
-  
+
   /**
    * Create a new validator that checks for odd numbers
+   * BUG-011 FIX: Require integers for even/odd validation (more mathematically correct)
    */
   odd(message?: string): VldNumber {
     return new VldNumber({
       checks: [...this.config.checks, (v: number) => {
-        // Use epsilon comparison for floating point precision
-        const remainder = Math.abs(v % 2);
-        const isEven = remainder < Number.EPSILON || Math.abs(remainder - 2) < Number.EPSILON;
-        return !isEven;
+        // Even/odd only makes sense for integers
+        if (!Number.isInteger(v)) {
+          return false;
+        }
+        return v % 2 !== 0;
       }],
       errorMessage: message || 'Number must be odd'
     });

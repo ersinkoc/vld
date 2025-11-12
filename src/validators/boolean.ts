@@ -67,11 +67,26 @@ class VldTrue extends VldBoolean {
   constructor(private readonly message: string) {
     super(message);
   }
-  
+
   parse(value: unknown): boolean {
     const result = super.parse(value);
     if (result !== true) {
       throw new Error(this.message);
+    }
+    return result;
+  }
+
+  // BUG-003 FIX: Override safeParse to ensure true validation
+  safeParse(value: unknown): ParseResult<boolean> {
+    const result = super.safeParse(value);
+    if (!result.success) {
+      return result;
+    }
+    if (result.data !== true) {
+      return {
+        success: false,
+        error: new Error(this.message)
+      };
     }
     return result;
   }
@@ -84,11 +99,26 @@ class VldFalse extends VldBoolean {
   constructor(private readonly message: string) {
     super(message);
   }
-  
+
   parse(value: unknown): boolean {
     const result = super.parse(value);
     if (result !== false) {
       throw new Error(this.message);
+    }
+    return result;
+  }
+
+  // BUG-003 FIX: Override safeParse to ensure false validation
+  safeParse(value: unknown): ParseResult<boolean> {
+    const result = super.safeParse(value);
+    if (!result.success) {
+      return result;
+    }
+    if (result.data !== false) {
+      return {
+        success: false,
+        error: new Error(this.message)
+      };
     }
     return result;
   }
