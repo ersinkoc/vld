@@ -1,5 +1,13 @@
 import { VldBase, ParseResult, VldOptional } from './base';
 import { getMessages } from '../locales';
+import { VldString } from './string';
+import { VldNumber } from './number';
+import { VldBoolean } from './boolean';
+import { VldDate } from './date';
+import { VldCoerceString } from '../coercion/string';
+import { VldCoerceNumber } from '../coercion/number';
+import { VldCoerceBoolean } from '../coercion/boolean';
+import { VldCoerceDate } from '../coercion/date';
 
 /**
  * Configuration for object validator
@@ -58,28 +66,43 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
       const key = this.shapeKeys[i];
       const validator = this.config.shape[key];
       const fieldValue = obj[key];
-      
-      // Inline fast-path validation for common types
-      const validatorType = validator.constructor.name;
-      
-      if (validatorType === 'VldString') {
+
+      // BUG-NEW-002 FIX: Use instanceof instead of constructor.name
+      // constructor.name breaks in minified builds where class names become 'a', 'b', etc.
+      // instanceof checks are reliable regardless of minification
+      //
+      // Note: Coercion validators extend their base validators, so we need to check for
+      // coercion types first (more specific) before checking base types
+
+      // Check for coercion validators first - they need full safeParse for type conversion
+      if (validator instanceof VldCoerceString ||
+          validator instanceof VldCoerceNumber ||
+          validator instanceof VldCoerceBoolean ||
+          validator instanceof VldCoerceDate) {
+        // Coercion validators need safeParse to handle type conversion
+        const parseResult = validator.safeParse(fieldValue);
+        if (!parseResult.success) {
+          throw new Error(getMessages().objectField(key, parseResult.error.message));
+        }
+        result[key] = parseResult.data;
+      } else if (validator instanceof VldString) {
         // For string with validations, use safeParse to handle email, regex etc.
         const parseResult = validator.safeParse(fieldValue);
         if (!parseResult.success) {
           throw new Error(getMessages().objectField(key, parseResult.error.message));
         }
         result[key] = parseResult.data;
-      } else if (validatorType === 'VldNumber') {
+      } else if (validator instanceof VldNumber) {
         if (typeof fieldValue !== 'number' || isNaN(fieldValue)) {
           throw new Error(getMessages().objectField(key, getMessages().invalidNumber));
         }
         result[key] = fieldValue;
-      } else if (validatorType === 'VldBoolean') {
+      } else if (validator instanceof VldBoolean) {
         if (typeof fieldValue !== 'boolean') {
           throw new Error(getMessages().objectField(key, getMessages().invalidBoolean));
         }
         result[key] = fieldValue;
-      } else if (validatorType === 'VldDate') {
+      } else if (validator instanceof VldDate) {
         // Use the actual validator for Date parsing (handles string conversion)
         const parseResult = validator.safeParse(fieldValue);
         if (!parseResult.success) {
