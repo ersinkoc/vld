@@ -26,26 +26,43 @@ export class VldEnum<T extends readonly [string, ...string[]]> extends VldBase<s
    * Parse and validate an enum value
    */
   parse(value: unknown): T[number] {
-    if (!this.values.includes(value as string)) {
+    // BUG-002 FIX: Add type check before includes() to prevent type confusion
+    if (typeof value !== 'string') {
       throw new Error(
-        this.errorMessage || 
+        this.errorMessage ||
+        getMessages().enumExpected([...this.values], JSON.stringify(value))
+      );
+    }
+    if (!this.values.includes(value)) {
+      throw new Error(
+        this.errorMessage ||
         getMessages().enumExpected([...this.values], JSON.stringify(value))
       );
     }
     return value as T[number];
   }
-  
+
   /**
    * Safely parse and validate an enum value
    */
   safeParse(value: unknown): ParseResult<T[number]> {
-    if (this.values.includes(value as string)) {
+    // BUG-002 FIX: Add type check before includes() to prevent type confusion
+    if (typeof value !== 'string') {
+      return {
+        success: false,
+        error: new Error(
+          this.errorMessage ||
+          getMessages().enumExpected([...this.values], JSON.stringify(value))
+        )
+      };
+    }
+    if (this.values.includes(value)) {
       return { success: true, data: value as T[number] };
     }
-    return { 
-      success: false, 
+    return {
+      success: false,
       error: new Error(
-        this.errorMessage || 
+        this.errorMessage ||
         getMessages().enumExpected([...this.values], JSON.stringify(value))
       )
     };

@@ -83,7 +83,11 @@ export class VldCoerceNumber extends VldNumber {
   
   multipleOf(value: number, message?: string): VldCoerceNumber {
     return new VldCoerceNumber({
-      checks: [...this.config.checks, (v: number) => v % value === 0],
+      checks: [...this.config.checks, (v: number) => {
+        // BUG-004 FIX: Use epsilon comparison for floating point precision (consistent with VldNumber)
+        const remainder = Math.abs(v % value);
+        return remainder < Number.EPSILON || Math.abs(remainder - Math.abs(value)) < Number.EPSILON;
+      }],
       errorMessage: message || getMessages().numberMultipleOf(value)
     });
   }

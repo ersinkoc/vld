@@ -27,11 +27,12 @@ describe('VldHex', () => {
 
     it('should reject invalid hexadecimal strings', () => {
       const validator = VldHex.create();
-      
+
       expect(validator.safeParse('Hello').success).toBe(false); // Contains non-hex chars
       expect(validator.safeParse('123g').success).toBe(false); // Contains 'g'
       expect(validator.safeParse('12 34').success).toBe(false); // Contains space
-      expect(validator.safeParse('').success).toBe(false); // Empty string (even length but regex fails)
+      // BUG-008 FIX: Empty strings are now valid (consistent with base64 validator)
+      expect(validator.safeParse('').success).toBe(true); // Empty string (represents 0 bytes)
       expect(validator.safeParse('12345').success).toBe(false); // Odd length
     });
 
@@ -106,9 +107,11 @@ describe('VldHex', () => {
       expect(validator.safeParse('abcde').success).toBe(false); // 2.5 bytes
     });
 
-    it('should handle zero-length after validation fails', () => {
+    it('should handle zero-length strings (empty hex)', () => {
       const validator = VldHex.create();
-      expect(validator.safeParse('').success).toBe(false);
+      // BUG-008 FIX: Empty strings are now valid (consistent with base64 validator)
+      expect(validator.safeParse('').success).toBe(true);
+      expect(validator.parse('')).toBe('');
     });
   });
 
