@@ -35,7 +35,7 @@ VLD is a blazing-fast, type-safe validation library for TypeScript and JavaScrip
 - **🔧 Composable**: Chain validations for complex schemas
 - **⚠️ Advanced Error Formatting**: Tree, pretty, and flatten error utilities
 - **🌍 Multi-language**: Built-in support for 27+ languages
-- **✅ 96.55% Test Coverage**: Rigorously tested with 694 passing tests
+- **✅ 96.55% Test Coverage**: Rigorously tested with 695 passing tests
 - **🏆 Industry Leading Performance**: 2.07x faster than Zod on average
 
 ### Advanced Zod-Compatible Features  
@@ -1077,7 +1077,7 @@ const schema = v.string().email();
 - **🌍 Internationalization**: Built-in 27+ language support
 - **📦 Bundle Size**: Smaller with zero dependencies
 - **🔒 Security**: Immutable validators prevent memory leaks
-- **✅ Testing**: 96.55% test coverage with 694 tests
+- **✅ Testing**: 96.55% test coverage with 695 tests
 
 ## 📈 Benchmarks
 

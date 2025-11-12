@@ -107,18 +107,113 @@ export function isNodeEnvironment(): boolean {
 }
 
 /**
- * Polyfill for atob in Node.js
+ * Validate and sanitize base64 input to prevent prototype pollution
+ */
+function validateBase64Input(encoded: string): void {
+  // Check for null/undefined
+  if (encoded == null) {
+    throw new Error('Base64 input cannot be null or undefined');
+  }
+
+  // Ensure it's a string
+  if (typeof encoded !== 'string') {
+    throw new Error('Base64 input must be a string');
+  }
+
+  // Length validation - base64 strings should be reasonable length
+  if (encoded.length > 10000000) { // 10MB limit
+    throw new Error('Base64 input is too large');
+  }
+
+  // Base64 character validation - only allow valid base64 characters
+  const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+  if (!base64Regex.test(encoded)) {
+    throw new Error('Invalid base64 format');
+  }
+
+  // Check for padding issues
+  const paddingIndex = encoded.indexOf('=');
+  if (paddingIndex !== -1) {
+    const padding = encoded.substring(paddingIndex);
+    // Only allow '=', '==', or '===' as padding
+    if (!/^={1,2}$/.test(padding) && padding !== '===') {
+      throw new Error('Invalid base64 padding');
+    }
+    // Padding should only be at the end
+    if (paddingIndex < encoded.length - 3) {
+      throw new Error('Base64 padding must be at the end');
+    }
+  }
+
+  // Additional security check: prevent potential encoded JavaScript
+  // by looking for suspicious patterns that might indicate malicious content
+  const suspiciousPatterns = [
+    /eval/i,
+    /function/i,
+    /javascript:/i,
+    /<script/i,
+    /on\w+\s*=/i,
+    /__proto__/i,
+    /constructor/i,
+    /prototype/i
+  ];
+
+  // Decode a small portion to check for suspicious content
+  try {
+    const sampleSize = Math.min(100, encoded.length);
+    const sample = encoded.substring(0, sampleSize);
+    const sampleDecoded = typeof atob !== 'undefined'
+      ? atob(sample)
+      : Buffer.from(sample, 'base64').toString('utf8', 0, 50); // Only decode first 50 chars
+
+    for (const pattern of suspiciousPatterns) {
+      if (pattern.test(sampleDecoded)) {
+        throw new Error('Suspicious content detected in base64 input');
+      }
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('Suspicious content')) {
+      throw error;
+    }
+    // If decoding fails, continue - it might be invalid base64 which will be caught later
+  }
+}
+
+/**
+ * Polyfill for atob in Node.js with proper input validation
  */
 export function safeAtob(encoded: string): string {
+  // Input validation and sanitization
+  validateBase64Input(encoded);
+
   if (typeof atob !== 'undefined') {
-    return atob(encoded);
+    try {
+      return atob(encoded);
+    } catch (error) {
+      throw new Error('Failed to decode base64 data');
+    }
   }
-  
-  // Node.js fallback
+
+  // Node.js fallback with additional validation
   if (isNodeEnvironment()) {
-    return Buffer.from(encoded, 'base64').toString('binary');
+    try {
+      // Use Buffer with explicit error handling
+      const buffer = Buffer.from(encoded, 'base64');
+
+      // Additional validation: ensure the decoded data is reasonable size
+      if (buffer.length > 5000000) { // 5MB limit for decoded data
+        throw new Error('Decoded base64 data is too large');
+      }
+
+      return buffer.toString('binary');
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('Invalid base64')) {
+        throw new Error('Invalid base64 format');
+      }
+      throw new Error('Failed to decode base64 data in Node.js environment');
+    }
   }
-  
+
   throw new Error('Base64 decoding not supported in this environment');
 }
 

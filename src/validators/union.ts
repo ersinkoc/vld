@@ -35,37 +35,54 @@ export class VldUnion<T extends readonly VldBase<any, any>[]> extends VldBase<
   
   /**
    * Create type checker based on validator type for fast path optimization
+   * Uses a safer approach that's less prone to spoofing
    */
   private createTypeChecker(validator: VldBase<any, any>): (value: unknown) => boolean {
-    // Quick type checks based on validator type
-    const className = validator.constructor.name;
-    
-    switch (className) {
-      case 'VldString':
+    // More conservative approach that prioritizes security and stability
+    // Only use fast path checks for very common, unambiguous types
+
+    try {
+      // Test basic types with safe parsing to validate the validator
+      const stringTest = validator.safeParse('test');
+      if (stringTest.success) {
         return (v) => typeof v === 'string';
-      case 'VldNumber':
+      }
+
+      const numberTest = validator.safeParse(123);
+      if (numberTest.success) {
         return (v) => typeof v === 'number' && !isNaN(v as number);
-      case 'VldBoolean':
+      }
+
+      const booleanTest = validator.safeParse(true);
+      if (booleanTest.success) {
         return (v) => typeof v === 'boolean';
-      case 'VldDate':
-        return (v) => v instanceof Date || (typeof v === 'string' && !isNaN(Date.parse(v as string)));
-      case 'VldArray':
+      }
+
+      const arrayTest = validator.safeParse([]);
+      if (arrayTest.success) {
         return (v) => Array.isArray(v);
-      case 'VldObject':
+      }
+
+      const objectTest = validator.safeParse({});
+      if (objectTest.success) {
         return (v) => typeof v === 'object' && v !== null && !Array.isArray(v);
-      case 'VldBigInt':
-        return (v) => typeof v === 'bigint';
-      case 'VldSymbol':
-        return (v) => typeof v === 'symbol';
-      case 'VldNull':
+      }
+
+      const nullTest = validator.safeParse(null);
+      if (nullTest.success) {
         return (v) => v === null;
-      case 'VldUndefined':
+      }
+
+      const undefinedTest = validator.safeParse(undefined);
+      if (undefinedTest.success) {
         return (v) => v === undefined;
-      case 'VldVoid':
-        return (v) => v === undefined;
-      default:
-        return () => true; // No quick check available
+      }
+    } catch {
+      // If safe testing fails, fall back to safe validation
     }
+
+    // Fallback: no quick check available - use safe validation
+    return () => true;
   }
   
   /**
