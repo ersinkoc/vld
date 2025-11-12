@@ -132,12 +132,14 @@ export class VldDate extends VldBase<Date, Date> {
 
   /**
    * Create a new validator that checks if date is in the past
+   * BUG-NEW-006 FIX: Capture reference date at validator creation time for deterministic behavior
    */
   past(message?: string): VldDate {
+    const referenceDate = new Date(); // Capture NOW at validator creation time
     return new VldDate({
       ...this.config,
       checks: [...this.config.checks, {
-        fn: (v: Date) => v < new Date(),
+        fn: (v: Date) => v < referenceDate,
         message: message || 'Date must be in the past'
       }]
     });
@@ -145,12 +147,14 @@ export class VldDate extends VldBase<Date, Date> {
 
   /**
    * Create a new validator that checks if date is in the future
+   * BUG-NEW-006 FIX: Capture reference date at validator creation time for deterministic behavior
    */
   future(message?: string): VldDate {
+    const referenceDate = new Date(); // Capture NOW at validator creation time
     return new VldDate({
       ...this.config,
       checks: [...this.config.checks, {
-        fn: (v: Date) => v > new Date(),
+        fn: (v: Date) => v > referenceDate,
         message: message || 'Date must be in the future'
       }]
     });

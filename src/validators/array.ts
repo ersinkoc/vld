@@ -97,38 +97,55 @@ export class VldArray<T> extends VldBase<unknown[], T[]> {
    * Create a stable string representation of an object for hashing
    * Handles circular references and deep nesting gracefully
    * BUG-006 FIX: Added depth limit to prevent stack overflow
+   * BUG-NEW-003 FIX: Fixed depth tracking to properly track recursion depth
    */
   private stableStringify(obj: any): string {
     const seen = new WeakSet();
     const MAX_DEPTH = 100; // Reasonable depth limit to prevent stack overflow
-    let currentDepth = 0;
 
-    const replacer = (_key: string, value: any): any => {
-      if (typeof value === 'object' && value !== null) {
-        // Check depth limit before processing
-        if (currentDepth > MAX_DEPTH) {
-          return '[Max Depth Exceeded]';
-        }
-
-        if (seen.has(value)) {
-          return '[Circular]';
-        }
-        seen.add(value);
-        currentDepth++;
+    // Helper function to sort keys and create stable representation
+    const sortedStringify = (value: any, depth: number = 0): string => {
+      // Check depth limit
+      if (depth > MAX_DEPTH) {
+        return '"[Max Depth Exceeded]"';
       }
-      return value;
+
+      // Handle primitives
+      if (value === null) return 'null';
+      if (value === undefined) return 'undefined';
+      if (typeof value !== 'object') return JSON.stringify(value);
+
+      // Handle circular references
+      if (seen.has(value)) {
+        return '"[Circular]"';
+      }
+
+      seen.add(value);
+
+      try {
+        // Handle arrays
+        if (Array.isArray(value)) {
+          const items = value.map(item => sortedStringify(item, depth + 1));
+          return `[${items.join(',')}]`;
+        }
+
+        // Handle objects - sort keys for stability
+        const keys = Object.keys(value).sort();
+        const pairs = keys.map(key => {
+          const serializedKey = JSON.stringify(key);
+          const serializedValue = sortedStringify(value[key], depth + 1);
+          return `${serializedKey}:${serializedValue}`;
+        });
+
+        return `{${pairs.join(',')}}`;
+      } finally {
+        // Clean up seen set for this branch
+        seen.delete(value);
+      }
     };
 
     try {
-      const allKeys: string[] = [];
-      currentDepth = 0;
-      JSON.stringify(obj, (key, value) => {
-        allKeys.push(key);
-        return replacer(key, value);
-      });
-      allKeys.sort();
-      currentDepth = 0;
-      return JSON.stringify(obj, (_key, value) => replacer(_key, value));
+      return sortedStringify(obj);
     } catch (error) {
       // Fallback to safe representation if stringify fails
       return String(obj);

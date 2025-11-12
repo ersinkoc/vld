@@ -137,16 +137,17 @@ function validateBase64Input(encoded: string): void {
     throw new Error('Invalid base64 format');
   }
 
-  // Check for padding issues
+  // BUG-NEW-004 FIX: Correct base64 padding validation per RFC 4648
+  // Base64 only uses '=' or '==' as padding, never '==='
   const paddingIndex = encoded.indexOf('=');
   if (paddingIndex !== -1) {
     const padding = encoded.substring(paddingIndex);
-    // Only allow '=', '==', or '===' as padding
-    if (!/^={1,2}$/.test(padding) && padding !== '===') {
+    // Only allow '=' or '==' as valid padding (RFC 4648 compliant)
+    if (!/^={1,2}$/.test(padding)) {
       throw new Error('Invalid base64 padding');
     }
     // Padding should only be at the end
-    if (paddingIndex < encoded.length - 3) {
+    if (paddingIndex < encoded.length - 2) {
       throw new Error('Base64 padding must be at the end');
     }
   }
