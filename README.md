@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
 [![Zero Dependencies](https://img.shields.io/badge/Dependencies-0-green.svg)](package.json)
-[![Test Coverage](https://img.shields.io/badge/Coverage-97.3%25-brightgreen.svg)](package.json)
+[![Test Coverage](https://img.shields.io/badge/Coverage-96.55%25-brightgreen.svg)](package.json)
 
 VLD is a blazing-fast, type-safe validation library for TypeScript and JavaScript with **full Zod feature parity**. Built with performance in mind, it provides a simple and intuitive API while maintaining excellent type inference and 27+ language internationalization support.
 
@@ -35,7 +35,7 @@ VLD is a blazing-fast, type-safe validation library for TypeScript and JavaScrip
 - **🔧 Composable**: Chain validations for complex schemas
 - **⚠️ Advanced Error Formatting**: Tree, pretty, and flatten error utilities
 - **🌍 Multi-language**: Built-in support for 27+ languages
-- **✅ 97.3% Test Coverage**: Rigorously tested with 569 passing tests
+- **✅ 96.55% Test Coverage**: Rigorously tested with 694 passing tests
 - **🏆 Industry Leading Performance**: 2.07x faster than Zod on average
 
 ### Advanced Zod-Compatible Features  
@@ -1077,7 +1077,7 @@ const schema = v.string().email();
 - **🌍 Internationalization**: Built-in 27+ language support
 - **📦 Bundle Size**: Smaller with zero dependencies
 - **🔒 Security**: Immutable validators prevent memory leaks
-- **✅ Testing**: 97.3% test coverage with 569 tests
+- **✅ Testing**: 96.55% test coverage with 694 tests
 
 ## 📈 Benchmarks
 
