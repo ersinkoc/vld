@@ -84,30 +84,36 @@ export function deepMerge<T extends Record<string, any>>(
 
 /**
  * Freeze an object deeply to prevent any mutations
+ * BUG-NEW-014 FIX: Add circular reference protection using WeakSet
  * @param obj Object to freeze
  * @returns The frozen object
  */
 export function deepFreeze<T>(obj: T): Readonly<T> {
-  // Primitive values don't need processing
-  if (obj === null || (typeof obj !== 'object' && typeof obj !== 'function')) {
-    return obj;
-  }
-  
-  // Check if already frozen to prevent infinite recursion
-  if (Object.isFrozen(obj)) {
-    return obj;
-  }
-  
-  // Freeze the object/function itself
-  Object.freeze(obj);
+  const seen = new WeakSet();
 
-  // Recursively freeze all properties (including Symbol properties)
-  Reflect.ownKeys(obj).forEach(prop => {
-    const value = (obj as any)[prop];
-    if (value !== null && (typeof value === 'object' || typeof value === 'function')) {
-      deepFreeze(value);
+  function freezeRecursive(value: any): void {
+    // Primitive or null check
+    if (value === null || (typeof value !== 'object' && typeof value !== 'function')) {
+      return;
     }
-  });
-  
+
+    // Already frozen or already seen (circular reference protection)
+    if (Object.isFrozen(value) || seen.has(value)) {
+      return;
+    }
+
+    // Mark as seen before recursing to prevent circular reference issues
+    seen.add(value);
+
+    // Freeze this level
+    Object.freeze(value);
+
+    // Recursively freeze properties (including Symbol properties)
+    Reflect.ownKeys(value).forEach(prop => {
+      freezeRecursive((value as any)[prop]);
+    });
+  }
+
+  freezeRecursive(obj);
   return obj;
 }

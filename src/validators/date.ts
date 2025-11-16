@@ -85,9 +85,16 @@ export class VldDate extends VldBase<Date, Date> {
 
   /**
    * Create a new validator with minimum date constraint
+   * BUG-NEW-009 FIX: Validate that min date is valid before creating validator
    */
   min(date: Date | string | number, message?: string): VldDate {
     const minDate = date instanceof Date ? date : new Date(date);
+
+    // Validate that minDate is valid
+    if (isNaN(minDate.getTime())) {
+      throw new Error(`Invalid date provided to min(): ${date}`);
+    }
+
     return new VldDate({
       ...this.config,
       checks: [...this.config.checks, {
@@ -99,9 +106,16 @@ export class VldDate extends VldBase<Date, Date> {
 
   /**
    * Create a new validator with maximum date constraint
+   * BUG-NEW-009 FIX: Validate that max date is valid before creating validator
    */
   max(date: Date | string | number, message?: string): VldDate {
     const maxDate = date instanceof Date ? date : new Date(date);
+
+    // Validate that maxDate is valid
+    if (isNaN(maxDate.getTime())) {
+      throw new Error(`Invalid date provided to max(): ${date}`);
+    }
+
     return new VldDate({
       ...this.config,
       checks: [...this.config.checks, {
@@ -162,16 +176,22 @@ export class VldDate extends VldBase<Date, Date> {
 
   /**
    * Create a new validator that checks if date is today
+   * BUG-NEW-008 FIX: Capture reference date at validator creation time for deterministic behavior
    */
   today(message?: string): VldDate {
+    // Capture the reference date (today) at validator creation time
+    const referenceDate = new Date();
+    const refYear = referenceDate.getFullYear();
+    const refMonth = referenceDate.getMonth();
+    const refDate = referenceDate.getDate();
+
     return new VldDate({
       ...this.config,
       checks: [...this.config.checks, {
         fn: (v: Date) => {
-          const today = new Date();
-          return v.getFullYear() === today.getFullYear() &&
-                 v.getMonth() === today.getMonth() &&
-                 v.getDate() === today.getDate();
+          return v.getFullYear() === refYear &&
+                 v.getMonth() === refMonth &&
+                 v.getDate() === refDate;
         },
         message: message || 'Date must be today'
       }]
