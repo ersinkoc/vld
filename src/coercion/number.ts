@@ -104,15 +104,27 @@ export class VldCoerceNumber extends VldNumber {
   }
   
   even(message?: string): VldCoerceNumber {
+    // BUG-NEW-007 FIX: Add integer check before even/odd validation
     return new VldCoerceNumber({
-      checks: [...this.config.checks, (v: number) => v % 2 === 0],
+      checks: [...this.config.checks, (v: number) => {
+        if (!Number.isInteger(v)) {
+          return false;
+        }
+        return v % 2 === 0;
+      }],
       errorMessage: message || 'Number must be even'
     });
   }
   
   odd(message?: string): VldCoerceNumber {
+    // BUG-NEW-007 FIX: Add integer check before even/odd validation
     return new VldCoerceNumber({
-      checks: [...this.config.checks, (v: number) => v % 2 !== 0],
+      checks: [...this.config.checks, (v: number) => {
+        if (!Number.isInteger(v)) {
+          return false;
+        }
+        return v % 2 !== 0;
+      }],
       errorMessage: message || 'Number must be odd'
     });
   }

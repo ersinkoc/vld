@@ -34,19 +34,29 @@ export class VldIntersection<A, B> extends VldBase<unknown, A & B> {
       // Both validators must pass
       const resultA = this.validatorA.parse(value);
       const resultB = this.validatorB.parse(value);
-      
-      // For object types, deep merge the results
-      if (isPlainObject(resultA) && isPlainObject(resultB)) {
+
+      // BUG-NEW-015 FIX: Check type consistency before merging
+      const aIsObject = isPlainObject(resultA);
+      const bIsObject = isPlainObject(resultB);
+
+      // Both are objects - safe to merge
+      if (aIsObject && bIsObject) {
         return deepMerge(resultA as any, resultB as any) as A & B;
       }
-      
-      // For primitive types, both must be the same value
-      if ((resultA as any) === (resultB as any)) {
-        return resultA as A & B;
+
+      // Neither are objects - must be identical primitives
+      if (!aIsObject && !bIsObject) {
+        if ((resultA as any) === (resultB as any)) {
+          return resultA as A & B;
+        }
+        throw new Error('Values must be identical for intersection of primitive types');
       }
-      
-      // If they're different primitive values, this is an error
-      throw new Error('Values must be identical for intersection of primitive types');
+
+      // One is object, one is primitive - invalid intersection
+      throw new Error(
+        'Cannot create intersection of object and primitive types. ' +
+        'Both validators must produce the same type category.'
+      );
     } catch (error) {
       throw new Error(getMessages().intersectionError((error as Error).message));
     }

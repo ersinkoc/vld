@@ -88,16 +88,32 @@ export function uint8ArrayToHex(bytes: Uint8Array): string {
 
 /**
  * Convert string to Uint8Array using UTF-8 encoding
+ * BUG-NEW-011 FIX: Add DoS protection with 10MB limit
  */
 export function stringToUint8Array(str: string): Uint8Array {
+  // Add DoS protection - limit to 10MB (consistent with base64 limit)
+  const MAX_STRING_LENGTH = 10000000; // 10 million characters (~10MB)
+
+  if (str.length > MAX_STRING_LENGTH) {
+    throw new Error(`String is too large for UTF-8 encoding (max ${MAX_STRING_LENGTH} characters)`);
+  }
+
   const encoder = new TextEncoder();
   return encoder.encode(str);
 }
 
 /**
  * Convert Uint8Array to string using UTF-8 decoding
+ * BUG-NEW-012 FIX: Add DoS protection with 10MB limit
  */
 export function uint8ArrayToString(bytes: Uint8Array): string {
+  // Add DoS protection - limit to 10MB
+  const MAX_BYTES_LENGTH = 10000000; // 10 million bytes
+
+  if (bytes.length > MAX_BYTES_LENGTH) {
+    throw new Error(`Byte array is too large for UTF-8 decoding (max ${MAX_BYTES_LENGTH} bytes)`);
+  }
+
   const decoder = new TextDecoder();
   return decoder.decode(bytes);
 }
