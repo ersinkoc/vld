@@ -1,3 +1,5 @@
+import { isDangerousKey } from './security';
+
 /**
  * Type guard to check if a value is a plain object
  */
@@ -11,35 +13,9 @@ export function isPlainObject(obj: any): obj is Record<string, any> {
 }
 
 /**
- * Check if a key could be dangerous for prototype pollution
- */
-function isDangerousKey(key: string): boolean {
-  // Direct dangerous keys
-  const directDangerousKeys = ['__proto__', 'constructor', 'prototype'];
-  if (directDangerousKeys.includes(key)) {
-    return true;
-  }
-
-  // Nested prototype manipulation vectors
-  const nestedPatterns = [
-    'constructor.prototype',
-    '__proto__.toString',
-    'prototype.constructor'
-  ];
-
-  // Check for nested patterns
-  for (const pattern of nestedPatterns) {
-    if (key.includes(pattern)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-/**
  * Safely deep merge two objects without prototype pollution vulnerability
  * Optimized for performance with minimal object allocations
+ * BUG-NEW-020 FIX: Use comprehensive dangerous key protection from shared utility
  * @param target The target object
  * @param source The source object to merge from
  * @returns A new merged object

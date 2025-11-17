@@ -1,8 +1,10 @@
 import { VldBase, ParseResult } from './base';
 import { getMessages } from '../locales';
+import { isDangerousKey } from '../utils/security';
 
 /**
  * Immutable record validator for key-value pairs
+ * BUG-NEW-018 FIX: Uses comprehensive dangerous key protection
  */
 export class VldRecord<T> extends VldBase<unknown, Record<string, T>> {
   /**
@@ -24,6 +26,7 @@ export class VldRecord<T> extends VldBase<unknown, Record<string, T>> {
   
   /**
    * Parse and validate a record value
+   * BUG-NEW-018 FIX: Use comprehensive dangerous key protection
    */
   parse(value: unknown): Record<string, T> {
     if (typeof value !== 'object' || value === null || Array.isArray(value)) {
@@ -33,12 +36,10 @@ export class VldRecord<T> extends VldBase<unknown, Record<string, T>> {
     const result: Record<string, T> = {};
     const obj = value as Record<string, unknown>;
 
-    // Dangerous keys that could lead to prototype pollution
-    const DANGEROUS_KEYS = ['__proto__', 'constructor', 'prototype'];
-
     for (const [key, val] of Object.entries(obj)) {
       // Skip dangerous keys to prevent prototype pollution
-      if (DANGEROUS_KEYS.includes(key)) {
+      // Now using comprehensive protection from shared utility
+      if (isDangerousKey(key)) {
         continue;
       }
 
