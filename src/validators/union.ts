@@ -95,35 +95,33 @@ export class VldUnion<T extends readonly VldBase<any, any>[]> extends VldBase<
   /**
    * Parse and validate a value against union options
    * Optimized with type checking and safeParse to avoid try-catch overhead
+   * BUG-NEW-013 FIX: Single-pass error collection to avoid double parsing
    */
   parse(value: unknown): T[number] extends VldBase<any, infer U> ? U : never {
-    // Fast path: try validators that are likely to match based on type
+    // Single pass: collect errors during validation
+    const errors: string[] = [];
+
     for (const validator of this.validators) {
       const typeChecker = this.typeCheckers.get(validator);
-      
-      // Skip validators that definitely won't match
+
+      // Skip validators that definitely won't match based on type
       if (typeChecker && !typeChecker(value)) {
         continue;
       }
-      
+
       // Use safeParse to avoid try-catch overhead
       const result = validator.safeParse(value);
       if (result.success) {
         return result.data;
       }
+
+      // Collect error for final message if all validators fail
+      errors.push(result.error.message);
     }
-    
-    // Slow path: collect all errors for better error message
-    const errors: string[] = [];
-    for (const validator of this.validators) {
-      const result = validator.safeParse(value);
-      if (!result.success) {
-        errors.push(result.error.message);
-      }
-    }
-    
+
+    // All validators failed - throw with collected errors
     throw new Error(
-      this.errorMessage || 
+      this.errorMessage ||
       getMessages().unionNoMatch(errors)
     );
   }
@@ -131,36 +129,34 @@ export class VldUnion<T extends readonly VldBase<any, any>[]> extends VldBase<
   /**
    * Safely parse and validate a value against union options
    * Optimized version using type checking shortcuts
+   * BUG-NEW-013 FIX: Single-pass error collection to avoid double parsing
    */
   safeParse(value: unknown): ParseResult<T[number] extends VldBase<any, infer U> ? U : never> {
-    // Fast path with type checking
+    // Single pass: collect errors during validation
+    const errors: string[] = [];
+
     for (const validator of this.validators) {
       const typeChecker = this.typeCheckers.get(validator);
-      
-      // Skip validators that definitely won't match
+
+      // Skip validators that definitely won't match based on type
       if (typeChecker && !typeChecker(value)) {
         continue;
       }
-      
+
       const result = validator.safeParse(value);
       if (result.success) {
         return result;
       }
+
+      // Collect error for final message if all validators fail
+      errors.push(result.error.message);
     }
-    
-    // All failed - collect errors for message
-    const errors: string[] = [];
-    for (const validator of this.validators) {
-      const result = validator.safeParse(value);
-      if (!result.success) {
-        errors.push(result.error.message);
-      }
-    }
-    
+
+    // All validators failed - return error with collected messages
     return {
       success: false,
       error: new Error(
-        this.errorMessage || 
+        this.errorMessage ||
         getMessages().unionNoMatch(errors)
       )
     };

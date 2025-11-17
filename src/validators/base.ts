@@ -36,13 +36,24 @@ export abstract class VldBase<TInput, TOutput = TInput> {
   
   /**
    * Parse a value or return a default if validation fails
+   * BUG-NEW-017 FIX: Validate default value to ensure type safety
    * @param value The value to validate
    * @param defaultValue The default value to return on failure
    * @returns The validated value or default
    */
   parseOrDefault(value: unknown, defaultValue: TOutput): TOutput {
     const result = this.safeParse(value);
-    return result.success ? result.data : defaultValue;
+    if (result.success) {
+      return result.data;
+    }
+
+    // Validate the default value to ensure it's actually valid
+    const defaultResult = this.safeParse(defaultValue);
+    if (!defaultResult.success) {
+      throw new Error(`Invalid default value provided: ${defaultResult.error.message}`);
+    }
+
+    return defaultResult.data;
   }
   
   /**

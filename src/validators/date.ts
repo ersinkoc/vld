@@ -127,6 +127,7 @@ export class VldDate extends VldBase<Date, Date> {
 
   /**
    * Create a new validator with a range constraint
+   * BUG-NEW-019 FIX: Validate that min/max dates are valid before creating validator
    */
   between(
     min: Date | string | number,
@@ -135,6 +136,15 @@ export class VldDate extends VldBase<Date, Date> {
   ): VldDate {
     const minDate = min instanceof Date ? min : new Date(min);
     const maxDate = max instanceof Date ? max : new Date(max);
+
+    // Validate that both dates are valid
+    if (isNaN(minDate.getTime())) {
+      throw new Error(`Invalid min date provided to between(): ${min}`);
+    }
+    if (isNaN(maxDate.getTime())) {
+      throw new Error(`Invalid max date provided to between(): ${max}`);
+    }
+
     return new VldDate({
       ...this.config,
       checks: [...this.config.checks, {
