@@ -14,7 +14,7 @@ npm run test:types         # Type check without emitting files
 ```bash
 npm test                   # Run Jest tests with coverage (must maintain 80% threshold)
 npm run test -- --watch    # Run tests in watch mode
-npm run test -- path/to/test.ts  # Run specific test file
+npm run test -- tests/validators/string.test.ts  # Run specific test file
 ```
 
 ### Code Quality
@@ -25,16 +25,11 @@ npm run format             # Prettier formatting
 
 ### Performance Benchmarking
 ```bash
-npm run benchmark          # Quick performance comparison
+npm run benchmark          # Quick performance comparison (vs Zod)
 npm run benchmark:full     # Full performance suite
 npm run benchmark:memory   # Memory usage analysis
 npm run benchmark:startup  # Startup time comparison
 npm run benchmark:all      # Run all benchmarks
-```
-
-### Publishing
-```bash
-npm run prepublishOnly     # Builds and tests before publishing
 ```
 
 ## Architecture Overview
@@ -49,11 +44,12 @@ npm run prepublishOnly     # Builds and tests before publishing
 ```
 src/
 ├── validators/        # Core validator implementations (base, string, number, etc.)
-├── coercion/         # Type coercion validators (convert types before validation)
-├── locales/          # 27+ language translations for error messages
-├── utils/            # Utilities (secure deepMerge implementation)
-├── errors.ts         # Error classes and formatting utilities
-└── index.ts          # Main API export with factory methods
+├── coercion/         # Type coercion validators (string, number, boolean, date, bigint)
+├── codecs/           # Bidirectional codec implementations (19 built-in codecs)
+├── locales/          # 27+ language translations (types.ts defines message templates)
+├── utils/            # Utilities (deep-merge, ip-validation, security, codec-utils)
+├── errors.ts         # VldError class and formatting utilities (treeify, prettify, flatten)
+└── index.ts          # Main API export with factory methods (the `v` object)
 ```
 
 ### Key Architecture Patterns
@@ -81,7 +77,11 @@ Three error formats for different use cases:
 ### Testing Strategy
 - Jest with ts-jest for ESM support
 - 80% minimum coverage threshold enforced
-- Test files in `tests/` directory mirror source structure
+- Test files in `tests/` directory mirror source structure:
+  - `tests/validators/` - Individual validator tests
+  - `tests/coercion/` - Type coercion tests
+  - `tests/codecs/` - Codec functionality tests
+  - `tests/utils/` - Utility function tests
 - Focus on edge cases, type coercion, and error messages
 
 ### Build Process
@@ -133,3 +133,14 @@ When adding new codecs:
 4. Update codec exports in both `src/codecs/index.ts` and `src/index.ts`
 5. Add error messages to all locale files
 6. Document usage in README.md and API.md
+
+## Adding New Validators
+
+When creating a new validator type:
+1. Create validator class in `src/validators/` extending `VldBase<TInput, TOutput>`
+2. Implement required `parse()` and `safeParse()` methods
+3. Add static `create()` factory method for immutability
+4. Export from `src/validators/index.ts`
+5. Add factory method to `v` object in `src/index.ts`
+6. Add error messages to all 27+ locale files in `src/locales/`
+7. Create tests in `tests/validators/` with edge cases
