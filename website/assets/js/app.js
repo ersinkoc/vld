@@ -8,111 +8,19 @@ function app() {
         darkMode: false,
         mobileMenu: false,
 
+        // Performance animation
+        perfAnimated: false,
+
         // Package manager
         packageManager: 'npm',
         copied: false,
-
-        // Documentation
-        activeDocItem: 'string',
-        openDocCategories: ['primitives'],
-        docCategories: [
-            {
-                id: 'primitives',
-                name: 'Primitives',
-                items: [
-                    { id: 'string', name: 'v.string()' },
-                    { id: 'number', name: 'v.number()' },
-                    { id: 'boolean', name: 'v.boolean()' },
-                    { id: 'date', name: 'v.date()' },
-                    { id: 'bigint', name: 'v.bigint()' },
-                    { id: 'symbol', name: 'v.symbol()' }
-                ]
-            },
-            {
-                id: 'collections',
-                name: 'Collections',
-                items: [
-                    { id: 'array', name: 'v.array()' },
-                    { id: 'tuple', name: 'v.tuple()' },
-                    { id: 'set', name: 'v.set()' },
-                    { id: 'map', name: 'v.map()' },
-                    { id: 'record', name: 'v.record()' }
-                ]
-            },
-            {
-                id: 'objects',
-                name: 'Objects & Composition',
-                items: [
-                    { id: 'object', name: 'v.object()' },
-                    { id: 'union', name: 'v.union()' },
-                    { id: 'intersection', name: 'v.intersection()' },
-                    { id: 'literal', name: 'v.literal()' },
-                    { id: 'enum', name: 'v.enum()' }
-                ]
-            },
-            {
-                id: 'modifiers',
-                name: 'Type Modifiers',
-                items: [
-                    { id: 'optional', name: 'v.optional()' },
-                    { id: 'nullable', name: 'v.nullable()' },
-                    { id: 'nullish', name: 'v.nullish()' },
-                    { id: 'default', name: '.default()' },
-                    { id: 'catch', name: '.catch()' }
-                ]
-            },
-            {
-                id: 'coercion',
-                name: 'Coercion',
-                items: [
-                    { id: 'coerce-string', name: 'v.coerce.string()' },
-                    { id: 'coerce-number', name: 'v.coerce.number()' },
-                    { id: 'coerce-boolean', name: 'v.coerce.boolean()' },
-                    { id: 'coerce-date', name: 'v.coerce.date()' },
-                    { id: 'coerce-bigint', name: 'v.coerce.bigint()' }
-                ]
-            },
-            {
-                id: 'codecs',
-                name: 'Codecs',
-                items: [
-                    { id: 'stringToNumber', name: 'stringToNumber' },
-                    { id: 'isoDatetimeToDate', name: 'isoDatetimeToDate' },
-                    { id: 'jsonCodec', name: 'jsonCodec' },
-                    { id: 'base64ToBytes', name: 'base64ToBytes' },
-                    { id: 'jwtPayload', name: 'jwtPayload' }
-                ]
-            },
-            {
-                id: 'errors',
-                name: 'Error Handling',
-                items: [
-                    { id: 'parse', name: 'parse()' },
-                    { id: 'safeParse', name: 'safeParse()' },
-                    { id: 'treeifyError', name: 'treeifyError()' },
-                    { id: 'prettifyError', name: 'prettifyError()' },
-                    { id: 'flattenError', name: 'flattenError()' }
-                ]
-            },
-            {
-                id: 'advanced',
-                name: 'Advanced',
-                items: [
-                    { id: 'refine', name: '.refine()' },
-                    { id: 'transform', name: '.transform()' },
-                    { id: 'pick', name: '.pick()' },
-                    { id: 'omit', name: '.omit()' },
-                    { id: 'extend', name: '.extend()' }
-                ]
-            }
-        ],
 
         // Examples
         exampleCategory: 'all',
 
         // Playground
         playgroundTemplate: 'basic',
-        playgroundEditor: null,
+        playgroundCode: '',
         playgroundOutput: '',
         playgroundResult: null,
         playgroundTemplates: {
@@ -288,11 +196,11 @@ if (result.success) {
                 (!localStorage.getItem('vld-theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
             this.applyTheme();
 
-            // Initialize playground
-            this.$nextTick(() => {
-                this.initPlayground();
-                this.updateLocaleDemo();
-            });
+            // Initialize playground code
+            this.playgroundCode = window.initialPlaygroundCode || this.playgroundTemplates.basic;
+
+            // Update locale demo
+            this.updateLocaleDemo();
 
             // Syntax highlight
             if (typeof Prism !== 'undefined') {
@@ -331,82 +239,15 @@ if (result.success) {
             }
         },
 
-        // Documentation
-        toggleDocCategory(categoryId) {
-            const index = this.openDocCategories.indexOf(categoryId);
-            if (index === -1) {
-                this.openDocCategories.push(categoryId);
-            } else {
-                this.openDocCategories.splice(index, 1);
-            }
-        },
-
         // Playground
-        initPlayground() {
-            const editorElement = document.getElementById('playground-editor');
-            if (!editorElement || typeof require === 'undefined') {
-                // Monaco not loaded yet, try again
-                setTimeout(() => this.initPlayground(), 500);
-                return;
-            }
-
-            require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' }});
-
-            require(['vs/editor/editor.main'], () => {
-                // Set theme based on current mode
-                monaco.editor.defineTheme('vld-dark', {
-                    base: 'vs-dark',
-                    inherit: true,
-                    rules: [],
-                    colors: {
-                        'editor.background': '#18181b'
-                    }
-                });
-
-                monaco.editor.defineTheme('vld-light', {
-                    base: 'vs',
-                    inherit: true,
-                    rules: [],
-                    colors: {
-                        'editor.background': '#ffffff'
-                    }
-                });
-
-                this.playgroundEditor = monaco.editor.create(editorElement, {
-                    value: this.playgroundTemplates.basic,
-                    language: 'javascript',
-                    theme: this.darkMode ? 'vld-dark' : 'vld-light',
-                    minimap: { enabled: false },
-                    fontSize: 14,
-                    fontFamily: 'JetBrains Mono, monospace',
-                    lineNumbers: 'on',
-                    roundedSelection: true,
-                    scrollBeyondLastLine: false,
-                    automaticLayout: true,
-                    padding: { top: 16, bottom: 16 }
-                });
-
-                // Watch for theme changes
-                this.$watch('darkMode', (value) => {
-                    if (this.playgroundEditor) {
-                        monaco.editor.setTheme(value ? 'vld-dark' : 'vld-light');
-                    }
-                });
-            });
-        },
-
         loadPlaygroundTemplate() {
-            if (this.playgroundEditor) {
-                this.playgroundEditor.setValue(this.playgroundTemplates[this.playgroundTemplate] || '');
-                this.playgroundOutput = '';
-                this.playgroundResult = null;
-            }
+            this.playgroundCode = this.playgroundTemplates[this.playgroundTemplate] || '';
+            this.playgroundOutput = '';
+            this.playgroundResult = null;
         },
 
         runPlayground() {
-            if (!this.playgroundEditor) return;
-
-            const code = this.playgroundEditor.getValue();
+            const code = this.playgroundCode;
             let output = [];
 
             try {
@@ -508,9 +349,9 @@ if (result.success) {
         },
 
         async sharePlayground() {
-            if (!this.playgroundEditor) return;
+            const code = this.playgroundCode;
+            if (!code) return;
 
-            const code = this.playgroundEditor.getValue();
             const compressed = LZString.compressToEncodedURIComponent(code);
             const url = `${window.location.origin}${window.location.pathname}?code=${compressed}#playground`;
 

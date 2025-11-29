@@ -54,7 +54,8 @@
     <!-- Prism.js for syntax highlighting -->
     <link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
 
-    <!-- Alpine.js -->
+    <!-- Alpine.js + Intersect Plugin -->
+    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/intersect@3.13.3/dist/cdn.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
 
     <!-- Custom styles -->
@@ -81,7 +82,7 @@
                 <!-- Desktop Navigation -->
                 <div class="hidden md:flex items-center gap-8">
                     <a href="#features" class="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition">Features</a>
-                    <a href="#docs" class="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition">Docs</a>
+                    <a href="docs.html" class="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition">Docs</a>
                     <a href="#examples" class="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition">Examples</a>
                     <a href="#playground" class="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition">Playground</a>
                     <a href="#performance" class="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition">Performance</a>
@@ -121,7 +122,7 @@
         <div x-show="mobileMenu" x-transition class="md:hidden border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
             <div class="px-4 py-4 space-y-2">
                 <a href="#features" @click="mobileMenu = false" class="block px-4 py-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800">Features</a>
-                <a href="#docs" @click="mobileMenu = false" class="block px-4 py-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800">Documentation</a>
+                <a href="docs.html" class="block px-4 py-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800">Documentation</a>
                 <a href="#examples" @click="mobileMenu = false" class="block px-4 py-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800">Examples</a>
                 <a href="#playground" @click="mobileMenu = false" class="block px-4 py-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800">Playground</a>
                 <a href="#performance" @click="mobileMenu = false" class="block px-4 py-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800">Performance</a>
@@ -385,251 +386,32 @@ type User = Infer&lt;typeof userSchema&gt;;
         </div>
     </section>
 
-    <!-- Documentation Section -->
-    <section id="docs" class="py-20 px-4 bg-zinc-50 dark:bg-zinc-900/50">
-        <div class="max-w-7xl mx-auto">
-            <div class="text-center mb-16">
-                <h2 class="text-3xl font-bold mb-4">Documentation</h2>
-                <p class="text-zinc-600 dark:text-zinc-400">Complete API reference for all validators</p>
-            </div>
-
-            <div class="flex flex-col lg:flex-row gap-8">
-                <!-- Sidebar -->
-                <aside class="lg:w-64 flex-shrink-0">
-                    <nav class="lg:sticky lg:top-24 space-y-1">
-                        <template x-for="category in docCategories" :key="category.id">
+    <!-- Documentation CTA -->
+    <section class="py-16 px-4 bg-zinc-50 dark:bg-zinc-900/50">
+        <div class="max-w-4xl mx-auto">
+            <a href="docs.html" class="block group">
+                <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-8 hover:border-zinc-400 dark:hover:border-zinc-600 transition-all hover:shadow-lg">
+                    <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+                        <div class="flex items-center gap-4">
+                            <div class="w-14 h-14 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center group-hover:bg-zinc-900 dark:group-hover:bg-white transition-colors">
+                                <svg class="w-7 h-7 text-zinc-600 dark:text-zinc-400 group-hover:text-white dark:group-hover:text-zinc-900 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                                </svg>
+                            </div>
                             <div>
-                                <button @click="toggleDocCategory(category.id)"
-                                    class="w-full flex items-center justify-between px-3 py-2 text-left rounded-lg hover:bg-white dark:hover:bg-zinc-800 transition"
-                                    :class="openDocCategories.includes(category.id) ? 'bg-white dark:bg-zinc-800' : ''">
-                                    <span class="font-medium text-sm" x-text="category.name"></span>
-                                    <svg class="w-4 h-4 transition-transform" :class="openDocCategories.includes(category.id) ? 'rotate-90' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                                    </svg>
-                                </button>
-                                <div x-show="openDocCategories.includes(category.id)" x-collapse class="ml-4 mt-1 space-y-1">
-                                    <template x-for="item in category.items" :key="item.id">
-                                        <button @click="activeDocItem = item.id"
-                                            class="w-full text-left px-3 py-1.5 text-sm rounded-lg transition"
-                                            :class="activeDocItem === item.id ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'">
-                                            <span x-text="item.name"></span>
-                                        </button>
-                                    </template>
-                                </div>
+                                <h2 class="text-xl font-bold mb-1">Documentation</h2>
+                                <p class="text-zinc-600 dark:text-zinc-400">Complete API reference with examples for all validators</p>
                             </div>
-                        </template>
-                    </nav>
-                </aside>
-
-                <!-- Content -->
-                <div class="flex-1 min-w-0">
-                    <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 lg:p-8">
-                        <!-- Dynamic content based on activeDocItem -->
-                        <template x-if="activeDocItem === 'string'">
-                            <div>
-                                <h3 class="text-2xl font-bold mb-4">v.string()</h3>
-                                <p class="text-zinc-600 dark:text-zinc-400 mb-6">Creates a string validator with various constraints and transformations.</p>
-
-                                <h4 class="font-semibold mb-3">Methods</h4>
-                                <div class="space-y-4 mb-8">
-                                    <div class="p-4 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
-                                        <code class="text-sm font-mono text-blue-600 dark:text-blue-400">.min(length: number, message?: string)</code>
-                                        <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">Minimum length constraint</p>
-                                    </div>
-                                    <div class="p-4 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
-                                        <code class="text-sm font-mono text-blue-600 dark:text-blue-400">.max(length: number, message?: string)</code>
-                                        <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">Maximum length constraint</p>
-                                    </div>
-                                    <div class="p-4 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
-                                        <code class="text-sm font-mono text-blue-600 dark:text-blue-400">.email(message?: string)</code>
-                                        <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">Email format validation</p>
-                                    </div>
-                                    <div class="p-4 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
-                                        <code class="text-sm font-mono text-blue-600 dark:text-blue-400">.url(message?: string)</code>
-                                        <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">URL format validation</p>
-                                    </div>
-                                    <div class="p-4 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
-                                        <code class="text-sm font-mono text-blue-600 dark:text-blue-400">.uuid(message?: string)</code>
-                                        <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">UUID format validation</p>
-                                    </div>
-                                    <div class="p-4 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
-                                        <code class="text-sm font-mono text-blue-600 dark:text-blue-400">.regex(pattern: RegExp, message?: string)</code>
-                                        <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">Custom regex pattern matching</p>
-                                    </div>
-                                    <div class="p-4 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
-                                        <code class="text-sm font-mono text-blue-600 dark:text-blue-400">.trim()</code>
-                                        <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">Trim whitespace from both ends</p>
-                                    </div>
-                                    <div class="p-4 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
-                                        <code class="text-sm font-mono text-blue-600 dark:text-blue-400">.toLowerCase()</code>
-                                        <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">Convert to lowercase</p>
-                                    </div>
-                                </div>
-
-                                <h4 class="font-semibold mb-3">Example</h4>
-                                <div class="bg-zinc-900 rounded-lg overflow-hidden">
-                                    <pre class="p-4 overflow-x-auto"><code class="language-typescript text-sm">const emailSchema = v.string()
-  .email('Invalid email format')
-  .toLowerCase()
-  .trim();
-
-emailSchema.parse('  User@Example.COM  ');
-// Returns: 'user@example.com'</code></pre>
-                                </div>
-                            </div>
-                        </template>
-
-                        <template x-if="activeDocItem === 'number'">
-                            <div>
-                                <h3 class="text-2xl font-bold mb-4">v.number()</h3>
-                                <p class="text-zinc-600 dark:text-zinc-400 mb-6">Creates a number validator with range and type constraints.</p>
-
-                                <h4 class="font-semibold mb-3">Methods</h4>
-                                <div class="space-y-4 mb-8">
-                                    <div class="p-4 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
-                                        <code class="text-sm font-mono text-blue-600 dark:text-blue-400">.min(value: number, message?: string)</code>
-                                        <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">Minimum value constraint</p>
-                                    </div>
-                                    <div class="p-4 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
-                                        <code class="text-sm font-mono text-blue-600 dark:text-blue-400">.max(value: number, message?: string)</code>
-                                        <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">Maximum value constraint</p>
-                                    </div>
-                                    <div class="p-4 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
-                                        <code class="text-sm font-mono text-blue-600 dark:text-blue-400">.int(message?: string)</code>
-                                        <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">Integer only validation</p>
-                                    </div>
-                                    <div class="p-4 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
-                                        <code class="text-sm font-mono text-blue-600 dark:text-blue-400">.positive(message?: string)</code>
-                                        <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">Positive numbers only (> 0)</p>
-                                    </div>
-                                    <div class="p-4 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
-                                        <code class="text-sm font-mono text-blue-600 dark:text-blue-400">.negative(message?: string)</code>
-                                        <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">Negative numbers only (&lt; 0)</p>
-                                    </div>
-                                    <div class="p-4 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
-                                        <code class="text-sm font-mono text-blue-600 dark:text-blue-400">.multipleOf(value: number, message?: string)</code>
-                                        <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">Must be multiple of value</p>
-                                    </div>
-                                </div>
-
-                                <h4 class="font-semibold mb-3">Example</h4>
-                                <div class="bg-zinc-900 rounded-lg overflow-hidden">
-                                    <pre class="p-4 overflow-x-auto"><code class="language-typescript text-sm">const ageSchema = v.number()
-  .int('Age must be a whole number')
-  .min(0, 'Age cannot be negative')
-  .max(150, 'Age seems unrealistic');
-
-ageSchema.parse(25); // Returns: 25
-ageSchema.parse(25.5); // Throws error</code></pre>
-                                </div>
-                            </div>
-                        </template>
-
-                        <template x-if="activeDocItem === 'object'">
-                            <div>
-                                <h3 class="text-2xl font-bold mb-4">v.object()</h3>
-                                <p class="text-zinc-600 dark:text-zinc-400 mb-6">Creates an object validator with a defined shape.</p>
-
-                                <h4 class="font-semibold mb-3">Methods</h4>
-                                <div class="space-y-4 mb-8">
-                                    <div class="p-4 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
-                                        <code class="text-sm font-mono text-blue-600 dark:text-blue-400">.strict(message?: string)</code>
-                                        <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">No extra keys allowed</p>
-                                    </div>
-                                    <div class="p-4 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
-                                        <code class="text-sm font-mono text-blue-600 dark:text-blue-400">.passthrough()</code>
-                                        <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">Preserve extra keys</p>
-                                    </div>
-                                    <div class="p-4 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
-                                        <code class="text-sm font-mono text-blue-600 dark:text-blue-400">.partial()</code>
-                                        <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">All fields optional</p>
-                                    </div>
-                                    <div class="p-4 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
-                                        <code class="text-sm font-mono text-blue-600 dark:text-blue-400">.pick(...keys)</code>
-                                        <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">Include only specified keys</p>
-                                    </div>
-                                    <div class="p-4 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
-                                        <code class="text-sm font-mono text-blue-600 dark:text-blue-400">.omit(...keys)</code>
-                                        <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">Exclude specified keys</p>
-                                    </div>
-                                    <div class="p-4 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
-                                        <code class="text-sm font-mono text-blue-600 dark:text-blue-400">.extend(shape)</code>
-                                        <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">Add additional fields</p>
-                                    </div>
-                                </div>
-
-                                <h4 class="font-semibold mb-3">Example</h4>
-                                <div class="bg-zinc-900 rounded-lg overflow-hidden">
-                                    <pre class="p-4 overflow-x-auto"><code class="language-typescript text-sm">const userSchema = v.object({
-  name: v.string(),
-  email: v.string().email(),
-  age: v.number()
-});
-
-// Pick only name and email
-const publicUser = userSchema.pick('name', 'email');
-
-// Extend with new fields
-const adminUser = userSchema.extend({
-  role: v.literal('admin'),
-  permissions: v.array(v.string())
-});</code></pre>
-                                </div>
-                            </div>
-                        </template>
-
-                        <template x-if="activeDocItem === 'array'">
-                            <div>
-                                <h3 class="text-2xl font-bold mb-4">v.array()</h3>
-                                <p class="text-zinc-600 dark:text-zinc-400 mb-6">Creates an array validator with item type and length constraints.</p>
-
-                                <h4 class="font-semibold mb-3">Methods</h4>
-                                <div class="space-y-4 mb-8">
-                                    <div class="p-4 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
-                                        <code class="text-sm font-mono text-blue-600 dark:text-blue-400">.min(length: number, message?: string)</code>
-                                        <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">Minimum array length</p>
-                                    </div>
-                                    <div class="p-4 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
-                                        <code class="text-sm font-mono text-blue-600 dark:text-blue-400">.max(length: number, message?: string)</code>
-                                        <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">Maximum array length</p>
-                                    </div>
-                                    <div class="p-4 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
-                                        <code class="text-sm font-mono text-blue-600 dark:text-blue-400">.nonempty(message?: string)</code>
-                                        <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">Array must have at least one item</p>
-                                    </div>
-                                    <div class="p-4 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
-                                        <code class="text-sm font-mono text-blue-600 dark:text-blue-400">.unique(message?: string)</code>
-                                        <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">All items must be unique</p>
-                                    </div>
-                                </div>
-
-                                <h4 class="font-semibold mb-3">Example</h4>
-                                <div class="bg-zinc-900 rounded-lg overflow-hidden">
-                                    <pre class="p-4 overflow-x-auto"><code class="language-typescript text-sm">const tagsSchema = v.array(v.string())
-  .min(1, 'At least one tag required')
-  .max(10, 'Maximum 10 tags allowed')
-  .unique('Tags must be unique');
-
-tagsSchema.parse(['typescript', 'validation']);
-// Returns: ['typescript', 'validation']</code></pre>
-                                </div>
-                            </div>
-                        </template>
-
-                        <!-- Default view -->
-                        <template x-if="!activeDocItem || !['string', 'number', 'object', 'array'].includes(activeDocItem)">
-                            <div class="text-center py-12">
-                                <div class="w-16 h-16 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mx-auto mb-4">
-                                    <svg class="w-8 h-8 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                                    </svg>
-                                </div>
-                                <p class="text-zinc-600 dark:text-zinc-400">Select a validator from the sidebar to view its documentation.</p>
-                            </div>
-                        </template>
+                        </div>
+                        <div class="flex items-center gap-2 text-zinc-600 dark:text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors">
+                            <span class="font-medium">View Docs</span>
+                            <svg class="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
+                            </svg>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </a>
         </div>
     </section>
 
@@ -810,7 +592,17 @@ schema.safeParse('Hi');
                     <!-- Code Editor -->
                     <div>
                         <div class="p-2 border-b border-zinc-200 dark:border-zinc-800 text-xs text-zinc-500 font-medium uppercase tracking-wider">Schema & Data</div>
-                        <div id="playground-editor" class="h-96"></div>
+                        <textarea
+                            x-model="playgroundCode"
+                            @keydown.tab.prevent="
+                                const start = $el.selectionStart;
+                                const end = $el.selectionEnd;
+                                playgroundCode = playgroundCode.substring(0, start) + '  ' + playgroundCode.substring(end);
+                                $nextTick(() => { $el.selectionStart = $el.selectionEnd = start + 2; });
+                            "
+                            class="w-full h-96 p-4 font-mono text-sm bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 resize-none focus:outline-none border-0"
+                            spellcheck="false"
+                            placeholder="// Write your VLD schema here..."></textarea>
                     </div>
 
                     <!-- Output -->
@@ -820,8 +612,8 @@ schema.safeParse('Hi');
                             <span x-show="playgroundResult && playgroundResult.success" class="text-green-600">✓ Valid</span>
                             <span x-show="playgroundResult && !playgroundResult.success" class="text-red-600">✗ Invalid</span>
                         </div>
-                        <div class="h-96 overflow-auto p-4 font-mono text-sm">
-                            <pre x-text="playgroundOutput" class="whitespace-pre-wrap"></pre>
+                        <div class="h-96 overflow-auto p-4 font-mono text-sm bg-zinc-50 dark:bg-zinc-900">
+                            <pre x-text="playgroundOutput" class="whitespace-pre-wrap text-zinc-800 dark:text-zinc-200"></pre>
                         </div>
                     </div>
                 </div>
@@ -830,62 +622,75 @@ schema.safeParse('Hi');
     </section>
 
     <!-- Performance Section -->
-    <section id="performance" class="py-20 px-4">
-        <div class="max-w-4xl mx-auto">
-            <div class="text-center mb-16">
-                <h2 class="text-3xl font-bold mb-4">Performance Comparison</h2>
-                <p class="text-zinc-600 dark:text-zinc-400">VLD vs Zod - Real benchmark results</p>
-            </div>
-
-            <!-- Benchmark Results -->
-            <div class="space-y-6 mb-12">
-                <template x-for="benchmark in benchmarks" :key="benchmark.name">
-                    <div class="p-6 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                        <div class="flex items-center justify-between mb-4">
-                            <h3 class="font-semibold" x-text="benchmark.name"></h3>
-                            <span class="text-green-600 font-bold" x-text="benchmark.ratio + 'x faster'"></span>
-                        </div>
-
-                        <div class="space-y-3">
-                            <!-- VLD Bar -->
-                            <div>
-                                <div class="flex items-center justify-between text-sm mb-1">
-                                    <span class="font-medium text-blue-600">VLD</span>
-                                    <span class="text-zinc-500" x-text="formatOps(benchmark.vld)"></span>
-                                </div>
-                                <div class="h-4 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-                                    <div class="h-full bg-blue-600 rounded-full transition-all duration-1000" :style="`width: ${(benchmark.vld / benchmark.max) * 100}%`"></div>
-                                </div>
-                            </div>
-
-                            <!-- Zod Bar -->
-                            <div>
-                                <div class="flex items-center justify-between text-sm mb-1">
-                                    <span class="font-medium text-orange-600">Zod</span>
-                                    <span class="text-zinc-500" x-text="formatOps(benchmark.zod)"></span>
-                                </div>
-                                <div class="h-4 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-                                    <div class="h-full bg-orange-600 rounded-full transition-all duration-1000" :style="`width: ${(benchmark.zod / benchmark.max) * 100}%`"></div>
-                                </div>
-                            </div>
-                        </div>
+    <section id="performance" class="py-16 px-4 bg-zinc-50 dark:bg-zinc-900/50">
+        <div class="max-w-5xl mx-auto">
+            <!-- Header with animated stats -->
+            <div class="flex flex-col md:flex-row items-center justify-between gap-6 mb-10">
+                <div>
+                    <h2 class="text-2xl font-bold">Performance</h2>
+                    <p class="text-zinc-500 text-sm">VLD destroys the competition</p>
+                </div>
+                <div class="flex gap-6">
+                    <div class="text-center px-4 py-2 bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700">
+                        <div class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-cyan-400 animate-pulse">2.07x</div>
+                        <div class="text-xs text-zinc-500">Faster</div>
                     </div>
-                </template>
+                    <div class="text-center px-4 py-2 bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700">
+                        <div class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-500 to-emerald-400">78%</div>
+                        <div class="text-xs text-zinc-500">Less Memory</div>
+                    </div>
+                    <div class="text-center px-4 py-2 bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700">
+                        <div class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-pink-400">0</div>
+                        <div class="text-xs text-zinc-500">Dependencies</div>
+                    </div>
+                </div>
             </div>
 
-            <!-- Summary Stats -->
-            <div class="grid md:grid-cols-3 gap-6">
-                <div class="text-center p-6 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                    <div class="text-4xl font-bold text-blue-600 mb-2">2.07x</div>
-                    <div class="text-sm text-zinc-500">Average Speedup</div>
+            <!-- Benchmark Race Bars -->
+            <div class="bg-white dark:bg-zinc-900 rounded-2xl p-6 overflow-hidden border border-zinc-200 dark:border-zinc-800 shadow-sm" x-intersect:enter="setTimeout(() => perfAnimated = true, 100)">
+                <div class="flex items-center gap-4 mb-6 text-xs font-mono text-zinc-700 dark:text-zinc-300">
+                    <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400"></span> VLD</span>
+                    <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-zinc-400 dark:bg-zinc-600"></span> Zod</span>
+                    <span class="ml-auto text-zinc-400 dark:text-zinc-500">ops/sec (higher is better)</span>
                 </div>
-                <div class="text-center p-6 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                    <div class="text-4xl font-bold text-green-600 mb-2">78%</div>
-                    <div class="text-sm text-zinc-500">Less Memory</div>
+
+                <div class="space-y-4">
+                    <template x-for="(benchmark, index) in benchmarks" :key="benchmark.name">
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs text-zinc-600 dark:text-zinc-400 font-mono" x-text="benchmark.name"></span>
+                                <span class="text-xs font-bold text-green-600 dark:text-green-400" x-text="benchmark.ratio + 'x faster'"></span>
+                            </div>
+                            <div class="space-y-1.5">
+                                <!-- VLD Bar -->
+                                <div class="h-6 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                                    <div
+                                        class="h-full rounded-full bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-400 relative transition-all ease-out"
+                                        :class="perfAnimated ? 'duration-1000' : 'duration-0'"
+                                        :style="perfAnimated ? `width: ${(benchmark.vld / benchmark.max) * 100}%` : 'width: 0%'"
+                                    >
+                                        <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer"></div>
+                                        <span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-white drop-shadow" x-text="formatOps(benchmark.vld)"></span>
+                                    </div>
+                                </div>
+                                <!-- Zod Bar -->
+                                <div class="h-3 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                                    <div
+                                        class="h-full rounded-full bg-zinc-400 dark:bg-zinc-600 transition-all ease-out"
+                                        :class="perfAnimated ? 'duration-1000 delay-200' : 'duration-0'"
+                                        :style="perfAnimated ? `width: ${(benchmark.zod / benchmark.max) * 100}%` : 'width: 0%'"
+                                    >
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
                 </div>
-                <div class="text-center p-6 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                    <div class="text-4xl font-bold text-purple-600 mb-2">0</div>
-                    <div class="text-sm text-zinc-500">Dependencies</div>
+
+                <!-- Epic summary -->
+                <div class="mt-8 pt-4 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-center gap-2">
+                    <span class="text-zinc-500 text-sm">Result:</span>
+                    <span class="font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-500 to-emerald-400 text-lg animate-pulse">VLD wins every time</span>
                 </div>
             </div>
         </div>
@@ -966,13 +771,11 @@ schema.safeParse('Hi');
     <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-typescript.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-javascript.min.js"></script>
 
-    <!-- Monaco Editor Loader -->
-    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
-
     <!-- LZ-String for sharing -->
     <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
 
     <!-- App Script -->
     <script src="assets/js/app.js"></script>
+    <script defer src="https://analytics.caprover.ecostack.ee/script.js" data-website-id="81e03764-9079-4c3d-a072-71ffaefd74ff"></script>
 </body>
 </html>

@@ -35,9 +35,9 @@ html {
 }
 
 /* Code blocks */
-pre[class*="language-"] {
+pre[class*="language-"],
+pre:has(code[class*="language-"]) {
     margin: 0;
-    padding: 0;
     background: transparent !important;
 }
 
@@ -63,13 +63,11 @@ code[class*="language-"] {
     transition: height 0.2s ease-out;
 }
 
-/* Monaco editor container */
-#playground-editor {
-    min-height: 384px;
-}
-
-#playground-editor .monaco-editor {
-    border-radius: 0;
+/* Playground textarea */
+textarea.font-mono {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    line-height: 1.6;
+    tab-size: 2;
 }
 
 /* Smooth transitions */
@@ -116,6 +114,20 @@ select:focus-visible {
     animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+/* Shimmer animation for performance bars */
+@keyframes shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+.animate-shimmer {
+    animation: shimmer 2s infinite;
+}
+
 /* Badge styles */
 .badge {
     display: inline-flex;
@@ -138,10 +150,6 @@ select:focus-visible {
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
-    #playground-editor {
-        min-height: 300px;
-    }
-
     .hide-on-mobile {
         display: none;
     }
