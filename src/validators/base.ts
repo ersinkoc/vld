@@ -194,6 +194,7 @@ export class VldTransform<TInput, TBase, TOutput> extends VldBase<TInput, TOutpu
 
 /**
  * Default validator - provides default value for undefined
+ * BUG-NPM-002 FIX: Validate default value at construction time
  */
 export class VldDefault<TInput, TOutput> extends VldBase<TInput | undefined, TOutput> {
   constructor(
@@ -201,6 +202,11 @@ export class VldDefault<TInput, TOutput> extends VldBase<TInput | undefined, TOu
     private readonly defaultValue: TOutput
   ) {
     super();
+    // BUG-NPM-002 FIX: Validate the default value to ensure type safety
+    const validation = baseValidator.safeParse(defaultValue);
+    if (!validation.success) {
+      throw new Error(`Invalid default value: ${validation.error.message}`);
+    }
   }
   
   parse(value: unknown): TOutput {
@@ -220,6 +226,7 @@ export class VldDefault<TInput, TOutput> extends VldBase<TInput | undefined, TOu
 
 /**
  * Catch validator - provides fallback value on validation error
+ * BUG-NPM-003 FIX: Validate fallback value at construction time
  */
 export class VldCatch<TInput, TOutput> extends VldBase<TInput, TOutput> {
   constructor(
@@ -227,6 +234,11 @@ export class VldCatch<TInput, TOutput> extends VldBase<TInput, TOutput> {
     private readonly fallbackValue: TOutput
   ) {
     super();
+    // BUG-NPM-003 FIX: Validate the fallback value to ensure type safety
+    const validation = baseValidator.safeParse(fallbackValue);
+    if (!validation.success) {
+      throw new Error(`Invalid fallback value: ${validation.error.message}`);
+    }
   }
   
   parse(value: unknown): TOutput {

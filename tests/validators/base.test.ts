@@ -138,9 +138,10 @@ describe('VldBase and Utility Validators', () => {
     });
 
     it('should always succeed with safeParse', () => {
+      // BUG-NPM-003 FIX: Use valid fallback value (must be positive)
       const validator = VldNumber.create()
         .positive()
-        .catch(0);
+        .catch(1);
       
       const success = validator.safeParse(5);
       expect(success.success).toBe(true);
@@ -151,7 +152,7 @@ describe('VldBase and Utility Validators', () => {
       const fallback = validator.safeParse(-5);
       expect(fallback.success).toBe(true);
       if (fallback.success) {
-        expect(fallback.data).toBe(0);
+        expect(fallback.data).toBe(1);
       }
     });
   });
