@@ -326,8 +326,13 @@ export const base64Json = <T = any>(schema?: any) => {
     outputSchema,
     {
       decode: (base64: string) => {
-        const jsonString = uint8ArrayToString(base64ToUint8Array(base64));
-        return JSON.parse(jsonString);
+        // BUG-NPM-005 FIX: Add error handling for JSON parsing
+        try {
+          const jsonString = uint8ArrayToString(base64ToUint8Array(base64));
+          return JSON.parse(jsonString);
+        } catch (error) {
+          throw new Error(`Failed to parse base64 JSON: ${(error as Error).message}`);
+        }
       },
       encode: (data: T) => {
         const jsonString = JSON.stringify(data);
@@ -348,15 +353,29 @@ export const jwtPayload = (schema?: any) => {
     outputSchema,
     {
       decode: (jwt: string) => {
-        const [, payloadBase64] = jwt.split('.');
-        // Convert base64url to base64
-        const base64 = payloadBase64
-          .replace(/-/g, '+')
-          .replace(/_/g, '/')
-          .padEnd(payloadBase64.length + (4 - payloadBase64.length % 4) % 4, '=');
-        
-        const jsonString = uint8ArrayToString(base64ToUint8Array(base64));
-        return JSON.parse(jsonString);
+        // BUG-NPM-004 FIX: Add comprehensive error handling for JWT parsing
+        try {
+          const parts = jwt.split('.');
+          if (parts.length !== 3) {
+            throw new Error('JWT must have exactly 3 parts');
+          }
+
+          const payloadBase64 = parts[1];
+          if (!payloadBase64) {
+            throw new Error('JWT payload is empty');
+          }
+
+          // Convert base64url to base64
+          const base64 = payloadBase64
+            .replace(/-/g, '+')
+            .replace(/_/g, '/')
+            .padEnd(payloadBase64.length + (4 - payloadBase64.length % 4) % 4, '=');
+
+          const jsonString = uint8ArrayToString(base64ToUint8Array(base64));
+          return JSON.parse(jsonString);
+        } catch (error) {
+          throw new Error(`Failed to decode JWT payload: ${(error as Error).message}`);
+        }
       },
       encode: () => {
         throw new Error('JWT encoding not supported - use a proper JWT library');
