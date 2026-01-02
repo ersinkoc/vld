@@ -1,6 +1,6 @@
 # VLD API Reference
 
-Complete API documentation for the VLD validation library.
+Complete API documentation for the VLD validation library (v1.4.0 - Full Zod 4 API Parity).
 
 ## Table of Contents
 
@@ -8,14 +8,21 @@ Complete API documentation for the VLD validation library.
 - [Basic Usage](#basic-usage)
 - [Core Methods](#core-methods)
 - [Primitive Types](#primitive-types)
+- [String Format Validators](#string-format-validators)
 - [Object Schemas](#object-schemas)
 - [Array Schemas](#array-schemas)
 - [Advanced Types](#advanced-types)
+- [Discriminated Unions](#discriminated-unions)
 - [Type Modifiers](#type-modifiers)
 - [Validation Methods](#validation-methods)
 - [Transformation Methods](#transformation-methods)
+- [Preprocessing](#preprocessing)
+- [Custom Validators](#custom-validators)
+- [File Validation](#file-validation)
+- [Function Validation](#function-validation)
 - [Codecs - Bidirectional Transformations](#codecs---bidirectional-transformations)
 - [Built-in Codecs](#built-in-codecs)
+- [Binary Data Validators](#binary-data-validators)
 - [Custom Codecs](#custom-codecs)
 - [Error Handling](#error-handling)
 - [Type Inference](#type-inference)
@@ -130,6 +137,16 @@ const schema = v.number();
 - `.safe(message?: string)` - Safe integers only
 - `.multipleOf(value: number, message?: string)` - Multiple of value
 
+**Shorthand validators:**
+
+```typescript
+// Integer validator (shorthand for v.number().int())
+v.int()
+
+// 32-bit integer validator
+v.int32()  // -2147483648 to 2147483647
+```
+
 ### Boolean
 
 ```typescript
@@ -160,6 +177,28 @@ const schema = v.date();
 - `.min(date: Date, message?: string)` - Minimum date
 - `.max(date: Date, message?: string)` - Maximum date
 
+### StringBool
+
+Validates and converts string boolean values like "true", "false", "yes", "no", "1", "0".
+
+```typescript
+const schema = v.stringbool();
+
+schema.parse("true");   // true
+schema.parse("false");  // false
+schema.parse("yes");    // true
+schema.parse("no");     // false
+schema.parse("1");      // true
+schema.parse("0");      // false
+
+// Custom truthy/falsy values
+const customSchema = v.stringbool({
+  truthy: ["on", "enabled"],
+  falsy: ["off", "disabled"],
+  caseSensitive: false
+});
+```
+
 ### Other Primitives
 
 ```typescript
@@ -170,6 +209,106 @@ v.void()        // Undefined (alias)
 v.any()         // Any type
 v.unknown()     // Unknown type
 v.never()       // Never type
+v.nan()         // NaN type
+
+// NEVER constant for use in transforms
+v.NEVER         // Returns never type (useful in conditional transforms)
+```
+
+## String Format Validators
+
+VLD provides standalone string format validators for common patterns (Zod 4 API parity):
+
+### Email
+
+```typescript
+const schema = v.email();
+schema.parse("user@example.com"); // OK
+
+// Custom pattern
+const customEmail = v.email({ pattern: /^[a-z]+@company\.com$/ });
+```
+
+### UUID
+
+```typescript
+const schema = v.uuid();                    // Any UUID version
+const v4Schema = v.uuid({ version: 'v4' }); // UUID v4 only
+const v4Short = v.uuidv4();                 // Shorthand for v4
+```
+
+### IP Addresses
+
+```typescript
+v.ipv4();     // IPv4 address
+v.ipv6();     // IPv6 address
+v.cidrv4();   // IPv4 CIDR notation
+v.cidrv6();   // IPv6 CIDR notation
+v.mac();      // MAC address
+```
+
+### Encoding Formats
+
+```typescript
+v.base64();      // Base64 encoded string
+v.base64url();   // Base64URL encoded string
+v.hex();         // Hexadecimal string
+v.jwt();         // JSON Web Token format
+```
+
+### Identifiers
+
+```typescript
+v.nanoid();    // NanoID format
+v.cuid();      // CUID format
+v.cuid2();     // CUID2 format
+v.ulid();      // ULID format
+```
+
+### Other Formats
+
+```typescript
+v.hostname();  // Valid hostname
+v.emoji();     // Emoji character(s)
+v.e164();      // E.164 phone number format
+
+// Hash algorithms
+v.hash('md5');
+v.hash('sha1');
+v.hash('sha256');
+v.hash('sha384');
+v.hash('sha512');
+```
+
+### ISO Formats
+
+```typescript
+v.iso.date();      // ISO date (YYYY-MM-DD)
+v.iso.time();      // ISO time (HH:mm:ss)
+v.iso.dateTime();  // ISO datetime
+v.iso.duration();  // ISO duration (P1Y2M3D)
+```
+
+### Custom String Formats
+
+```typescript
+// With regex
+const productCode = v.stringFormat('productCode', /^PRD-\d{6}$/);
+
+// With function
+const evenDigits = v.stringFormat('evenDigits', (val) => {
+  return /^\d+$/.test(val) && val.length % 2 === 0;
+});
+```
+
+### Template Literals
+
+Create validators for template literal patterns:
+
+```typescript
+const urlPath = v.templateLiteral('/api/', v.string(), '/users/', v.number());
+urlPath.parse('/api/v1/users/123'); // OK
+urlPath.parse('/api/v2/users/456'); // OK
 ```
 
 ## Object Schemas
@@ -181,6 +320,16 @@ const userSchema = v.object({
   name: v.string(),
   age: v.number(),
   email: v.string().email()
+});
+
+// Strict object - no extra properties allowed (Zod 4 parity)
+const strictSchema = v.strictObject({
+  name: v.string()
+});
+
+// Loose object - extra properties passed through (Zod 4 parity)
+const looseSchema = v.looseObject({
+  name: v.string()
 });
 ```
 
@@ -205,9 +354,26 @@ schema.pick('name', 'email');
 schema.omit('password');
 
 // Extend with new properties
-schema.extend({ 
-  phone: v.string() 
+schema.extend({
+  phone: v.string()
 });
+```
+
+### JSON Validator
+
+Validate and parse JSON strings:
+
+```typescript
+// Parse any valid JSON
+const jsonSchema = v.json();
+jsonSchema.parse('{"name":"John"}'); // { name: "John" }
+
+// Parse JSON with schema validation
+const typedJson = v.json(v.object({
+  name: v.string(),
+  age: v.number()
+}));
+typedJson.parse('{"name":"John","age":30}'); // Typed result
 ```
 
 ## Array Schemas
@@ -296,6 +462,29 @@ scoresSchema.parse({
   science: 87,
   history: 92
 }); // OK
+
+// Partial record - values can be undefined (Zod 4 parity)
+const partialConfig = v.partialRecord(v.string());
+
+// Loose record - allows extra value types (Zod 4 parity)
+const looseConfig = v.looseRecord(v.number());
+```
+
+### XOR Types (Zod 4 Parity)
+
+Exactly one of the given validators must match:
+
+```typescript
+const paymentSchema = v.xor(
+  v.object({ type: v.literal('card'), cardNumber: v.string() }),
+  v.object({ type: v.literal('bank'), accountNumber: v.string() })
+);
+
+// OK - exactly one matches
+paymentSchema.parse({ type: 'card', cardNumber: '1234' });
+
+// Error - neither or both match
+paymentSchema.parse({ type: 'other', value: 123 });
 ```
 
 ### Set Types
@@ -320,6 +509,24 @@ const config = new Map([
   ["retries", 3]
 ]);
 configSchema.parse(config); // OK
+```
+
+## Discriminated Unions
+
+Efficiently validate unions using a discriminator key (Zod 4 parity):
+
+```typescript
+const resultSchema = v.discriminatedUnion('status',
+  v.object({ status: v.literal('success'), data: v.string() }),
+  v.object({ status: v.literal('error'), message: v.string() })
+);
+
+// Valid
+resultSchema.parse({ status: 'success', data: 'Hello' });
+resultSchema.parse({ status: 'error', message: 'Failed' });
+
+// Invalid - unknown status
+resultSchema.parse({ status: 'pending' }); // Error
 ```
 
 ## Type Modifiers
@@ -422,6 +629,60 @@ const schema = v.string()
   .transform(str => str.replace(/\s+/g, '-'));
 
 schema.parse("  Hello World  "); // "hello-world"
+```
+
+## Preprocessing
+
+Transform input before validation:
+
+```typescript
+const schema = v.preprocess(
+  (input) => typeof input === 'string' ? input.trim() : input,
+  v.string().min(1)
+);
+
+schema.parse("  hello  "); // "hello"
+```
+
+## Custom Validators
+
+Create fully custom validators with type safety:
+
+```typescript
+const positiveEven = v.custom<number>({
+  check: (val) => typeof val === 'number' && val > 0 && val % 2 === 0,
+  message: 'Must be a positive even number'
+});
+
+positiveEven.parse(4);  // OK
+positiveEven.parse(3);  // Error
+positiveEven.parse(-2); // Error
+```
+
+## File Validation
+
+Validate file uploads (browser File API):
+
+```typescript
+const imageSchema = v.file()
+  .type(['image/jpeg', 'image/png', 'image/gif'])
+  .maxSize(5 * 1024 * 1024); // 5MB
+
+// In form handler
+const file = formData.get('avatar');
+const result = imageSchema.safeParse(file);
+```
+
+## Function Validation
+
+Validate functions:
+
+```typescript
+const callbackSchema = v.function();
+
+callbackSchema.parse(() => {}); // OK
+callbackSchema.parse(async () => {}); // OK
+callbackSchema.parse('not a function'); // Error
 ```
 
 ## Error Handling
@@ -720,12 +981,13 @@ const decoded = uriComponent.encode("Hello%20World!");  // "Hello World!"
 ### Binary Data Codecs
 
 ```typescript
-import { 
-  base64ToBytes, 
+import {
+  base64ToBytes,
   base64urlToBytes,
-  hexToBytes, 
-  utf8ToBytes, 
-  bytesToUtf8 
+  hexToBytes,
+  hexLowerToBytes,
+  utf8ToBytes,
+  bytesToUtf8
 } from '@oxog/vld';
 
 // Base64 to Uint8Array
@@ -739,9 +1001,30 @@ const bytes2 = base64urlToBytes.parse("SGVsbG8gV29ybGQ");  // No padding
 const bytes3 = hexToBytes.parse("48656c6c6f");
 const hex = hexToBytes.encode(bytes3);
 
+// Hex lowercase only
+const bytes4 = hexLowerToBytes.parse("48656c6c6f");
+
 // UTF-8 string to bytes
-const bytes4 = utf8ToBytes.parse("Hello! 👋");
-const text = bytesToUtf8.parse(bytes4);
+const bytes5 = utf8ToBytes.parse("Hello! 👋");
+const text = bytesToUtf8.parse(bytes5);
+```
+
+## Binary Data Validators
+
+Validators for binary data types:
+
+```typescript
+// Base64 string to Uint8Array
+const base64Schema = v.base64Bytes();
+base64Schema.parse("SGVsbG8="); // Uint8Array
+
+// Hex string to Uint8Array
+const hexSchema = v.hexBytes();
+hexSchema.parse("48656c6c6f"); // Uint8Array
+
+// Uint8Array validator
+const bytesSchema = v.uint8Array();
+bytesSchema.parse(new Uint8Array([1, 2, 3])); // OK
 ```
 
 ### JWT Payload Decoder

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { CodeBlock } from '@/components/ui/code-block'
 import { cn } from '@/lib/utils'
-import { FileCode, User, ShoppingCart, Lock, Database, Globe, Server, FileJson, Zap, Shield, Binary, Repeat } from 'lucide-react'
+import { User, ShoppingCart, Lock, Database, Globe, Server, Zap, Shield, Binary, Repeat } from 'lucide-react'
 
 const examples = [
   {

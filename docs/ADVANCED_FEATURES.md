@@ -1,13 +1,17 @@
 # VLD Advanced Features
 
-Deep dive into VLD's advanced features and capabilities for complex validation scenarios.
+Deep dive into VLD's advanced features and capabilities for complex validation scenarios (v1.4.0 - Full Zod 4 API Parity).
 
 ## Table of Contents
 
 - [Type Coercion](#type-coercion)
 - [Custom Validation](#custom-validation)
 - [Data Transformation](#data-transformation)
+- [Preprocessing](#preprocessing)
 - [Complex Types](#complex-types)
+- [Discriminated Unions](#discriminated-unions)
+- [String Format Validators](#string-format-validators)
+- [File and Function Validation](#file-and-function-validation)
 - [Error Handling](#error-handling)
 - [Internationalization](#internationalization)
 - [Advanced Patterns](#advanced-patterns)
@@ -246,6 +250,35 @@ flexibleIdSchema.parse(123);    // "ID_123"
 flexibleIdSchema.parse("abc");  // "ABC"
 ```
 
+## Preprocessing
+
+Transform input before validation with `v.preprocess()`:
+
+```typescript
+// Trim strings before validation
+const trimmedString = v.preprocess(
+  (val) => typeof val === 'string' ? val.trim() : val,
+  v.string().min(1)
+);
+
+trimmedString.parse("  hello  "); // "hello"
+
+// Parse JSON strings
+const jsonPreprocess = v.preprocess(
+  (val) => typeof val === 'string' ? JSON.parse(val) : val,
+  v.object({ name: v.string() })
+);
+
+// Normalize data structures
+const normalizeArray = v.preprocess(
+  (val) => Array.isArray(val) ? val : [val],
+  v.array(v.string())
+);
+
+normalizeArray.parse("single");    // ["single"]
+normalizeArray.parse(["a", "b"]);  // ["a", "b"]
+```
+
 ## Complex Types
 
 ### Tuple Types
@@ -351,6 +384,162 @@ const postSchema = v.intersection(
 );
 
 // Result has all properties combined
+```
+
+### XOR Types (v1.4.0)
+
+Exactly one validator must match:
+
+```typescript
+// Payment method - exactly one must be provided
+const paymentSchema = v.xor(
+  v.object({ type: v.literal('card'), cardNumber: v.string() }),
+  v.object({ type: v.literal('bank'), iban: v.string() }),
+  v.object({ type: v.literal('crypto'), walletAddress: v.string() })
+);
+```
+
+## Discriminated Unions
+
+Efficiently validate unions using a discriminator key (Zod 4 parity):
+
+```typescript
+// API response handling
+const apiResponseSchema = v.discriminatedUnion('status',
+  v.object({
+    status: v.literal('success'),
+    data: v.object({ id: v.string(), name: v.string() })
+  }),
+  v.object({
+    status: v.literal('error'),
+    code: v.number(),
+    message: v.string()
+  }),
+  v.object({
+    status: v.literal('pending'),
+    retryAfter: v.number()
+  })
+);
+
+// TypeScript narrows the type based on discriminator
+const response = apiResponseSchema.parse(data);
+if (response.status === 'success') {
+  console.log(response.data.name); // TypeScript knows 'data' exists
+} else if (response.status === 'error') {
+  console.log(response.message);   // TypeScript knows 'message' exists
+}
+```
+
+## String Format Validators
+
+VLD v1.4.0 provides standalone string format validators (Zod 4 parity):
+
+```typescript
+// Email with custom pattern
+const corporateEmail = v.email({ pattern: /^[\w.]+@company\.com$/i });
+
+// UUID versions
+const uuidV4 = v.uuid({ version: 'v4' });
+const uuidAny = v.uuid();  // Any version
+
+// Network formats
+v.ipv4();      // 192.168.1.1
+v.ipv6();      // ::1
+v.cidrv4();    // 192.168.1.0/24
+v.cidrv6();    // ::1/128
+v.mac();       // 00:11:22:33:44:55
+
+// Encoding formats
+v.base64();     // Standard base64
+v.base64url();  // URL-safe base64
+v.hex();        // Hexadecimal
+v.jwt();        // JSON Web Token
+
+// Identifiers
+v.nanoid();    // NanoID
+v.cuid();      // CUID
+v.cuid2();     // CUID2
+v.ulid();      // ULID
+
+// ISO formats
+v.iso.date();      // 2024-01-15
+v.iso.time();      // 14:30:00
+v.iso.dateTime();  // 2024-01-15T14:30:00Z
+v.iso.duration();  // P1Y2M3DT4H5M6S
+
+// Custom format
+const productCode = v.stringFormat('productCode', /^PRD-\d{6}$/);
+```
+
+### Template Literals
+
+Create validators for template literal patterns:
+
+```typescript
+// API versioned paths
+const apiPath = v.templateLiteral('/api/v', v.number(), '/', v.string());
+apiPath.parse('/api/v1/users');  // OK
+apiPath.parse('/api/v2/posts');  // OK
+
+// Email-like patterns
+const emailPattern = v.templateLiteral(v.string(), '@', v.string(), '.', v.string());
+```
+
+## File and Function Validation
+
+### File Validation (v1.4.0)
+
+Validate file uploads in browser environments:
+
+```typescript
+const imageSchema = v.file()
+  .type(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
+  .maxSize(5 * 1024 * 1024);  // 5MB
+
+const documentSchema = v.file()
+  .type(['application/pdf', 'application/msword'])
+  .maxSize(10 * 1024 * 1024); // 10MB
+
+// Usage in form handler
+const fileInput = document.querySelector('input[type="file"]');
+const file = fileInput.files[0];
+const result = imageSchema.safeParse(file);
+```
+
+### Function Validation (v1.4.0)
+
+Validate that a value is a function:
+
+```typescript
+const callbackSchema = v.function();
+
+// Validate callbacks
+const config = {
+  onSuccess: () => console.log('Success'),
+  onError: 'not a function'  // Will fail
+};
+
+callbackSchema.parse(config.onSuccess); // OK
+callbackSchema.parse(config.onError);   // Error
+```
+
+### Custom Validators (v1.4.0)
+
+Create fully custom validators with type inference:
+
+```typescript
+// Simple check function
+const positiveEven = v.custom<number>({
+  check: (val) => typeof val === 'number' && val > 0 && val % 2 === 0,
+  message: 'Must be a positive even number'
+});
+
+// With type guard
+const isStringArray = v.custom<string[]>({
+  check: (val): val is string[] =>
+    Array.isArray(val) && val.every(item => typeof item === 'string'),
+  message: 'Must be an array of strings'
+});
 ```
 
 ## Error Handling

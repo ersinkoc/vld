@@ -2,11 +2,14 @@
 
 A complete guide for migrating your codebase from Zod to VLD with minimal changes and maximum performance gains.
 
+**VLD v1.4.0 now has full Zod 4 API parity!**
+
 ## Table of Contents
 
 - [Why Migrate?](#why-migrate)
 - [Quick Migration](#quick-migration)
 - [API Compatibility](#api-compatibility)
+- [Zod 4 API Parity](#zod-4-api-parity)
 - [Breaking Changes](#breaking-changes)
 - [Migration Strategies](#migration-strategies)
 - [Common Patterns](#common-patterns)
@@ -120,6 +123,79 @@ v.never()           // z.never()
 .transform(fn)      // Same
 ```
 
+## Zod 4 API Parity
+
+VLD v1.4.0 adds full compatibility with Zod 4 APIs:
+
+### Discriminated Union (Now Supported!)
+
+```javascript
+// Zod 4
+const schema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("a"), value: z.string() }),
+  z.object({ type: z.literal("b"), value: z.number() })
+]);
+
+// VLD (identical syntax now supported!)
+const schema = v.discriminatedUnion("type",
+  v.object({ type: v.literal("a"), value: v.string() }),
+  v.object({ type: v.literal("b"), value: v.number() })
+);
+```
+
+### New Validators in v1.4.0
+
+```javascript
+// Integer shortcuts
+v.int()                  // z.number().int()
+v.int32()                // 32-bit integer range
+
+// Object variants
+v.strictObject({ ... })  // z.strictObject()
+v.looseObject({ ... })   // z.looseObject()
+
+// Record variants
+v.partialRecord(schema)  // z.partialRecord()
+v.looseRecord(schema)    // z.looseRecord()
+
+// XOR validator
+v.xor(schemaA, schemaB)  // Exactly one must match
+
+// String format validators
+v.email()                // z.email()
+v.uuid()                 // z.uuid()
+v.ipv4()                 // z.ipv4()
+v.ipv6()                 // z.ipv6()
+v.base64()               // z.base64()
+v.jwt()                  // z.jwt()
+v.emoji()                // z.emoji()
+v.nanoid()               // z.nanoid()
+v.cuid()                 // z.cuid()
+v.cuid2()                // z.cuid2()
+v.ulid()                 // z.ulid()
+
+// ISO formats
+v.iso.date()             // z.iso.date()
+v.iso.time()             // z.iso.time()
+v.iso.dateTime()         // z.iso.dateTime()
+v.iso.duration()         // z.iso.duration()
+
+// Binary validators
+v.base64Bytes()          // Base64 to Uint8Array
+v.hexBytes()             // Hex to Uint8Array
+v.uint8Array()           // Uint8Array validator
+
+// Other new validators
+v.nan()                  // NaN type
+v.json()                 // JSON string parser
+v.file()                 // File upload validation
+v.function()             // Function validator
+v.custom()               // Custom validator factory
+v.stringbool()           // String to boolean
+v.templateLiteral()      // Template literal patterns
+v.NEVER                  // Never constant for transforms
+```
+
 ## Breaking Changes
 
 ### 1. Union Syntax
@@ -132,23 +208,9 @@ const schema = z.union([z.string(), z.number()]);
 const schema = v.union(v.string(), v.number());
 ```
 
-### 2. Discriminated Union
+**Note:** Discriminated unions now use the same syntax as Zod 4!
 
-```javascript
-// Zod
-const schema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("a"), value: z.string() }),
-  z.object({ type: z.literal("b"), value: z.number() })
-]);
-
-// VLD (use regular union with objects)
-const schema = v.union(
-  v.object({ type: v.literal("a"), value: v.string() }),
-  v.object({ type: v.literal("b"), value: v.number() })
-);
-```
-
-### 3. Type Inference
+### 2. Type Inference
 
 ```javascript
 // Zod
@@ -159,7 +221,7 @@ import { Infer } from '@oxog/vld';
 type User = Infer<typeof userSchema>;
 ```
 
-### 4. Error Class Name
+### 3. Error Class Name
 
 ```javascript
 // Zod
@@ -367,17 +429,14 @@ type User = Infer<typeof schema>; // Correct
 
 ### Issue: Discriminated Union
 
-```javascript
-// If you heavily use discriminatedUnion, create a helper:
-function discriminatedUnion(discriminator, schemas) {
-  return v.union(...schemas);
-}
+**This is now fully supported in VLD v1.4.0!**
 
-// Usage
-const schema = discriminatedUnion("type", [
+```javascript
+// Now works directly in VLD
+const schema = v.discriminatedUnion("type",
   v.object({ type: v.literal("a"), value: v.string() }),
   v.object({ type: v.literal("b"), value: v.number() })
-]);
+);
 ```
 
 ### Issue: Custom Error Messages

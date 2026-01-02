@@ -1,6 +1,6 @@
 # Getting Started with VLD
 
-A comprehensive guide to get you up and running with VLD, the blazing-fast TypeScript validation library.
+A comprehensive guide to get you up and running with VLD (v1.4.0), the blazing-fast TypeScript validation library with full Zod 4 API parity.
 
 ## Table of Contents
 
@@ -373,6 +373,39 @@ formSchema.parse({
   acceptTerms: "true", // Coerced to true
   startDate: "2024-01-01" // Coerced to Date object
 });
+```
+
+### 5. Use String Format Validators (v1.4.0)
+
+```typescript
+// Standalone format validators for common patterns
+const emailSchema = v.email();
+const uuidSchema = v.uuid();
+const ipSchema = v.ipv4();
+
+// ISO format validators
+const dateSchema = v.iso.date();
+const timeSchema = v.iso.time();
+
+// Combine with other validations
+const userIdSchema = v.uuid({ version: 'v4' });
+```
+
+### 6. Use Discriminated Unions for Type Safety
+
+```typescript
+// Efficient validation with discriminator key
+const eventSchema = v.discriminatedUnion('type',
+  v.object({ type: v.literal('click'), x: v.number(), y: v.number() }),
+  v.object({ type: v.literal('scroll'), delta: v.number() }),
+  v.object({ type: v.literal('keypress'), key: v.string() })
+);
+
+// TypeScript narrows the type based on 'type' field
+const event = eventSchema.parse(data);
+if (event.type === 'click') {
+  console.log(event.x, event.y); // TypeScript knows x and y exist
+}
 ```
 
 ## Next Steps

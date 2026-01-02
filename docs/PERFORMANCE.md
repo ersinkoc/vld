@@ -1,6 +1,6 @@
 # VLD Performance Guide
 
-Comprehensive guide to understanding and optimizing VLD's performance in your applications.
+Comprehensive guide to understanding and optimizing VLD's performance in your applications (v1.4.0).
 
 ## Table of Contents
 
@@ -375,10 +375,12 @@ VLD has zero dependencies, resulting in smaller bundle sizes:
 
 | Library | Minified | Gzipped | Dependencies |
 |---------|----------|---------|--------------|
-| VLD | 38 KB | 11 KB | 0 |
-| Zod | 125 KB | 32 KB | 0 |
+| VLD | 45 KB | 13 KB | 0 |
+| Zod 4 | 150 KB | 38 KB | 0 |
 | Yup | 145 KB | 42 KB | 15 |
 | Joi | 218 KB | 61 KB | 12 |
+
+*Note: VLD size increased slightly in v1.4.0 due to full Zod 4 API parity features.*
 
 ### Tree Shaking
 

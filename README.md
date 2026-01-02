@@ -1121,10 +1121,10 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## 🔗 Links
 
+- [Documentation](https://vld.oxog.dev)
 - [NPM Package](https://www.npmjs.com/package/@oxog/vld)
 - [GitHub Repository](https://github.com/ersinkoc/vld)
-- [Documentation](https://github.com/ersinkoc/vld#readme)
 
 ---
 
-Made with ❤️ by Ersin KOÇ
+Made with ❤️ by [Ersin KOÇ](https://github.com/ersinkoc)
