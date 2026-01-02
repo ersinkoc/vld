@@ -63,6 +63,13 @@ export function hexToUint8Array(hex: string): Uint8Array {
   // Remove any 0x prefix if present
   const cleanHex = hex.startsWith('0x') ? hex.slice(2) : hex;
 
+  // BUG-NPM-006 FIX: Validate hex characters to prevent silent data corruption
+  // parseInt silently returns NaN for invalid hex, which becomes 0 in Uint8Array
+  const hexPattern = /^[0-9a-fA-F]*$/;
+  if (!hexPattern.test(cleanHex)) {
+    throw new Error('Invalid hex string: contains non-hexadecimal characters');
+  }
+
   // Ensure even length
   const paddedHex = cleanHex.length % 2 === 0 ? cleanHex : '0' + cleanHex;
 

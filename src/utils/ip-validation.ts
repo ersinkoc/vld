@@ -67,24 +67,45 @@ export function isValidIPv6(ip: string): boolean {
     return true;
   }
 
-  // Reject known bad patterns explicitly
-  const knownBadPatterns = [
-    'invalid-ipv6',
-    '2001:db8:::1',  // too many colons
-    '2001:db8:85a3:0:0:8a2e:370:7334:1234', // too long
-    'g01::',         // invalid hex characters
-    '2001:db8::g01'  // invalid hex characters
-  ];
-
-  if (knownBadPatterns.includes(ipToValidate)) {
+  // BUG-NPM-007 FIX: Replace overly permissive validation with proper IPv6 structure validation
+  // Check for double compression - only one '::' allowed in IPv6
+  const compressionCount = (ipToValidate.match(/::/g) || []).length;
+  if (compressionCount > 1) {
     return false;
   }
 
-  // For any other input that looks like IPv6, be very permissive
-  // Just check basic structure for security
-  if (ipToValidate.includes(':') && ipToValidate.length <= 45) {
-    return true;
+  // Split into groups and validate structure
+  const hasCompression = ipToValidate.includes('::');
+
+  // Split by single ':' to count groups
+  const groups = ipToValidate.split(':').filter(g => g !== '');
+
+  // IPv6 has 8 groups of 16-bit hex values
+  // If compressed (::), we need fewer than 8 groups
+  // If not compressed, we need exactly 8 groups
+  if (hasCompression) {
+    // With compression, we should have 0-7 non-empty groups
+    if (groups.length > 7) {
+      return false;
+    }
+  } else {
+    // Without compression, we need exactly 8 groups
+    if (groups.length !== 8) {
+      return false;
+    }
   }
 
-  return false;
+  // Validate each group
+  for (const group of groups) {
+    // Each group should be 1-4 hex characters
+    if (group.length === 0 || group.length > 4) {
+      return false;
+    }
+    // Already checked hex characters above (line 42), but double-check each group
+    if (!/^[0-9a-fA-F]+$/.test(group)) {
+      return false;
+    }
+  }
+
+  return true;
 }

@@ -828,12 +828,13 @@ describe('New Advanced Features Tests', () => {
     });
 
     it('should work with refine errors', () => {
+      // BUG-NPM-003 FIX: Use valid fallback value (must pass refinement)
       const schema = v.number()
         .refine(n => n > 0, 'Must be positive')
-        .catch(-999);
-      
+        .catch(1);
+
       expect(schema.parse(5)).toBe(5);
-      expect(schema.parse(-5)).toBe(-999); // Refine error -> fallback
+      expect(schema.parse(-5)).toBe(1); // Refine error -> fallback
     });
   });
 
