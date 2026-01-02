@@ -103,5 +103,25 @@ export const nl: LocaleMessages = {
   uint8ArrayExactLength: (length: number) => `Uint8Array must have exactly ${length} bytes`,
   
   // Generic type error messages
-  expectedString: 'Expected string'
+  expectedString: 'Expected string',
+  stringExpected: (received: string, expected: string) => `Verwacht ${expected}, ontvangen ${received}`,
+  stringBoolExpected: (validValues: string, received: string) => `Ongeldige boolean string. Een van de volgende verwacht: ${validValues}, ontvangen: "${received}"`,
+  invalidJson: 'Ongeldige JSON',
+  stringPatternInvalid: 'Tekenreeks komt niet overeen met het vereiste patroon',
+
+  // File validation messages
+  invalidFile: 'Expected a File object',
+  fileNotSupported: 'File API not supported in this environment',
+  fileMinSize: (min: number) => `File size must be at least ${min} bytes`,
+  fileMaxSize: (max: number) => `File size must not exceed ${max} bytes`,
+  fileMimeType: (allowed: string[]) => `Invalid file type. Expected: ${allowed.join(", ")}`,
+  // Function validation messages
+  invalidFunction: 'Een functie verwacht',
+
+  // CIDR validation messages
+  stringCidrv4: 'Ongeldig IPv4 CIDR-blok',
+  stringCidrv6: 'Ongeldig IPv6 CIDR-blok',
+
+  // Safe extend validation messages
+  safeExtendOverlap: (keys: string[]) => `Kan bestaande sleutels niet overschrijven: ${keys.join(', ')}. Gebruik extend() als je wilt overschrijven.`
 };

@@ -221,4 +221,42 @@ export class VldNumber extends VldBase<number, number> {
       errorMessage: message || 'Number must be odd'
     });
   }
+
+  /**
+   * Create a new validator with strict greater than constraint
+   * Zod 4 API parity - strictly greater than (not equal to)
+   */
+  gt(value: number, message?: string): VldNumber {
+    return new VldNumber({
+      checks: [...this.config.checks, (v: number) => v > value],
+      errorMessage: message || `Number must be greater than ${value}`
+    });
+  }
+
+  /**
+   * Create a new validator with strict less than constraint
+   * Zod 4 API parity - strictly less than (not equal to)
+   */
+  lt(value: number, message?: string): VldNumber {
+    return new VldNumber({
+      checks: [...this.config.checks, (v: number) => v < value],
+      errorMessage: message || `Number must be less than ${value}`
+    });
+  }
+
+  /**
+   * Create a new validator with greater than or equal constraint
+   * Zod 4 API parity - alias for min()
+   */
+  gte(value: number, message?: string): VldNumber {
+    return this.min(value, message);
+  }
+
+  /**
+   * Create a new validator with less than or equal constraint
+   * Zod 4 API parity - alias for max()
+   */
+  lte(value: number, message?: string): VldNumber {
+    return this.max(value, message);
+  }
 }

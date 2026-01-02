@@ -103,5 +103,26 @@ export const tr: LocaleMessages = {
   uint8ArrayExactLength: (length: number) => `Uint8Array must have exactly ${length} bytes`,
   
   // Generic type error messages
-  expectedString: 'Expected string'
+  expectedString: 'Expected string',
+  stringExpected: (received: string, expected: string) => `Beklenen: ${expected}, alınan: ${received}`,
+  stringBoolExpected: (validValues: string, received: string) => `Geçersiz boolean string. Şunlardan biri olmalı: ${validValues}, alınan: "${received}"`,
+  invalidJson: 'Geçersiz JSON',
+  stringPatternInvalid: 'Dize gerekli kalıpla eşleşmiyor',
+
+  // File validation messages
+  invalidFile: 'Expected a File object',
+  fileNotSupported: 'File API not supported in this environment',
+  fileMinSize: (min: number) => `File size must be at least ${min} bytes`,
+  fileMaxSize: (max: number) => `File size must not exceed ${max} bytes`,
+  fileMimeType: (allowed: string[]) => `Invalid file type. Expected: ${allowed.join(", ")}`,
+
+  // Function validation messages
+  invalidFunction: 'Bir fonksiyon bekleniyor',
+
+  // CIDR validation messages
+  stringCidrv4: 'Geçersiz IPv4 CIDR bloğu',
+  stringCidrv6: 'Geçersiz IPv6 CIDR bloğu',
+
+  // Safe extend validation messages
+  safeExtendOverlap: (keys: string[]) => `Mevcut anahtarlar üzerine yazılamaz: ${keys.join(', ')}. Üzerine yazmak istiyorsanız extend() kullanın.`
 };

@@ -5,6 +5,55 @@ All notable changes to VLD will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-01-02
+
+### 🚀 **Zod 4 Full API Parity Achieved**
+- **Complete Feature Set**: 100% Zod 4 API compatibility
+- **1142 Tests Passing**: Comprehensive test coverage across all features
+- **Production Ready**: All validators, codecs, and utilities fully tested
+
+### ✨ New Features
+
+#### **v.cidrv6() - IPv6 CIDR Block Validator**
+New validator for IPv6 CIDR notation validation:
+- Supports full IPv6 addresses with prefix lengths (0-128)
+- Validates compressed IPv6 notation (`::`, `::1`, etc.)
+- Rejects IPv4 CIDR blocks
+
+#### **.apply() - External Function Chaining**
+Apply external functions to validators for advanced composition:
+- Enables functional composition patterns
+- Supports custom validation pipelines
+- Full TypeScript type inference
+
+#### **.safeExtend() - Type-Safe Object Extension**
+Safely extend object schemas without accidentally overriding existing fields:
+- Prevents accidental field overrides in object schemas
+- Clear error messages listing all conflicting keys
+- Supports chaining multiple safeExtend calls
+
+### 🌍 Internationalization Updates
+- Added i18n messages for all new features in **27+ languages**
+- New messages: `stringCidrv6`, `safeExtendOverlap`
+- Updated all locale files with translations
+
+### 🔧 Build System Improvements
+- **Fixed ESM module resolution**: Directory imports now correctly resolve to `/index.js`
+- **Updated fix-imports script**: Now handles directory-based imports properly
+- **Renamed to CommonJS**: `scripts/fix-imports.cjs` for ESM package compatibility
+
+### 📊 Performance
+VLD continues to outperform Zod across all benchmarks:
+- **2.52x faster** average performance
+- **9/10 benchmark wins** vs Zod
+- **2.41x less memory** usage overall
+- **83x faster** schema creation
+
+### 🧪 Testing
+- **49 test suites** - All passing
+- **1142 tests** - Comprehensive coverage
+- **TypeScript strict mode** - Full type safety verified
+
 ## [1.3.1] - 2025-11-12
 
 ### 🎯 **100% Test Success Rate Achieved**

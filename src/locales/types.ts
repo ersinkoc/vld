@@ -113,7 +113,28 @@ export interface LocaleMessages {
   uint8ArrayMinLength: (min: number) => string;
   uint8ArrayMaxLength: (max: number) => string;
   uint8ArrayExactLength: (length: number) => string;
-  
+
   // Generic type error messages
   expectedString: string;
+  stringExpected: (received: string, expected: string) => string;
+  stringBoolExpected: (validValues: string, received: string) => string;
+  invalidJson: string;
+  stringPatternInvalid: string;
+
+  // File validation messages
+  invalidFile: string;
+  fileNotSupported: string;
+  fileMinSize: (min: number) => string;
+  fileMaxSize: (max: number) => string;
+  fileMimeType: (allowed: string[]) => string;
+
+  // Function validation messages
+  invalidFunction: string;
+
+  // CIDR validation messages
+  stringCidrv4: string;
+  stringCidrv6: string;
+
+  // Safe extend validation messages
+  safeExtendOverlap: (keys: string[]) => string;
 }

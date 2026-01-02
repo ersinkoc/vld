@@ -103,5 +103,25 @@ export const ja: LocaleMessages = {
   uint8ArrayExactLength: (length: number) => `Uint8Array must have exactly ${length} bytes`,
   
   // Generic type error messages
-  expectedString: 'Expected string'
+  expectedString: 'Expected string',
+  stringExpected: (received: string, expected: string) => `${expected}が期待されましたが、${received}を受け取りました`,
+  stringBoolExpected: (validValues: string, received: string) => `無効なブール文字列です。次のいずれかである必要があります: ${validValues}、受け取りました: "${received}"`,
+  invalidJson: '無効なJSON',
+  stringPatternInvalid: '文字列が必要なパターンと一致しません',
+
+  // File validation messages
+  invalidFile: 'Expected a File object',
+  fileNotSupported: 'File API not supported in this environment',
+  fileMinSize: (min: number) => `File size must be at least ${min} bytes`,
+  fileMaxSize: (max: number) => `File size must not exceed ${max} bytes`,
+  fileMimeType: (allowed: string[]) => `Invalid file type. Expected: ${allowed.join(", ")}`,
+  // Function validation messages
+  invalidFunction: '関数が期待されました',
+
+  // CIDR validation messages
+  stringCidrv4: '無効なIPv4 CIDRブロック',
+  stringCidrv6: '無効なIPv6 CIDRブロック',
+
+  // Safe extend validation messages
+  safeExtendOverlap: (keys: string[]) => `既存のキーを上書きできません: ${keys.join(', ')}。上書きしたい場合はextend()を使用してください。`
 };

@@ -103,5 +103,25 @@ export const ar: LocaleMessages = {
   uint8ArrayExactLength: (length: number) => `Uint8Array must have exactly ${length} bytes`,
   
   // Generic type error messages
-  expectedString: 'Expected string'
+  expectedString: 'Expected string',
+  stringExpected: (received: string, expected: string) => `متوقع ${expected}، تم استلام ${received}`,
+  stringBoolExpected: (validValues: string, received: string) => `سلسلة منطقية غير صحيحة. متوقع واحد من: ${validValues}، تم استلام: "${received}"`,
+  invalidJson: 'JSON غير صالح',
+  stringPatternInvalid: 'السلسلة لا تطابق النمط المطلوب',
+
+  // File validation messages
+  invalidFile: 'Expected a File object',
+  fileNotSupported: 'File API not supported in this environment',
+  fileMinSize: (min: number) => `File size must be at least ${min} bytes`,
+  fileMaxSize: (max: number) => `File size must not exceed ${max} bytes`,
+  fileMimeType: (allowed: string[]) => `Invalid file type. Expected: ${allowed.join(", ")}`,
+  // Function validation messages
+  invalidFunction: 'دالة متوقعة',
+
+  // CIDR validation messages
+  stringCidrv4: 'كتلة CIDR IPv4 غير صالحة',
+  stringCidrv6: 'كتلة CIDR IPv6 غير صالحة',
+
+  // Safe extend validation messages
+  safeExtendOverlap: (keys: string[]) => `لا يمكن استبدال المفاتيح الموجودة: ${keys.join(', ')}. استخدم extend() للاستبدال.`
 };

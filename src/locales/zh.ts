@@ -103,5 +103,25 @@ export const zh: LocaleMessages = {
   uint8ArrayExactLength: (length: number) => `Uint8Array must have exactly ${length} bytes`,
   
   // Generic type error messages
-  expectedString: 'Expected string'
+  expectedString: 'Expected string',
+  stringExpected: (received: string, expected: string) => `期望${expected}，得到${received}`,
+  stringBoolExpected: (validValues: string, received: string) => `无效的布尔字符串。期望以下之一: ${validValues}，得到: "${received}"`,
+  invalidJson: '无效的JSON',
+  stringPatternInvalid: '字符串与所需模式不匹配',
+
+  // File validation messages
+  invalidFile: 'Expected a File object',
+  fileNotSupported: 'File API not supported in this environment',
+  fileMinSize: (min: number) => `File size must be at least ${min} bytes`,
+  fileMaxSize: (max: number) => `File size must not exceed ${max} bytes`,
+  fileMimeType: (allowed: string[]) => `Invalid file type. Expected: ${allowed.join(", ")}`,
+  // Function validation messages
+  invalidFunction: '期望一个函数',
+
+  // CIDR validation messages
+  stringCidrv4: '无效的IPv4 CIDR块',
+  stringCidrv6: '无效的IPv6 CIDR块',
+
+  // Safe extend validation messages
+  safeExtendOverlap: (keys: string[]) => `无法覆盖现有键: ${keys.join(', ')}。如果要覆盖请使用extend()。`
 };

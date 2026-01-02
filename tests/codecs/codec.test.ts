@@ -76,7 +76,7 @@ describe('VldCodec', () => {
   describe('Base64 codec', () => {
     it('should encode and decode base64 to Uint8Array', () => {
       const base64Codec = v.codec(
-        v.base64(),
+        v.base64Bytes(),
         v.uint8Array(),
         {
           decode: base64ToUint8Array,
@@ -103,7 +103,7 @@ describe('VldCodec', () => {
     
     it('should reject invalid base64 strings', () => {
       const base64Codec = v.codec(
-        v.base64(),
+        v.base64Bytes(),
         v.uint8Array(),
         {
           decode: base64ToUint8Array,
@@ -122,7 +122,7 @@ describe('VldCodec', () => {
   describe('Hex codec', () => {
     it('should encode and decode hex to Uint8Array', () => {
       const hexCodec = v.codec(
-        v.hex(),
+        v.hexBytes(),
         v.uint8Array(),
         {
           decode: hexToUint8Array,
@@ -149,7 +149,7 @@ describe('VldCodec', () => {
     
     it('should handle lowercase hex mode', () => {
       const hexCodec = v.codec(
-        v.hex().lowercaseMode(),
+        v.hexBytes().lowercaseMode(),
         v.uint8Array(),
         {
           decode: hexToUint8Array,
@@ -165,7 +165,7 @@ describe('VldCodec', () => {
     
     it('should reject invalid hex strings', () => {
       const hexCodec = v.codec(
-        v.hex(),
+        v.hexBytes(),
         v.uint8Array(),
         {
           decode: hexToUint8Array,
@@ -191,7 +191,7 @@ describe('VldCodec', () => {
       });
       
       const base64JsonCodec = v.codec(
-        v.base64(),
+        v.base64Bytes(),
         userSchema,
         {
           decode: (base64: string) => {
@@ -216,7 +216,7 @@ describe('VldCodec', () => {
       // First codec: string to hex
       const stringToHex = v.codec(
         v.string(),
-        v.hex(),
+        v.hexBytes(),
         {
           decode: (str: string) => uint8ArrayToHex(stringToUint8Array(str)),
           encode: (hex: string) => uint8ArrayToString(hexToUint8Array(hex))

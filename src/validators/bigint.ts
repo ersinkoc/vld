@@ -126,4 +126,46 @@ export class VldBigInt extends VldBase<bigint, bigint> {
       errorMessage: message || 'BigInt must be non-positive'
     });
   }
+
+  /**
+   * Create a new validator with strict greater than constraint
+   * Zod 4 API parity - strictly greater than (not equal to)
+   */
+  gt(value: bigint | number, message?: string): VldBigInt {
+    const compareValue = typeof value === 'bigint' ? value : BigInt(value);
+    return new VldBigInt({
+      checks: [...this.config.checks, (v: bigint) => v > compareValue],
+      errorMessage: message || `BigInt must be greater than ${compareValue}`
+    });
+  }
+
+  /**
+   * Create a new validator with strict less than constraint
+   * Zod 4 API parity - strictly less than (not equal to)
+   */
+  lt(value: bigint | number, message?: string): VldBigInt {
+    const compareValue = typeof value === 'bigint' ? value : BigInt(value);
+    return new VldBigInt({
+      checks: [...this.config.checks, (v: bigint) => v < compareValue],
+      errorMessage: message || `BigInt must be less than ${compareValue}`
+    });
+  }
+
+  /**
+   * Create a new validator with greater than or equal constraint
+   * Zod 4 API parity - alias for min()
+   */
+  gte(value: bigint | number, message?: string): VldBigInt {
+    const compareValue = typeof value === 'bigint' ? value : BigInt(value);
+    return this.min(compareValue, message);
+  }
+
+  /**
+   * Create a new validator with less than or equal constraint
+   * Zod 4 API parity - alias for max()
+   */
+  lte(value: bigint | number, message?: string): VldBigInt {
+    const compareValue = typeof value === 'bigint' ? value : BigInt(value);
+    return this.max(compareValue, message);
+  }
 }

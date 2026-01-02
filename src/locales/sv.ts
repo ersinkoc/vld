@@ -103,5 +103,25 @@ export const sv: LocaleMessages = {
   uint8ArrayExactLength: (length: number) => `Uint8Array must have exactly ${length} bytes`,
   
   // Generic type error messages
-  expectedString: 'Expected string'
+  expectedString: 'Expected string',
+  stringExpected: (received: string, expected: string) => `Förväntade ${expected}, fick ${received}`,
+  stringBoolExpected: (validValues: string, received: string) => `Ogiltig boolean sträng. En av följande förväntad: ${validValues}, fick: "${received}"`,
+  invalidJson: 'Ogiltig JSON',
+  stringPatternInvalid: 'Strängen matchar inte det krävda mönstret',
+
+  // File validation messages
+  invalidFile: 'Expected a File object',
+  fileNotSupported: 'File API not supported in this environment',
+  fileMinSize: (min: number) => `File size must be at least ${min} bytes`,
+  fileMaxSize: (max: number) => `File size must not exceed ${max} bytes`,
+  fileMimeType: (allowed: string[]) => `Invalid file type. Expected: ${allowed.join(", ")}`,
+  // Function validation messages
+  invalidFunction: 'En funktion förväntas',
+
+  // CIDR validation messages
+  stringCidrv4: 'Ogiltigt IPv4 CIDR-block',
+  stringCidrv6: 'Ogiltigt IPv6 CIDR-block',
+
+  // Safe extend validation messages
+  safeExtendOverlap: (keys: string[]) => `Kan inte skriva över befintliga nycklar: ${keys.join(', ')}. Använd extend() för att skriva över.`
 };

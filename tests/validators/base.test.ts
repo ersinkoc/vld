@@ -1,6 +1,7 @@
 import { describe, it, expect } from '@jest/globals';
 import { VldString } from '../../src/validators/string';
 import { VldNumber } from '../../src/validators/number';
+import { VldObject } from '../../src/validators/object';
 
 describe('VldBase and Utility Validators', () => {
   describe('VldBase Methods', () => {
@@ -284,10 +285,187 @@ describe('VldBase and Utility Validators', () => {
         .min(3)
         .nullable()
         .catch('fallback');
-      
+
       expect(validator.parse('test')).toBe('test');
       expect(validator.parse(null)).toBe(null);
       expect(validator.parse('ab')).toBe('fallback');
+    });
+  });
+
+  describe('VldSuperRefine', () => {
+    it('should add issues through context', () => {
+      const validator = VldNumber.create()
+        .superRefine((val, ctx) => {
+          if (val < 0) {
+            ctx.addIssue({ message: 'Must be positive', code: 'custom' });
+          }
+        });
+
+      expect(validator.parse(5)).toBe(5);
+      expect(() => validator.parse(-1)).toThrow('Must be positive');
+    });
+
+    it('should add multiple issues', () => {
+      const validator = VldString.create()
+        .superRefine((val, ctx) => {
+          if (val.length < 3) {
+            ctx.addIssue({ message: 'Too short' });
+          }
+          if (!val.includes('@')) {
+            ctx.addIssue({ message: 'Missing @' });
+          }
+        });
+
+      expect(validator.parse('test@example.com')).toBe('test@example.com');
+      expect(() => validator.parse('ab')).toThrow('Too short; Missing @');
+    });
+
+    it('should work with safeParse', () => {
+      const validator = VldNumber.create()
+        .superRefine((val, ctx) => {
+          if (val > 100) {
+            ctx.addIssue({ message: 'Too large' });
+          }
+        });
+
+      const result = validator.safeParse(150);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.message).toBe('Too large');
+      }
+    });
+
+    it('should throw error for async refinements in parse', () => {
+      const validator = VldString.create()
+        .superRefine(async (_val, _ctx) => {
+          // Async refinement
+        });
+
+      expect(() => validator.parse('test')).toThrow('Use parseAsync for async refinements');
+    });
+
+    it('should throw error for async refinements in safeParse', () => {
+      const validator = VldNumber.create()
+        .superRefine(async (_val, _ctx) => {
+          // Async refinement
+        });
+
+      expect(() => validator.safeParse(42)).toThrow('Use safeParseAsync for async refinements');
+    });
+  });
+
+  describe('VldReadonly', () => {
+    it('should make output readonly', () => {
+      const validator = VldObject.create({ name: VldString.create() }).readonly();
+
+      const result = validator.parse({ name: 'test' });
+      expect(result).toEqual({ name: 'test' });
+
+      // TypeScript should prevent mutation, but at runtime it's the same object
+      expect(result.name).toBe('test');
+    });
+
+    it('should work with safeParse', () => {
+      const validator = VldObject.create({ count: VldNumber.create() }).readonly();
+
+      const result = validator.safeParse({ count: 42 });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.count).toBe(42);
+      }
+    });
+  });
+
+  describe('VldBrand', () => {
+    it('should add brand to output type', () => {
+      const validator = VldString.create()
+        .brand<'UserId'>();
+
+      const result = validator.parse('user-123');
+      expect(result).toBe('user-123');
+
+      // Type system should enforce the brand, but at runtime it's the same value
+      expect(result).toEqual('user-123');
+    });
+
+    it('should work with safeParse', () => {
+      const validator = VldNumber.create()
+        .brand<'PositiveNumber'>();
+
+      const result = validator.safeParse(42);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data).toBe(42);
+      }
+    });
+  });
+
+  describe('VldPreprocess', () => {
+    it('should transform input before validation', () => {
+      const { v } = require('../../src/index');
+      const validator = v.preprocess(
+        (input: unknown) => {
+          if (typeof input === 'string') {
+            return parseInt(input, 10);
+          }
+          return input;
+        },
+        VldNumber.create()
+      );
+
+      expect(validator.parse('123')).toBe(123);
+      expect(validator.parse(456)).toBe(456);
+    });
+
+    it('should handle preprocessing errors', () => {
+      const { v } = require('../../src/index');
+      const validator = v.preprocess(
+        (input: unknown) => {
+          if (typeof input === 'number') {
+            return input.toString();
+          }
+          return input;
+        },
+        VldString.create().min(3)
+      );
+
+      expect(validator.parse(12345)).toBe('12345');
+      expect(() => validator.parse('ab')).toThrow();
+    });
+
+    it('should work with safeParse', () => {
+      const { v } = require('../../src/index');
+      const validator = v.preprocess(
+        (input: unknown) => {
+          if (typeof input === 'string') {
+            return parseFloat(input);
+          }
+          return input;
+        },
+        VldNumber.create().min(0)
+      );
+
+      const result = validator.safeParse('123.45');
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data).toBe(123.45);
+      }
+    });
+
+    it('should handle preprocessing failures', () => {
+      const { v } = require('../../src/index');
+      const validator = v.preprocess(
+        (input: unknown) => {
+          if (typeof input === 'string' && input === 'invalid') {
+            return NaN;
+          }
+          return input;
+        },
+        VldNumber.create()
+      );
+
+      const result = validator.safeParse('invalid');
+      expect(result.success).toBe(false);
     });
   });
 });

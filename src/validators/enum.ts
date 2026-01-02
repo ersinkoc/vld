@@ -67,4 +67,32 @@ export class VldEnum<T extends readonly [string, ...string[]]> extends VldBase<s
       )
     };
   }
+
+  /**
+   * Exclude specific values from the enum
+   * Creates a new enum validator without the specified values
+   */
+  exclude<const E extends readonly string[]>(...excludeValues: E): VldEnum<
+    T[number] extends E[number] ? never : T[number] extends Exclude<T[number], E[number]> ? T : Exclude<T, E>
+  > {
+    const filtered = this.values.filter(v => !excludeValues.includes(v));
+    if (filtered.length === 0) {
+      throw new Error('Cannot exclude all enum values');
+    }
+    // Type assertion needed because TypeScript can't guarantee the filtered array maintains the required type
+    return new VldEnum(filtered as any, this.errorMessage);
+  }
+
+  /**
+   * Extract specific values from the enum
+   * Creates a new enum validator with only the specified values
+   */
+  extract<const E extends readonly string[]>(...extractValues: E): VldEnum<[string, ...string[]]> {
+    const extracted = this.values.filter(v => extractValues.includes(v));
+    if (extracted.length === 0) {
+      throw new Error('Cannot extract non-existent enum values');
+    }
+    // Type assertion needed because TypeScript can't guarantee the extracted array has the required type
+    return new VldEnum(extracted as any, this.errorMessage);
+  }
 }

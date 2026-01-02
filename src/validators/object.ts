@@ -4,6 +4,7 @@ import { VldString } from './string';
 import { VldNumber } from './number';
 import { VldBoolean } from './boolean';
 import { VldDate } from './date';
+import { VldEnum } from './enum';
 import { VldCoerceString } from '../coercion/string';
 import { VldCoerceNumber } from '../coercion/number';
 import { VldCoerceBoolean } from '../coercion/boolean';
@@ -16,6 +17,7 @@ interface ObjectValidatorConfig<T extends Record<string, any>> {
   readonly shape: { readonly [K in keyof T]: VldBase<unknown, T[K]> };
   readonly strict?: boolean;
   readonly passthrough?: boolean;
+  readonly catchall?: VldBase<unknown, any>;
   readonly errorMessage?: string;
 }
 
@@ -123,18 +125,18 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
     if (this.config.strict) {
       const objKeys = Object.keys(obj);
       const extraKeys: string[] = [];
-      
+
       for (let i = 0; i < objKeys.length; i++) {
         if (!this.shapeKeysSet.has(objKeys[i])) {
           extraKeys.push(objKeys[i]);
         }
       }
-      
+
       if (extraKeys.length > 0) {
         throw new Error(getMessages().unexpectedKeys(extraKeys));
       }
     }
-    
+
     // Handle passthrough mode - optimized with comprehensive prototype pollution protection
     if (this.config.passthrough) {
       const objKeys = Object.keys(obj);
@@ -146,7 +148,19 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
         }
       }
     }
-    
+
+    // Handle catchall - validate extra keys with catchall validator
+    if (this.config.catchall) {
+      const objKeys = Object.keys(obj);
+      for (let i = 0; i < objKeys.length; i++) {
+        const key = objKeys[i];
+        // Skip keys already in shape and dangerous keys
+        if (!this.shapeKeysSet.has(key) && !this.isDangerousKey(key)) {
+          result[key] = this.config.catchall.parse(obj[key]);
+        }
+      }
+    }
+
     return result as T;
   }
   
@@ -188,13 +202,13 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
     if (this.config.strict) {
       const objKeys = Object.keys(obj);
       const extraKeys: string[] = [];
-      
+
       for (let i = 0; i < objKeys.length; i++) {
         if (!this.shapeKeysSet.has(objKeys[i])) {
           extraKeys.push(objKeys[i]);
         }
       }
-      
+
       if (extraKeys.length > 0) {
         return {
           success: false,
@@ -202,7 +216,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
         };
       }
     }
-    
+
     // Handle passthrough mode with comprehensive prototype pollution protection
     if (this.config.passthrough) {
       const objKeys = Object.keys(obj);
@@ -214,7 +228,26 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
         }
       }
     }
-    
+
+    // Handle catchall - validate extra keys with catchall validator
+    if (this.config.catchall) {
+      const objKeys = Object.keys(obj);
+      for (let i = 0; i < objKeys.length; i++) {
+        const key = objKeys[i];
+        // Skip keys already in shape and dangerous keys
+        if (!this.shapeKeysSet.has(key) && !this.isDangerousKey(key)) {
+          const catchallResult = this.config.catchall.safeParse(obj[key]);
+          if (!catchallResult.success) {
+            return {
+              success: false,
+              error: new Error(getMessages().objectField(key, catchallResult.error.message))
+            };
+          }
+          result[key] = catchallResult.data;
+        }
+      }
+    }
+
     return { success: true, data: result as T };
   }
 
@@ -416,5 +449,74 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
       ...this.config,
       shape: requiredShape
     }) as any;
+  }
+
+  /**
+   * Create a new validator with a catchall validator for extra keys
+   * Zod 4 API parity - validates unknown keys with provided schema
+   */
+  catchall<U>(schema: VldBase<unknown, U>): VldObject<any> {
+    return new VldObject({
+      ...this.config,
+      catchall: schema,
+      passthrough: false // catchall overrides passthrough
+    }) as any;
+  }
+
+  /**
+   * Access the inner shape schemas
+   * Zod 4 API parity - returns the shape object
+   */
+  get shape(): { readonly [K in keyof T]: VldBase<unknown, T[K]> } {
+    return this.config.shape;
+  }
+
+  /**
+   * Create an enum validator from object keys
+   * Zod 4 API parity - creates literal union of keys
+   */
+  keyof(): VldEnum<[string, ...string[]]> {
+    const keys = Object.keys(this.config.shape);
+    if (keys.length === 0) {
+      throw new Error('Cannot create keyof enum from empty object');
+    }
+    return VldEnum.create(keys as [string, ...string[]]);
+  }
+
+  /**
+   * Type-safe extend that throws an error if any key already exists
+   * Zod 4 API parity - prevents accidental field override
+   * @param extension The extension shape to add
+   * @returns A new validator with extended shape
+   * @throws {Error} If any extension key already exists in the shape
+   * @example
+   * const base = v.object({ name: v.string() });
+   * const extended = base.safeExtend({ age: v.number() }); // OK
+   * const invalid = base.safeExtend({ name: v.number() }); // Throws error
+   */
+  safeExtend<U extends Record<string, any>>(
+    extension: { [K in keyof U]: VldBase<unknown, U[K]> }
+  ): VldObject<T & U> {
+    // Check for overlapping keys
+    const existingKeys = new Set(Object.keys(this.config.shape));
+    const extensionKeys = Object.keys(extension);
+    const overlappingKeys: string[] = [];
+
+    for (const key of extensionKeys) {
+      if (existingKeys.has(key)) {
+        overlappingKeys.push(key);
+      }
+    }
+
+    if (overlappingKeys.length > 0) {
+      throw new Error(
+        `safeExtend: Cannot override existing keys: ${overlappingKeys.join(', ')}. Use extend() if you want to override.`
+      );
+    }
+
+    return new VldObject({
+      ...this.config,
+      shape: { ...this.config.shape, ...extension } as any
+    });
   }
 }

@@ -103,5 +103,25 @@ export const th: LocaleMessages = {
   uint8ArrayExactLength: (length: number) => `Uint8Array must have exactly ${length} bytes`,
   
   // Generic type error messages
-  expectedString: 'Expected string'
+  expectedString: 'Expected string',
+  stringExpected: (received: string, expected: string) => `คาดหวัง ${expected}, ได้รับ ${received}`,
+  stringBoolExpected: (validValues: string, received: string) => `สตริงบูลีนไม่ถูกต้อง คาดว่าจะเป็นหนึ่งในนั้น: ${validValues}, ได้รับ: "${received}"`,
+  invalidJson: 'JSON ไม่ถูกต้อง',
+  stringPatternInvalid: 'สตริงไม่ตรงกับรูปแบบที่จำเป็น',
+
+  // File validation messages
+  invalidFile: 'Expected a File object',
+  fileNotSupported: 'File API not supported in this environment',
+  fileMinSize: (min: number) => `File size must be at least ${min} bytes`,
+  fileMaxSize: (max: number) => `File size must not exceed ${max} bytes`,
+  fileMimeType: (allowed: string[]) => `Invalid file type. Expected: ${allowed.join(", ")}`,
+  // Function validation messages
+  invalidFunction: 'คาดหวังฟังก์ชัน',
+
+  // CIDR validation messages
+  stringCidrv4: 'บล็อก CIDR IPv4 ไม่ถูกต้อง',
+  stringCidrv6: 'บล็อก CIDR IPv6 ไม่ถูกต้อง',
+
+  // Safe extend validation messages
+  safeExtendOverlap: (keys: string[]) => `ไม่สามารถเขียนทับคีย์ที่มีอยู่: ${keys.join(', ')}. ใช้ extend() เพื่อเขียนทับ`
 };

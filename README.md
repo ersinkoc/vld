@@ -31,8 +31,8 @@ VLD is a blazing-fast, type-safe validation library for TypeScript and JavaScrip
 - **🔧 Composable**: Chain validations for complex schemas
 - **⚠️ Advanced Error Formatting**: Tree, pretty, and flatten error utilities
 - **🌍 Multi-language**: Built-in support for 27+ languages
-- **✅ 96.55% Test Coverage**: Rigorously tested with 695 passing tests
-- **🏆 Industry Leading Performance**: 2.07x faster than Zod on average
+- **✅ 96.55% Test Coverage**: Rigorously tested with 1142 passing tests
+- **🏆 Industry Leading Performance**: 2.52x faster than Zod on average
 
 ### Advanced Zod-Compatible Features  
 - **🔄 Type Coercion**: `v.coerce.string()`, `v.coerce.number()`, `v.coerce.boolean()`, etc.
@@ -44,7 +44,12 @@ VLD is a blazing-fast, type-safe validation library for TypeScript and JavaScrip
 - **🛡️ Fallback Handling**: `catch()` for graceful error recovery
 - **🎯 Object Utilities**: `pick()`, `omit()`, `extend()` for flexible object schemas
 
-### 🚀 **NEW** Codec System - Beyond Zod
+### 🚀 **NEW in v1.4.0** - Zod 4 Full API Parity
+- **🌐 `v.cidrv6()`**: IPv6 CIDR block validation
+- **🔗 `.apply()`**: External function chaining for advanced composition
+- **🛡️ `.safeExtend()`**: Type-safe object extension without accidental overrides
+
+### 🚀 Codec System - Beyond Zod
 - **↔️ Bidirectional Transformations**: Full encode/decode support for data conversion
 - **📦 19 Built-in Codecs**: String conversions, date parsing, JSON, URL, binary data
 - **🔗 Zod-Compatible**: All `stringToNumber`, `jsonCodec`, `base64ToBytes`, etc.
@@ -1073,7 +1078,7 @@ const schema = v.string().email();
 - **🌍 Internationalization**: Built-in 27+ language support
 - **📦 Bundle Size**: Smaller with zero dependencies
 - **🔒 Security**: Immutable validators prevent memory leaks
-- **✅ Testing**: 96.55% test coverage with 695 tests
+- **✅ Testing**: 96.55% test coverage with 1142 tests
 
 ## 📈 Benchmarks
 
@@ -1092,7 +1097,7 @@ Latest benchmark results show VLD consistently outperforming Zod:
 | Optional Values | 32.7M ops/sec | **4.52x faster** |
 | Type Coercion | 18.4M ops/sec | **1.46x faster** |
 
-**Average: 2.07x faster than Zod**
+**Average: 2.52x faster than Zod**
 
 ### Run Benchmarks
 

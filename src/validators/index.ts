@@ -3,8 +3,8 @@
  */
 
 // Export base types and classes
-export { 
-  VldBase, 
+export {
+  VldBase,
   ParseResult,
   VldRefine,
   VldTransform,
@@ -12,7 +12,13 @@ export {
   VldCatch,
   VldOptional,
   VldNullable,
-  VldNullish
+  VldNullish,
+  VldPipe,
+  VldReadonly,
+  VldBrand,
+  SuperRefineContext,
+  VldSuperRefine,
+  VldPreprocess
 } from './base';
 
 // Export primitive validators
@@ -20,6 +26,7 @@ export { VldString } from './string';
 export { VldNumber } from './number';
 export { VldBoolean } from './boolean';
 export { VldDate } from './date';
+export { VldStringBool } from './string-bool';
 
 // Export complex validators
 export { VldArray } from './array';
@@ -43,8 +50,53 @@ export { VldUnknown } from './unknown';
 export { VldVoid } from './void';
 export { VldNever } from './never';
 
+// Export Zod 4 parity validators
+export { VldNull } from './null';
+export { VldUndefined } from './undefined';
+export { VldNan } from './nan';
+export { VldLazy } from './lazy';
+export { VldDiscriminatedUnion } from './discriminated-union';
+export { VldXor } from './xor';
+export { VldJson } from './json';
+export { VldTemplateLiteral, templateLiteral } from './template-literal';
+export { VldCustom, custom } from './custom';
+export type { CustomValidatorOptions } from './custom';
+export { VldFile, file } from './file';
+export type { VldFileValue } from './file';
+export { VldFunction, functionValidator } from './function';
+
+// Export string format validators
+export {
+  email,
+  uuid,
+  uuidv4,
+  hostname,
+  emoji,
+  base64,
+  base64url,
+  hex,
+  jwt,
+  nanoid,
+  cuid,
+  cuid2,
+  ulid,
+  ipv4,
+  ipv6,
+  mac,
+  cidrv4,
+  e164,
+  hash,
+  iso,
+  stringFormat,
+  regexes
+} from './string-formats';
+
 // Import base for type inference
 import { VldBase } from './base';
 
 // Type inference helper
 export type Infer<T extends VldBase<any, any>> = T extends VldBase<any, infer U> ? U : never;
+
+// Zod 4 API parity - Input and Output type utilities
+export type Input<T extends VldBase<any, any>> = T extends VldBase<infer I, any> ? I : never;
+export type Output<T extends VldBase<any, any>> = T extends VldBase<any, infer O> ? O : never;

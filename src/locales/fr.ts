@@ -80,5 +80,25 @@ export const fr: LocaleMessages = {
   uint8ArrayExactLength: (length: number) => `Uint8Array must have exactly ${length} bytes`,
   
   // Generic type error messages
-  expectedString: 'Expected string'
+  expectedString: 'Expected string',
+  stringExpected: (received: string, expected: string) => `Attendu: ${expected}, reçu: ${received}`,
+  stringBoolExpected: (validValues: string, received: string) => `Chaîne booléenne invalide. Attendu: l'un de ${validValues}, reçu: "${received}"`,
+  invalidJson: 'JSON invalide',
+  stringPatternInvalid: 'La chaîne ne correspond pas au modèle requis',
+
+  // File validation messages
+  invalidFile: 'Expected a File object',
+  fileNotSupported: 'File API not supported in this environment',
+  fileMinSize: (min: number) => `File size must be at least ${min} bytes`,
+  fileMaxSize: (max: number) => `File size must not exceed ${max} bytes`,
+  fileMimeType: (allowed: string[]) => `Invalid file type. Expected: ${allowed.join(", ")}`,
+  // Function validation messages
+  invalidFunction: 'Une fonction est attendue',
+
+  // CIDR validation messages
+  stringCidrv4: 'Bloc CIDR IPv4 invalide',
+  stringCidrv6: 'Bloc CIDR IPv6 invalide',
+
+  // Safe extend validation messages
+  safeExtendOverlap: (keys: string[]) => `Impossible de remplacer les clés existantes: ${keys.join(', ')}. Utilisez extend() pour remplacer.`
 };

@@ -103,5 +103,25 @@ export const hi: LocaleMessages = {
   uint8ArrayExactLength: (length: number) => `Uint8Array must have exactly ${length} bytes`,
   
   // Generic type error messages
-  expectedString: 'Expected string'
+  expectedString: 'Expected string',
+  stringExpected: (received: string, expected: string) => `अपेक्षित ${expected}, प्राप्त ${received}`,
+  stringBoolExpected: (validValues: string, received: string) => `अमान्य बूलियन स्ट्रिंग। निम्नलिखित में से एक अपेक्षित: ${validValues}, प्राप्त: "${received}"`,
+  invalidJson: 'अमान्य JSON',
+  stringPatternInvalid: 'स्ट्रिंग आवश्यक पैटर्न से मेल नहीं खाती',
+
+  // File validation messages
+  invalidFile: 'Expected a File object',
+  fileNotSupported: 'File API not supported in this environment',
+  fileMinSize: (min: number) => `File size must be at least ${min} bytes`,
+  fileMaxSize: (max: number) => `File size must not exceed ${max} bytes`,
+  fileMimeType: (allowed: string[]) => `Invalid file type. Expected: ${allowed.join(", ")}`,
+  // Function validation messages
+  invalidFunction: 'एक फ़ंक्शन अपेक्षित है',
+
+  // CIDR validation messages
+  stringCidrv4: 'अमान्य IPv4 CIDR ब्लॉक',
+  stringCidrv6: 'अमान्य IPv6 CIDR ब्लॉक',
+
+  // Safe extend validation messages
+  safeExtendOverlap: (keys: string[]) => `मौजूदा कुंजियों को ओवरराइड नहीं कर सकते: ${keys.join(', ')}। ओवरराइड करने के लिए extend() का उपयोग करें।`
 };

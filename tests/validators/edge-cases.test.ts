@@ -191,7 +191,33 @@ describe('Validators - Edge Cases for 100% Coverage', () => {
       }
     });
   });
-  
+
+  describe('VldIntersection - error cases', () => {
+    it('should throw error for different primitive values', () => {
+      const validator = v.intersection(v.literal('a'), v.literal('b'));
+
+      expect(() => validator.parse('a')).toThrow('Intersection validation failed');
+    });
+
+    it('should throw error for object and primitive intersection', () => {
+      const validator = v.intersection(
+        v.object({ a: v.string() }),
+        v.string()
+      );
+
+      expect(() => validator.parse({ a: 'test' })).toThrow('Intersection validation failed');
+    });
+
+    it('should throw error for primitive and object intersection', () => {
+      const validator = v.intersection(
+        v.number(),
+        v.object({ value: v.number() })
+      );
+
+      expect(() => validator.parse(42)).toThrow('Intersection validation failed');
+    });
+  });
+
   describe('VldUnion - safeParse', () => {
     it('should handle safeParse', () => {
       const validator = v.union(v.string(), v.number());

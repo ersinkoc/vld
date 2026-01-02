@@ -103,5 +103,25 @@ export const ru: LocaleMessages = {
   uint8ArrayExactLength: (length: number) => `Uint8Array must have exactly ${length} bytes`,
   
   // Generic type error messages
-  expectedString: 'Expected string'
+  expectedString: 'Expected string',
+  stringExpected: (received: string, expected: string) => `Ожидалось ${expected}, получено ${received}`,
+  stringBoolExpected: (validValues: string, received: string) => `Некорректная boolean строка. Ожидалось одно из: ${validValues}, получено: "${received}"`,
+  invalidJson: 'Недопустимый JSON',
+  stringPatternInvalid: 'Строка не соответствует требуемому шаблону',
+
+  // File validation messages
+  invalidFile: 'Expected a File object',
+  fileNotSupported: 'File API not supported in this environment',
+  fileMinSize: (min: number) => `File size must be at least ${min} bytes`,
+  fileMaxSize: (max: number) => `File size must not exceed ${max} bytes`,
+  fileMimeType: (allowed: string[]) => `Invalid file type. Expected: ${allowed.join(", ")}`,
+  // Function validation messages
+  invalidFunction: 'Ожидалась функция',
+
+  // CIDR validation messages
+  stringCidrv4: 'Некорректный IPv4 CIDR блок',
+  stringCidrv6: 'Некорректный IPv6 CIDR блок',
+
+  // Safe extend validation messages
+  safeExtendOverlap: (keys: string[]) => `Невозможно переопределить существующие ключи: ${keys.join(', ')}. Используйте extend() для переопределения.`
 };

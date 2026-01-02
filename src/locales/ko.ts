@@ -103,5 +103,25 @@ export const ko: LocaleMessages = {
   uint8ArrayExactLength: (length: number) => `Uint8Array must have exactly ${length} bytes`,
   
   // Generic type error messages
-  expectedString: 'Expected string'
+  expectedString: 'Expected string',
+  stringExpected: (received: string, expected: string) => `${expected}가 예상되었지만 ${received}를 받았습니다`,
+  stringBoolExpected: (validValues: string, received: string) => `잘못된 불린 문자열입니다. 다음 중 하나여야 합니다: ${validValues}, 받은 값: "${received}"`,
+  invalidJson: '잘못된 JSON',
+  stringPatternInvalid: '문자열이 필요한 패턴과 일치하지 않습니다',
+
+  // File validation messages
+  invalidFile: 'Expected a File object',
+  fileNotSupported: 'File API not supported in this environment',
+  fileMinSize: (min: number) => `File size must be at least ${min} bytes`,
+  fileMaxSize: (max: number) => `File size must not exceed ${max} bytes`,
+  fileMimeType: (allowed: string[]) => `Invalid file type. Expected: ${allowed.join(", ")}`,
+  // Function validation messages
+  invalidFunction: '함수가 예상되었습니다',
+
+  // CIDR validation messages
+  stringCidrv4: '유효하지 않은 IPv4 CIDR 블록',
+  stringCidrv6: '유효하지 않은 IPv6 CIDR 블록',
+
+  // Safe extend validation messages
+  safeExtendOverlap: (keys: string[]) => `기존 키를 덮어쓸 수 없습니다: ${keys.join(', ')}. 덮어쓰려면 extend()를 사용하세요.`
 };

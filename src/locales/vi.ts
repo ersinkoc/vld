@@ -103,5 +103,25 @@ export const vi: LocaleMessages = {
   uint8ArrayExactLength: (length: number) => `Uint8Array must have exactly ${length} bytes`,
   
   // Generic type error messages
-  expectedString: 'Expected string'
+  expectedString: 'Expected string',
+  stringExpected: (received: string, expected: string) => `Mong đợi ${expected}, nhận được ${received}`,
+  stringBoolExpected: (validValues: string, received: string) => `Chuỗi boolean không hợp lệ. Mong đợi một trong các: ${validValues}, nhận được: "${received}"`,
+  invalidJson: 'JSON không hợp lệ',
+  stringPatternInvalid: 'Chuỗi không khớp với mẫu bắt buộc',
+
+  // File validation messages
+  invalidFile: 'Expected a File object',
+  fileNotSupported: 'File API not supported in this environment',
+  fileMinSize: (min: number) => `File size must be at least ${min} bytes`,
+  fileMaxSize: (max: number) => `File size must not exceed ${max} bytes`,
+  fileMimeType: (allowed: string[]) => `Invalid file type. Expected: ${allowed.join(", ")}`,
+  // Function validation messages
+  invalidFunction: 'Mong đợi một hàm',
+
+  // CIDR validation messages
+  stringCidrv4: 'Khối CIDR IPv4 không hợp lệ',
+  stringCidrv6: 'Khối CIDR IPv6 không hợp lệ',
+
+  // Safe extend validation messages
+  safeExtendOverlap: (keys: string[]) => `Không thể ghi đè các khóa hiện có: ${keys.join(', ')}. Sử dụng extend() để ghi đè.`
 };

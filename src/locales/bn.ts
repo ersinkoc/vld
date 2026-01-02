@@ -103,5 +103,25 @@ export const bn: LocaleMessages = {
   uint8ArrayExactLength: (length: number) => `Uint8Array must have exactly ${length} bytes`,
   
   // Generic type error messages
-  expectedString: 'Expected string'
+  expectedString: 'Expected string',
+  stringExpected: (received: string, expected: string) => `প্রত্যাশিত ${expected}, পেয়েছি ${received}`,
+  stringBoolExpected: (validValues: string, received: string) => `অবৈধ বুলিয়ান স্ট্রিং। নিম্নলিখিতগুলির একটি প্রত্যাশিত: ${validValues}, পেয়েছি: "${received}"`,
+  invalidJson: 'অবৈধ JSON',
+  stringPatternInvalid: 'স্ট্রিংটি প্রয়োজনীয় প্যাটার্নের সাথে মেলে না',
+
+  // File validation messages
+  invalidFile: 'Expected a File object',
+  fileNotSupported: 'File API not supported in this environment',
+  fileMinSize: (min: number) => `File size must be at least ${min} bytes`,
+  fileMaxSize: (max: number) => `File size must not exceed ${max} bytes`,
+  fileMimeType: (allowed: string[]) => `Invalid file type. Expected: ${allowed.join(", ")}`,
+  // Function validation messages
+  invalidFunction: 'একটি ফাংশন প্রত্যাশিত',
+
+  // CIDR validation messages
+  stringCidrv4: 'অবৈধ IPv4 CIDR ব্লক',
+  stringCidrv6: 'অবৈধ IPv6 CIDR ব্লক',
+
+  // Safe extend validation messages
+  safeExtendOverlap: (keys: string[]) => `বিদ্যমান কীগুলি ওভাররাইড করা যায় না: ${keys.join(', ')}। ওভাররাইড করতে extend() ব্যবহার করুন।`
 };

@@ -103,5 +103,25 @@ export const fi: LocaleMessages = {
   uint8ArrayExactLength: (length: number) => `Uint8Array must have exactly ${length} bytes`,
   
   // Generic type error messages
-  expectedString: 'Expected string'
+  expectedString: 'Expected string',
+  stringExpected: (received: string, expected: string) => `Odotettiin ${expected}, saatiin ${received}`,
+  stringBoolExpected: (validValues: string, received: string) => `Virheellinen boolean-merkkijono. Yksi seuraavista odotettu: ${validValues}, saatiin: "${received}"`,
+  invalidJson: 'Virheellinen JSON',
+  stringPatternInvalid: 'Merkkijono ei vastaa vaadittua kuviota',
+
+  // File validation messages
+  invalidFile: 'Expected a File object',
+  fileNotSupported: 'File API not supported in this environment',
+  fileMinSize: (min: number) => `File size must be at least ${min} bytes`,
+  fileMaxSize: (max: number) => `File size must not exceed ${max} bytes`,
+  fileMimeType: (allowed: string[]) => `Invalid file type. Expected: ${allowed.join(", ")}`,
+  // Function validation messages
+  invalidFunction: 'Funktiota odotetaan',
+
+  // CIDR validation messages
+  stringCidrv4: 'Virheellinen IPv4 CIDR-lohko',
+  stringCidrv6: 'Virheellinen IPv6 CIDR-lohko',
+
+  // Safe extend validation messages
+  safeExtendOverlap: (keys: string[]) => `Olemassa olevia avaimia ei voi ylikirjoittaa: ${keys.join(', ')}. Käytä extend() ylikirjoittamiseen.`
 };

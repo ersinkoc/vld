@@ -103,5 +103,25 @@ export const ptBR: LocaleMessages = {
   uint8ArrayExactLength: (length: number) => `Uint8Array must have exactly ${length} bytes`,
   
   // Generic type error messages
-  expectedString: 'Expected string'
+  expectedString: 'Expected string',
+  stringExpected: (received: string, expected: string) => `Esperado ${expected}, recebido ${received}`,
+  stringBoolExpected: (validValues: string, received: string) => `String boolean inválida. Esperado um de: ${validValues}, recebido: "${received}"`,
+  invalidJson: 'JSON inválido',
+  stringPatternInvalid: 'A string não corresponde ao padrão necessário',
+
+  // File validation messages
+  invalidFile: 'Expected a File object',
+  fileNotSupported: 'File API not supported in this environment',
+  fileMinSize: (min: number) => `File size must be at least ${min} bytes`,
+  fileMaxSize: (max: number) => `File size must not exceed ${max} bytes`,
+  fileMimeType: (allowed: string[]) => `Invalid file type. Expected: ${allowed.join(", ")}`,
+  // Function validation messages
+  invalidFunction: 'Uma função é esperada',
+
+  // CIDR validation messages
+  stringCidrv4: 'Bloco CIDR IPv4 inválido',
+  stringCidrv6: 'Bloco CIDR IPv6 inválido',
+
+  // Safe extend validation messages
+  safeExtendOverlap: (keys: string[]) => `Não é possível substituir chaves existentes: ${keys.join(', ')}. Use extend() se quiser substituir.`
 };

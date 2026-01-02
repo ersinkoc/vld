@@ -1,51 +1,10 @@
-# VLD
+# VLD - @oxog/vld
 
 > Ultra-fast TypeScript-first schema validation library with zero dependencies and 27+ language support
 
-VLD is a blazing-fast validation library designed as a high-performance alternative to Zod. It provides complete feature parity with Zod while being 2-4x faster on average, with optimizations that make it up to 110x faster for certain operations like union type validation.
+VLD is a blazing-fast validation library designed as a high-performance alternative to Zod. It provides 100% API compatibility with Zod while being 2.52x faster on average, with optimizations that make it up to 110x faster for certain operations like union type validation.
 
-## Core Features
-
-- **Type-safe validation** with excellent TypeScript inference
-- **Zero dependencies** - lightweight and tree-shakeable
-- **27+ languages** built-in internationalization support
-- **99.5% test coverage** ensuring reliability
-- **Full Zod compatibility** including coercion, refinement, and transformation
-
-## API Documentation
-
-- [Getting Started Guide](docs/GETTING_STARTED.md): Quick start and basic usage
-- [API Reference](docs/API.md): Complete API documentation
-- [Performance Guide](docs/PERFORMANCE.md): Benchmarks and optimization details
-- [Advanced Features](docs/ADVANCED_FEATURES.md): Complex validation patterns
-- [Migration from Zod](docs/MIGRATION.md): Step-by-step migration guide
-
-## Key Validators
-
-### Primitives
-- `v.string()`: String validation with email, url, uuid, regex patterns
-- `v.number()`: Number validation with min, max, int, positive constraints
-- `v.boolean()`: Boolean validation
-- `v.date()`: Date validation with min/max constraints
-- `v.bigint()`: BigInt support
-- `v.symbol()`: Symbol validation
-
-### Complex Types
-- `v.object()`: Object schemas with pick, omit, extend, partial methods
-- `v.array()`: Array validation with length constraints
-- `v.tuple()`: Fixed-length tuple validation
-- `v.union()`: Union types for multiple valid schemas
-- `v.intersection()`: Combine multiple schemas
-- `v.record()`: Dynamic key-value validation
-- `v.map()`: Map validation
-- `v.set()`: Set validation
-
-### Type Coercion
-- `v.coerce.string()`: Coerce to string
-- `v.coerce.number()`: Coerce to number
-- `v.coerce.boolean()`: Coerce to boolean
-- `v.coerce.date()`: Coerce to date
-- `v.coerce.bigint()`: Coerce to bigint
+**Version:** 1.4.0 | **License:** MIT | **Author:** Ersin Koc
 
 ## Installation
 
@@ -56,37 +15,178 @@ npm install @oxog/vld
 ## Quick Example
 
 ```typescript
-import { v } from '@oxog/vld';
+import { v, Infer } from '@oxog/vld';
 
-// Define schema
 const userSchema = v.object({
-  name: v.string().min(3),
+  name: v.string().min(2),
   email: v.string().email(),
   age: v.number().min(18).max(100),
-  isActive: v.boolean().optional()
+  isActive: v.boolean()
 });
 
-// Parse data
+type User = Infer<typeof userSchema>;
+
 const result = userSchema.safeParse(data);
 if (result.success) {
-  console.log(result.data);
+  console.log(result.data); // typed as User
 } else {
-  console.log(result.errors);
+  console.log(result.error.message);
 }
 ```
 
-## Performance Advantages
+## Core Features
 
-- **2.07x faster** than Zod on average
-- **98% less memory** for validator creation
-- **110x improvement** in union type validation
-- Optimized for V8 engine with inline type checks and pre-computed keys
+- **Zero Dependencies** - Lightweight and tree-shakeable
+- **2.52x Faster** than Zod on average, up to 4.52x for optional values
+- **100% Zod Compatible** - Drop-in replacement with identical API
+- **27+ Languages** - Built-in i18n with setLocale()
+- **96.55% Test Coverage** - 1142 passing tests
+- **Full TypeScript Support** - Excellent type inference
+- **19 Built-in Codecs** - Bidirectional data transformations
+- **Immutable Validators** - Prevents memory leaks
 
-## Repository
+## API Summary
 
-- [GitHub](https://github.com/ersinkoc/vld)
-- [NPM Package](https://www.npmjs.com/package/@oxog/vld)
-- [Issues](https://github.com/ersinkoc/vld/issues)
+### Primitive Validators
+```typescript
+v.string()      // .min() .max() .email() .url() .uuid() .regex() .trim()
+v.number()      // .min() .max() .int() .positive() .negative() .finite()
+v.boolean()     // .true() .false()
+v.date()        // .min() .max() .past() .future()
+v.bigint()      // .min() .max() .positive() .negative()
+v.int()         // Shorthand for v.number().int()
+```
+
+### Complex Types
+```typescript
+v.object({})    // .strict() .partial() .pick() .omit() .extend() .merge()
+v.array(schema) // .min() .max() .length() .nonempty() .unique()
+v.tuple(s1, s2) // Fixed-length tuple
+v.record(schema)// Dynamic key-value pairs
+v.set(schema)   // Set validation
+v.map(k, v)     // Map validation
+```
+
+### Composition
+```typescript
+v.union(s1, s2)              // s1 | s2
+v.intersection(s1, s2)       // s1 & s2
+v.discriminatedUnion('type', s1, s2) // Tagged unions
+v.literal('value')           // Exact value
+v.enum('a', 'b', 'c')        // String enum
+```
+
+### Modifiers
+```typescript
+v.optional(schema)  // or schema.optional()
+v.nullable(schema)  // or schema.nullable()
+v.nullish(schema)   // null | undefined
+schema.default(val) // Default for undefined
+schema.catch(val)   // Fallback on error
+```
+
+### Type Coercion
+```typescript
+v.coerce.string()   // Coerce any to string
+v.coerce.number()   // Coerce string/bool to number
+v.coerce.boolean()  // Coerce string/number to boolean
+v.coerce.date()     // Coerce string/timestamp to Date
+v.coerce.bigint()   // Coerce string/number to BigInt
+```
+
+### Advanced Methods
+```typescript
+schema.refine(fn, msg)      // Custom validation
+schema.transform(fn)        // Transform output
+schema.pipe(nextSchema)     // Chain validators
+schema.brand<'Type'>()      // Nominal typing
+```
+
+### String Format Validators (Zod 4 Parity)
+```typescript
+v.email()   v.uuid()   v.url()    v.ipv4()   v.ipv6()
+v.cidrv4()  v.cidrv6() v.jwt()    v.nanoid() v.ulid()
+v.base64()  v.hex()    v.emoji()  v.mac()    v.e164()
+```
+
+### Codecs (Bidirectional)
+```typescript
+import { stringToNumber, isoDatetimeToDate, jsonCodec } from '@oxog/vld';
+
+stringToNumber.parse('42');     // 42
+stringToNumber.encode(42);      // '42'
+
+isoDatetimeToDate.parse('2024-01-15T10:00:00Z'); // Date
+jsonCodec().parse('{"a":1}');   // { a: 1 }
+```
+
+### Error Handling
+```typescript
+import { VldError, flattenError, prettifyError, treeifyError } from '@oxog/vld';
+
+const result = schema.safeParse(data);
+if (!result.success) {
+  const flat = flattenError(result.error as VldError);
+  // { formErrors: [], fieldErrors: { field: ['message'] } }
+}
+```
+
+### Internationalization
+```typescript
+import { setLocale } from '@oxog/vld';
+setLocale('es'); // Spanish error messages
+setLocale('ja'); // Japanese error messages
+// Supports: en, tr, es, fr, de, it, pt, ru, ja, ko, zh, ar, hi, nl, pl,
+// da, sv, no, fi, th, vi, id, bn, sw, af, pt-BR, es-MX, and 75+ more
+```
+
+### Type Inference
+```typescript
+import { Infer, Input, Output } from '@oxog/vld';
+
+type SchemaType = Infer<typeof schema>;  // Output type
+type InputType = Input<typeof schema>;   // Input type (before transforms)
+type OutputType = Output<typeof schema>; // Output type (after transforms)
+```
+
+## Migration from Zod
+
+```typescript
+// Before (Zod)
+import { z } from 'zod';
+const schema = z.string().email();
+type T = z.infer<typeof schema>;
+
+// After (VLD) - Just change imports!
+import { v, Infer } from '@oxog/vld';
+const schema = v.string().email();
+type T = Infer<typeof schema>;
+```
+
+## Performance
+
+| Benchmark | VLD vs Zod |
+|-----------|------------|
+| Simple String | 1.67x faster |
+| Email Validation | 3.63x faster |
+| Number Validation | 2.62x faster |
+| Object Validation | 1.27x faster |
+| Optional Values | 4.52x faster |
+| Memory Usage | 78% less |
+
+## Documentation
+
+- [Full LLM Documentation](LLMS.md): Comprehensive API reference
+- [Getting Started](docs/GETTING_STARTED.md): Quick start guide
+- [API Reference](docs/API.md): Complete API documentation
+- [Migration Guide](docs/MIGRATION.md): Migrating from Zod
+- [Advanced Features](docs/ADVANCED_FEATURES.md): Complex patterns
+
+## Links
+
+- **NPM:** https://www.npmjs.com/package/@oxog/vld
+- **GitHub:** https://github.com/ersinkoc/vld
+- **Issues:** https://github.com/ersinkoc/vld/issues
 
 ## License
 

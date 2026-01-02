@@ -103,5 +103,25 @@ export const pl: LocaleMessages = {
   uint8ArrayExactLength: (length: number) => `Uint8Array must have exactly ${length} bytes`,
   
   // Generic type error messages
-  expectedString: 'Expected string'
+  expectedString: 'Expected string',
+  stringExpected: (received: string, expected: string) => `Oczekiwano ${expected}, otrzymano ${received}`,
+  stringBoolExpected: (validValues: string, received: string) => `Nieprawidłowy ciąg znaków boolean. Oczekiwano jednego z: ${validValues}, otrzymano: "${received}"`,
+  invalidJson: 'Nieprawidłowy JSON',
+  stringPatternInvalid: 'Ciąg znaków nie pasuje do wymaganego wzorca',
+
+  // File validation messages
+  invalidFile: 'Expected a File object',
+  fileNotSupported: 'File API not supported in this environment',
+  fileMinSize: (min: number) => `File size must be at least ${min} bytes`,
+  fileMaxSize: (max: number) => `File size must not exceed ${max} bytes`,
+  fileMimeType: (allowed: string[]) => `Invalid file type. Expected: ${allowed.join(", ")}`,
+  // Function validation messages
+  invalidFunction: 'Oczekiwano funkcji',
+
+  // CIDR validation messages
+  stringCidrv4: 'Nieprawidłowy blok CIDR IPv4',
+  stringCidrv6: 'Nieprawidłowy blok CIDR IPv6',
+
+  // Safe extend validation messages
+  safeExtendOverlap: (keys: string[]) => `Nie można nadpisać istniejących kluczy: ${keys.join(', ')}. Użyj extend() aby nadpisać.`
 };

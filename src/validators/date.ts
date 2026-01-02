@@ -239,4 +239,34 @@ export class VldDate extends VldBase<Date, Date> {
       }]
     });
   }
+
+  /**
+   * Create a new validator with strict greater than constraint
+   * Zod 4 API parity - strictly greater than (not equal to)
+   */
+  gt(value: Date | number, message?: string): VldDate {
+    const compareDate = value instanceof Date ? value : new Date(value);
+    return new VldDate({
+      ...this.config,
+      checks: [...this.config.checks, {
+        fn: (v: Date) => v.getTime() > compareDate.getTime(),
+        message: message || `Date must be greater than ${compareDate.toISOString()}`
+      }]
+    });
+  }
+
+  /**
+   * Create a new validator with strict less than constraint
+   * Zod 4 API parity - strictly less than (not equal to)
+   */
+  lt(value: Date | number, message?: string): VldDate {
+    const compareDate = value instanceof Date ? value : new Date(value);
+    return new VldDate({
+      ...this.config,
+      checks: [...this.config.checks, {
+        fn: (v: Date) => v.getTime() < compareDate.getTime(),
+        message: message || `Date must be less than ${compareDate.toISOString()}`
+      }]
+    });
+  }
 }

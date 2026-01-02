@@ -103,5 +103,25 @@ export const no: LocaleMessages = {
   uint8ArrayExactLength: (length: number) => `Uint8Array must have exactly ${length} bytes`,
   
   // Generic type error messages
-  expectedString: 'Expected string'
+  expectedString: 'Expected string',
+  stringExpected: (received: string, expected: string) => `Forventet ${expected}, fikk ${received}`,
+  stringBoolExpected: (validValues: string, received: string) => `Ugyldig boolean streng. En av følgende forventet: ${validValues}, fikk: "${received}"`,
+  invalidJson: 'Ugyldig JSON',
+  stringPatternInvalid: 'Strengen samsvarer ikke med det nødvendige mønsteret',
+
+  // File validation messages
+  invalidFile: 'Expected a File object',
+  fileNotSupported: 'File API not supported in this environment',
+  fileMinSize: (min: number) => `File size must be at least ${min} bytes`,
+  fileMaxSize: (max: number) => `File size must not exceed ${max} bytes`,
+  fileMimeType: (allowed: string[]) => `Invalid file type. Expected: ${allowed.join(", ")}`,
+  // Function validation messages
+  invalidFunction: 'En funksjon forventes',
+
+  // CIDR validation messages
+  stringCidrv4: 'Ugyldig IPv4 CIDR-blokk',
+  stringCidrv6: 'Ugyldig IPv6 CIDR-blokk',
+
+  // Safe extend validation messages
+  safeExtendOverlap: (keys: string[]) => `Kan ikke overskrive eksisterende nøkler: ${keys.join(', ')}. Bruk extend() for å overskrive.`
 };
