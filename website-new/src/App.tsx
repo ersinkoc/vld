@@ -8,7 +8,8 @@ import { ExamplesPage } from '@/pages/examples'
 import { PlaygroundPage } from '@/pages/playground'
 import { BenchmarkPage } from '@/pages/benchmark'
 
-const basename = import.meta.env.DEV ? '/' : '/vld'
+// Custom domain (vld.oxog.dev) uses root path, no subpath needed
+const basename = '/'
 
 function App() {
   return (
