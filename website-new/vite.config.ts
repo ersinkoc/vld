@@ -5,6 +5,7 @@ import path from 'path'
 
 // https://vite.dev/config/
 // Custom domain (vld.oxog.dev) - no base path needed
+// Note: docs folder is in public/docs and served automatically
 export default defineConfig(() => ({
   plugins: [react(), tailwindcss()],
   base: '/',

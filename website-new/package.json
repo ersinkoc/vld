@@ -4,8 +4,9 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "sync-docs": "rm -rf public/docs && cp -r ../docs public/",
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "npm run sync-docs && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "predeploy": "npm run build",
