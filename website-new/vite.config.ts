@@ -4,9 +4,10 @@ import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
 
 // https://vite.dev/config/
-export default defineConfig(({ command }) => ({
+// Custom domain (vld.oxog.dev) - no base path needed
+export default defineConfig(() => ({
   plugins: [react(), tailwindcss()],
-  base: command === 'serve' ? '/' : '/vld/',
+  base: '/',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
