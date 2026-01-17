@@ -1,6 +1,8 @@
 // VLD Error System - Advanced error formatting and utilities
 
-export type VldErrorCode = 
+import { type Theme, vldTheme } from './pigment';
+
+export type VldErrorCode =
   | 'invalid_type'
   | 'invalid_string'
   | 'string_too_small'
@@ -42,14 +44,13 @@ export class VldError extends Error {
   public readonly issues: VldIssue[];
 
   constructor(issues: VldIssue[]) {
-    const message = issues.length === 1 
-      ? issues[0].message
-      : `${issues.length} validation errors`;
-    
+    const message =
+      issues.length === 1 ? issues[0].message : `${issues.length} validation errors`;
+
     super(message);
     this.name = 'VldError';
     this.issues = issues;
-    
+
     // Maintain proper stack trace
     if (Error.captureStackTrace) {
       Error.captureStackTrace(this, VldError);
@@ -61,8 +62,79 @@ export class VldError extends Error {
   }
 
   get formattedErrors(): string[] {
-    return this.issues.map(issue => issue.message);
+    return this.issues.map((issue) => issue.message);
   }
+
+  /**
+   * Convert error to JSON representation
+   * Compatible with @oxog/types OxogError
+   */
+  toJSON(): VldErrorJSON {
+    return {
+      name: this.name,
+      message: this.message,
+      code: 'VLD_VALIDATION_ERROR',
+      issues: this.issues.map((issue) => ({
+        code: issue.code,
+        path: issue.path,
+        message: issue.message,
+        expected: issue.expected,
+        received: issue.received,
+        keys: issue.keys,
+        minimum: issue.minimum,
+        maximum: issue.maximum,
+        exact: issue.exact,
+        inclusive: issue.inclusive
+      }))
+    };
+  }
+
+  /**
+   * Create VldError from JSON representation
+   */
+  static fromJSON(json: VldErrorJSON): VldError {
+    const issues: VldIssue[] = json.issues.map((issue) => ({
+      code: issue.code as VldErrorCode,
+      path: issue.path,
+      message: issue.message,
+      expected: issue.expected,
+      received: issue.received,
+      keys: issue.keys,
+      minimum: issue.minimum,
+      maximum: issue.maximum,
+      exact: issue.exact,
+      inclusive: issue.inclusive
+    }));
+    return new VldError(issues);
+  }
+
+  /**
+   * Check if a value is a VldError
+   */
+  static isVldError(value: unknown): value is VldError {
+    return value instanceof VldError;
+  }
+}
+
+/**
+ * JSON representation of VldError
+ */
+export interface VldErrorJSON {
+  name: string;
+  message: string;
+  code: string;
+  issues: Array<{
+    code: string;
+    path: (string | number)[];
+    message: string;
+    expected?: string;
+    received?: string;
+    keys?: string[];
+    minimum?: number;
+    maximum?: number;
+    exact?: number;
+    inclusive?: boolean;
+  }>;
 }
 
 // Error tree structure for nested validation
@@ -140,32 +212,94 @@ export function treeifyError(error: VldError): VldErrorTree {
 }
 
 /**
+ * Prettify error options
+ */
+export interface PrettifyOptions {
+  /** Enable colored output */
+  colored?: boolean;
+  /** Custom theme for colors */
+  theme?: Theme;
+  /** Include error code in output */
+  includeCode?: boolean;
+  /** Include expected/received values */
+  includeDetails?: boolean;
+}
+
+/**
  * Convert VldError to human-readable string
  */
-export function prettifyError(error: VldError): string {
+export function prettifyError(error: VldError, options: PrettifyOptions = {}): string {
+  const { colored = true, theme = vldTheme, includeCode = false, includeDetails = false } =
+    options;
+
   const lines: string[] = [];
 
   for (const issue of error.issues) {
-    let line = `✖ ${issue.message}`;
-    
+    // Symbol and message
+    const symbol = colored ? theme.symbol('✖') : '✖';
+    const message = colored ? theme.error(issue.message) : issue.message;
+    let line = `${symbol} ${message}`;
+
+    // Error code
+    if (includeCode) {
+      const code = colored ? theme.muted(`[${issue.code}]`) : `[${issue.code}]`;
+      line += ` ${code}`;
+    }
+
+    // Path
     if (issue.path.length > 0) {
       const pathStr = issue.path
         .map((segment, index) => {
           if (typeof segment === 'string') {
-            return index === 0 ? segment : `.${segment}`;
+            const str = index === 0 ? segment : `.${segment}`;
+            return colored ? theme.path(str) : str;
           } else {
-            return `[${segment}]`;
+            const str = `[${segment}]`;
+            return colored ? theme.path(str) : str;
           }
         })
         .join('');
-      
-      line += `\n  → at ${pathStr}`;
+
+      const arrow = colored ? theme.muted('→ at ') : '→ at ';
+      line += `\n  ${arrow}${pathStr}`;
     }
-    
+
+    // Details
+    if (includeDetails) {
+      if (issue.expected) {
+        const expected = colored
+          ? theme.muted('expected: ') + theme.success(issue.expected)
+          : `expected: ${issue.expected}`;
+        line += `\n  ${expected}`;
+      }
+      if (issue.received) {
+        const received = colored
+          ? theme.muted('received: ') + theme.warning(issue.received)
+          : `received: ${issue.received}`;
+        line += `\n  ${received}`;
+      }
+    }
+
     lines.push(line);
   }
 
   return lines.join('\n');
+}
+
+/**
+ * Convert VldError to human-readable string with full colors
+ * Shorthand for prettifyError with colored: true
+ */
+export function prettifyErrorColored(error: VldError, options: Omit<PrettifyOptions, 'colored'> = {}): string {
+  return prettifyError(error, { ...options, colored: true });
+}
+
+/**
+ * Convert VldError to plain text string (no colors)
+ * Shorthand for prettifyError with colored: false
+ */
+export function prettifyErrorPlain(error: VldError, options: Omit<PrettifyOptions, 'colored'> = {}): string {
+  return prettifyError(error, { ...options, colored: false });
 }
 
 /**

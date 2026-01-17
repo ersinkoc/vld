@@ -39,6 +39,8 @@ export default {
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts',
+    '!src/cli/**/*.ts',           // CLI modules require integration tests
+    '!src/locales/backup-*.ts',   // Backup locale files
     '!**/node_modules/**'
   ],
   

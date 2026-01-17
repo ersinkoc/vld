@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
-import { VldError, VldIssue, treeifyError, prettifyError, flattenError, createIssue, getValueType } from '../src/errors';
+import { VldError, VldIssue, treeifyError, prettifyError, prettifyErrorColored, prettifyErrorPlain, flattenError, createIssue, getValueType } from '../src/errors';
 
 describe('Error Formatting Tests', () => {
   
@@ -109,7 +109,7 @@ describe('Error Formatting Tests', () => {
       ];
 
       const error = new VldError(issues);
-      const pretty = prettifyError(error);
+      const pretty = prettifyError(error, { colored: false });
 
       expect(pretty).toContain('✖ Invalid input: expected string, received number');
       expect(pretty).toContain('→ at username');
@@ -128,7 +128,7 @@ describe('Error Formatting Tests', () => {
       ];
 
       const error = new VldError(issues);
-      const pretty = prettifyError(error);
+      const pretty = prettifyError(error, { colored: false });
 
       expect(pretty).toContain('✖ Invalid theme value');
       expect(pretty).toContain('→ at users[0].profile.settings.theme');
@@ -256,7 +256,7 @@ describe('Error Formatting Tests', () => {
       ];
 
       const error = new VldError(issues);
-      const pretty = prettifyError(error);
+      const pretty = prettifyError(error, { colored: false });
 
       expect(pretty).toContain('→ at data[0].name');
     });
@@ -271,7 +271,7 @@ describe('Error Formatting Tests', () => {
       ];
 
       const error = new VldError(issues);
-      const pretty = prettifyError(error);
+      const pretty = prettifyError(error, { colored: false });
 
       expect(pretty).toBe('✖ Unrecognized key');
       expect(pretty).not.toContain('→ at');
@@ -289,6 +289,210 @@ describe('Error Formatting Tests', () => {
       expect(getValueType(true)).toBe('boolean');
       expect(getValueType({})).toBe('object');
       expect(getValueType(() => {})).toBe('function');
+    });
+  });
+
+  describe('VldError JSON serialization', () => {
+    it('should convert error to JSON representation', () => {
+      const issue: VldIssue = {
+        code: 'invalid_type',
+        path: ['username'],
+        message: 'Invalid input',
+        expected: 'string',
+        received: 'number',
+        keys: ['extraKey'],
+        minimum: 5,
+        maximum: 10,
+        exact: 8,
+        inclusive: true
+      };
+
+      const error = new VldError([issue]);
+      const json = error.toJSON();
+
+      expect(json.name).toBe('VldError');
+      expect(json.code).toBe('VLD_VALIDATION_ERROR');
+      expect(json.issues).toHaveLength(1);
+      expect(json.issues[0].code).toBe('invalid_type');
+      expect(json.issues[0].path).toEqual(['username']);
+      expect(json.issues[0].expected).toBe('string');
+      expect(json.issues[0].received).toBe('number');
+      expect(json.issues[0].keys).toEqual(['extraKey']);
+      expect(json.issues[0].minimum).toBe(5);
+      expect(json.issues[0].maximum).toBe(10);
+      expect(json.issues[0].exact).toBe(8);
+      expect(json.issues[0].inclusive).toBe(true);
+    });
+
+    it('should create VldError from JSON representation', () => {
+      const json = {
+        name: 'VldError',
+        message: 'Validation error',
+        code: 'VLD_VALIDATION_ERROR',
+        issues: [
+          {
+            code: 'invalid_type',
+            path: ['email'],
+            message: 'Invalid email',
+            expected: 'email',
+            received: 'text'
+          }
+        ]
+      };
+
+      const error = VldError.fromJSON(json);
+
+      expect(error).toBeInstanceOf(VldError);
+      expect(error.issues).toHaveLength(1);
+      expect(error.issues[0].code).toBe('invalid_type');
+      expect(error.issues[0].path).toEqual(['email']);
+    });
+
+    it('should check if value is VldError', () => {
+      const error = new VldError([{ code: 'invalid_type', path: [], message: 'test' }]);
+      const notError = new Error('regular error');
+      const notAnError = { issues: [] };
+
+      expect(VldError.isVldError(error)).toBe(true);
+      expect(VldError.isVldError(notError)).toBe(false);
+      expect(VldError.isVldError(notAnError)).toBe(false);
+      expect(VldError.isVldError(null)).toBe(false);
+      expect(VldError.isVldError(undefined)).toBe(false);
+    });
+  });
+
+  describe('prettifyError options', () => {
+    it('should include error code when includeCode is true', () => {
+      const issues: VldIssue[] = [
+        {
+          code: 'invalid_type',
+          path: ['username'],
+          message: 'Invalid input'
+        }
+      ];
+
+      const error = new VldError(issues);
+      const pretty = prettifyError(error, { colored: false, includeCode: true });
+
+      expect(pretty).toContain('[invalid_type]');
+    });
+
+    it('should include details when includeDetails is true', () => {
+      const issues: VldIssue[] = [
+        {
+          code: 'invalid_type',
+          path: ['username'],
+          message: 'Invalid input',
+          expected: 'string',
+          received: 'number'
+        }
+      ];
+
+      const error = new VldError(issues);
+      const pretty = prettifyError(error, { colored: false, includeDetails: true });
+
+      expect(pretty).toContain('expected: string');
+      expect(pretty).toContain('received: number');
+    });
+
+    it('should include only expected when received is missing', () => {
+      const issues: VldIssue[] = [
+        {
+          code: 'invalid_type',
+          path: [],
+          message: 'Invalid input',
+          expected: 'string'
+        }
+      ];
+
+      const error = new VldError(issues);
+      const pretty = prettifyError(error, { colored: false, includeDetails: true });
+
+      expect(pretty).toContain('expected: string');
+      expect(pretty).not.toContain('received:');
+    });
+
+    it('should include only received when expected is missing', () => {
+      const issues: VldIssue[] = [
+        {
+          code: 'invalid_type',
+          path: [],
+          message: 'Invalid input',
+          received: 'number'
+        }
+      ];
+
+      const error = new VldError(issues);
+      const pretty = prettifyError(error, { colored: false, includeDetails: true });
+
+      expect(pretty).toContain('received: number');
+      expect(pretty).not.toContain('expected:');
+    });
+  });
+
+  describe('prettifyErrorColored and prettifyErrorPlain', () => {
+    it('prettifyErrorColored should format with colors', () => {
+      const issues: VldIssue[] = [
+        {
+          code: 'invalid_type',
+          path: ['username'],
+          message: 'Invalid input'
+        }
+      ];
+
+      const error = new VldError(issues);
+      const pretty = prettifyErrorColored(error);
+
+      // Should contain ANSI codes (colored output)
+      expect(pretty).toContain('Invalid input');
+      expect(pretty.length).toBeGreaterThan('Invalid input'.length);
+    });
+
+    it('prettifyErrorPlain should format without colors', () => {
+      const issues: VldIssue[] = [
+        {
+          code: 'invalid_type',
+          path: ['username'],
+          message: 'Invalid input'
+        }
+      ];
+
+      const error = new VldError(issues);
+      const pretty = prettifyErrorPlain(error);
+
+      expect(pretty).toContain('✖ Invalid input');
+      expect(pretty).toContain('→ at username');
+    });
+
+    it('prettifyErrorColored should accept other options', () => {
+      const issues: VldIssue[] = [
+        {
+          code: 'invalid_type',
+          path: [],
+          message: 'Test error'
+        }
+      ];
+
+      const error = new VldError(issues);
+      const pretty = prettifyErrorColored(error, { includeCode: true });
+
+      expect(pretty).toContain('[invalid_type]');
+    });
+
+    it('prettifyErrorPlain should accept other options', () => {
+      const issues: VldIssue[] = [
+        {
+          code: 'invalid_type',
+          path: [],
+          message: 'Test error',
+          expected: 'string'
+        }
+      ];
+
+      const error = new VldError(issues);
+      const pretty = prettifyErrorPlain(error, { includeDetails: true });
+
+      expect(pretty).toContain('expected: string');
     });
   });
 });

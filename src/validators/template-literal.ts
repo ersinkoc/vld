@@ -76,32 +76,33 @@ function getPatternForValidator(validator: VldBase<any, any>): string {
   // For template literals, we need to identify the validator type
   // and return an appropriate capture group pattern
 
-  const vStr = validator.toString();
+  const className = validator.constructor.name;
 
   // Check for specific validator types
-  if (vStr.includes('VldString')) {
+  if (className === 'VldString') {
     return '(.+)';
   }
-  if (vStr.includes('VldNumber')) {
+  if (className === 'VldNumber' || className === 'VldInt') {
     return '(-?\\d+(?:\\.\\d+)?)';
   }
-  if (vStr.includes('VldBigInt')) {
+  if (className === 'VldBigInt') {
     return '(-?\\d+)';
   }
-  if (vStr.includes('VldBoolean')) {
+  if (className === 'VldBoolean') {
     return '(true|false)';
   }
-  if (vStr.includes('VldNull')) {
+  if (className === 'VldNull') {
     return '(null)';
   }
-  if (vStr.includes('VldUndefined')) {
+  if (className === 'VldUndefined' || className === 'VldVoid') {
     return '(undefined)';
   }
-  if (vStr.includes('VldLiteral')) {
-    // Extract literal value from validator
-    const match = vStr.match(/value:\s*['"`]([^'"`]+)['"`]/);
-    if (match) {
-      return '(' + match[1].replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')';
+  if (className === 'VldLiteral') {
+    // Extract literal value - access private literal property via any
+    const literalValidator = validator as any;
+    if (literalValidator.literal !== undefined) {
+      const valueStr = String(literalValidator.literal);
+      return '(' + valueStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')';
     }
   }
 

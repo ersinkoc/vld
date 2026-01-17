@@ -314,7 +314,8 @@ export class VldTransform<TInput, TBase, TOutput> extends VldBase<TInput, TOutpu
 
 /**
  * Default validator - provides default value for undefined
- * BUG-NPM-002 FIX: Validate default value at construction time
+ * Note: Does not validate the default value at construction time.
+ * Use .prefault() to validate the default value at parse time.
  */
 export class VldDefault<TInput, TOutput> extends VldBase<TInput | undefined, TOutput> {
   constructor(
@@ -322,11 +323,6 @@ export class VldDefault<TInput, TOutput> extends VldBase<TInput | undefined, TOu
     private readonly defaultValue: TOutput
   ) {
     super();
-    // BUG-NPM-002 FIX: Validate the default value to ensure type safety
-    const validation = baseValidator.safeParse(defaultValue);
-    if (!validation.success) {
-      throw new Error(`Invalid default value: ${validation.error.message}`);
-    }
   }
 
   parse(value: unknown): TOutput {

@@ -146,10 +146,142 @@ describe('Coverage Improvement Tests', () => {
   describe('Bigint Validator - Uncovered Branch', () => {
     it('should handle min validation branch', () => {
       const schema = v.bigint().min(10n);
-      
+
       expect(() => schema.parse(5n)).toThrow();
       expect(schema.parse(10n)).toBe(10n);
       expect(schema.parse(15n)).toBe(15n);
+    });
+
+    it('should handle gt with number conversion', () => {
+      const schema = v.bigint().gt(10);
+
+      expect(() => schema.parse(10n)).toThrow();
+      expect(schema.parse(11n)).toBe(11n);
+    });
+
+    it('should handle gt with bigint value', () => {
+      const schema = v.bigint().gt(10n);
+
+      expect(() => schema.parse(10n)).toThrow();
+      expect(schema.parse(11n)).toBe(11n);
+    });
+
+    it('should handle lt with number conversion', () => {
+      const schema = v.bigint().lt(10);
+
+      expect(() => schema.parse(10n)).toThrow();
+      expect(schema.parse(9n)).toBe(9n);
+    });
+
+    it('should handle lt with bigint value', () => {
+      const schema = v.bigint().lt(10n);
+
+      expect(() => schema.parse(10n)).toThrow();
+      expect(schema.parse(9n)).toBe(9n);
+    });
+
+    it('should handle gte with number conversion', () => {
+      const schema = v.bigint().gte(10);
+
+      expect(() => schema.parse(9n)).toThrow();
+      expect(schema.parse(10n)).toBe(10n);
+      expect(schema.parse(11n)).toBe(11n);
+    });
+
+    it('should handle lte with number conversion', () => {
+      const schema = v.bigint().lte(10);
+
+      expect(() => schema.parse(11n)).toThrow();
+      expect(schema.parse(10n)).toBe(10n);
+      expect(schema.parse(9n)).toBe(9n);
+    });
+
+    it('should handle gt with custom message', () => {
+      const schema = v.bigint().gt(10n, 'Must be greater than 10');
+
+      expect(() => schema.parse(10n)).toThrow('Must be greater than 10');
+    });
+
+    it('should handle lt with custom message', () => {
+      const schema = v.bigint().lt(10n, 'Must be less than 10');
+
+      expect(() => schema.parse(10n)).toThrow('Must be less than 10');
+    });
+  });
+
+  describe('Boolean Validator - VldTrue and VldFalse safeParse', () => {
+    it('should handle VldTrue safeParse with non-boolean', () => {
+      const schema = v.boolean().true();
+      const result = schema.safeParse('not a boolean');
+
+      expect(result.success).toBe(false);
+    });
+
+    it('should handle VldTrue safeParse with false value', () => {
+      const schema = v.boolean().true();
+      const result = schema.safeParse(false);
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.message).toBe('Value must be true');
+      }
+    });
+
+    it('should handle VldTrue safeParse with true value', () => {
+      const schema = v.boolean().true();
+      const result = schema.safeParse(true);
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data).toBe(true);
+      }
+    });
+
+    it('should handle VldFalse safeParse with non-boolean', () => {
+      const schema = v.boolean().false();
+      const result = schema.safeParse('not a boolean');
+
+      expect(result.success).toBe(false);
+    });
+
+    it('should handle VldFalse safeParse with true value', () => {
+      const schema = v.boolean().false();
+      const result = schema.safeParse(true);
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.message).toBe('Value must be false');
+      }
+    });
+
+    it('should handle VldFalse safeParse with false value', () => {
+      const schema = v.boolean().false();
+      const result = schema.safeParse(false);
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data).toBe(false);
+      }
+    });
+
+    it('should handle VldTrue with custom message', () => {
+      const schema = v.boolean().true('Custom true message');
+      const result = schema.safeParse(false);
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.message).toBe('Custom true message');
+      }
+    });
+
+    it('should handle VldFalse with custom message', () => {
+      const schema = v.boolean().false('Custom false message');
+      const result = schema.safeParse(true);
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.message).toBe('Custom false message');
+      }
     });
   });
 

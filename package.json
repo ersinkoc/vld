@@ -1,16 +1,27 @@
 {
   "name": "@oxog/vld",
-  "version": "1.4.0",
-  "description": "Ultra-fast TypeScript-first schema validation with zero dependencies and 27+ language support",
+  "version": "1.5.0",
+  "description": "Ultra-fast TypeScript-first schema validation with zero dependencies, 27+ language support, plugin system, and CLI tools",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "vld": "./dist/cli/bin.js"
+  },
   "exports": {
     ".": {
       "require": "./dist/index.js",
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
+    },
+    "./cli": {
+      "import": "./dist/cli/index.js",
+      "types": "./dist/cli/index.d.ts"
+    },
+    "./plugins": {
+      "import": "./dist/plugins/index.js",
+      "types": "./dist/plugins/index.d.ts"
     }
   },
   "sideEffects": false,
@@ -39,7 +50,12 @@
     "runtime-validation",
     "i18n",
     "internationalization",
-    "multilingual"
+    "multilingual",
+    "plugin-system",
+    "event-driven",
+    "cli",
+    "result-pattern",
+    "functional"
   ],
   "files": [
     "dist",

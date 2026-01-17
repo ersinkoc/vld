@@ -1,12 +1,17 @@
 /**
  * VLD - Fast, Type-Safe Validation Library
  * Zero dependencies, blazing fast performance
- * 
+ *
  * This is the new modular implementation with:
  * - Immutable validators (no memory leaks)
  * - Secure deepMerge (no prototype pollution)
  * - TypeScript strict mode support
  * - Better performance through pooling and memoization
+ * - Plugin system for extensibility
+ * - Event system for validation lifecycle hooks
+ * - Result pattern for functional error handling
+ * - Colored console output for better debugging
+ * - Debug logging system
  */
 
 // Import base class
@@ -76,15 +81,19 @@ export { VldIntersection } from './validators/intersection';
 export { setLocale, getLocale, getMessages, type Locale } from './locales';
 
 // Re-export error formatting utilities
-export { 
-  VldError, 
-  VldIssue, 
+export {
+  VldError,
+  VldIssue,
   VldErrorCode,
   VldErrorTree,
   VldFlattenedError,
-  treeifyError, 
-  prettifyError, 
-  flattenError 
+  VldErrorJSON,
+  treeifyError,
+  prettifyError,
+  prettifyErrorColored,
+  prettifyErrorPlain,
+  flattenError,
+  type PrettifyOptions
 } from './errors';
 
 // Re-export codec utilities
@@ -283,6 +292,139 @@ export const v = {
     }
   ) => VldCodec.create(inputValidator, outputValidator, transform)
 };
+
+// ============================================
+// Result Pattern (v1.5+ features)
+// ============================================
+
+export type { Result, VldResult } from './compat/result';
+
+export {
+  Ok,
+  Err,
+  success,
+  failure,
+  isOk,
+  isErr,
+  isResult,
+  unwrap,
+  unwrapOr,
+  map,
+  mapErr,
+  flatMap,
+  match,
+  tryCatch,
+  tryCatchAsync,
+  all,
+  fromNullable,
+  ResultUtils
+} from './compat/result';
+
+// ============================================
+// Event Emitter (v1.5+ features)
+// ============================================
+
+export {
+  // Types
+  type EventMap,
+  type EventHandler,
+  type ListenerOptions,
+  type Emitter,
+  // Factory functions
+  createEmitter,
+  createEventBus,
+  withEmitter
+} from './compat/emitter';
+
+// ============================================
+// VLD Events (v1.5+ features)
+// ============================================
+
+export type {
+  VldEvents,
+  VldEventPayload,
+  ParseStartEvent,
+  ParseSuccessEvent,
+  ParseErrorEvent,
+  FieldValidationEvent,
+  TransformEvent,
+  PluginRegisteredEvent,
+  LocaleChangedEvent,
+  DebugEvent,
+  MetricsEvent
+} from './events';
+
+// ============================================
+// Plugin System (v1.5+ features)
+// ============================================
+
+export {
+  // Kernel
+  createVldKernel,
+  getVldKernel,
+  resetVldKernel,
+  usePlugin,
+  definePlugin,
+  // Types
+  type VldContext,
+  type VldPlugin,
+  type VldKernelInstance,
+  type VldKernelOptions,
+  type ValidatorFactory,
+  type TransformFactory,
+  type CodecFactory,
+  type HookContext,
+  type PluginBuilder,
+  type PluginMeta,
+  type PluginHooks
+} from './kernel';
+
+// ============================================
+// Logger (v1.5+ features)
+// ============================================
+
+export {
+  // Logger
+  createLogger,
+  initLogger,
+  getLogger,
+  setLogLevel,
+  enableDebug,
+  disableLogging,
+  createNoOpLogger,
+  // Types
+  type Logger,
+  type LoggerOptions,
+  type LogLevel,
+  type LogEntry,
+  type LogHandler
+} from './logger';
+
+// ============================================
+// Pigment - Colored Output (v1.5+ features)
+// ============================================
+
+export {
+  pigment,
+  supportsColor,
+  bold,
+  dim,
+  italic,
+  underline,
+  red,
+  green,
+  yellow,
+  blue,
+  magenta,
+  cyan,
+  white,
+  gray,
+  grey,
+  strip,
+  vldTheme,
+  createTheme,
+  type Theme
+} from './pigment';
 
 // For backward compatibility during migration
 export default v;
