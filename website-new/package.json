@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "sync-docs": "rm -rf public/docs && cp -r ../docs public/",
+    "sync-docs": "node -e \"const fs = require('fs'); fs.rmSync('public/docs', {recursive: true, force: true}); fs.cpSync('../docs', 'public/docs', {recursive: true});\"",
     "dev": "vite",
     "build": "npm run sync-docs && tsc -b && vite build",
     "lint": "eslint .",

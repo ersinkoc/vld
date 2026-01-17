@@ -1,6 +1,6 @@
 # VLD Performance Guide
 
-Comprehensive guide to understanding and optimizing VLD's performance in your applications (v1.4.0).
+Comprehensive guide to understanding and optimizing VLD's performance in your applications (v1.5.0).
 
 ## Table of Contents
 
@@ -32,18 +32,20 @@ VLD consistently outperforms Zod across all validation scenarios:
 
 | Operation | VLD Performance | Zod Performance | Improvement |
 |-----------|----------------|-----------------|-------------|
-| Simple String | 44.4M ops/sec | 26.6M ops/sec | **1.67x faster** |
-| Email Validation | 18.6M ops/sec | 5.1M ops/sec | **3.63x faster** |
-| Number Validation | 22.7M ops/sec | 8.7M ops/sec | **2.62x faster** |
-| Object Validation | 7.6M ops/sec | 6.0M ops/sec | **1.27x faster** |
-| Array Validation | 6.7M ops/sec | 5.2M ops/sec | **1.29x faster** |
-| Union Types | 6.8M ops/sec | 4.4M ops/sec | **1.54x faster** |
-| Optional Values | 32.7M ops/sec | 7.2M ops/sec | **4.52x faster** |
-| Type Coercion | 18.4M ops/sec | 12.6M ops/sec | **1.46x faster** |
-| SafeParse | 39.1M ops/sec | 14.0M ops/sec | **2.79x faster** |
-| Complex Objects | 3.5M ops/sec | 2.1M ops/sec | **1.67x faster** |
+| Simple String | 73.0M ops/sec | 36.0M ops/sec | **2.03x faster** |
+| Email Validation | 21.8M ops/sec | 6.7M ops/sec | **3.25x faster** |
+| Number Validation | 36.3M ops/sec | 11.2M ops/sec | **3.23x faster** |
+| Simple Object | 7.1M ops/sec | 6.9M ops/sec | **1.02x faster** |
+| Complex Object | 1.9M ops/sec | 1.4M ops/sec | **1.34x faster** |
+| Array Validation | 7.5M ops/sec | 5.6M ops/sec | **1.35x faster** |
+| Union Types | 7.1M ops/sec | 5.5M ops/sec | **1.29x faster** |
+| Optional Values | 36.1M ops/sec | 11.4M ops/sec | **3.16x faster** |
+| SafeParse | 60.0M ops/sec | 22.0M ops/sec | **2.73x faster** |
+| Type Coercion | 20.4M ops/sec | 20.2M ops/sec | **1.01x faster** |
+| Enum Validation | 60.3M ops/sec | 28.9M ops/sec | **2.08x faster** |
+| Discriminated Union | 3.6M ops/sec | 4.6M ops/sec | Zod 1.27x faster |
 
-**Average: 2.07x faster than Zod**
+**VLD won 11/12 tests | Average: 1.98x faster than Zod**
 
 ### Memory Usage
 
@@ -380,7 +382,7 @@ VLD has zero dependencies, resulting in smaller bundle sizes:
 | Yup | 145 KB | 42 KB | 15 |
 | Joi | 218 KB | 61 KB | 12 |
 
-*Note: VLD size increased slightly in v1.4.0 due to full Zod 4 API parity features.*
+*Note: VLD size increased slightly in v1.5.0 due to plugin system, CLI tools, and event system features.*
 
 ### Tree Shaking
 
@@ -412,21 +414,27 @@ Output:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 1. Simple String Validation
-  VLD: 44,400,000 ops/sec
-  Zod: 26,600,000 ops/sec
-  VLD is 1.67x faster
+  VLD: 72,998,029 ops/sec
+  Zod: 35,975,105 ops/sec
+  VLD is 2.03x faster
 
 2. Email Validation
-  VLD: 18,600,000 ops/sec
-  Zod: 5,100,000 ops/sec
-  VLD is 3.63x faster
-  
+  VLD: 21,826,913 ops/sec
+  Zod: 6,720,611 ops/sec
+  VLD is 3.25x faster
+
+3. Number Validation
+  VLD: 36,269,994 ops/sec
+  Zod: 11,237,470 ops/sec
+  VLD is 3.23x faster
+
 ...
 
 SUMMARY
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  VLD won: 10/10 tests
-  Average performance ratio: 2.07x
+  VLD won: 11/12 tests
+  Zod won: 1/12 tests
+  Average performance ratio: 1.98x
   ✅ VLD is faster overall!
 ```
 

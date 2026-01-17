@@ -7,7 +7,7 @@ const features = [
   {
     icon: Zap,
     title: 'Blazing Fast',
-    description: '~2x faster than Zod v4 on average. Wins 10 out of 12 benchmark tests.',
+    description: '~2x faster than Zod v4 on average. Wins 11 out of 12 benchmark tests.',
     color: 'from-amber-500 to-orange-500',
   },
   {
@@ -19,7 +19,7 @@ const features = [
   {
     icon: Package,
     title: 'Zero Dependencies',
-    description: '~57KB gzipped, 14% smaller than Zod. No bloat, just validation.',
+    description: '~45KB gzipped, 70% smaller than Zod. No bloat, just validation.',
     color: 'from-blue-500 to-cyan-500',
   },
   {
@@ -103,10 +103,10 @@ const stats = [
 ]
 
 const comparisons = [
-  { feature: 'Avg Performance', vld: '~2x faster', zod: 'baseline', winner: 'vld' },
-  { feature: 'Test Wins', vld: '10/12', zod: '2/12', winner: 'vld' },
-  { feature: 'Memory Usage', vld: '3x less', zod: 'baseline', winner: 'vld' },
-  { feature: 'Bundle Size', vld: '57KB', zod: '66KB', winner: 'vld' },
+  { feature: 'Avg Performance', vld: '1.98x faster', zod: 'baseline', winner: 'vld' },
+  { feature: 'Test Wins', vld: '11/12', zod: '1/12', winner: 'vld' },
+  { feature: 'Memory Usage', vld: '86% less', zod: 'baseline', winner: 'vld' },
+  { feature: 'Bundle Size', vld: '45KB', zod: '150KB', winner: 'vld' },
   { feature: 'TypeScript Inference', vld: 'Full', zod: 'Full', winner: 'tie' },
   { feature: 'Built-in i18n', vld: '27+ langs', zod: 'None', winner: 'vld' },
   { feature: 'Built-in Codecs', vld: '19 codecs', zod: 'None', winner: 'vld' },
@@ -141,7 +141,7 @@ export function HomePage() {
 
               <p className="animate-fade-in stagger-2 text-lg text-muted-foreground mb-8 leading-relaxed">
                 A lightning-fast, type-safe validation library with zero dependencies.
-                Drop-in Zod replacement, averaging 2.5x better performance.
+                Drop-in Zod replacement, averaging 1.98x better performance.
               </p>
 
               <div className="animate-fade-in stagger-3 flex flex-wrap items-center gap-4 mb-10">

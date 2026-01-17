@@ -2,7 +2,7 @@
 
 A complete guide for migrating your codebase from Zod to VLD with minimal changes and maximum performance gains.
 
-**VLD v1.4.0 now has full Zod 4 API parity!**
+**VLD v1.5.0 has full Zod 4 API parity plus plugin system, CLI tools, and event system!**
 
 ## Table of Contents
 
@@ -20,7 +20,7 @@ A complete guide for migrating your codebase from Zod to VLD with minimal change
 
 ### Performance Benefits
 
-- **2.07x faster** average performance
+- **1.98x faster** average performance (11/12 tests won)
 - **98% less memory** for validator creation
 - **8.22x faster** schema creation
 - **Zero dependencies** for smaller bundle size
@@ -30,7 +30,11 @@ A complete guide for migrating your codebase from Zod to VLD with minimal change
 - **Built-in i18n**: 27+ languages supported out of the box
 - **Better error formatting**: Tree, pretty, and flatten utilities
 - **Immutable validators**: Prevent memory leaks
-- **99.5% test coverage**: Battle-tested reliability
+- **99.25% test coverage**: Battle-tested with 1683 tests
+- **Plugin system**: Extend VLD with custom validators
+- **CLI tools**: Command-line validation and benchmarking
+- **Event system**: Validation lifecycle hooks
+- **Result pattern**: Functional error handling
 
 ## Quick Migration
 

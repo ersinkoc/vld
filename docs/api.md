@@ -1,6 +1,6 @@
 # VLD API Reference
 
-Complete API documentation for the VLD validation library (v1.4.0 - Full Zod 4 API Parity).
+Complete API documentation for the VLD validation library (v1.5.0 - Full Zod 4 API Parity + Plugin System + CLI Tools).
 
 ## Table of Contents
 

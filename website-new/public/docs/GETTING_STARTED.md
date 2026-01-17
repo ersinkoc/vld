@@ -1,6 +1,6 @@
 # Getting Started with VLD
 
-A comprehensive guide to get you up and running with VLD (v1.4.0), the blazing-fast TypeScript validation library with full Zod 4 API parity.
+A comprehensive guide to get you up and running with VLD (v1.5.0), the blazing-fast TypeScript validation library with full Zod 4 API parity, plugin system, and CLI tools.
 
 ## Table of Contents
 
@@ -375,7 +375,7 @@ formSchema.parse({
 });
 ```
 
-### 5. Use String Format Validators (v1.4.0)
+### 5. Use String Format Validators
 
 ```typescript
 // Standalone format validators for common patterns

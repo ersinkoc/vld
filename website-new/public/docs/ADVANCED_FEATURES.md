@@ -1,6 +1,6 @@
 # VLD Advanced Features
 
-Deep dive into VLD's advanced features and capabilities for complex validation scenarios (v1.4.0 - Full Zod 4 API Parity).
+Deep dive into VLD's advanced features and capabilities for complex validation scenarios (v1.5.0 - Full Zod 4 API Parity + Plugin System + CLI Tools).
 
 ## Table of Contents
 
