@@ -1,75 +1,135 @@
 # VLD - Fast & Lightweight TypeScript Validation Library
 
-[![NPM Version](https://img.shields.io/npm/v/@oxog/vld.svg)](https://www.npmjs.com/package/@oxog/vld) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/) [![Zero Dependencies](https://img.shields.io/badge/Dependencies-0-green.svg)](package.json) [![Test Coverage](https://img.shields.io/badge/Coverage-96.55%25-brightgreen.svg)](package.json)
+[![NPM Version](https://img.shields.io/npm/v/@oxog/vld.svg)](https://www.npmjs.com/package/@oxog/vld) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/) [![Zero Dependencies](https://img.shields.io/badge/Dependencies-0-green.svg)](package.json) [![Test Coverage](https://img.shields.io/badge/Coverage-99.25%25-brightgreen.svg)](package.json)
 
 VLD is a blazing-fast, type-safe validation library for TypeScript and JavaScript with **full Zod feature parity**. Built with performance in mind, it provides a simple and intuitive API while maintaining excellent type inference and 27+ language internationalization support.
 
-## 📚 Table of Contents
+## Table of Contents
 
-- [🚀 Features](#-features)
-- [📊 Performance](#-performance)
-- [📦 Installation](#-installation)
-- [🎯 Quick Start](#-quick-start)
-- [📖 API Reference](#-api-reference)
-- [🌍 Internationalization (i18n)](#-internationalization-i18n)
-- [⚠️ Error Handling & Formatting](#️-error-handling--formatting)
-- [🔥 Advanced Examples](#-advanced-examples)
-- [🎯 Why VLD?](#-why-vld)
-- [🔄 Codecs - Bidirectional Transformations](#-codecs---bidirectional-transformations)
-- [🔄 Migrating from Zod](#-migrating-from-zod)
-- [📈 Benchmarks](#-benchmarks)
-- [🤝 Contributing](#-contributing)
-- [🔗 Links](#-links)
+- [Features](#-features)
+- [Performance](#-performance)
+- [Installation](#-installation)
+- [Quick Start](#-quick-start)
+- [API Reference](#-api-reference)
+- [Internationalization (i18n)](#-internationalization-i18n)
+- [Error Handling & Formatting](#%EF%B8%8F-error-handling--formatting)
+- [Advanced Examples](#-advanced-examples)
+- [Why VLD?](#-why-vld)
+- [Codecs - Bidirectional Transformations](#-codecs---bidirectional-transformations)
+- [Plugin System](#-plugin-system)
+- [Result Pattern](#-result-pattern)
+- [CLI Tools](#-cli-tools)
+- [Migrating from Zod](#-migrating-from-zod)
+- [Benchmarks](#-benchmarks)
+- [Contributing](#-contributing)
+- [Links](#-links)
 
-## 🚀 Features
+## Features
 
 ### Core Features
-- **⚡ Blazing Fast**: Optimized for V8 engine with superior performance
-- **🎯 Type-Safe**: Full TypeScript support with excellent type inference  
-- **📦 Zero Dependencies**: Lightweight with no external dependencies
-- **🌳 Tree-Shakeable**: Only import what you need
-- **🔧 Composable**: Chain validations for complex schemas
-- **⚠️ Advanced Error Formatting**: Tree, pretty, and flatten error utilities
-- **🌍 Multi-language**: Built-in support for 27+ languages
-- **✅ 96.55% Test Coverage**: Rigorously tested with 1142 passing tests
-- **🏆 Industry Leading Performance**: 2.52x faster than Zod on average
+- **Blazing Fast**: Optimized for V8 engine with superior performance
+- **Type-Safe**: Full TypeScript support with excellent type inference
+- **Zero Dependencies**: Lightweight with no external dependencies
+- **Tree-Shakeable**: Only import what you need
+- **Composable**: Chain validations for complex schemas
+- **Advanced Error Formatting**: Tree, pretty, and flatten error utilities
+- **Multi-language**: Built-in support for 27+ languages
+- **99.25% Test Coverage**: Rigorously tested with 1683 passing tests
+- **Industry Leading Performance**: 1.98x faster than Zod on average
 
-### Advanced Zod-Compatible Features  
-- **🔄 Type Coercion**: `v.coerce.string()`, `v.coerce.number()`, `v.coerce.boolean()`, etc.
-- **📊 Advanced Types**: BigInt, Symbol, Tuple, Record, Set, Map validation
-- **⚡ Intersection Types**: Combine multiple schemas with intelligent merging
-- **🎨 Custom Validation**: `refine()` for custom predicates and validation logic
-- **🔄 Data Transformation**: `transform()` for post-validation data transformation
-- **🏠 Default Values**: `default()` for handling undefined inputs elegantly  
-- **🛡️ Fallback Handling**: `catch()` for graceful error recovery
-- **🎯 Object Utilities**: `pick()`, `omit()`, `extend()` for flexible object schemas
+### Advanced Zod-Compatible Features
+- **Type Coercion**: `v.coerce.string()`, `v.coerce.number()`, `v.coerce.boolean()`, etc.
+- **Advanced Types**: BigInt, Symbol, Tuple, Record, Set, Map validation
+- **Intersection Types**: Combine multiple schemas with intelligent merging
+- **Custom Validation**: `refine()` for custom predicates and validation logic
+- **Data Transformation**: `transform()` for post-validation data transformation
+- **Default Values**: `default()` for handling undefined inputs elegantly
+- **Fallback Handling**: `catch()` for graceful error recovery
+- **Object Utilities**: `pick()`, `omit()`, `extend()` for flexible object schemas
 
-### 🚀 **NEW in v1.4.0** - Zod 4 Full API Parity
-- **🌐 `v.cidrv6()`**: IPv6 CIDR block validation
-- **🔗 `.apply()`**: External function chaining for advanced composition
-- **🛡️ `.safeExtend()`**: Type-safe object extension without accidental overrides
+### NEW in v1.5.0 - Major Platform Release
 
-### 🚀 Codec System - Beyond Zod
-- **↔️ Bidirectional Transformations**: Full encode/decode support for data conversion
-- **📦 19 Built-in Codecs**: String conversions, date parsing, JSON, URL, binary data
-- **🔗 Zod-Compatible**: All `stringToNumber`, `jsonCodec`, `base64ToBytes`, etc.
-- **⚡ Async Support**: Both sync and async codec operations
-- **🛠 Custom Codecs**: Create your own bidirectional transformations
-- **🎯 Type-Safe**: Full TypeScript support with perfect type inference
+#### Plugin System
+- **`definePlugin()`**: Create custom plugins with validators, transforms, and codecs
+- **`usePlugin()`**: Register plugins globally
+- **Plugin Hooks**: Lifecycle hooks for validation events
+- **Custom Validators**: Extend VLD with your own validators
 
-## 📊 Performance
+#### Result Pattern
+- **`Ok()`/`Err()`**: Functional error handling
+- **`match()`**: Pattern matching on results
+- **`map()`/`flatMap()`**: Transform results
+- **`tryCatch()`**: Safe function execution
+- **`all()`**: Combine multiple results
+
+#### Event System
+- **`createEmitter()`**: Type-safe event emitter
+- **`createEventBus()`**: Global event bus
+- **Validation Events**: Parse start, success, error, field validation
+
+#### CLI Tools
+- **`vld validate`**: Validate data from command line
+- **`vld benchmark`**: Run performance benchmarks
+- **Colored Output**: Beautiful terminal output with pigment
+
+#### New Validators
+- **`v.discriminatedUnion()`**: Discriminated union types
+- **`v.xor()`**: Exclusive OR validation
+- **`v.file()`**: File upload validation
+- **`v.function()`**: Function validation
+- **`v.custom()`**: Type-safe custom validators
+- **`v.json()`**: JSON string validation with schema
+- **`v.lazy()`**: Recursive schema support
+- **`v.nan()`**: NaN validation
+- **`v.null()`**: Null validation
+- **`v.undefined()`**: Undefined validation
+- **`v.templateLiteral()`**: Template literal types
+
+#### New String Format Validators
+- **`v.hostname()`**: Hostname validation
+- **`v.emoji()`**: Emoji validation
+- **`v.base64()`/`v.base64url()`**: Base64 format validation
+- **`v.hex()`**: Hex string validation
+- **`v.jwt()`**: JWT format validation
+- **`v.nanoid()`/`v.cuid()`/`v.cuid2()`/`v.ulid()`**: ID format validation
+- **`v.mac()`**: MAC address validation
+- **`v.cidrv4()`/`v.cidrv6()`**: CIDR block validation
+- **`v.e164()`**: E.164 phone number validation
+- **`v.hash()`**: Hash validation (md5, sha1, sha256, sha384, sha512)
+- **`v.iso.date()`/`v.iso.time()`/`v.iso.dateTime()`/`v.iso.duration()`**: ISO format validation
+
+#### Enhanced Object Utilities
+- **`v.strictObject()`**: Strict mode object validation
+- **`v.looseObject()`**: Passthrough object validation
+- **`v.partialRecord()`**: Partial record validation
+- **`v.looseRecord()`**: Loose record validation
+- **`v.int()`**: Integer shortcut
+- **`v.int32()`**: 32-bit integer shortcut
+- **`v.nullish()`**: Null or undefined
+- **`v.NEVER`**: NEVER constant for transforms (Zod 4 parity)
+
+### Codec System - Beyond Zod
+- **Bidirectional Transformations**: Full encode/decode support for data conversion
+- **19 Built-in Codecs**: String conversions, date parsing, JSON, URL, binary data
+- **Zod-Compatible**: All `stringToNumber`, `jsonCodec`, `base64ToBytes`, etc.
+- **Async Support**: Both sync and async codec operations
+- **Custom Codecs**: Create your own bidirectional transformations
+- **Type-Safe**: Full TypeScript support with perfect type inference
+
+## Performance
 
 VLD is designed for speed and efficiency with recent optimizations delivering exceptional performance:
 
-### Speed Benchmarks (v1.0.0 - Optimized)
-- **4.6x faster** for number validation with constraints
-- **3.6x faster** for union type validation
-- **2.5x faster** for email validation
-- **1.9x faster** for array validation
-- **1.7x faster** for primitive string validation
-- **2.8x faster** overall average performance
+### Speed Benchmarks (v1.5.0)
+- **3.25x faster** for email validation
+- **3.23x faster** for number validation
+- **3.16x faster** for optional validation
+- **2.73x faster** for safeParse operations
+- **2.08x faster** for enum validation
+- **2.03x faster** for simple string validation
+- **1.98x faster** overall average performance
 
-### Recent Optimizations (v1.0.0)
+### Optimizations
 - **110x improvement** in union type validation
 - **Simplified email regex** for maximum performance
 - **Inline type checks** in object validation
@@ -112,7 +172,7 @@ When testing real-world patterns:
 
 Run `npm run benchmark:truth` to see the real performance difference.
 
-## 📦 Installation
+## Installation
 
 ```bash
 npm install @oxog/vld
@@ -122,7 +182,7 @@ yarn add @oxog/vld
 pnpm add @oxog/vld
 ```
 
-## 🎯 Quick Start
+## Quick Start
 
 ```typescript
 import { v } from '@oxog/vld';
@@ -158,13 +218,15 @@ For advanced error formatting:
 import { v, VldError, treeifyError, prettifyError, flattenError } from '@oxog/vld';
 ```
 
-## 📖 API Reference
+## API Reference
 
 ### Basic Types
 
 ```typescript
 v.string()    // String validation
-v.number()    // Number validation  
+v.number()    // Number validation
+v.int()       // Integer validation (shortcut)
+v.int32()     // 32-bit integer validation
 v.boolean()   // Boolean validation
 v.bigint()    // BigInt validation
 v.symbol()    // Symbol validation
@@ -173,9 +235,12 @@ v.uint8array()// Uint8Array validation
 v.literal()   // Literal values
 v.enum()      // Enum values (supports TypeScript enums)
 v.any()       // Any type
-v.unknown()   // Unknown type  
+v.unknown()   // Unknown type
 v.void()      // Void type
 v.never()     // Never type
+v.null()      // Null type
+v.undefined() // Undefined type
+v.nan()       // NaN type
 ```
 
 ### Advanced Types
@@ -191,14 +256,19 @@ v.map(v.string(), v.number())          // Map validation
 // Objects
 v.object({                             // Object schema
   name: v.string(),
-  age: v.number()  
+  age: v.number()
 })
+v.strictObject({...})                  // No extra fields allowed
+v.looseObject({...})                   // Extra fields passed through
 
 // Composition
 v.union(v.string(), v.number())        // Union types
 v.intersection(schemaA, schemaB)       // Intersection types
+v.discriminatedUnion('type', ...)      // Discriminated union
+v.xor(schemaA, schemaB)               // Exclusive OR
 v.optional(v.string())                 // Optional fields
 v.nullable(v.string())                 // Nullable fields
+v.nullish(v.string())                  // Null or undefined
 ```
 
 ### String Validators
@@ -220,6 +290,36 @@ v.string()
   .toLowerCase()             // Convert to lowercase
   .toUpperCase()             // Convert to uppercase
   .nonempty()               // Non-empty string
+```
+
+### String Format Validators (Top-Level)
+
+```typescript
+v.email()                    // Email validation
+v.uuid()                     // UUID validation
+v.uuid({ version: 'v4' })    // UUID v4 validation
+v.uuidv4()                   // UUID v4 shortcut
+v.hostname()                 // Hostname validation
+v.emoji()                    // Emoji validation
+v.base64()                   // Base64 format
+v.base64url()                // Base64 URL-safe format
+v.hex()                      // Hex string
+v.jwt()                      // JWT format
+v.nanoid()                   // NanoID format
+v.cuid()                     // CUID format
+v.cuid2()                    // CUID2 format
+v.ulid()                     // ULID format
+v.ipv4()                     // IPv4 address
+v.ipv6()                     // IPv6 address
+v.mac()                      // MAC address
+v.cidrv4()                   // IPv4 CIDR block
+v.cidrv6()                   // IPv6 CIDR block
+v.e164()                     // E.164 phone number
+v.hash('sha256')             // Hash validation
+v.iso.date()                 // ISO date format
+v.iso.time()                 // ISO time format
+v.iso.dateTime()             // ISO datetime format
+v.iso.duration()             // ISO duration format
 ```
 
 ### Number Validators
@@ -255,6 +355,7 @@ v.object({
 })
   .partial()                 // All fields optional
   .strict()                  // No extra fields
+  .passthrough()             // Allow extra fields
 ```
 
 ### Composite Types
@@ -266,8 +367,17 @@ v.optional(v.string())       // string | undefined
 // Nullable
 v.nullable(v.string())       // string | null
 
+// Nullish
+v.nullish(v.string())        // string | null | undefined
+
 // Union
 v.union(v.string(), v.number()) // string | number
+
+// Discriminated Union
+v.discriminatedUnion('type',
+  v.object({ type: v.literal('a'), a: v.string() }),
+  v.object({ type: v.literal('b'), b: v.number() })
+)
 
 // Literal
 v.literal('active')          // 'active'
@@ -283,7 +393,7 @@ v.enum('red', 'green', 'blue') // 'red' | 'green' | 'blue'
 v.coerce.string().parse(123)        // "123"
 v.coerce.string().parse(true)       // "true"
 
-// Coerce numbers from strings/booleans  
+// Coerce numbers from strings/booleans
 v.coerce.number().parse("123")      // 123
 v.coerce.number().parse(true)       // 1
 
@@ -314,7 +424,7 @@ const userSchema = v.object({
 const publicSchema = userSchema.pick('name', 'age');
 // Type: { name: string; age: number }
 
-// Omit sensitive fields  
+// Omit sensitive fields
 const safeSchema = userSchema.omit('email', 'role');
 // Type: { name: string; age: number }
 
@@ -333,7 +443,7 @@ const extendedSchema = userSchema.extend({
 const positiveNumber = v.number()
   .refine(n => n > 0, "Number must be positive");
 
-// Data transformation with transform()  
+// Data transformation with transform()
 const uppercaseString = v.string()
   .transform(s => s.toUpperCase());
 
@@ -351,6 +461,38 @@ const complexSchema = v.string()
   .transform(s => s.trim())
   .refine(s => s.includes('@'), 'Must contain @')
   .default('user@example.com');
+```
+
+### Special Validators
+
+```typescript
+// JSON validator with optional schema
+v.json()                           // Any valid JSON
+v.json(v.object({ name: v.string() }))  // Typed JSON
+
+// Lazy for recursive schemas
+const categorySchema = v.lazy(() =>
+  v.object({
+    name: v.string(),
+    children: v.array(categorySchema).optional()
+  })
+);
+
+// Custom validator
+v.custom({
+  check: (val) => typeof val === 'string' && val.length > 0,
+  message: 'Must be a non-empty string'
+});
+
+// File validator
+v.file()
+  .maxSize(5 * 1024 * 1024)  // 5MB
+  .type(['image/png', 'image/jpeg']);
+
+// Function validator
+v.function()
+  .args(v.string(), v.number())
+  .returns(v.boolean());
 ```
 
 ### Type Inference
@@ -371,7 +513,7 @@ type User = Infer<typeof schema>;
 ### Error Formatting Types
 
 ```typescript
-import { 
+import {
   VldError,           // Main error class
   VldIssue,           // Individual validation issue
   VldErrorTree,       // Nested error structure
@@ -390,7 +532,7 @@ if (!result.success) {
 }
 ```
 
-## 🌍 Internationalization (i18n)
+## Internationalization (i18n)
 
 VLD supports 27+ languages out of the box with comprehensive error messages:
 
@@ -403,7 +545,7 @@ schema.safeParse('Hi'); // Error: "String must be at least 5 characters"
 
 // Switch to Turkish
 setLocale('tr');
-schema.safeParse('Hi'); // Error: "Metin en az 5 karakter olmalı"
+schema.safeParse('Hi'); // Error: "Metin en az 5 karakter olmali"
 
 // Switch to Spanish
 setLocale('es');
@@ -411,41 +553,38 @@ schema.safeParse('Hi'); // Error: "La cadena debe tener al menos 5 caracteres"
 
 // Switch to Japanese
 setLocale('ja');
-schema.safeParse('Hi'); // Error: "文字列は5文字以上である必要があります"
+schema.safeParse('Hi'); // Error: "..."
 ```
 
 ### Supported Languages
 
 #### Base Languages (15):
-- 🇬🇧 English (`en`) - 🇹🇷 Turkish (`tr`) - 🇪🇸 Spanish (`es`) - 🇫🇷 French (`fr`) - 🇩🇪 German (`de`)
-- 🇮🇹 Italian (`it`) - 🇵🇹 Portuguese (`pt`) - 🇷🇺 Russian (`ru`) - 🇯🇵 Japanese (`ja`) - 🇰🇷 Korean (`ko`)
-- 🇨🇳 Chinese (`zh`) - 🇸🇦 Arabic (`ar`) - 🇮🇳 Hindi (`hi`) - 🇳🇱 Dutch (`nl`) - 🇵🇱 Polish (`pl`)
+- English (`en`) - Turkish (`tr`) - Spanish (`es`) - French (`fr`) - German (`de`)
+- Italian (`it`) - Portuguese (`pt`) - Russian (`ru`) - Japanese (`ja`) - Korean (`ko`)
+- Chinese (`zh`) - Arabic (`ar`) - Hindi (`hi`) - Dutch (`nl`) - Polish (`pl`)
 
 #### European Languages (4):
-- 🇩🇰 Danish (`da`) - 🇸🇪 Swedish (`sv`) - 🇳🇴 Norwegian (`no`) - 🇫🇮 Finnish (`fi`)
+- Danish (`da`) - Swedish (`sv`) - Norwegian (`no`) - Finnish (`fi`)
 
 #### Asian Languages (4):
-- 🇹🇭 Thai (`th`) - 🇻🇳 Vietnamese (`vi`) - 🇮🇩 Indonesian (`id`) - 🇧🇩 Bengali (`bn`)
+- Thai (`th`) - Vietnamese (`vi`) - Indonesian (`id`) - Bengali (`bn`)
 
 #### African Languages (2):
-- 🇰🇪 Swahili (`sw`) - 🇿🇦 Afrikaans (`af`)
+- Swahili (`sw`) - Afrikaans (`af`)
 
 #### American Languages (2):
-- 🇧🇷 Portuguese Brazil (`pt-BR`) - 🇲🇽 Spanish Mexico (`es-MX`)
+- Portuguese Brazil (`pt-BR`) - Spanish Mexico (`es-MX`)
 
-**Plus 75+ additional languages** supported through comprehensive type definitions with English fallback, including Icelandic, Czech, Slovak, Hungarian, Romanian, Bulgarian, Croatian, Slovenian, Greek, Hebrew, Persian, Georgian, Armenian, and many more!
+**Plus 75+ additional languages** supported through comprehensive type definitions with English fallback.
 
-## ⚠️ Error Handling & Formatting
+## Error Handling & Formatting
 
-VLD provides advanced error formatting utilities similar to Zod's error handling system. These utilities help you transform validation errors into user-friendly formats for different use cases.
+VLD provides advanced error formatting utilities similar to Zod's error handling system.
 
 ### Error Formatting Utilities
 
 ```typescript
 import { v, VldError, treeifyError, prettifyError, flattenError } from '@oxog/vld';
-
-// Note: Error formatting utilities like `treeifyError` are separate named exports
-// and are not part of the main `v` object.
 
 const userSchema = v.object({
   username: v.string().min(3),
@@ -456,10 +595,9 @@ const userSchema = v.object({
   })
 });
 
-// This will fail validation
 const result = userSchema.safeParse({
-  username: 'ab', // too short
-  favoriteNumbers: [1, 'two', 3], // 'two' is not a number
+  username: 'ab',
+  favoriteNumbers: [1, 'two', 3],
   profile: {
     name: '',
     email: 'invalid-email'
@@ -469,60 +607,15 @@ const result = userSchema.safeParse({
 
 if (!result.success) {
   const error = result.error as VldError;
-  
+
   // 1. Tree Format - Nested structure for complex UIs
   const tree = treeifyError(error);
-  console.log(tree);
-  /*
-  {
-    errors: ['Unrecognized key: "extraField"'],
-    properties: {
-      username: { errors: ['String must be at least 3 characters'] },
-      favoriteNumbers: {
-        items: [
-          undefined,
-          { errors: ['Expected number, received string'] },
-          undefined
-        ]
-      },
-      profile: {
-        properties: {
-          name: { errors: ['String cannot be empty'] },
-          email: { errors: ['Invalid email format'] }
-        }
-      }
-    }
-  }
-  */
-  
+
   // 2. Pretty Format - Human-readable console output
   const pretty = prettifyError(error);
-  console.log(pretty);
-  /*
-  ✖ Unrecognized key: "extraField"
-  ✖ String must be at least 3 characters
-    → at username
-  ✖ Expected number, received string
-    → at favoriteNumbers[1]
-  ✖ String cannot be empty
-    → at profile.name
-  ✖ Invalid email format
-    → at profile.email
-  */
-  
+
   // 3. Flatten Format - Simple form validation
   const flattened = flattenError(error);
-  console.log(flattened);
-  /*
-  {
-    formErrors: ['Unrecognized key: "extraField"'],
-    fieldErrors: {
-      username: ['String must be at least 3 characters'],
-      favoriteNumbers: ['Expected number, received string'],
-      profile: ['String cannot be empty', 'Invalid email format']
-    }
-  }
-  */
 }
 ```
 
@@ -532,24 +625,23 @@ if (!result.success) {
 ```typescript
 function UserForm() {
   const [errors, setErrors] = useState<VldFlattenedError | null>(null);
-  
+
   const handleSubmit = (data: unknown) => {
     const result = userSchema.safeParse(data);
-    
+
     if (!result.success) {
       setErrors(flattenError(result.error as VldError));
     } else {
       setErrors(null);
-      // Process valid data
     }
   };
-  
+
   return (
     <form onSubmit={handleSubmit}>
       {errors?.formErrors.map(error => (
         <div key={error} className="form-error">{error}</div>
       ))}
-      
+
       <input name="username" />
       {errors?.fieldErrors.username?.map(error => (
         <div key={error} className="field-error">{error}</div>
@@ -563,32 +655,18 @@ function UserForm() {
 ```typescript
 app.post('/api/users', (req, res) => {
   const result = userSchema.safeParse(req.body);
-  
+
   if (!result.success) {
     const tree = treeifyError(result.error as VldError);
     res.status(400).json({
       error: 'Validation failed',
       details: tree
     });
-  } else {
-    // Process valid user data
   }
 });
 ```
 
-#### Console Debugging
-```typescript
-function validateAndLog(data: unknown) {
-  const result = userSchema.safeParse(data);
-  
-  if (!result.success) {
-    console.log('Validation failed:');
-    console.log(prettifyError(result.error as VldError));
-  }
-}
-```
-
-## 🔥 Advanced Examples
+## Advanced Examples
 
 ### Complex Validation with New Features
 
@@ -600,11 +678,11 @@ const postSchema = v.object({
   author: v.object({
     name: v.string(),
     email: v.string().email(),
-    age: v.coerce.number(), // Auto-convert to number
+    age: v.coerce.number(),
   }),
-  tags: v.set(v.string()).default(new Set()), // Use Set instead of array
-  metadata: v.record(v.any()), // Key-value metadata
-  coordinates: v.tuple(v.number(), v.number()), // [lat, lng]
+  tags: v.set(v.string()).default(new Set()),
+  metadata: v.record(v.any()),
+  coordinates: v.tuple(v.number(), v.number()),
   publishedAt: v.date().default(() => new Date()),
   status: v.enum('draft', 'published', 'archived')
 });
@@ -615,125 +693,60 @@ const blogPostSchema = postSchema.extend({
   categories: v.array(v.string()).min(1),
   featured: v.boolean().default(false)
 });
-
-// Create a public version without sensitive data
-const publicPostSchema = blogPostSchema
-  .omit('author')
-  .extend({
-    authorName: v.string()
-  });
 ```
 
-### Advanced Transformations & Validation
+### Discriminated Union
 
 ```typescript
-// Complex email processing with coercion and transformation
-const emailSchema = v.coerce.string()
-  .transform(s => s.toLowerCase().trim())
-  .refine(s => s.includes('@'), 'Must be valid email format')
-  .transform(s => s.replace(/\+.*@/, '@')) // Remove plus addressing
-  .catch('invalid@example.com');
-
-// Process user input with fallbacks
-const userInputSchema = v.object({
-  name: v.coerce.string()
-    .transform(s => s.trim())
-    .refine(s => s.length > 0, 'Name cannot be empty')
-    .default('Anonymous'),
-  
-  age: v.coerce.number()
-    .refine(n => n >= 0 && n <= 150, 'Age must be realistic')
-    .catch(0),
-    
-  preferences: v.record(v.any()).default({}),
-  
-  tags: v.union(
-    v.array(v.string()),
-    v.coerce.string().transform(s => s.split(','))
-  ).default([])
-});
-
-// Intersection for combining user types
-const baseUser = v.object({
-  id: v.string(),
-  name: v.string()
-});
-
-const adminUser = v.object({
-  role: v.literal('admin'),
-  permissions: v.array(v.string())
-});
-
-const adminSchema = v.intersection(baseUser, adminUser);
-```
-
-### Collection Validation
-
-```typescript
-// Advanced tuple validation
-const coordinatesSchema = v.tuple(
-  v.number().min(-90).max(90),    // latitude
-  v.number().min(-180).max(180),  // longitude
-  v.number().positive().optional() // altitude
+const eventSchema = v.discriminatedUnion('type',
+  v.object({
+    type: v.literal('click'),
+    x: v.number(),
+    y: v.number()
+  }),
+  v.object({
+    type: v.literal('scroll'),
+    direction: v.enum('up', 'down'),
+    distance: v.number()
+  }),
+  v.object({
+    type: v.literal('keypress'),
+    key: v.string(),
+    modifiers: v.array(v.enum('ctrl', 'alt', 'shift'))
+  })
 );
 
-// Map validation for configuration
-const configSchema = v.map(
-  v.string().min(1), // keys must be non-empty strings
-  v.union(v.string(), v.number(), v.boolean()) // values can be mixed types
-);
-
-// Set validation for unique tags
-const uniqueTagsSchema = v.set(v.string().min(1).max(20))
-  .refine(tags => tags.size <= 10, 'Too many tags');
+// Type-safe parsing
+const event = eventSchema.parse({
+  type: 'click',
+  x: 100,
+  y: 200
+});
 ```
 
-### Real-world API Schema
+### Recursive Schemas
 
 ```typescript
-// Complete API endpoint schema with all features
-const apiUserSchema = v.object({
-  // Basic info with coercion
-  id: v.coerce.string(),
-  username: v.string()
-    .min(3)
-    .max(20)
-    .refine(s => /^[a-zA-Z0-9_]+$/.test(s), 'Invalid username format'),
-  
-  email: v.coerce.string()
-    .transform(s => s.toLowerCase().trim())
-    .refine(s => s.includes('@'), 'Invalid email'),
-    
-  // Age with fallback
-  age: v.coerce.number()
-    .min(13)
-    .max(120)
-    .catch(null),
-    
-  // Preferences as key-value store
-  preferences: v.record(v.any()).default({}),
-  
-  // Roles as a set for uniqueness
-  roles: v.set(v.enum('user', 'admin', 'moderator'))
-    .default(new Set(['user'])),
-    
-  // Metadata with BigInt support
-  createdAt: v.coerce.date(),
-  userId: v.coerce.bigint(),
-  
-  // Optional complex nested data
-  profile: v.object({
-    bio: v.string().max(500).default(''),
-    location: v.tuple(v.number(), v.number()).optional(),
-    socialLinks: v.record(v.string().url()).default({})
-  }).optional()
-});
+const categorySchema: ReturnType<typeof v.lazy> = v.lazy(() =>
+  v.object({
+    name: v.string(),
+    slug: v.string().regex(/^[a-z0-9-]+$/),
+    children: v.array(categorySchema).optional()
+  })
+);
 
-// Specialized schemas using pick/omit
-const publicUserSchema = apiUserSchema.pick('username', 'profile');
-const adminUserSchema = apiUserSchema.extend({
-  adminNotes: v.string().optional(),
-  lastLogin: v.date().optional()
+const category = categorySchema.parse({
+  name: 'Electronics',
+  slug: 'electronics',
+  children: [
+    {
+      name: 'Phones',
+      slug: 'phones',
+      children: [
+        { name: 'Smartphones', slug: 'smartphones' }
+      ]
+    }
+  ]
 });
 ```
 
@@ -750,318 +763,323 @@ type LoginForm = Infer<typeof loginSchema>;
 
 function handleLogin(data: unknown) {
   const result = loginSchema.safeParse(data);
-  
+
   if (result.success) {
-    // data is now typed as LoginForm
     const { username, password, rememberMe } = result.data;
     // ... handle login
-  } else {
-    // Handle validation errors
-    console.error(result.error);
   }
 }
 ```
 
-## 🆚 VLD vs. Zod
+## Codecs - Bidirectional Transformations
 
-VLD is designed as a compelling alternative to Zod, offering full feature parity while delivering significant improvements in performance, bundle size, and internationalization.
+VLD introduces **codecs** - powerful bidirectional transformations that can convert data between different representations.
 
-### Feature Comparison
+### What are Codecs?
 
-| Feature                 | VLD                                | Zod                                  |
-| ----------------------- | ---------------------------------- | ------------------------------------ |
-| **Performance**         | **~2.07x faster** (average)        | Baseline                             |
-| **Memory Usage**        | **~78% less** overall              | Baseline                             |
-| **Internationalization**| ✅ **Built-in (27+ languages)**    | ❌ Requires third-party library      |
-| **Dependencies**        | **Zero**                           | `zod-i18n` for locales               |
-| **Bundle Size**         | Smaller                            | Larger                               |
-| **API**                 | 100% Zod-compatible                | Standard Zod API                     |
-| **Codecs**              | ✅ Built-in, bidirectional         | ✅ Via external `zod-codecs`         |
-| **Error Formatting**    | ✅ Advanced (tree, pretty, flatten)| ✅ Advanced (tree, pretty, flatten)|
-| **Type Inference**      | ✅ Excellent                       | ✅ Excellent                         |
-
-### 🔄 Seamless Migration from Zod
-
-Migration is straightforward due to 100% API compatibility. You can typically just swap the import statement.
-
-```javascript
-// Before (Zod)
-import { z } from 'zod';
-const schema = z.string().email();
-
-// After (VLD) - Exact same syntax!
-import { v } from '@oxog/vld';
-const schema = v.string().email();
-```
-
-## 🔄 Codecs - Bidirectional Transformations
-
-VLD introduces **codecs** - powerful bidirectional transformations that can convert data between different representations. Unlike simple transformations, codecs can both **decode** (input → output) and **encode** (output → input).
-
-### 🎯 What are Codecs?
-
-Codecs enable safe, type-checked conversions between different data formats. They're perfect for:
-- **API boundaries**: Convert strings to structured data
-- **Database serialization**: Transform objects to/from storage formats
-- **Network protocols**: Handle data encoding/decoding
-- **Configuration parsing**: Convert config strings to typed values
-
-### 📦 Built-in Codecs
-
-VLD provides all Zod-compatible codecs plus additional utilities:
-
-#### **String Conversion Codecs**
+Codecs enable safe, type-checked conversions between different data formats:
 
 ```typescript
-import { stringToNumber, stringToInt, stringToBigInt, stringToBoolean } from '@oxog/vld';
+import { stringToNumber, jsonCodec, base64ToBytes } from '@oxog/vld';
 
 // String to number conversion
 const age = stringToNumber.parse('25'); // 25
 const price = stringToNumber.encode(99.99); // "99.99"
 
-// String to integer (validates integer constraint)
-const count = stringToInt.parse('42'); // 42
-stringToInt.parse('42.5'); // ❌ Validation error: must be integer
+// JSON codec
+const userJson = jsonCodec();
+const user = userJson.parse('{"name":"John","age":30}');
+const jsonString = userJson.encode(user);
 
-// String to BigInt for large numbers
-const bigNum = stringToBigInt.parse('123456789012345678901234567890'); // 123456789012345678901234567890n
-
-// String to boolean (flexible parsing)
-stringToBoolean.parse('true'); // true
-stringToBoolean.parse('1'); // true
-stringToBoolean.parse('yes'); // true
-stringToBoolean.parse('on'); // true
-stringToBoolean.parse('false'); // false
-stringToBoolean.parse('0'); // false
+// Binary data
+const bytes = base64ToBytes.parse('SGVsbG8gV29ybGQ=');
 ```
 
-#### **Date Conversion Codecs**
+### Built-in Codecs
 
+#### String Conversion Codecs
+```typescript
+import { stringToNumber, stringToInt, stringToBigInt, stringToBoolean } from '@oxog/vld';
+
+stringToNumber.parse('42.5');     // 42.5
+stringToInt.parse('42');          // 42
+stringToBigInt.parse('123n');     // 123n
+stringToBoolean.parse('true');    // true
+```
+
+#### Date Conversion Codecs
 ```typescript
 import { isoDatetimeToDate, epochSecondsToDate, epochMillisToDate } from '@oxog/vld';
 
-// ISO datetime string to Date
-const date1 = isoDatetimeToDate.parse('2023-12-25T10:30:00.000Z');
-console.log(date1.toISOString()); // "2023-12-25T10:30:00.000Z"
-
-// Unix epoch seconds to Date
-const date2 = epochSecondsToDate.parse(1703505000);
-console.log(date2.getFullYear()); // 2023
-
-// Unix epoch milliseconds to Date
-const date3 = epochMillisToDate.parse(1703505000000);
-console.log(date3.getMonth()); // 11 (December)
-
-// All support bidirectional conversion
-const backToEpoch = epochSecondsToDate.encode(new Date()); // Unix timestamp
+isoDatetimeToDate.parse('2023-12-25T10:30:00.000Z'); // Date
+epochSecondsToDate.parse(1703505000);                // Date
+epochMillisToDate.parse(1703505000000);              // Date
 ```
 
-#### **JSON and Complex Data Codecs**
-
-```typescript
-import { jsonCodec, base64Json } from '@oxog/vld';
-
-// Generic JSON codec
-const userJson = jsonCodec();
-const user = userJson.parse('{"name":"John","age":30}'); // { name: "John", age: 30 }
-const jsonString = userJson.encode(user); // '{"name":"John","age":30}'
-
-// JSON codec with schema validation
-const userSchema = v.object({
-  name: v.string(),
-  age: v.number()
-});
-const typedJsonCodec = jsonCodec(userSchema);
-const validatedUser = typedJsonCodec.parse('{"name":"John","age":30}'); // Fully typed!
-
-// Base64-encoded JSON
-const b64JsonCodec = base64Json(userSchema);
-const encoded = b64JsonCodec.encode({ name: "Alice", age: 25 }); // Base64 string
-const decoded = b64JsonCodec.parse(encoded); // { name: "Alice", age: 25 }
-```
-
-#### **URL and Web Codecs**
-
+#### URL Codecs
 ```typescript
 import { stringToURL, stringToHttpURL, uriComponent } from '@oxog/vld';
 
-// String to URL object
-const url = stringToURL.parse('https://example.com/path?param=value');
-console.log(url.hostname); // "example.com"
-console.log(url.searchParams.get('param')); // "value"
-
-// Restrict to HTTP/HTTPS only
-const httpUrl = stringToHttpURL.parse('https://api.example.com');
-stringToHttpURL.parse('ftp://files.example.com'); // ❌ Error: Must be HTTP/HTTPS
-
-// URI component encoding/decoding
-const encoded = uriComponent.parse('Hello World! 🚀'); // "Hello%20World!%20%F0%9F%9A%80"
-const decoded = uriComponent.encode(encoded); // "Hello World! 🚀"
+stringToURL.parse('https://example.com/path?q=1');
+stringToHttpURL.parse('https://api.example.com');
+uriComponent.parse('Hello World!'); // "Hello%20World!"
 ```
 
-#### **Binary Data Codecs**
-
+#### Binary Data Codecs
 ```typescript
 import { base64ToBytes, hexToBytes, utf8ToBytes, bytesToUtf8 } from '@oxog/vld';
 
-// Base64 to byte array
-const bytes1 = base64ToBytes.parse('SGVsbG8gV29ybGQ='); // Uint8Array([72, 101, 108, 108, 111, 32, 87, 111, 114, 108, 100])
-
-// Hex to byte array
-const bytes2 = hexToBytes.parse('48656c6c6f'); // Uint8Array([72, 101, 108, 108, 111])
-
-// UTF-8 string to bytes
-const bytes3 = utf8ToBytes.parse('Hello! 👋'); // Uint8Array([...])
-
-// Bytes to UTF-8 string
-const text = bytesToUtf8.parse(bytes3); // "Hello! 👋"
-
-// All support round-trip conversion
-const original = 'Hello World!';
-const roundTrip = bytesToUtf8.parse(utf8ToBytes.parse(original)); // "Hello World!"
+base64ToBytes.parse('SGVsbG8=');           // Uint8Array
+hexToBytes.parse('48656c6c6f');            // Uint8Array
+utf8ToBytes.parse('Hello');                // Uint8Array
+bytesToUtf8.parse(new Uint8Array([72, 101, 108, 108, 111])); // "Hello"
 ```
 
-### 🛠 Custom Codecs
-
-Create your own codecs for specific use cases:
+### Custom Codecs
 
 ```typescript
-import { v } from '@oxog/vld';
-
-// Custom CSV to array codec
 const csvToArray = v.codec(
-  v.string(), // Input: CSV string
-  v.array(v.string()), // Output: Array of strings
+  v.string(),
+  v.array(v.string()),
   {
     decode: (csv: string) => csv.split(',').map(s => s.trim()),
     encode: (arr: string[]) => arr.join(', ')
   }
 );
 
-const tags = csvToArray.parse('react, typescript, vld'); // ["react", "typescript", "vld"]
-const csvString = csvToArray.encode(['node', 'express', 'api']); // "node, express, api"
+const tags = csvToArray.parse('react, typescript, vld');
+// ["react", "typescript", "vld"]
 
-// Complex: Environment config codec
-const envConfigCodec = v.codec(
-  v.string(),
-  v.object({
-    port: v.number(),
-    debug: v.boolean(),
-    dbUrl: v.string()
-  }),
-  {
-    decode: (envString: string) => {
-      const config = {};
-      envString.split('\n').forEach(line => {
-        const [key, value] = line.split('=');
-        if (key === 'PORT') config.port = parseInt(value, 10);
-        if (key === 'DEBUG') config.debug = value === 'true';
-        if (key === 'DB_URL') config.dbUrl = value;
-      });
-      return config;
-    },
-    encode: (config) => [
-      `PORT=${config.port}`,
-      `DEBUG=${config.debug}`,
-      `DB_URL=${config.dbUrl}`
-    ].join('\n')
+const csvString = csvToArray.encode(['node', 'express', 'api']);
+// "node, express, api"
+```
+
+## Plugin System
+
+VLD v1.5.0 introduces a powerful plugin system for extending functionality.
+
+### Creating a Plugin
+
+```typescript
+import { definePlugin, usePlugin, v } from '@oxog/vld';
+
+// Define a custom plugin
+const myPlugin = definePlugin({
+  name: 'my-plugin',
+  version: '1.0.0',
+
+  // Custom validators
+  validators: {
+    phoneNumber: () => v.string().regex(/^\+?[1-9]\d{1,14}$/),
+    postalCode: () => v.string().regex(/^\d{5}(-\d{4})?$/)
+  },
+
+  // Custom transforms
+  transforms: {
+    normalizePhone: (phone: string) => phone.replace(/[^\d+]/g, '')
+  },
+
+  // Lifecycle hooks
+  install(kernel) {
+    console.log('Plugin installed!');
   }
-);
-```
-
-### 🚀 Advanced Codec Features
-
-#### **Async Codecs**
-```typescript
-const asyncCodec = v.codec(
-  v.string(),
-  v.object({ data: v.string() }),
-  {
-    decode: async (str: string) => {
-      // Simulate API call
-      const response = await fetch(`/api/decode?data=${str}`);
-      return response.json();
-    },
-    encode: async (obj) => {
-      const response = await fetch('/api/encode', {
-        method: 'POST',
-        body: JSON.stringify(obj)
-      });
-      return response.text();
-    }
-  }
-);
-
-// Use async methods
-const result = await asyncCodec.parseAsync('input-data');
-const encoded = await asyncCodec.encodeAsync({ data: 'output' });
-```
-
-#### **Error Handling**
-```typescript
-const safeParseResult = stringToNumber.safeParse('not-a-number');
-if (!safeParseResult.success) {
-  console.error('Parse failed:', safeParseResult.error.message);
-}
-
-const safeEncodeResult = stringToNumber.safeEncode('invalid-input');
-if (!safeEncodeResult.success) {
-  console.error('Encode failed:', safeEncodeResult.error.message);
-}
-```
-
-#### **JWT Payload Decoder**
-```typescript
-import { jwtPayload } from '@oxog/vld';
-
-// Decode JWT payload (read-only)
-const payloadSchema = v.object({
-  sub: v.string(),
-  name: v.string(),
-  iat: v.number()
 });
 
-const decoder = jwtPayload(payloadSchema);
-const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c';
-
-const payload = decoder.parse(token);
-console.log(payload.name); // "John Doe"
-console.log(payload.sub); // "1234567890"
+// Register the plugin
+usePlugin(myPlugin);
 ```
 
-### 🎯 Codec vs Transform
-
-| Feature | Codec | Transform |
-|---------|--------|-----------|
-| **Direction** | Bidirectional (encode/decode) | Unidirectional (transform only) |
-| **Type Safety** | Input and output validation | Output validation only |
-| **Use Case** | Data serialization, API boundaries | Data cleaning, formatting |
-| **Performance** | Optimized for round-trips | Optimized for single direction |
+### Using Plugin Validators
 
 ```typescript
-// Transform: One-way conversion
-const upperCase = v.string().transform(s => s.toUpperCase());
-const result = upperCase.parse('hello'); // "HELLO"
-// No way to get back to "hello"
+import { createVldKernel, usePlugin } from '@oxog/vld';
 
-// Codec: Two-way conversion
-const upperCaseCodec = v.codec(
-  v.string(),
-  v.string(), 
-  {
-    decode: s => s.toUpperCase(),
-    encode: s => s.toLowerCase()
-  }
-);
-const encoded = upperCaseCodec.parse('hello'); // "HELLO"
-const original = upperCaseCodec.encode('HELLO'); // "hello"
+const kernel = createVldKernel({ debug: true });
+
+kernel.use(myPlugin);
+
+// Access custom validators
+const phoneSchema = kernel.validator('phoneNumber');
+phoneSchema.parse('+1234567890');
 ```
 
-## 🔄 Migrating from Zod
+## Result Pattern
 
-VLD provides 100% feature parity with Zod, making migration seamless:
+VLD v1.5.0 includes a functional Result pattern for error handling.
 
-### Simple Migration
+### Basic Usage
+
+```typescript
+import { Ok, Err, match, map, flatMap, tryCatch } from '@oxog/vld';
+
+// Create results
+const success = Ok(42);
+const failure = Err(new Error('Something went wrong'));
+
+// Pattern matching
+const message = match(success, {
+  ok: (value) => `Got: ${value}`,
+  err: (error) => `Error: ${error.message}`
+});
+
+// Transform results
+const doubled = map(success, (n) => n * 2); // Ok(84)
+
+// Chain operations
+const result = flatMap(success, (n) =>
+  n > 0 ? Ok(n * 2) : Err(new Error('Must be positive'))
+);
+
+// Safe function execution
+const parsed = tryCatch(() => JSON.parse('{"a":1}'));
+```
+
+### With Validation
+
+```typescript
+import { v, isOk, isErr, unwrapOr } from '@oxog/vld';
+
+const schema = v.object({
+  name: v.string(),
+  age: v.number().min(0)
+});
+
+const result = schema.safeParse(data);
+
+if (isOk(result)) {
+  console.log('Valid:', result.data);
+} else {
+  console.log('Invalid:', result.error);
+}
+
+// With default value
+const user = unwrapOr(result, { name: 'Guest', age: 0 });
+```
+
+### Combining Results
+
+```typescript
+import { all, fromNullable } from '@oxog/vld';
+
+// Combine multiple results
+const results = [Ok(1), Ok(2), Ok(3)];
+const combined = all(results); // Ok([1, 2, 3])
+
+// Convert nullable to Result
+const maybeValue: string | null = getValue();
+const result = fromNullable(maybeValue, new Error('Value is null'));
+```
+
+## CLI Tools
+
+VLD includes command-line tools for validation and benchmarking.
+
+### Installation
+
+```bash
+npm install -g @oxog/vld
+# or use npx
+npx vld --help
+```
+
+### Commands
+
+```bash
+# Show help
+vld --help
+
+# Validate data
+vld validate schema.json data.json
+
+# Run benchmarks
+vld benchmark
+
+# Show version
+vld --version
+```
+
+### Programmatic CLI
+
+```typescript
+import { createCli, vldCli } from '@oxog/vld/cli';
+
+// Use the built-in CLI
+vldCli.run(process.argv.slice(2));
+
+// Or create a custom CLI
+const cli = createCli('my-app', '1.0.0', 'My validation app')
+  .command({
+    name: 'validate',
+    description: 'Validate data',
+    action: async (args, options) => {
+      // Custom validation logic
+    }
+  });
+
+cli.run(process.argv.slice(2));
+```
+
+## Logger & Colored Output
+
+VLD includes a logging system and colored terminal output.
+
+### Logger
+
+```typescript
+import { createLogger, setLogLevel, enableDebug } from '@oxog/vld';
+
+// Create a logger
+const logger = createLogger({ prefix: 'VLD' });
+
+logger.info('Processing...');
+logger.warn('Deprecated feature');
+logger.error('Validation failed');
+logger.debug('Debug info');
+
+// Set log level globally
+setLogLevel('debug');
+
+// Enable debug mode
+enableDebug();
+```
+
+### Colored Output (Pigment)
+
+```typescript
+import { pigment, red, green, blue, bold, dim } from '@oxog/vld';
+
+console.log(red('Error!'));
+console.log(green('Success!'));
+console.log(bold(blue('Important')));
+console.log(dim('Less important'));
+
+// Or use the pigment object
+console.log(pigment.red('Error!'));
+console.log(pigment.bold(pigment.green('Success!')));
+```
+
+## VLD vs. Zod
+
+VLD is designed as a compelling alternative to Zod, offering full feature parity while delivering significant improvements.
+
+### Feature Comparison
+
+| Feature                 | VLD                                | Zod                                  |
+| ----------------------- | ---------------------------------- | ------------------------------------ |
+| **Performance**         | **~1.98x faster** (average)        | Baseline                             |
+| **Memory Usage**        | **~78% less** overall              | Baseline                             |
+| **Internationalization**| **Built-in (27+ languages)**       | Requires third-party library         |
+| **Dependencies**        | **Zero**                           | `zod-i18n` for locales               |
+| **Bundle Size**         | Smaller                            | Larger                               |
+| **API**                 | 100% Zod-compatible                | Standard Zod API                     |
+| **Plugin System**       | **Built-in**                       | Not available                        |
+| **Result Pattern**      | **Built-in**                       | Not available                        |
+| **CLI Tools**           | **Built-in**                       | Not available                        |
+| **Codecs**              | Built-in, bidirectional            | Via external `zod-codecs`            |
+| **Type Inference**      | Excellent                          | Excellent                            |
+
+### Seamless Migration from Zod
+
 ```javascript
 // Before (Zod)
 import { z } from 'zod';
@@ -1072,32 +1090,26 @@ import { v } from '@oxog/vld';
 const schema = v.string().email();
 ```
 
-### Why Migrate?
-- **⚡ Performance**: 2-4x faster for most operations
-- **💾 Memory**: Uses 1.18-1.82x less memory than Zod
-- **🌍 Internationalization**: Built-in 27+ language support
-- **📦 Bundle Size**: Smaller with zero dependencies
-- **🔒 Security**: Immutable validators prevent memory leaks
-- **✅ Testing**: 96.55% test coverage with 1142 tests
-
-## 📈 Benchmarks
+## Benchmarks
 
 ### Performance Results
 
-Latest benchmark results show VLD consistently outperforming Zod:
-
 | Test Case | VLD Performance | Improvement |
 |-----------|----------------|-------------|
-| Simple String | 44.4M ops/sec | **1.67x faster** |
-| Email Validation | 18.6M ops/sec | **3.63x faster** |
-| Number Validation | 22.7M ops/sec | **2.62x faster** |
-| Object Validation | 7.6M ops/sec | **1.27x faster** |
-| Array Validation | 6.7M ops/sec | **1.29x faster** |
-| Union Types | 6.8M ops/sec | **1.54x faster** |
-| Optional Values | 32.7M ops/sec | **4.52x faster** |
-| Type Coercion | 18.4M ops/sec | **1.46x faster** |
+| Simple String | 73.0M ops/sec | **2.03x faster** |
+| Email Validation | 21.8M ops/sec | **3.25x faster** |
+| Number Validation | 36.3M ops/sec | **3.23x faster** |
+| Simple Object | 7.1M ops/sec | **1.02x faster** |
+| Complex Object | 1.9M ops/sec | **1.34x faster** |
+| Array Validation | 7.5M ops/sec | **1.35x faster** |
+| Union Types | 7.1M ops/sec | **1.29x faster** |
+| Optional Values | 36.1M ops/sec | **3.16x faster** |
+| SafeParse | 60.0M ops/sec | **2.73x faster** |
+| Type Coercion | 20.4M ops/sec | **1.01x faster** |
+| Enum Validation | 60.3M ops/sec | **2.08x faster** |
+| Discriminated Union | 3.6M ops/sec | Zod 1.27x faster |
 
-**Average: 2.52x faster than Zod**
+**VLD won 11/12 tests | Average: 1.98x faster than Zod**
 
 ### Run Benchmarks
 
@@ -1115,11 +1127,11 @@ npm run benchmark:startup
 npm run benchmark:all
 ```
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## 🔗 Links
+## Links
 
 - [Documentation](https://vld.oxog.dev)
 - [NPM Package](https://www.npmjs.com/package/@oxog/vld)
@@ -1127,4 +1139,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ---
 
-Made with ❤️ by [Ersin KOÇ](https://github.com/ersinkoc)
+Made with Love by [Ersin KOC](https://github.com/ersinkoc)
