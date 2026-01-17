@@ -516,6 +516,25 @@ describe('VLD Kernel', () => {
       expect(() => kernel.executeAfterParse({ success: true, data: 'test' }, mockSchema, createMockHookContext())).toThrow('After parse error');
     });
 
+    it('should handle onAfterParse errors with isolate strategy in debug mode', () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const kernel = createVldKernel({ errorStrategy: 'isolate', debug: true });
+
+      kernel.use({
+        name: 'error-after-parse-plugin',
+        version: '1.0.0',
+        onAfterParse: () => {
+          throw new Error('After parse error in isolate');
+        }
+      });
+
+      const mockSchema = { parse: (v: unknown) => v } as any;
+      kernel.executeAfterParse({ success: true, data: 'test' }, mockSchema, createMockHookContext());
+
+      expect(consoleSpy).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
     it('should handle onError hook errors in debug mode', () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
       const kernel = createVldKernel({ debug: true });

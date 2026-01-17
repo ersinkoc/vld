@@ -183,6 +183,25 @@ describe('Event Emitter', () => {
       expect(emitter.eventNames()).not.toContain('c');
     });
 
+    it('should filter out events with no listeners in eventNames', () => {
+      const emitter = createEmitter<{ a: void; b: void }>();
+      const handler = () => {};
+
+      // Add listeners to both
+      emitter.on('a', handler);
+      emitter.on('b', () => {});
+
+      expect(emitter.eventNames()).toContain('a');
+      expect(emitter.eventNames()).toContain('b');
+
+      // Remove listener from 'a'
+      emitter.off('a', handler);
+
+      // Now 'a' should be filtered out (empty listener array)
+      expect(emitter.eventNames()).not.toContain('a');
+      expect(emitter.eventNames()).toContain('b');
+    });
+
     it('should emit async and wait for handlers', async () => {
       const emitter = createEmitter<{ event: number }>();
       const results: number[] = [];
@@ -215,6 +234,22 @@ describe('Event Emitter', () => {
       expect(called).toBe(true);
       expect(consoleSpy).toHaveBeenCalled();
       consoleSpy.mockRestore();
+    });
+
+    it('should support once with emitAsync', async () => {
+      // Line 162: tests once handler removal in emitAsync
+      const emitter = createEmitter<{ event: number }>();
+      let count = 0;
+
+      emitter.once('event', async (n) => {
+        count += n;
+      });
+
+      await emitter.emitAsync('event', 5);
+      await emitter.emitAsync('event', 10);
+
+      // Only the first emitAsync should trigger the handler
+      expect(count).toBe(5);
     });
 
     it('should do nothing when emitting to no listeners', () => {
@@ -270,6 +305,39 @@ describe('Event Emitter', () => {
 
       expect(mainResults).toEqual([1, 2]);
       expect(scopedResults).toEqual([1]);
+    });
+
+    it('should support once on scoped emitters', () => {
+      // Lines 261-263: tests createScope().once()
+      const bus = createEventBus<{ event: number }>();
+      let count = 0;
+
+      const scope = bus.createScope();
+      scope.once('event', (n) => { count += n; });
+
+      bus.emit('event', 5);
+      bus.emit('event', 10);
+
+      // Once should only fire once
+      expect(count).toBe(5);
+
+      scope.dispose();
+    });
+
+    it('should cleanup once handlers on dispose', () => {
+      const bus = createEventBus<{ event: number }>();
+      let count = 0;
+
+      const scope = bus.createScope();
+      scope.once('event', (n) => { count += n; });
+
+      // Dispose before any emit
+      scope.dispose();
+
+      bus.emit('event', 5);
+
+      // Handler should not fire after dispose
+      expect(count).toBe(0);
     });
   });
 

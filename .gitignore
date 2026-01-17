@@ -28,3 +28,6 @@ yarn-error.log*
 # Temporary files
 *.tmp
 *.temp
+
+.claude/
+.playwright-mcp/

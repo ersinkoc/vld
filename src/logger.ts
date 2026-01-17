@@ -116,8 +116,6 @@ function createDefaultHandler(options: LoggerOptions): LogHandler {
   const timestamps = options.timestamps ?? true;
 
   return (entry: LogEntry) => {
-    if (entry.level === 'silent') return;
-
     const parts: string[] = [];
 
     // Timestamp

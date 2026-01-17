@@ -276,6 +276,17 @@ describe('Result Pattern', () => {
         expect(result.error.message).toBe('async error');
       }
     });
+
+    it('should wrap non-Error throws in async function', async () => {
+      const result = await tryCatchAsync(async () => {
+        throw 'string error';
+      });
+
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) {
+        expect(result.error.message).toBe('string error');
+      }
+    });
   });
 
   describe('all', () => {

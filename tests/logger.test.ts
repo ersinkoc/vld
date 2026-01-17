@@ -457,5 +457,127 @@ describe('Logger', () => {
 
       infoSpy.mockRestore();
     });
+
+    it('should output with colors when colored is true', () => {
+      const infoSpy = jest.spyOn(console, 'info').mockImplementation();
+
+      const logger = createLogger({ level: 'info', colored: true, timestamps: true });
+      logger.info('colored test');
+
+      expect(infoSpy).toHaveBeenCalled();
+      const output = infoSpy.mock.calls[0][0] as string;
+      // Should contain ANSI escape codes
+      expect(output).toContain('\x1b[');
+
+      infoSpy.mockRestore();
+    });
+
+    it('should output without colors when colored is false', () => {
+      const infoSpy = jest.spyOn(console, 'info').mockImplementation();
+
+      const logger = createLogger({ level: 'info', colored: false, timestamps: true });
+      logger.info('plain test');
+
+      expect(infoSpy).toHaveBeenCalled();
+      const output = infoSpy.mock.calls[0][0] as string;
+      // Should NOT contain ANSI escape codes
+      expect(output).not.toContain('\x1b[');
+
+      infoSpy.mockRestore();
+    });
+
+    it('should skip timestamp when timestamps is false', () => {
+      const infoSpy = jest.spyOn(console, 'info').mockImplementation();
+
+      const logger = createLogger({ level: 'info', colored: false, timestamps: false });
+      logger.info('no timestamp test');
+
+      expect(infoSpy).toHaveBeenCalled();
+      const output = infoSpy.mock.calls[0][0] as string;
+      // Should not have ISO time format (HH:MM:SS.mmm)
+      expect(output).not.toMatch(/\d{2}:\d{2}:\d{2}\.\d{3}/);
+
+      infoSpy.mockRestore();
+    });
+
+    it('should include timestamp when timestamps is true', () => {
+      const infoSpy = jest.spyOn(console, 'info').mockImplementation();
+
+      const logger = createLogger({ level: 'info', colored: false, timestamps: true });
+      logger.info('timestamp test');
+
+      expect(infoSpy).toHaveBeenCalled();
+      const output = infoSpy.mock.calls[0][0] as string;
+      // Should have ISO time format (HH:MM:SS.mmm)
+      expect(output).toMatch(/\d{2}:\d{2}:\d{2}\.\d{3}/);
+
+      infoSpy.mockRestore();
+    });
+
+    it('should handle debug level with data', () => {
+      const debugSpy = jest.spyOn(console, 'debug').mockImplementation();
+
+      const logger = createLogger({ level: 'debug' });
+      logger.debug('debug with data', { debug: true });
+
+      expect(debugSpy).toHaveBeenCalledWith(expect.any(String), { debug: true });
+
+      debugSpy.mockRestore();
+    });
+
+    it('should handle warn level with data', () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      const logger = createLogger({ level: 'warn' });
+      logger.warn('warn with data', { warning: 'test' });
+
+      expect(warnSpy).toHaveBeenCalledWith(expect.any(String), { warning: 'test' });
+
+      warnSpy.mockRestore();
+    });
+
+    it('should handle error level with data', () => {
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      const logger = createLogger({ level: 'error' });
+      logger.error('error with data', { error: 'critical' });
+
+      expect(errorSpy).toHaveBeenCalledWith(expect.any(String), { error: 'critical' });
+
+      errorSpy.mockRestore();
+    });
+
+    it('should handle debug level without data', () => {
+      const debugSpy = jest.spyOn(console, 'debug').mockImplementation();
+
+      const logger = createLogger({ level: 'debug' });
+      logger.debug('debug without data');
+
+      expect(debugSpy).toHaveBeenCalledWith(expect.any(String), '');
+
+      debugSpy.mockRestore();
+    });
+
+    it('should handle warn level without data', () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      const logger = createLogger({ level: 'warn' });
+      logger.warn('warn without data');
+
+      expect(warnSpy).toHaveBeenCalledWith(expect.any(String), '');
+
+      warnSpy.mockRestore();
+    });
+
+    it('should handle error level without data', () => {
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      const logger = createLogger({ level: 'error' });
+      logger.error('error without data');
+
+      expect(errorSpy).toHaveBeenCalledWith(expect.any(String), '');
+
+      errorSpy.mockRestore();
+    });
   });
 });

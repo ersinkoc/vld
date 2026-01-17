@@ -358,4 +358,86 @@ runSuite('Refinements', {
   }
 });
 
+// ============================================
+// ENUM BENCHMARKS
+// ============================================
+
+const vldEnum = v.enum('admin', 'user', 'guest', 'moderator', 'editor');
+const zodEnum = z.enum(['admin', 'user', 'guest', 'moderator', 'editor']);
+
+runSuite('Enum Validation', {
+  'VLD - enum': () => {
+    vldEnum.parse('user');
+  },
+  'Zod - enum': () => {
+    zodEnum.parse('user');
+  },
+  'VLD - enum.safeParse()': () => {
+    vldEnum.safeParse('moderator');
+  },
+  'Zod - enum.safeParse()': () => {
+    zodEnum.safeParse('moderator');
+  }
+});
+
+// ============================================
+// DISCRIMINATED UNION BENCHMARKS
+// ============================================
+
+const vldDiscUnion = v.discriminatedUnion('type',
+  v.object({ type: v.literal('user'), name: v.string(), age: v.number() }),
+  v.object({ type: v.literal('product'), title: v.string(), price: v.number() }),
+  v.object({ type: v.literal('order'), orderId: v.string(), total: v.number() }),
+  v.object({ type: v.literal('payment'), method: v.string(), amount: v.number() })
+);
+
+const zodDiscUnion = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('user'), name: z.string(), age: z.number() }),
+  z.object({ type: z.literal('product'), title: z.string(), price: z.number() }),
+  z.object({ type: z.literal('order'), orderId: z.string(), total: z.number() }),
+  z.object({ type: z.literal('payment'), method: z.string(), amount: z.number() }),
+]);
+
+const discUserData = { type: 'user', name: 'John', age: 30 };
+const discProductData = { type: 'product', title: 'Laptop', price: 999 };
+const discPaymentData = { type: 'payment', method: 'card', amount: 150 };
+
+runSuite('Discriminated Union (O(1) lookup)', {
+  'VLD - first variant': () => {
+    vldDiscUnion.parse(discUserData);
+  },
+  'Zod - first variant': () => {
+    zodDiscUnion.parse(discUserData);
+  },
+  'VLD - middle variant': () => {
+    vldDiscUnion.parse(discProductData);
+  },
+  'Zod - middle variant': () => {
+    zodDiscUnion.parse(discProductData);
+  },
+  'VLD - last variant': () => {
+    vldDiscUnion.parse(discPaymentData);
+  },
+  'Zod - last variant': () => {
+    zodDiscUnion.parse(discPaymentData);
+  }
+});
+
+// ============================================
+// TUPLE BENCHMARKS
+// ============================================
+
+const vldTuple = v.tuple(v.string(), v.number(), v.boolean());
+const zodTuple = z.tuple([z.string(), z.number(), z.boolean()]);
+const tupleData = ['hello', 42, true];
+
+runSuite('Tuple Validation', {
+  'VLD - tuple': () => {
+    vldTuple.parse(tupleData);
+  },
+  'Zod - tuple': () => {
+    zodTuple.parse(tupleData);
+  }
+});
+
 console.log(`\n${colors.bright}${colors.green}✓ All benchmarks completed${colors.reset}\n`);

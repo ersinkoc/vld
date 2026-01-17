@@ -17,44 +17,37 @@ export class VldCoerceBoolean extends VldBoolean {
    * Parse and coerce a value to boolean
    */
   parse(value: unknown): boolean {
-    try {
-      // Handle string values
-      if (typeof value === 'string') {
-        const lower = value.toLowerCase().trim();
-        if (lower === 'true' || lower === '1' || lower === 'yes' || lower === 'on') {
-          return true;
-        }
-        if (lower === 'false' || lower === '0' || lower === 'no' || lower === 'off') {
-          return false;
-        }
-        throw new Error(getMessages().coercionFailed('boolean', value));
+    // Handle string values
+    if (typeof value === 'string') {
+      const lower = value.toLowerCase().trim();
+      if (lower === 'true' || lower === '1' || lower === 'yes' || lower === 'on') {
+        return true;
       }
-      
-      // Handle number values
-      if (typeof value === 'number') {
-        if (value === 1) return true;
-        if (value === 0) return false;
-        throw new Error(getMessages().coercionFailed('boolean', value));
-      }
-      
-      // Handle null and undefined
-      if (value === null || value === undefined) {
-        throw new Error(getMessages().coercionFailed('boolean', value));
-      }
-
-      // Handle actual boolean values
-      if (typeof value === 'boolean') {
-        return super.parse(value);
-      }
-
-      // Reject all other unsupported types (objects, arrays, etc.)
-      throw new Error(getMessages().coercionFailed('boolean', value));
-    } catch (error) {
-      if ((error as Error).message.includes('coercionFailed')) {
-        throw error;
+      if (lower === 'false' || lower === '0' || lower === 'no' || lower === 'off') {
+        return false;
       }
       throw new Error(getMessages().coercionFailed('boolean', value));
     }
+
+    // Handle number values
+    if (typeof value === 'number') {
+      if (value === 1) return true;
+      if (value === 0) return false;
+      throw new Error(getMessages().coercionFailed('boolean', value));
+    }
+
+    // Handle null and undefined
+    if (value === null || value === undefined) {
+      throw new Error(getMessages().coercionFailed('boolean', value));
+    }
+
+    // Handle actual boolean values
+    if (typeof value === 'boolean') {
+      return value;
+    }
+
+    // Reject all other unsupported types (objects, arrays, etc.)
+    throw new Error(getMessages().coercionFailed('boolean', value));
   }
   
   /**

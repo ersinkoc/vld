@@ -35,7 +35,7 @@ export class VldCoerceDate extends VldDate {
       // Use parent validation for actual dates
       return super.parse(value);
     } catch (error) {
-      if ((error as Error).message.includes('coercionFailed')) {
+      if ((error as Error).message.includes('Cannot coerce')) {
         throw error;
       }
       throw new Error(getMessages().coercionFailed('date', value));

@@ -1,16 +1,45 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, Zap, Shield, Gauge, Package, Globe, Code, CheckCircle2, Sparkles, Copy, Check, GitCompare } from 'lucide-react'
+import { ArrowRight, Zap, Shield, Package, Code, CheckCircle2, Sparkles, GitCompare, Terminal, Cpu, Languages } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { CodeBlock } from '@/components/ui/code-block'
-import { useState } from 'react'
+import { CodeBlock, CommandLine } from '@/components/ui/code-block'
 
 const features = [
-  { icon: Zap, title: 'Blazing Fast', description: 'On average 2.5x faster than Zod v4 with optimized V8 performance. Wins 9/10 benchmarks.' },
-  { icon: Shield, title: 'Type-Safe', description: 'Full TypeScript inference. Your types are always in sync with your schemas.' },
-  { icon: Package, title: 'Zero Dependencies', description: '~57KB gzipped (14% smaller than Zod). No bloat, just validation.' },
-  { icon: Globe, title: '27+ Languages', description: 'Built-in i18n support for error messages. Turkish, German, Japanese and more.' },
-  { icon: Gauge, title: 'Tree-Shakeable', description: 'Import only what you need. Modular architecture for optimal bundles.' },
-  { icon: Code, title: 'Great DX', description: 'Intuitive, chainable API inspired by Zod. Easy migration path.' },
+  {
+    icon: Zap,
+    title: 'Blazing Fast',
+    description: '~2x faster than Zod v4 on average. Wins 10 out of 12 benchmark tests.',
+    color: 'from-amber-500 to-orange-500',
+  },
+  {
+    icon: Shield,
+    title: 'Type-Safe',
+    description: 'Full TypeScript inference. Your types are always in sync with your schemas.',
+    color: 'from-emerald-500 to-teal-500',
+  },
+  {
+    icon: Package,
+    title: 'Zero Dependencies',
+    description: '~57KB gzipped, 14% smaller than Zod. No bloat, just validation.',
+    color: 'from-blue-500 to-cyan-500',
+  },
+  {
+    icon: Languages,
+    title: '27+ Languages',
+    description: 'Built-in i18n support. Turkish, German, Japanese, and many more.',
+    color: 'from-purple-500 to-pink-500',
+  },
+  {
+    icon: Cpu,
+    title: 'Plugin System',
+    description: 'Extend VLD with custom validators, transforms, and lifecycle hooks.',
+    color: 'from-rose-500 to-red-500',
+  },
+  {
+    icon: Code,
+    title: 'Result Pattern',
+    description: 'Functional error handling with Ok/Err. Match, map, flatMap utilities.',
+    color: 'from-indigo-500 to-violet-500',
+  },
 ]
 
 const quickExample = `import { v } from "@oxog/vld"
@@ -20,7 +49,7 @@ const userSchema = v.object({
   name: v.string().min(2).max(100),
   email: v.string().email(),
   age: v.number().int().positive().optional(),
-  role: v.enum(["admin", "user", "guest"]),
+  role: v.enum("admin", "user", "guest"),
   tags: v.array(v.string()).min(1),
 })
 
@@ -35,133 +64,157 @@ if (result.success) {
   console.log(result.error.issues)
 }`
 
-const zodComparison = `// Zod
+const zodComparison = `// Zod v4
 import { z } from "zod"
 const schema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
 })
 
-// VLD - Same API, 2.5x faster on average
+// VLD - Same API, ~2x faster
 import { v } from "@oxog/vld"
 const schema = v.object({
   name: v.string().min(2),
   email: v.string().email(),
 })`
 
-const codecsExample = `import { codecs } from "@oxog/vld"
+const resultPatternExample = `import { Ok, Err, match, tryCatch } from "@oxog/vld"
 
-// 19 built-in codecs for common transformations
-const numCodec = codecs.stringToNumber
-numCodec.decode("123")  // 123
-numCodec.encode(123)    // "123"
+// Result Pattern - Functional error handling
+const result = tryCatch(() => JSON.parse(data))
+const value = match(result, {
+  ok: (data) => data.name,
+  err: (e) => "default"
+})
 
-// JWT payload extraction
-const jwtCodec = codecs.jwtPayload
-const payload = jwtCodec.decode(token)
-
-// URL parsing with validation
-const urlCodec = codecs.stringToHttpURL
-const url = urlCodec.decode("https://example.com")`
+// Plugin System - Extend VLD
+const myPlugin = definePlugin({
+  name: "my-plugin",
+  validators: {
+    phone: () => v.string().regex(/^\\+?[1-9]\\d{1,14}$/)
+  }
+})`
 
 const stats = [
-  { value: '2.5x', label: 'Faster than Zod', detail: 'Benchmark proven' },
-  { value: '0', label: 'Dependencies', detail: 'Zero bloat' },
-  { value: '27+', label: 'Languages', detail: 'i18n built-in' },
-  { value: '57KB', label: 'Gzipped', detail: '14% smaller' },
-  { value: '19', label: 'Built-in Codecs', detail: 'Transform data' },
-  { value: '9/10', label: 'Tests Won', detail: 'vs Zod v4' },
+  { value: '~2x', label: 'Faster', sublabel: 'than Zod v4' },
+  { value: '0', label: 'Dependencies', sublabel: 'zero bloat' },
+  { value: '27+', label: 'Languages', sublabel: 'i18n built-in' },
+  { value: '19', label: 'Codecs', sublabel: 'data transforms' },
 ]
 
 const comparisons = [
-  { feature: 'Bundle Size (gzip)', vld: '57KB', zod: '66KB', winner: 'vld' },
-  { feature: 'Avg Performance', vld: '2.5x faster', zod: 'baseline', winner: 'vld' },
+  { feature: 'Avg Performance', vld: '~2x faster', zod: 'baseline', winner: 'vld' },
+  { feature: 'Test Wins', vld: '10/12', zod: '2/12', winner: 'vld' },
   { feature: 'Memory Usage', vld: '3x less', zod: 'baseline', winner: 'vld' },
+  { feature: 'Bundle Size', vld: '57KB', zod: '66KB', winner: 'vld' },
   { feature: 'TypeScript Inference', vld: 'Full', zod: 'Full', winner: 'tie' },
-  { feature: 'Zero Dependencies', vld: '✓', zod: '✓', winner: 'tie' },
-  { feature: 'Built-in i18n', vld: '27+ languages', zod: '✗', winner: 'vld' },
-  { feature: 'Built-in Codecs', vld: '19 codecs', zod: '✗', winner: 'vld' },
-  { feature: 'Simple Object Speed', vld: 'baseline', zod: '1.15x faster', winner: 'zod' },
+  { feature: 'Built-in i18n', vld: '27+ langs', zod: 'None', winner: 'vld' },
+  { feature: 'Built-in Codecs', vld: '19 codecs', zod: 'None', winner: 'vld' },
+  { feature: 'Plugin System', vld: 'Yes', zod: 'No', winner: 'vld' },
 ]
-
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false)
-  const copy = () => {
-    navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-  return (
-    <button onClick={copy} className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted hover:bg-muted/80 transition-colors text-sm">
-      {copied ? <Check className="w-4 h-4 text-vld-success" /> : <Copy className="w-4 h-4" />}
-      {copied ? 'Copied!' : 'Copy'}
-    </button>
-  )
-}
 
 export function HomePage() {
   return (
     <div className="relative">
       {/* Hero Section */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-vld-primary/10 via-transparent to-vld-secondary/10" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-vld-primary/5 via-transparent to-transparent" />
-        <div className="container mx-auto px-4 py-24 lg:py-32 relative">
-          <div className="max-w-4xl mx-auto text-center">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-vld-primary/10 border border-vld-primary/20 text-sm font-medium text-vld-primary mb-8 animate-fade-in">
-              <Sparkles className="w-4 h-4" />
-              <span>v1.4.0 - Now with 19 built-in codecs!</span>
+      <section className="relative min-h-[90vh] flex items-center overflow-hidden">
+        {/* Background effects */}
+        <div className="absolute inset-0 bg-grid opacity-50" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-gradient-radial opacity-30" />
+        <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-vld-accent/10 rounded-full blur-3xl" />
+
+        <div className="container-wide relative py-20 lg:py-32">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+            {/* Left: Content */}
+            <div className="max-w-xl">
+              <div className="animate-fade-in">
+                <div className="tag mb-6">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>v1.5.0 — Plugin System & Result Pattern</span>
+                </div>
+              </div>
+
+              <h1 className="animate-fade-in stagger-1 font-display text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-6 text-balance">
+                Ultra-Fast Validation for{' '}
+                <span className="gradient-text">TypeScript</span>
+              </h1>
+
+              <p className="animate-fade-in stagger-2 text-lg text-muted-foreground mb-8 leading-relaxed">
+                A lightning-fast, type-safe validation library with zero dependencies.
+                Drop-in Zod replacement, averaging 2.5x better performance.
+              </p>
+
+              <div className="animate-fade-in stagger-3 flex flex-wrap items-center gap-4 mb-10">
+                <Button variant="gradient" size="xl" asChild>
+                  <Link to="/docs">
+                    Get Started
+                    <ArrowRight className="w-5 h-5" />
+                  </Link>
+                </Button>
+                <Button variant="outline" size="xl" asChild>
+                  <Link to="/playground">Try Playground</Link>
+                </Button>
+              </div>
+
+              <div className="animate-fade-in stagger-4">
+                <CommandLine command="npm install @oxog/vld" />
+              </div>
             </div>
-            <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold tracking-tight mb-6 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-              Ultra-Fast Validation<br />
-              for <span className="gradient-text">TypeScript</span>
-            </h1>
-            <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-8 animate-fade-in" style={{ animationDelay: '0.2s' }}>
-              A lightning-fast, type-safe validation library with zero dependencies.
-              Drop-in replacement for Zod, averaging 2.5x better performance.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12 animate-fade-in" style={{ animationDelay: '0.3s' }}>
-              <Button variant="gradient" size="xl" asChild>
-                <Link to="/docs">Get Started <ArrowRight className="w-5 h-5" /></Link>
-              </Button>
-              <Button variant="outline" size="xl" asChild>
-                <Link to="/playground">Try Playground</Link>
-              </Button>
-            </div>
-            <div className="inline-flex items-center gap-3 px-4 py-2 rounded-lg bg-zinc-900 dark:bg-zinc-950 border border-zinc-700 font-mono text-sm animate-fade-in" style={{ animationDelay: '0.4s' }}>
-              <span className="text-emerald-400">$</span>
-              <code className="text-zinc-100">npm install @oxog/vld</code>
-              <CopyButton text="npm install @oxog/vld" />
+
+            {/* Right: Code Preview */}
+            <div className="animate-fade-in stagger-5 lg:pl-8">
+              <div className="relative">
+                <div className="absolute -inset-4 bg-gradient-to-r from-vld-primary/20 to-cyan-500/20 rounded-2xl blur-2xl opacity-50" />
+                <CodeBlock
+                  code={quickExample}
+                  language="typescript"
+                  filename="schema.ts"
+                  showLineNumbers
+                />
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* Stats Section */}
-      <section className="py-12 border-y border-border bg-muted/30">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8">
+      <section className="relative py-16 border-y border-border bg-muted/30">
+        <div className="container-wide">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {stats.map((stat, i) => (
-              <div key={stat.label} className="text-center animate-fade-in" style={{ animationDelay: `${i * 0.1}s` }}>
-                <div className="text-3xl lg:text-4xl font-bold gradient-text mb-1">{stat.value}</div>
-                <div className="text-sm font-medium mb-0.5">{stat.label}</div>
-                <div className="text-xs text-muted-foreground">{stat.detail}</div>
+              <div
+                key={stat.label}
+                className="text-center animate-fade-in"
+                style={{ animationDelay: `${i * 0.1}s` }}
+              >
+                <div className="font-display text-4xl lg:text-5xl font-bold gradient-text mb-1">
+                  {stat.value}
+                </div>
+                <div className="font-medium text-foreground">{stat.label}</div>
+                <div className="text-sm text-muted-foreground">{stat.sublabel}</div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Code Example Section */}
-      <section className="py-20 lg:py-28">
-        <div className="container mx-auto px-4">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+      {/* Simple API Section */}
+      <section className="py-24 lg:py-32">
+        <div className="container-wide">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div>
-              <h2 className="text-3xl lg:text-4xl font-bold mb-6">Simple, Intuitive API</h2>
-              <p className="text-lg text-muted-foreground mb-8">
+              <div className="tag mb-4">
+                <Terminal className="w-3.5 h-3.5" />
+                <span>Simple API</span>
+              </div>
+              <h2 className="font-display text-3xl lg:text-4xl font-bold mb-6">
+                Intuitive, Chainable API
+              </h2>
+              <p className="text-lg text-muted-foreground mb-8 leading-relaxed">
                 Define schemas with a clean, chainable API that feels natural.
-                Get full TypeScript inference without any extra configuration.
+                Get full TypeScript inference without any configuration.
               </p>
+
               <ul className="space-y-4 mb-8">
                 {[
                   'Full type inference from schemas',
@@ -171,53 +224,79 @@ export function HomePage() {
                   'Custom refinements and transforms',
                   'Async validation support',
                 ].map((item, i) => (
-                  <li key={item} className="flex items-center gap-3 animate-fade-in" style={{ animationDelay: `${i * 0.05}s` }}>
-                    <CheckCircle2 className="w-5 h-5 text-vld-success shrink-0" />
-                    <span>{item}</span>
+                  <li
+                    key={item}
+                    className="flex items-center gap-3 animate-fade-in"
+                    style={{ animationDelay: `${i * 0.05}s` }}
+                  >
+                    <div className="w-5 h-5 rounded-full bg-vld-success/20 flex items-center justify-center shrink-0">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-vld-success" />
+                    </div>
+                    <span className="text-foreground">{item}</span>
                   </li>
                 ))}
               </ul>
+
               <div className="flex gap-4">
-                <Button variant="outline" asChild>
-                  <Link to="/docs">Documentation <ArrowRight className="w-4 h-4" /></Link>
+                <Button variant="primary" asChild>
+                  <Link to="/docs">
+                    Documentation
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
                 </Button>
                 <Button variant="ghost" asChild>
                   <Link to="/api">API Reference</Link>
                 </Button>
               </div>
             </div>
-            <div className="bg-card rounded-xl border border-border shadow-2xl overflow-hidden">
-              <CodeBlock code={quickExample} language="typescript" filename="example.ts" showLineNumbers />
+
+            <div className="relative">
+              <div className="absolute -inset-4 bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 rounded-2xl blur-2xl" />
+              <CodeBlock
+                code={resultPatternExample}
+                language="typescript"
+                filename="features.ts"
+                showLineNumbers
+              />
             </div>
           </div>
         </div>
       </section>
 
       {/* Comparison Section */}
-      <section className="py-20 lg:py-28 bg-muted/30">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-vld-primary/10 border border-vld-primary/20 text-sm font-medium text-vld-primary mb-4">
-              <GitCompare className="w-4 h-4" />
+      <section className="py-24 lg:py-32 bg-muted/30">
+        <div className="container-wide">
+          <div className="text-center mb-16">
+            <div className="tag mx-auto mb-4">
+              <GitCompare className="w-3.5 h-3.5" />
               <span>Zod Comparison</span>
             </div>
-            <h2 className="text-3xl lg:text-4xl font-bold mb-4">Why Switch to VLD?</h2>
+            <h2 className="font-display text-3xl lg:text-4xl font-bold mb-4">
+              Why Switch to VLD?
+            </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              VLD is designed as a drop-in replacement for Zod with significantly better performance and extra features.
+              Drop-in replacement for Zod with significantly better performance and extra features.
             </p>
           </div>
 
           <div className="grid lg:grid-cols-2 gap-8 items-start">
-            <div className="bg-card rounded-xl border border-border overflow-hidden">
-              <CodeBlock code={zodComparison} language="typescript" filename="comparison.ts" showLineNumbers />
-            </div>
+            <CodeBlock
+              code={zodComparison}
+              language="typescript"
+              filename="comparison.ts"
+              showLineNumbers
+            />
+
             <div className="bg-card rounded-xl border border-border overflow-hidden">
               <div className="p-4 border-b border-border bg-muted/50">
-                <h3 className="font-semibold">Feature Comparison</h3>
+                <h3 className="font-display font-semibold">Feature Comparison</h3>
               </div>
               <div className="divide-y divide-border">
                 {comparisons.map((row) => (
-                  <div key={row.feature} className="flex items-center p-4 hover:bg-muted/30 transition-colors">
+                  <div
+                    key={row.feature}
+                    className="flex items-center p-4 hover:bg-muted/30 transition-colors"
+                  >
                     <div className="flex-1 text-sm font-medium">{row.feature}</div>
                     <div className={`w-28 text-center text-sm ${row.winner === 'vld' ? 'text-vld-success font-semibold' : ''}`}>
                       {row.vld}
@@ -231,75 +310,44 @@ export function HomePage() {
             </div>
           </div>
 
-          <div className="text-center mt-8">
+          <div className="text-center mt-10">
             <Button variant="outline" asChild>
-              <Link to="/benchmark">View Full Benchmarks <ArrowRight className="w-4 h-4" /></Link>
+              <Link to="/benchmark">
+                View Full Benchmarks
+                <ArrowRight className="w-4 h-4" />
+              </Link>
             </Button>
           </div>
         </div>
       </section>
 
-      {/* Codecs Section */}
-      <section className="py-20 lg:py-28">
-        <div className="container mx-auto px-4">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className="order-2 lg:order-1 bg-card rounded-xl border border-border shadow-2xl overflow-hidden">
-              <CodeBlock code={codecsExample} language="typescript" filename="codecs.ts" showLineNumbers />
-            </div>
-            <div className="order-1 lg:order-2">
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-vld-secondary/10 border border-vld-secondary/20 text-sm font-medium text-vld-secondary mb-4">
-                <Sparkles className="w-4 h-4" />
-                <span>New in v1.4</span>
-              </div>
-              <h2 className="text-3xl lg:text-4xl font-bold mb-6">19 Built-in Codecs</h2>
-              <p className="text-lg text-muted-foreground mb-8">
-                Transform and validate data with bidirectional codecs.
-                Parse strings to numbers, dates, URLs, and more with type safety.
-              </p>
-              <ul className="space-y-3 mb-8">
-                {[
-                  'String to Number/Int/BigInt conversion',
-                  'ISO datetime and epoch to Date',
-                  'JWT payload extraction',
-                  'URL and URI component parsing',
-                  'Base64/Hex binary encoding',
-                  'JSON string parsing',
-                ].map((item) => (
-                  <li key={item} className="flex items-center gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-vld-success shrink-0" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-              <Button variant="outline" asChild>
-                <Link to="/api">Explore Codecs <ArrowRight className="w-4 h-4" /></Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section className="py-20 lg:py-28 bg-muted/30">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl lg:text-4xl font-bold mb-4">Why Choose VLD?</h2>
+      {/* Features Grid */}
+      <section className="py-24 lg:py-32">
+        <div className="container-wide">
+          <div className="text-center mb-16">
+            <h2 className="font-display text-3xl lg:text-4xl font-bold mb-4">
+              Why Choose VLD?
+            </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               Built for performance without sacrificing developer experience.
             </p>
           </div>
+
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {features.map((f, i) => (
               <div
                 key={f.title}
-                className="p-6 rounded-xl bg-card border border-border hover:border-vld-primary/50 hover:shadow-lg hover:shadow-vld-primary/5 transition-all group animate-fade-in"
+                className="group p-6 rounded-xl bg-card border border-border hover:border-transparent transition-all duration-300 animate-fade-in relative overflow-hidden"
                 style={{ animationDelay: `${i * 0.1}s` }}
               >
-                <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-vld-primary/20 to-vld-secondary/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                  <f.icon className="w-6 h-6 text-vld-primary" />
+                {/* Hover gradient */}
+                <div className={`absolute inset-0 bg-gradient-to-br ${f.color} opacity-0 group-hover:opacity-5 transition-opacity`} />
+
+                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${f.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
+                  <f.icon className="w-6 h-6 text-white" />
                 </div>
-                <h3 className="text-lg font-semibold mb-2">{f.title}</h3>
-                <p className="text-muted-foreground text-sm">{f.description}</p>
+                <h3 className="font-display text-lg font-semibold mb-2">{f.title}</h3>
+                <p className="text-muted-foreground text-sm leading-relaxed">{f.description}</p>
               </div>
             ))}
           </div>
@@ -307,17 +355,25 @@ export function HomePage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 lg:py-28 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-vld-primary/10 via-transparent to-vld-secondary/10" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-vld-secondary/5 via-transparent to-transparent" />
-        <div className="container mx-auto px-4 text-center relative">
-          <h2 className="text-3xl lg:text-4xl font-bold mb-4">Ready to Validate Faster?</h2>
-          <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
-            Join developers who switched from Zod to VLD for better performance without compromising on features.
+      <section className="py-24 lg:py-32 relative overflow-hidden">
+        <div className="absolute inset-0 bg-grid opacity-30" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-radial opacity-40" />
+
+        <div className="container-wide relative text-center">
+          <h2 className="font-display text-3xl lg:text-5xl font-bold mb-6">
+            Ready to Validate Faster?
+          </h2>
+          <p className="text-lg text-muted-foreground mb-10 max-w-xl mx-auto">
+            Join developers who switched from Zod to VLD for better performance
+            without compromising on features.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10">
             <Button variant="gradient" size="xl" asChild>
-              <Link to="/docs">Get Started <ArrowRight className="w-5 h-5" /></Link>
+              <Link to="/docs">
+                Get Started
+                <ArrowRight className="w-5 h-5" />
+              </Link>
             </Button>
             <Button variant="outline" size="xl" asChild>
               <a href="https://github.com/ersinkoc/vld" target="_blank" rel="noopener noreferrer">
@@ -325,10 +381,8 @@ export function HomePage() {
               </a>
             </Button>
           </div>
-          <div className="inline-flex items-center gap-3 px-4 py-2 rounded-lg bg-zinc-900 dark:bg-zinc-950 border border-zinc-700 font-mono text-sm">
-            <span className="text-emerald-400">$</span>
-            <code className="text-zinc-100">npm install @oxog/vld</code>
-          </div>
+
+          <CommandLine command="npm install @oxog/vld" className="max-w-md mx-auto" />
         </div>
       </section>
     </div>

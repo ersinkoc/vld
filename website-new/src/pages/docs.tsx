@@ -1,9 +1,20 @@
 import { useState } from 'react'
-import { BookOpen, Code2, Boxes, Settings, FileCode, Layers, Braces, Hash, ToggleLeft, ListOrdered, FileJson, GitBranch, Repeat, AlertTriangle, Globe } from 'lucide-react'
+import { BookOpen, Code2, Boxes, Settings, Layers, ChevronRight, Search, Plug, AlertCircle } from 'lucide-react'
 import { CodeBlock } from '@/components/ui/code-block'
 import { cn } from '@/lib/utils'
 
-const sidebarSections = [
+interface SidebarItem {
+  title: string
+  slug: string
+}
+
+interface SidebarSection {
+  title: string
+  icon: React.ElementType
+  items: SidebarItem[]
+}
+
+const sidebarSections: SidebarSection[] = [
   {
     title: 'Getting Started',
     icon: BookOpen,
@@ -49,6 +60,16 @@ const sidebarSections = [
     ],
   },
   {
+    title: 'v1.5 Features',
+    icon: Plug,
+    items: [
+      { title: 'Result Pattern', slug: 'result-pattern' },
+      { title: 'Plugin System', slug: 'plugin-system' },
+      { title: 'Event Emitter', slug: 'event-emitter' },
+      { title: 'Logger', slug: 'logger' },
+    ],
+  },
+  {
     title: 'Configuration',
     icon: Settings,
     items: [
@@ -58,7 +79,15 @@ const sidebarSections = [
   },
 ]
 
-const docContent: Record<string, { title: string; description: string; code: string; lang: string; tips?: string[] }> = {
+interface DocContent {
+  title: string
+  description: string
+  code: string
+  lang: string
+  tips?: string[]
+}
+
+const docContent: Record<string, DocContent> = {
   introduction: {
     title: 'Introduction',
     description: 'VLD is an ultra-fast, type-safe validation library for TypeScript. It provides a clean, chainable API similar to Zod but with significantly better performance.',
@@ -88,8 +117,8 @@ if (result.success) {
 }`,
     lang: 'typescript',
     tips: [
-      'VLD is on average 2.5x faster than Zod v4 (wins 9/10 benchmarks)',
-      'Zero dependencies - 57KB gzipped (14% smaller than Zod)',
+      'VLD is on average 2.5x faster than Zod v4',
+      'Zero dependencies - 57KB gzipped',
       'Full TypeScript inference',
       '27+ languages supported',
     ],
@@ -150,7 +179,7 @@ if (result.success) {
   },
   'why-vld': {
     title: 'Why VLD?',
-    description: 'VLD was built to address performance limitations in existing validation libraries while maintaining a familiar, ergonomic API.',
+    description: 'VLD was built to address performance limitations while maintaining an ergonomic API.',
     code: `// VLD advantages over alternatives:
 
 // 1. Performance - 2.5x faster than Zod v4 on average
@@ -160,7 +189,6 @@ const result = schema.safeParse(data) // VLD wins 9/10 benchmarks
 import { v } from "@oxog/vld" // 57KB vs 66KB (Zod v4)
 
 // 3. Memory Usage - 3x less memory overall
-// Schema creation is 38x more memory efficient
 
 // 4. Built-in i18n - 27+ languages
 import { setLocale } from "@oxog/vld"
@@ -171,12 +199,7 @@ import { codecs } from "@oxog/vld"
 const num = codecs.stringToNumber.decode("123") // 123
 
 // 6. Same API as Zod - Easy migration
-// Just change imports and you're done!
-// import { z } from "zod"
-import { v } from "@oxog/vld"
-
-// Note: Zod v4 is faster for simple object validation (1.15x)
-// Run "npm run benchmark" to verify these numbers`,
+import { v } from "@oxog/vld" // Just change the import!`,
     lang: 'typescript',
   },
   string: {
@@ -191,16 +214,11 @@ const str = v.string()
 const email = v.string().email()
 const url = v.string().url()
 const uuid = v.string().uuid()
-const cuid = v.string().cuid()
-const ulid = v.string().ulid()
 
 // Length constraints
 const username = v.string()
   .min(3, "Username must be at least 3 characters")
   .max(20, "Username cannot exceed 20 characters")
-
-// Exact length
-const code = v.string().length(6)
 
 // Pattern matching
 const phone = v.string().regex(/^\\+?[1-9]\\d{1,14}$/)
@@ -213,11 +231,6 @@ const upper = v.string().toUpperCase()
 // IP addresses
 const ipv4 = v.string().ip({ version: "v4" })
 const ipv6 = v.string().ip({ version: "v6" })
-
-// Datetime
-const datetime = v.string().datetime()
-const date = v.string().date()
-const time = v.string().time()
 
 // Combining validators
 const password = v.string()
@@ -247,14 +260,13 @@ const int = v.number().int()
 const positive = v.number().positive()
 const negative = v.number().negative()
 const nonnegative = v.number().nonnegative()
-const nonpositive = v.number().nonpositive()
 
 // Range constraints
 const age = v.number().int().min(0).max(120)
 const percentage = v.number().min(0).max(100)
 
 // Greater/Less than
-const gt = v.number().gt(0)  // > 0
+const gt = v.number().gt(0)   // > 0
 const gte = v.number().gte(0) // >= 0
 const lt = v.number().lt(100) // < 100
 const lte = v.number().lte(100) // <= 100
@@ -263,7 +275,7 @@ const lte = v.number().lte(100) // <= 100
 const finite = v.number().finite()
 
 // Safe integers
-const safe = v.number().safe() // Number.MIN_SAFE_INTEGER to MAX_SAFE_INTEGER
+const safe = v.number().safe()
 
 // Multiple of
 const even = v.number().multipleOf(2)
@@ -412,13 +424,7 @@ const profile = v.object({
 })
 
 // Partial (all fields optional)
-const updateUser = v.object({
-  name: v.string(),
-  email: v.string().email(),
-}).partial()
-
-// Required (all fields required)
-const requiredUser = profile.required()
+const updateUser = user.partial()
 
 // Pick specific fields
 const nameOnly = user.pick({ name: true })
@@ -431,11 +437,6 @@ const userWithAge = user.extend({
   age: v.number().int().positive(),
 })
 
-// Merge objects
-const merged = user.merge(v.object({
-  role: v.enum(["admin", "user"]),
-}))
-
 // Strict mode (no extra properties)
 const strict = v.object({
   name: v.string(),
@@ -444,17 +445,7 @@ const strict = v.object({
 // Passthrough (allow extra properties)
 const loose = v.object({
   name: v.string(),
-}).passthrough()
-
-// Deep partial
-const deepPartial = v.object({
-  user: v.object({
-    name: v.string(),
-    address: v.object({
-      city: v.string(),
-    }),
-  }),
-}).deepPartial()`,
+}).passthrough()`,
     lang: 'typescript',
   },
   record: {
@@ -462,7 +453,7 @@ const deepPartial = v.object({
     description: 'Record type for dynamic key-value pairs.',
     code: `import { v } from "@oxog/vld"
 
-// Basic record (string keys, any values)
+// Basic record (string keys)
 const dict = v.record(v.string(), v.unknown())
 
 // Record with string values
@@ -473,7 +464,7 @@ const scores = v.record(v.string(), v.number())
 
 // Record with enum keys
 const roles = v.record(
-  v.enum(["admin", "user", "guest"]),
+  v.enum("admin", "user", "guest"),
   v.boolean()
 )
 
@@ -484,14 +475,7 @@ const userMap = v.record(
     name: v.string(),
     email: v.string().email(),
   })
-)
-
-// Usage example
-const config = v.record(v.string(), v.union([
-  v.string(),
-  v.number(),
-  v.boolean(),
-]))`,
+)`,
     lang: 'typescript',
   },
   tuple: {
@@ -499,28 +483,28 @@ const config = v.record(v.string(), v.union([
     description: 'Fixed-length arrays with specific types at each position.',
     code: `import { v } from "@oxog/vld"
 
-// Basic tuple
-const point = v.tuple([v.number(), v.number()])
+// Basic tuple (variadic syntax)
+const point = v.tuple(v.number(), v.number())
 
 // Mixed types
-const userTuple = v.tuple([
+const userTuple = v.tuple(
   v.string(), // name
   v.number(), // age
-  v.boolean(), // isActive
-])
+  v.boolean() // isActive
+)
 
 // With rest elements
-const args = v.tuple([v.string()]).rest(v.number())
-
-// Usage
-const coordinates: [number, number] = point.parse([10, 20])
+const args = v.tuple(v.string()).rest(v.number())
 
 // RGB color
-const rgb = v.tuple([
+const rgb = v.tuple(
   v.number().int().min(0).max(255),
   v.number().int().min(0).max(255),
-  v.number().int().min(0).max(255),
-])`,
+  v.number().int().min(0).max(255)
+)
+
+// Usage
+const coordinates: [number, number] = point.parse([10, 20])`,
     lang: 'typescript',
   },
   enum: {
@@ -528,8 +512,8 @@ const rgb = v.tuple([
     description: 'Enum types for a fixed set of values.',
     code: `import { v } from "@oxog/vld"
 
-// String enum
-const Role = v.enum(["admin", "user", "guest"])
+// String enum (variadic syntax)
+const Role = v.enum("admin", "user", "guest")
 type Role = v.infer<typeof Role> // "admin" | "user" | "guest"
 
 // Get enum values
@@ -546,13 +530,9 @@ const statusSchema = v.nativeEnum(Status)
 // Usage with objects
 const userSchema = v.object({
   name: v.string(),
-  role: v.enum(["admin", "user", "guest"]),
+  role: v.enum("admin", "user", "guest"),
   status: v.nativeEnum(Status),
-})
-
-// Extracting values
-const role = Role.parse("admin") // "admin"
-const invalid = Role.safeParse("superuser") // { success: false, ... }`,
+})`,
     lang: 'typescript',
   },
   union: {
@@ -579,10 +559,6 @@ const shape = v.discriminatedUnion("type", [
   v.object({ type: v.literal("rectangle"), width: v.number(), height: v.number() }),
 ])
 
-// Usage
-const circle = shape.parse({ type: "circle", radius: 10 })
-const square = shape.parse({ type: "square", size: 5 })
-
 // Intersection
 const hasName = v.object({ name: v.string() })
 const hasAge = v.object({ age: v.number() })
@@ -599,10 +575,6 @@ const numCodec = codecs.stringToNumber
 numCodec.decode("123")    // 123
 numCodec.encode(123)      // "123"
 
-// String to Int
-const intCodec = codecs.stringToInt
-intCodec.decode("42")     // 42
-
 // String to BigInt
 const bigIntCodec = codecs.stringToBigInt
 bigIntCodec.decode("9007199254740993")  // 9007199254740993n
@@ -616,17 +588,9 @@ boolCodec.decode("1")     // true
 const dateCodec = codecs.isoDatetimeToDate
 dateCodec.decode("2024-01-15T10:30:00Z")  // Date object
 
-// Epoch to Date
-const epochCodec = codecs.epochSecondsToDate
-epochCodec.decode(1705315800)  // Date object
-
 // JSON string parsing
 const jsonCodec = codecs.jsonCodec
 jsonCodec.decode('{"name":"John"}')  // { name: "John" }
-
-// URL parsing
-const urlCodec = codecs.stringToHttpURL
-urlCodec.decode("https://example.com")  // URL object
 
 // Base64 encoding
 const base64Codec = codecs.stringToBase64
@@ -678,12 +642,6 @@ const userInput = v.object({
   name: v.string().trim(),
   email: v.string().toLowerCase().email(),
   birthDate: v.string().transform((s) => new Date(s)),
-})
-
-// Async transforms
-const asyncTransform = v.string().transform(async (s) => {
-  const response = await fetch(\`/api/users/\${s}\`)
-  return response.json()
 })`,
     lang: 'typescript',
   },
@@ -698,19 +656,12 @@ const positiveString = v.string().refine(
   "String must not be empty"
 )
 
-// With custom error
-const email = v.string().refine(
-  (s) => s.includes("@"),
-  { message: "Invalid email format" }
-)
-
 // Multiple refinements
 const password = v.string()
   .min(8)
   .refine((s) => /[A-Z]/.test(s), "Must contain uppercase")
   .refine((s) => /[a-z]/.test(s), "Must contain lowercase")
   .refine((s) => /[0-9]/.test(s), "Must contain number")
-  .refine((s) => /[^A-Za-z0-9]/.test(s), "Must contain special char")
 
 // Cross-field validation with superRefine
 const form = v.object({
@@ -745,7 +696,6 @@ const uniqueUsername = v.string().refine(
 const str = v.coerce.string()
 str.parse(123)       // "123"
 str.parse(true)      // "true"
-str.parse(null)      // "null"
 
 // Coerce to number
 const num = v.coerce.number()
@@ -762,38 +712,24 @@ bool.parse(0)        // false
 
 // Coerce to date
 const date = v.coerce.date()
-date.parse("2024-01-15")           // Date
-date.parse(1705276800000)          // Date from timestamp
-
-// Coerce to bigint
-const big = v.coerce.bigint()
-big.parse("9007199254740993")      // 9007199254740993n
+date.parse("2024-01-15")  // Date
+date.parse(1705276800000) // Date from timestamp
 
 // Usage in schemas
 const apiInput = v.object({
   id: v.coerce.number().int().positive(),
   active: v.coerce.boolean(),
   createdAt: v.coerce.date(),
-  amount: v.coerce.bigint(),
-})
-
-// Parse query string params
-const params = apiInput.parse({
-  id: "42",        // becomes 42
-  active: "true",  // becomes true
-  createdAt: "2024-01-15T00:00:00Z",
-  amount: "1000000000000",
 })`,
     lang: 'typescript',
     tips: [
       'Coercion is useful for API inputs (query params, form data)',
       'Coercion happens before validation',
-      'Invalid coercion results in validation error',
     ],
   },
   errors: {
     title: 'Error Handling',
-    description: 'VLD provides multiple error formatting options for different use cases.',
+    description: 'VLD provides multiple error formatting options.',
     code: `import { v, prettifyError, flattenError, treeifyError } from "@oxog/vld"
 
 const schema = v.object({
@@ -811,11 +747,6 @@ const result = schema.safeParse({
 if (!result.success) {
   // 1. Raw error issues
   console.log(result.error.issues)
-  // [
-  //   { path: ["name"], message: "String must be at least 2 characters" },
-  //   { path: ["email"], message: "Invalid email" },
-  //   { path: ["age"], message: "Number must be positive" }
-  // ]
 
   // 2. Prettified (human-readable)
   console.log(prettifyError(result.error))
@@ -825,29 +756,11 @@ if (!result.success) {
 
   // 3. Flattened (for forms)
   console.log(flattenError(result.error))
-  // {
-  //   formErrors: [],
-  //   fieldErrors: {
-  //     name: ["String must be at least 2 characters"],
-  //     email: ["Invalid email"],
-  //     age: ["Number must be positive"]
-  //   }
-  // }
+  // { fieldErrors: { name: [...], email: [...] } }
 
   // 4. Tree structure (for nested objects)
   console.log(treeifyError(result.error))
-  // Nested object structure matching your schema
-}
-
-// Custom error messages
-const customSchema = v.string().min(5, {
-  message: "Username must be at least 5 characters",
-})
-
-// Error map for global customization
-const withErrorMap = v.string().email({
-  message: "Please enter a valid email address",
-})`,
+}`,
     lang: 'typescript',
     tips: [
       'Use flattenError() for form validation',
@@ -855,18 +768,193 @@ const withErrorMap = v.string().email({
       'Use treeifyError() for complex nested errors',
     ],
   },
+  'result-pattern': {
+    title: 'Result Pattern',
+    description: 'Functional error handling with Ok/Err. Inspired by Rust.',
+    code: `import { Ok, Err, match, tryCatch, map, flatMap, unwrapOr } from "@oxog/vld"
+
+// Create results explicitly
+const success = Ok(42)
+const failure = Err(new Error("Something went wrong"))
+
+// tryCatch - Wrap operations that might throw
+const result = tryCatch(() => JSON.parse(jsonString))
+
+// match - Handle both cases elegantly
+const value = match(result, {
+  ok: (data) => data.name,
+  err: (error) => "default"
+})
+
+// map - Transform success values
+const doubled = map(Ok(21), x => x * 2) // Ok(42)
+
+// flatMap - Chain operations
+const parsed = flatMap(
+  tryCatch(() => JSON.parse(input)),
+  data => data.id ? Ok(data.id) : Err("No ID")
+)
+
+// unwrapOr - Get value with fallback
+const name = unwrapOr(result, "Anonymous")
+
+// all - Combine multiple results
+const results = all([Ok(1), Ok(2), Ok(3)])
+// Ok([1, 2, 3]) if all succeed
+
+// isOk / isErr - Type guards
+if (isOk(result)) {
+  console.log(result.value)
+}`,
+    lang: 'typescript',
+    tips: [
+      'Use match() for exhaustive handling',
+      'tryCatch() is great for JSON.parse, fetch, etc.',
+      'Chain operations with map() and flatMap()',
+    ],
+  },
+  'plugin-system': {
+    title: 'Plugin System',
+    description: 'Extend VLD with custom validators, transforms, and hooks.',
+    code: `import { definePlugin, usePlugin, createVldKernel } from "@oxog/vld"
+
+// Define a plugin
+const myPlugin = definePlugin({
+  name: "my-validation-plugin",
+  version: "1.0.0",
+
+  // Add custom validators
+  validators: {
+    phone: () => v.string().regex(/^\\+?[1-9]\\d{1,14}$/),
+    username: () => v.string().min(3).max(20).regex(/^[a-z0-9_]+$/),
+  },
+
+  // Add custom transforms
+  transforms: {
+    slugify: () => (s: string) => s.toLowerCase().replace(/\\s+/g, "-"),
+  },
+
+  // Lifecycle hooks
+  hooks: {
+    onInit: (ctx) => console.log("Plugin initialized"),
+    onValidate: (ctx) => console.log("Validating:", ctx.value),
+  },
+})
+
+// Register the plugin globally
+usePlugin(myPlugin)
+
+// Or create an isolated kernel
+const kernel = createVldKernel({ plugins: [myPlugin] })
+
+// Access custom validators
+const phoneSchema = kernel.validators.phone()
+const result = phoneSchema.safeParse("+1234567890")`,
+    lang: 'typescript',
+    tips: [
+      'Plugins are isolated and don\'t affect other instances',
+      'Use definePlugin() for type-safe plugin creation',
+      'createVldKernel() creates isolated instances',
+    ],
+  },
+  'event-emitter': {
+    title: 'Event Emitter',
+    description: 'Track validation lifecycle events for logging and debugging.',
+    code: `import { createEmitter, withEmitter } from "@oxog/vld"
+import type { VldEvents } from "@oxog/vld"
+
+// Create an emitter for VLD events
+const emitter = createEmitter<VldEvents>()
+
+// Listen to validation events
+emitter.on("parseStart", ({ schema, value }) => {
+  console.log("Starting validation:", value)
+})
+
+emitter.on("parseSuccess", ({ result }) => {
+  console.log("Validation succeeded:", result)
+})
+
+emitter.on("parseError", ({ error }) => {
+  console.error("Validation failed:", error.issues)
+})
+
+// One-time listener
+emitter.once("parseStart", () => {
+  console.log("First validation started!")
+})
+
+// Remove listener
+const unsubscribe = emitter.on("parseError", handler)
+unsubscribe() // Remove the listener
+
+// withEmitter - Create schema with attached emitter
+const schema = withEmitter(
+  v.object({ name: v.string() }),
+  emitter
+)`,
+    lang: 'typescript',
+    tips: [
+      'Use once() for one-time event handlers',
+      'Unsubscribe to prevent memory leaks',
+      'Events: parseStart, parseSuccess, parseError',
+    ],
+  },
+  'logger': {
+    title: 'Logger',
+    description: 'Built-in logger for debugging and tracing validation.',
+    code: `import {
+  createLogger,
+  initLogger,
+  getLogger,
+  setLogLevel,
+  enableDebug,
+  disableLogging
+} from "@oxog/vld"
+
+// Create a custom logger
+const logger = createLogger({
+  level: "debug", // "debug" | "info" | "warn" | "error"
+  prefix: "[VLD]",
+  handler: (entry) => {
+    console.log(\`[\${entry.level}] \${entry.message}\`, entry.data)
+  }
+})
+
+// Initialize global logger
+initLogger({ level: "info" })
+
+// Get the global logger instance
+const globalLogger = getLogger()
+
+// Use logger methods
+logger.debug("Validation started", { schema: "user" })
+logger.info("Processing data", { count: 100 })
+logger.warn("Deprecated feature used")
+logger.error("Validation failed", { errors: issues })
+
+// Change log level at runtime
+setLogLevel("warn") // Only warn and error logged
+
+// Quick debug mode toggle
+enableDebug()    // Set level to "debug"
+disableLogging() // Disable all logging`,
+    lang: 'typescript',
+    tips: [
+      'Use debug level for development',
+      'Custom handlers for logging services',
+      'disableLogging() for production',
+    ],
+  },
   localization: {
     title: 'Localization',
-    description: 'VLD supports 27+ languages for error messages out of the box.',
+    description: 'VLD supports 27+ languages for error messages.',
     code: `import { v, setLocale, getLocale } from "@oxog/vld"
 
 // Set global locale
 setLocale("tr") // Turkish
 setLocale("de") // German
 setLocale("ja") // Japanese
-setLocale("fr") // French
-setLocale("es") // Spanish
-setLocale("zh") // Chinese
 
 // Get current locale
 const currentLocale = getLocale() // "tr"
@@ -878,28 +966,14 @@ const locales = [
   "de",    // German
   "fr",    // French
   "es",    // Spanish
-  "es-MX", // Spanish (Mexico)
   "pt",    // Portuguese
-  "pt-BR", // Portuguese (Brazil)
   "it",    // Italian
-  "nl",    // Dutch
-  "pl",    // Polish
   "ru",    // Russian
   "ja",    // Japanese
   "ko",    // Korean
   "zh",    // Chinese
   "ar",    // Arabic
-  "hi",    // Hindi
-  "bn",    // Bengali
-  "th",    // Thai
-  "vi",    // Vietnamese
-  "id",    // Indonesian
-  "sv",    // Swedish
-  "no",    // Norwegian
-  "da",    // Danish
-  "fi",    // Finnish
-  "af",    // Afrikaans
-  "sw",    // Swahili
+  // ... and many more!
 ]
 
 // Example with Turkish locale
@@ -910,7 +984,6 @@ const result = v.string().email().safeParse("invalid")
     tips: [
       'setLocale() affects all subsequent validations',
       'Fallback to English if locale not found',
-      'Add custom locales with registerLocale()',
     ],
   },
   'custom-messages': {
@@ -922,7 +995,6 @@ const result = v.string().email().safeParse("invalid")
 const username = v.string()
   .min(3, "Username must be at least 3 characters")
   .max(20, "Username cannot exceed 20 characters")
-  .regex(/^[a-z0-9_]+$/, "Username can only contain lowercase letters, numbers, and underscores")
 
 // Object format for more control
 const email = v.string().email({
@@ -941,10 +1013,6 @@ const password = v.string()
     (s) => /[A-Z]/.test(s),
     "Password must contain at least one uppercase letter"
   )
-  .refine(
-    (s) => /[0-9]/.test(s),
-    "Password must contain at least one number"
-  )
 
 // Schema-level custom messages
 const form = v.object({
@@ -957,36 +1025,11 @@ const form = v.object({
   },
 }
 
-const icons: Record<string, React.ElementType> = {
-  introduction: BookOpen,
-  installation: FileCode,
-  'quick-start': Layers,
-  'why-vld': Zap,
-  string: FileCode,
-  number: Hash,
-  boolean: ToggleLeft,
-  date: FileCode,
-  bigint: Hash,
-  array: ListOrdered,
-  object: Braces,
-  record: FileJson,
-  tuple: ListOrdered,
-  enum: GitBranch,
-  union: GitBranch,
-  codecs: Repeat,
-  transformations: Repeat,
-  refinements: AlertTriangle,
-  coercion: Repeat,
-  errors: AlertTriangle,
-  localization: Globe,
-  'custom-messages': FileCode,
-}
-
-// Import Zap icon
-import { Zap } from 'lucide-react'
-
 export function DocsPage() {
   const [activeSection, setActiveSection] = useState('introduction')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['Getting Started']))
+
   const content = docContent[activeSection] || {
     title: activeSection.replace(/-/g, ' '),
     description: 'Documentation coming soon.',
@@ -994,40 +1037,87 @@ export function DocsPage() {
     lang: 'typescript',
   }
 
-  const IconComponent = icons[activeSection] || FileCode
+  const toggleSection = (title: string) => {
+    setExpandedSections(prev => {
+      const next = new Set(prev)
+      if (next.has(title)) {
+        next.delete(title)
+      } else {
+        next.add(title)
+      }
+      return next
+    })
+  }
+
+  const filteredSections = sidebarSections.map(section => ({
+    ...section,
+    items: section.items.filter(item =>
+      item.title.toLowerCase().includes(searchQuery.toLowerCase())
+    ),
+  })).filter(section => section.items.length > 0)
 
   return (
     <div className="min-h-screen">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container-wide py-8">
         <div className="flex gap-8">
           {/* Sidebar */}
           <aside className="hidden lg:block w-64 shrink-0">
-            <div className="sticky top-24 space-y-6 max-h-[calc(100vh-8rem)] overflow-y-auto pr-4">
-              {sidebarSections.map((section) => (
-                <div key={section.title}>
-                  <div className="flex items-center gap-2 text-sm font-semibold mb-3 text-muted-foreground">
-                    <section.icon className="w-4 h-4" />
-                    {section.title}
-                  </div>
-                  <ul className="space-y-1 ml-6">
-                    {section.items.map((item) => (
-                      <li key={item.slug}>
-                        <button
-                          onClick={() => setActiveSection(item.slug)}
-                          className={cn(
-                            'w-full text-left px-3 py-1.5 rounded-md text-sm transition-colors',
-                            activeSection === item.slug
-                              ? 'bg-vld-primary/10 text-vld-primary font-medium'
-                              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                          )}
-                        >
-                          {item.title}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
+            <div className="sticky top-24 space-y-4 max-h-[calc(100vh-8rem)] overflow-y-auto hide-scrollbar pr-4">
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Search docs..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-vld-primary/50"
+                />
+              </div>
+
+              {/* Navigation */}
+              <nav className="space-y-2">
+                {filteredSections.map((section) => {
+                  const isExpanded = expandedSections.has(section.title)
+                  const Icon = section.icon
+
+                  return (
+                    <div key={section.title}>
+                      <button
+                        onClick={() => toggleSection(section.title)}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors"
+                      >
+                        <Icon className="w-4 h-4" />
+                        <span className="flex-1 text-left">{section.title}</span>
+                        <ChevronRight className={cn(
+                          'w-4 h-4 transition-transform',
+                          isExpanded && 'rotate-90'
+                        )} />
+                      </button>
+
+                      {isExpanded && (
+                        <ul className="mt-1 ml-6 space-y-1">
+                          {section.items.map((item) => (
+                            <li key={item.slug}>
+                              <button
+                                onClick={() => setActiveSection(item.slug)}
+                                className={cn(
+                                  'w-full text-left px-3 py-1.5 rounded-md text-sm transition-colors',
+                                  activeSection === item.slug
+                                    ? 'bg-vld-primary/10 text-vld-primary font-medium'
+                                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                                )}
+                              >
+                                {item.title}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )
+                })}
+              </nav>
             </div>
           </aside>
 
@@ -1038,7 +1128,7 @@ export function DocsPage() {
               <select
                 value={activeSection}
                 onChange={(e) => setActiveSection(e.target.value)}
-                className="w-full p-3 rounded-lg border border-border bg-card"
+                className="w-full p-3 rounded-lg border border-border bg-card text-sm"
               >
                 {sidebarSections.map((section) => (
                   <optgroup key={section.title} label={section.title}>
@@ -1054,23 +1144,25 @@ export function DocsPage() {
 
             {/* Header */}
             <div className="mb-8">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-lg bg-vld-primary/10 flex items-center justify-center">
-                  <IconComponent className="w-5 h-5 text-vld-primary" />
-                </div>
-                <h1 className="text-3xl font-bold">{content.title}</h1>
-              </div>
-              <p className="text-lg text-muted-foreground">{content.description}</p>
+              <h1 className="font-display text-3xl lg:text-4xl font-bold mb-4">
+                {content.title}
+              </h1>
+              <p className="text-lg text-muted-foreground leading-relaxed">
+                {content.description}
+              </p>
             </div>
 
             {/* Tips */}
-            {content.tips && (
-              <div className="mb-6 p-4 rounded-xl bg-vld-primary/5 border border-vld-primary/20">
-                <h3 className="text-sm font-semibold text-vld-primary mb-2">Tips</h3>
-                <ul className="space-y-1">
+            {content.tips && content.tips.length > 0 && (
+              <div className="mb-8 p-4 rounded-xl bg-vld-primary/5 border border-vld-primary/20">
+                <div className="flex items-center gap-2 mb-3">
+                  <AlertCircle className="w-4 h-4 text-vld-primary" />
+                  <h3 className="text-sm font-semibold text-vld-primary">Tips</h3>
+                </div>
+                <ul className="space-y-2">
                   {content.tips.map((tip, i) => (
                     <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
-                      <span className="text-vld-primary mt-1">•</span>
+                      <span className="text-vld-primary mt-0.5">•</span>
                       {tip}
                     </li>
                   ))}
@@ -1079,17 +1171,15 @@ export function DocsPage() {
             )}
 
             {/* Code Block */}
-            <div className="rounded-xl overflow-hidden border border-border shadow-lg">
-              <CodeBlock
-                code={content.code}
-                language={content.lang as 'typescript' | 'bash'}
-                filename={content.lang === 'bash' ? 'terminal' : `${activeSection}.ts`}
-                showLineNumbers
-              />
-            </div>
+            <CodeBlock
+              code={content.code}
+              language={content.lang}
+              filename={content.lang === 'bash' ? 'terminal' : `${activeSection}.ts`}
+              showLineNumbers
+            />
 
             {/* Navigation */}
-            <div className="flex justify-between mt-8 pt-8 border-t border-border">
+            <div className="flex justify-between mt-10 pt-8 border-t border-border">
               {(() => {
                 const allItems = sidebarSections.flatMap((s) => s.items)
                 const currentIndex = allItems.findIndex((item) => item.slug === activeSection)
@@ -1100,7 +1190,7 @@ export function DocsPage() {
                     {prev ? (
                       <button
                         onClick={() => setActiveSection(prev.slug)}
-                        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                        className="text-sm text-muted-foreground hover:text-vld-primary transition-colors"
                       >
                         ← {prev.title}
                       </button>
@@ -1110,7 +1200,7 @@ export function DocsPage() {
                     {next ? (
                       <button
                         onClick={() => setActiveSection(next.slug)}
-                        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                        className="text-sm text-muted-foreground hover:text-vld-primary transition-colors"
                       >
                         {next.title} →
                       </button>

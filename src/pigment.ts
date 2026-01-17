@@ -100,7 +100,7 @@ const ANSI = {
 function createColorFn(code: string): (text: string) => string {
   const enabled = supportsColor();
   return (text: string): string => {
-    if (!enabled) return text;
+    if (!enabled || text === '') return text;
     return `${code}${text}${ANSI.reset}`;
   };
 }

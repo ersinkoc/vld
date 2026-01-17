@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
-import { Search, ChevronDown, ChevronRight, Code2, Box, Layers, Wand2, Globe, FileCode, Binary, Shield } from 'lucide-react'
+import { Search, ChevronDown, ChevronRight, Code2, Box, Layers, Wand2, Globe, FileCode, Binary, Shield, GitBranch, Plug, Activity, Terminal } from 'lucide-react'
 import { CodeBlock } from '@/components/ui/code-block'
 
 interface ApiMethod {
@@ -45,10 +45,10 @@ const apiMethods: ApiMethod[] = [
   // Composition
   { name: 'v.union()', description: 'Union type - matches any of the validators', category: 'Composition', signature: 'v.union(validators): VldUnion', example: `const schema = v.union([v.string(), v.number()])` },
   { name: 'v.intersection()', description: 'Intersection type - must match all validators', category: 'Composition', signature: 'v.intersection(a, b): VldIntersection', example: `const schema = v.intersection(\n  v.object({ name: v.string() }),\n  v.object({ age: v.number() })\n)` },
-  { name: 'v.discriminatedUnion()', description: 'Fast union with discriminator field (O(1) lookup)', category: 'Composition', signature: 'v.discriminatedUnion(key, options): VldDiscriminatedUnion', example: `const schema = v.discriminatedUnion("type", [\n  v.object({ type: v.literal("a"), a: v.string() }),\n  v.object({ type: v.literal("b"), b: v.number() })\n])` },
+  { name: 'v.discriminatedUnion()', description: 'Fast union with discriminator field (O(1) lookup)', category: 'Composition', signature: 'v.discriminatedUnion(key, ...options): VldDiscriminatedUnion', example: `const schema = v.discriminatedUnion("type",\n  v.object({ type: v.literal("a"), a: v.string() }),\n  v.object({ type: v.literal("b"), b: v.number() })\n)` },
   { name: 'v.xor()', description: 'XOR validation - exactly one must match', category: 'Composition', signature: 'v.xor(options): VldXor', example: `const schema = v.xor([\n  v.object({ email: v.string() }),\n  v.object({ phone: v.string() })\n])` },
   { name: 'v.literal()', description: 'Validates exact literal value', category: 'Composition', signature: 'v.literal(value): VldLiteral', example: `const schema = v.literal("active")` },
-  { name: 'v.enum()', description: 'Enum with fixed string values', category: 'Composition', signature: 'v.enum(values): VldEnum', example: `const schema = v.enum(["admin", "user", "guest"])` },
+  { name: 'v.enum()', description: 'Enum with fixed string values', category: 'Composition', signature: 'v.enum(...values): VldEnum', example: `const schema = v.enum("admin", "user", "guest")` },
 
   // Utility Types
   { name: 'v.optional()', description: 'Makes validator accept undefined', category: 'Modifiers', signature: 'v.optional(validator): VldOptional', example: `const schema = v.optional(v.string())` },
@@ -144,6 +144,41 @@ const apiMethods: ApiMethod[] = [
   { name: 'setLocale()', description: 'Set global validation message locale', category: 'i18n', signature: 'setLocale(locale: string): void', example: `setLocale("tr") // Turkish\nsetLocale("ja") // Japanese` },
   { name: 'getLocale()', description: 'Get current locale', category: 'i18n', signature: 'getLocale(): string' },
   { name: 'getMessages()', description: 'Get all messages for current locale', category: 'i18n', signature: 'getMessages(): Messages' },
+
+  // Result Pattern (v1.5)
+  { name: 'Ok()', description: 'Create a successful result', category: 'Result Pattern', signature: 'Ok<T>(value: T): Result<T, never>', example: `const success = Ok(42)` },
+  { name: 'Err()', description: 'Create a failure result', category: 'Result Pattern', signature: 'Err<E>(error: E): Result<never, E>', example: `const failure = Err(new Error("failed"))` },
+  { name: 'tryCatch()', description: 'Wrap throwable operations in a Result', category: 'Result Pattern', signature: 'tryCatch<T>(fn: () => T): Result<T, Error>', example: `const result = tryCatch(() => JSON.parse(data))` },
+  { name: 'match()', description: 'Pattern match on a Result', category: 'Result Pattern', signature: 'match<T, E, R>(result, { ok, err }): R', example: `const value = match(result, {\n  ok: (v) => v * 2,\n  err: (e) => 0\n})` },
+  { name: 'map()', description: 'Transform the success value', category: 'Result Pattern', signature: 'map<T, E, U>(result, fn): Result<U, E>', example: `const doubled = map(Ok(21), x => x * 2)` },
+  { name: 'flatMap()', description: 'Chain Result-returning operations', category: 'Result Pattern', signature: 'flatMap<T, E, U>(result, fn): Result<U, E>' },
+  { name: 'unwrapOr()', description: 'Get value with fallback', category: 'Result Pattern', signature: 'unwrapOr<T, E>(result, defaultValue: T): T', example: `const value = unwrapOr(result, "default")` },
+  { name: 'isOk()', description: 'Type guard for success', category: 'Result Pattern', signature: 'isOk<T, E>(result): result is Ok<T>' },
+  { name: 'isErr()', description: 'Type guard for failure', category: 'Result Pattern', signature: 'isErr<T, E>(result): result is Err<E>' },
+  { name: 'all()', description: 'Combine multiple Results', category: 'Result Pattern', signature: 'all<T>(results: Result<T>[]): Result<T[]>', example: `const combined = all([Ok(1), Ok(2), Ok(3)])` },
+
+  // Plugin System (v1.5)
+  { name: 'definePlugin()', description: 'Define a VLD plugin with validators, transforms, and hooks', category: 'Plugin System', signature: 'definePlugin(config): VldPlugin', example: `const plugin = definePlugin({\n  name: "my-plugin",\n  validators: { phone: () => v.string().regex(/.../) }\n})` },
+  { name: 'usePlugin()', description: 'Register a plugin globally', category: 'Plugin System', signature: 'usePlugin(plugin): void', example: `usePlugin(myPlugin)` },
+  { name: 'createVldKernel()', description: 'Create isolated VLD instance with plugins', category: 'Plugin System', signature: 'createVldKernel(options?): VldKernelInstance', example: `const kernel = createVldKernel({ plugins: [myPlugin] })` },
+  { name: 'getVldKernel()', description: 'Get the global kernel instance', category: 'Plugin System', signature: 'getVldKernel(): VldKernelInstance' },
+  { name: 'resetVldKernel()', description: 'Reset the global kernel', category: 'Plugin System', signature: 'resetVldKernel(): void' },
+
+  // Event Emitter (v1.5)
+  { name: 'createEmitter()', description: 'Create a typed event emitter', category: 'Event Emitter', signature: 'createEmitter<T>(): Emitter<T>', example: `const emitter = createEmitter<VldEvents>()` },
+  { name: 'createEventBus()', description: 'Create a global event bus', category: 'Event Emitter', signature: 'createEventBus<T>(): Emitter<T>' },
+  { name: 'withEmitter()', description: 'Attach emitter to a schema', category: 'Event Emitter', signature: 'withEmitter(schema, emitter): schema' },
+  { name: 'emitter.on()', description: 'Subscribe to an event', category: 'Event Emitter', signature: 'on(event, handler): unsubscribe', example: `emitter.on("parseStart", ({ value }) => log(value))` },
+  { name: 'emitter.once()', description: 'Subscribe to event once', category: 'Event Emitter', signature: 'once(event, handler): unsubscribe' },
+  { name: 'emitter.emit()', description: 'Emit an event', category: 'Event Emitter', signature: 'emit(event, payload): void' },
+
+  // Logger (v1.5)
+  { name: 'createLogger()', description: 'Create a logger instance', category: 'Logger', signature: 'createLogger(options?): Logger', example: `const logger = createLogger({ level: "debug" })` },
+  { name: 'initLogger()', description: 'Initialize the global logger', category: 'Logger', signature: 'initLogger(options?): void' },
+  { name: 'getLogger()', description: 'Get the global logger', category: 'Logger', signature: 'getLogger(): Logger' },
+  { name: 'setLogLevel()', description: 'Set log level at runtime', category: 'Logger', signature: 'setLogLevel(level): void', example: `setLogLevel("warn")` },
+  { name: 'enableDebug()', description: 'Enable debug logging', category: 'Logger', signature: 'enableDebug(): void' },
+  { name: 'disableLogging()', description: 'Disable all logging', category: 'Logger', signature: 'disableLogging(): void' },
 ]
 
 const categoryIcons: Record<string, React.ElementType> = {
@@ -160,6 +195,10 @@ const categoryIcons: Record<string, React.ElementType> = {
   'Codecs': Wand2,
   'Errors': Shield,
   'i18n': Globe,
+  'Result Pattern': GitBranch,
+  'Plugin System': Plug,
+  'Event Emitter': Activity,
+  'Logger': Terminal,
 }
 
 export function ApiPage() {
@@ -195,18 +234,18 @@ export function ApiPage() {
 
   return (
     <div className="min-h-screen">
-      <div className="container mx-auto px-4 py-12">
+      <div className="container-wide py-8 lg:py-12">
         <div className="max-w-5xl mx-auto">
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-4xl font-bold mb-4">API Reference</h1>
+            <h1 className="font-display text-3xl lg:text-4xl font-bold mb-4">API Reference</h1>
             <p className="text-lg text-muted-foreground">
               Complete API documentation for VLD. {apiMethods.length} methods across {categories.length} categories.
             </p>
           </div>
 
           {/* Search and Filters */}
-          <div className="sticky top-20 z-40 bg-background/95 backdrop-blur-sm py-4 mb-6 -mx-4 px-4 border-b border-border">
+          <div className="sticky top-16 z-40 bg-background/95 backdrop-blur-xl py-4 mb-6 -mx-4 px-4 border-b border-border">
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />

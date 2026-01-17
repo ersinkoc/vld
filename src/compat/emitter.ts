@@ -184,7 +184,10 @@ export function createEmitter<TEvents extends EventMap = EventMap>(): Emitter<TE
   };
 
   const eventNames = (): (keyof TEvents)[] => {
-    return Array.from(listeners.keys()).filter((key) => (listeners.get(key)?.length ?? 0) > 0);
+    return Array.from(listeners.keys()).filter((key) => {
+      const eventListeners = listeners.get(key);
+      return eventListeners !== undefined && eventListeners.length > 0;
+    });
   };
 
   return {

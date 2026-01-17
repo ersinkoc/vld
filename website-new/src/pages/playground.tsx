@@ -12,7 +12,7 @@ const userSchema = v.object({
   email: v.string().email(),
   password: v.string().min(8).max(100),
   age: v.number().int().min(18).max(120).optional(),
-  role: v.enum(["admin", "user", "guest"]),
+  role: v.enum("admin", "user", "guest"),
   acceptTerms: v.boolean(),
 })
 
@@ -67,7 +67,7 @@ const productSchema = v.object({
   name: v.string().min(1).max(200),
   description: v.string().max(5000).optional(),
   price: v.number().positive(),
-  currency: v.enum(["USD", "EUR", "GBP", "TRY"]),
+  currency: v.enum("USD", "EUR", "GBP", "TRY"),
   stock: v.number().int().min(0),
   categories: v.array(v.string()).min(1),
   images: v.array(v.string().url()).max(10),
@@ -142,7 +142,7 @@ const contactFormSchema = v.object({
   lastName: v.string().min(1).max(50),
   email: v.string().email(),
   phone: v.string().regex(/^\\+?[1-9]\\d{1,14}$/).optional(),
-  subject: v.enum(["general", "support", "sales", "partnership"]),
+  subject: v.enum("general", "support", "sales", "partnership"),
   message: v.string().min(10).max(2000),
   newsletter: v.boolean().default(false),
 })
@@ -288,12 +288,12 @@ export function PlaygroundPage() {
 
   return (
     <div className="min-h-screen bg-muted/30">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container-wide py-8">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
             <div>
-              <h1 className="text-3xl font-bold mb-1">Playground</h1>
+              <h1 className="font-display text-3xl font-bold mb-1">Playground</h1>
               <p className="text-muted-foreground">Try VLD validation in your browser</p>
             </div>
             <div className="flex flex-wrap gap-2">

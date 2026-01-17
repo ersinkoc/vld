@@ -73,7 +73,7 @@ function handleSubmit(formData: unknown) {
 const createUserRequest = v.object({
   name: v.string().min(1),
   email: v.string().email(),
-  role: v.enum(["admin", "user", "guest"]).default("user"),
+  role: v.enum("admin", "user", "guest").default("user"),
   metadata: v.record(v.string(), v.unknown()).optional(),
 })
 
@@ -81,8 +81,8 @@ const createUserRequest = v.object({
 const listUsersQuery = v.object({
   page: v.coerce.number().int().positive().default(1),
   limit: v.coerce.number().int().min(1).max(100).default(20),
-  sort: v.enum(["name", "email", "createdAt"]).optional(),
-  order: v.enum(["asc", "desc"]).default("asc"),
+  sort: v.enum("name", "email", "createdAt").optional(),
+  order: v.enum("asc", "desc").default("asc"),
   search: v.string().optional(),
 })
 
@@ -91,7 +91,7 @@ const userResponse = v.object({
   id: v.string().uuid(),
   name: v.string(),
   email: v.string().email(),
-  role: v.enum(["admin", "user", "guest"]),
+  role: v.enum("admin", "user", "guest"),
   createdAt: v.string().datetime(),
   updatedAt: v.string().datetime(),
 })
@@ -138,7 +138,7 @@ const productSchema = v.object({
   name: v.string().min(1).max(200),
   description: v.string().max(5000).optional(),
   price: v.number().positive(),
-  currency: v.enum(["USD", "EUR", "GBP", "TRY"]),
+  currency: v.enum("USD", "EUR", "GBP", "TRY"),
   stock: v.number().int().nonnegative(),
   categories: v.array(v.string()).min(1),
   images: v.array(v.string().url()).max(10),
@@ -211,7 +211,7 @@ const jwtPayloadSchema = v.object({
   sub: v.string(), // Subject (user ID)
   email: v.string().email(),
   name: v.string(),
-  roles: v.array(v.enum(["admin", "user", "moderator"])),
+  roles: v.array(v.enum("admin", "user", "moderator")),
   permissions: v.array(v.string()).optional(),
   iat: v.number().int(), // Issued at
   exp: v.number().int(), // Expiration
@@ -259,7 +259,7 @@ const loginSchema = v.object({
 const oauthCallbackSchema = v.object({
   code: v.string(),
   state: v.string(),
-  provider: v.enum(["google", "github", "microsoft"]),
+  provider: v.enum("google", "github", "microsoft"),
 })
 
 // Session schema for server-side storage
@@ -658,7 +658,7 @@ const paymentSchema = v.xor([
   v.object({
     method: v.literal("crypto"),
     walletAddress: v.string(),
-    currency: v.enum(["BTC", "ETH", "USDT"]),
+    currency: v.enum("BTC", "ETH", "USDT"),
   }),
 ])
 
@@ -700,10 +700,10 @@ export function ExamplesPage() {
 
   return (
     <div className="min-h-screen">
-      <div className="container mx-auto px-4 py-12">
+      <div className="container-wide py-12">
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
-            <h1 className="text-4xl font-bold mb-4">Examples</h1>
+            <h1 className="font-display text-4xl font-bold mb-4">Examples</h1>
             <p className="text-lg text-muted-foreground">
               Real-world examples showcasing VLD's powerful validation capabilities.
               Click on any example to see the full code.

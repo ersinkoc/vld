@@ -213,6 +213,39 @@ results.push(compare(
   50000
 ));
 
+// Test 11: Enum Validation
+const vldEnum = v.enum('admin', 'user', 'guest', 'moderator');
+const zodEnum = z.enum(['admin', 'user', 'guest', 'moderator']);
+
+results.push(compare(
+  '11. Enum Validation',
+  () => vldEnum.parse('user'),
+  () => zodEnum.parse('user'),
+  50000
+));
+
+// Test 12: Discriminated Union (VLD has O(1) lookup optimization)
+const vldDiscUnion = v.discriminatedUnion('type',
+  v.object({ type: v.literal('user'), name: v.string(), age: v.number() }),
+  v.object({ type: v.literal('product'), title: v.string(), price: v.number() }),
+  v.object({ type: v.literal('order'), orderId: v.string(), total: v.number() })
+);
+
+const zodDiscUnion = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('user'), name: z.string(), age: z.number() }),
+  z.object({ type: z.literal('product'), title: z.string(), price: z.number() }),
+  z.object({ type: z.literal('order'), orderId: z.string(), total: z.number() }),
+]);
+
+const discTestData = { type: 'product', title: 'Laptop', price: 999 };
+
+results.push(compare(
+  '12. Discriminated Union',
+  () => vldDiscUnion.parse(discTestData),
+  () => zodDiscUnion.parse(discTestData),
+  25000
+));
+
 // Summary
 console.log(`\n${colors.bright}${colors.blue}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
 console.log(`${colors.bright}                           SUMMARY${colors.reset}`);
@@ -222,8 +255,8 @@ const vldWins = results.filter(r => r.ratio > 1).length;
 const zodWins = results.filter(r => r.ratio < 1).length;
 const avgRatio = results.reduce((sum, r) => sum + (r.ratio > 1 ? r.ratio : 1/r.ratio), 0) / results.length;
 
-console.log(`  ${colors.green}VLD won: ${vldWins}/10 tests${colors.reset}`);
-console.log(`  ${colors.yellow}Zod won: ${zodWins}/10 tests${colors.reset}`);
+console.log(`  ${colors.green}VLD won: ${vldWins}/${results.length} tests${colors.reset}`);
+console.log(`  ${colors.yellow}Zod won: ${zodWins}/${results.length} tests${colors.reset}`);
 console.log(`  ${colors.magenta}Average performance ratio: ${avgRatio.toFixed(2)}x${colors.reset}`);
 
 if (vldWins > zodWins) {

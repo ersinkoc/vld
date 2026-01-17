@@ -509,9 +509,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
     }
 
     if (overlappingKeys.length > 0) {
-      throw new Error(
-        `safeExtend: Cannot override existing keys: ${overlappingKeys.join(', ')}. Use extend() if you want to override.`
-      );
+      throw new Error(`safeExtend: ${getMessages().safeExtendOverlap(overlappingKeys)}`);
     }
 
     return new VldObject({

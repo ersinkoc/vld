@@ -6,82 +6,98 @@ const benchmarks = [
   {
     name: 'Simple String',
     description: 'Basic string validation',
-    vldOps: 121212121,
-    zodOps: 39053347,
+    vldOps: 71875225,
+    zodOps: 34765679,
     winner: 'vld',
-    ratio: 3.10
+    ratio: 2.07
   },
   {
     name: 'Email Validation',
     description: 'String with email format check',
-    vldOps: 23851548,
-    zodOps: 7069786,
+    vldOps: 20407330,
+    zodOps: 6882455,
     winner: 'vld',
-    ratio: 3.37
+    ratio: 2.97
   },
   {
     name: 'Number Validation',
     description: 'number().positive().int()',
-    vldOps: 29966138,
-    zodOps: 11069049,
+    vldOps: 37601053,
+    zodOps: 10832710,
     winner: 'vld',
-    ratio: 2.71
+    ratio: 3.47
   },
   {
     name: 'Simple Object',
     description: 'Object with 2 fields (name, age)',
-    vldOps: 8490550,
-    zodOps: 9722141,
+    vldOps: 6700976,
+    zodOps: 7044436,
     winner: 'zod',
-    ratio: 1.15
+    ratio: 1.05
   },
   {
     name: 'Complex Object',
     description: 'Nested object with arrays',
-    vldOps: 1925091,
-    zodOps: 1662112,
+    vldOps: 1618071,
+    zodOps: 1352543,
     winner: 'vld',
-    ratio: 1.16
+    ratio: 1.20
   },
   {
     name: 'Array Validation',
     description: 'Array of 5 numbers',
-    vldOps: 9090744,
-    zodOps: 4912170,
+    vldOps: 7110150,
+    zodOps: 5895670,
     winner: 'vld',
-    ratio: 1.85
+    ratio: 1.21
   },
   {
     name: 'Union Types',
     description: 'union(string, number)',
-    vldOps: 10813149,
-    zodOps: 5782820,
+    vldOps: 7161990,
+    zodOps: 5996210,
     winner: 'vld',
-    ratio: 1.87
+    ratio: 1.19
   },
   {
     name: 'Optional Values',
     description: 'string().optional()',
-    vldOps: 80906149,
-    zodOps: 13005592,
+    vldOps: 27564915,
+    zodOps: 9458590,
     winner: 'vld',
-    ratio: 6.22
+    ratio: 2.91
   },
   {
     name: 'SafeParse',
     description: 'safeParse() without throwing',
-    vldOps: 89158345,
-    zodOps: 36368926,
+    vldOps: 59059768,
+    zodOps: 26089225,
     winner: 'vld',
-    ratio: 2.45
+    ratio: 2.26
   },
   {
     name: 'Type Coercion',
     description: 'coerce.number() from string',
-    vldOps: 24386675,
-    zodOps: 17742451,
+    vldOps: 19682715,
+    zodOps: 16575501,
     winner: 'vld',
-    ratio: 1.37
+    ratio: 1.19
+  },
+  {
+    name: 'Enum Validation',
+    description: 'enum("admin", "user", ...)',
+    vldOps: 49295080,
+    zodOps: 23654083,
+    winner: 'vld',
+    ratio: 2.08
+  },
+  {
+    name: 'Discriminated Union',
+    description: 'discriminatedUnion with 3 variants',
+    vldOps: 3741171,
+    zodOps: 4023627,
+    winner: 'zod',
+    ratio: 1.08
   },
 ]
 
@@ -126,7 +142,7 @@ const memoryBenchmarks = [
 ]
 
 const features = [
-  { icon: Zap, title: '2.5x Faster', description: 'VLD is on average 2.5x faster than Zod v4 across all tests', color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
+  { icon: Zap, title: '~2x Faster', description: 'VLD is on average 1.9x faster than Zod v4, winning 10/12 tests', color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
   { icon: HardDrive, title: '~57KB gzip', description: '57KB gzipped vs 66KB for Zod v4 (14% smaller)', color: 'text-blue-500', bg: 'bg-blue-500/10' },
   { icon: Cpu, title: '3x Less Memory', description: 'Uses 3.16x less memory overall in validation tasks', color: 'text-green-500', bg: 'bg-green-500/10' },
   { icon: Clock, title: '11x Schema Creation', description: 'Creates schemas 11.4x faster than Zod', color: 'text-purple-500', bg: 'bg-purple-500/10' },
@@ -177,7 +193,7 @@ export function BenchmarkPage() {
 
   return (
     <div className="min-h-screen">
-      <div className="container mx-auto px-4 py-12">
+      <div className="container-wide py-12">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
           <div className="text-center mb-16">
@@ -185,9 +201,9 @@ export function BenchmarkPage() {
               <Activity className="w-4 h-4" />
               <span>Real Benchmark Results</span>
             </div>
-            <h1 className="text-4xl lg:text-5xl font-bold mb-4">Performance Benchmarks</h1>
+            <h1 className="font-display text-4xl lg:text-5xl font-bold mb-4">Performance Benchmarks</h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Real benchmark results comparing VLD vs Zod v4. Run <code className="text-vld-primary">npm run benchmark</code> to verify.
+              Real benchmark results comparing VLD vs Zod v4. Run <code className="text-vld-primary font-mono">npm run benchmark</code> to verify.
             </p>
           </div>
 
@@ -228,7 +244,7 @@ export function BenchmarkPage() {
           <div className="rounded-xl border border-border overflow-hidden mb-12">
             <div className="bg-muted/50 px-6 py-4 border-b border-border flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-semibold flex items-center gap-2">
+                <h2 className="font-display text-xl font-semibold flex items-center gap-2">
                   <BarChart3 className="w-5 h-5 text-vld-primary" />
                   Performance Results (ops/sec)
                 </h2>
@@ -301,7 +317,7 @@ export function BenchmarkPage() {
           {/* Memory Benchmark Table */}
           <div className="rounded-xl border border-border overflow-hidden mb-12">
             <div className="bg-muted/50 px-6 py-4 border-b border-border">
-              <h2 className="text-xl font-semibold flex items-center gap-2">
+              <h2 className="font-display text-xl font-semibold flex items-center gap-2">
                 <Cpu className="w-5 h-5 text-vld-primary" />
                 Memory Usage Results
               </h2>

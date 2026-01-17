@@ -462,20 +462,62 @@ describe('Pigment', () => {
   });
 
   describe('supportsColor environment handling', () => {
-    it('should handle NO_COLOR environment variable', () => {
-      // The supportsColor function checks process.env.NO_COLOR
-      const result = supportsColor();
-      expect(typeof result).toBe('boolean');
+    const originalEnv = process.env;
+    const originalStdout = process.stdout;
+
+    beforeEach(() => {
+      jest.resetModules();
+      process.env = { ...originalEnv };
     });
 
-    it('should handle FORCE_COLOR environment variable', () => {
-      // The supportsColor function checks process.env.FORCE_COLOR
-      const result = supportsColor();
-      expect(typeof result).toBe('boolean');
+    afterEach(() => {
+      process.env = originalEnv;
+      Object.defineProperty(process, 'stdout', {
+        value: originalStdout,
+        writable: true,
+        configurable: true
+      });
+    });
+
+    it('should return false when NO_COLOR is set', () => {
+      process.env.NO_COLOR = '1';
+      // Re-import to get fresh supportsColor check
+      const { supportsColor: freshSupportsColor } = require('../src/pigment');
+      expect(freshSupportsColor()).toBe(false);
+    });
+
+    it('should return true when FORCE_COLOR is set', () => {
+      delete process.env.NO_COLOR;
+      process.env.FORCE_COLOR = '1';
+      const { supportsColor: freshSupportsColor } = require('../src/pigment');
+      expect(freshSupportsColor()).toBe(true);
+    });
+
+    it('should return true when stdout is a TTY', () => {
+      delete process.env.NO_COLOR;
+      delete process.env.FORCE_COLOR;
+      Object.defineProperty(process, 'stdout', {
+        value: { isTTY: true },
+        writable: true,
+        configurable: true
+      });
+      const { supportsColor: freshSupportsColor } = require('../src/pigment');
+      expect(freshSupportsColor()).toBe(true);
+    });
+
+    it('should return false when stdout is not a TTY and no env vars set', () => {
+      delete process.env.NO_COLOR;
+      delete process.env.FORCE_COLOR;
+      Object.defineProperty(process, 'stdout', {
+        value: { isTTY: false },
+        writable: true,
+        configurable: true
+      });
+      const { supportsColor: freshSupportsColor } = require('../src/pigment');
+      expect(freshSupportsColor()).toBe(false);
     });
 
     it('should handle TTY detection', () => {
-      // The supportsColor function checks process.stdout.isTTY
       const result = supportsColor();
       expect(typeof result).toBe('boolean');
     });
@@ -492,6 +534,70 @@ describe('Pigment', () => {
       const result = pigment.red('hello');
       // Should contain the text
       expect(result).toContain('hello');
+    });
+  });
+
+  describe('Color output with FORCE_COLOR enabled', () => {
+    const originalEnv = process.env;
+
+    beforeEach(() => {
+      jest.resetModules();
+      process.env = { ...originalEnv };
+    });
+
+    afterEach(() => {
+      process.env = originalEnv;
+    });
+
+    it('should output ANSI codes when FORCE_COLOR is set', () => {
+      process.env.FORCE_COLOR = '1';
+      delete process.env.NO_COLOR;
+
+      const { pigment: coloredPigment } = require('../src/pigment');
+      const result = coloredPigment.red('test');
+
+      // Should contain ANSI escape codes
+      expect(result).toContain('\x1b[31m'); // red
+      expect(result).toContain('\x1b[0m');  // reset
+      expect(result).toContain('test');
+    });
+
+    it('should apply combine function with ANSI codes when enabled', () => {
+      process.env.FORCE_COLOR = '1';
+      delete process.env.NO_COLOR;
+
+      const { pigment: coloredPigment } = require('../src/pigment');
+      const combineFn = coloredPigment.combine(coloredPigment.codes.bold, coloredPigment.codes.red);
+      const result = combineFn('test');
+
+      // Should contain ANSI escape codes for bold and red
+      expect(result).toContain('\x1b[1m'); // bold
+      expect(result).toContain('\x1b[31m'); // red
+      expect(result).toContain('\x1b[0m');  // reset
+      expect(result).toContain('test');
+    });
+
+    it('should return plain text when NO_COLOR is set', () => {
+      process.env.NO_COLOR = '1';
+      delete process.env.FORCE_COLOR;
+
+      const { pigment: plainPigment } = require('../src/pigment');
+      const result = plainPigment.red('test');
+
+      // Should NOT contain ANSI escape codes
+      expect(result).toBe('test');
+    });
+
+    it('combine should return plain text when colors disabled', () => {
+      process.env.NO_COLOR = '1';
+      delete process.env.FORCE_COLOR;
+
+      const { pigment: plainPigment } = require('../src/pigment');
+      const combineFn = plainPigment.combine(plainPigment.codes.bold, plainPigment.codes.red);
+      const result = combineFn('test');
+
+      // Should NOT contain ANSI escape codes
+      expect(result).toBe('test');
     });
   });
 });

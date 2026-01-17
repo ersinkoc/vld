@@ -41,6 +41,32 @@ export default {
     '!src/**/*.d.ts',
     '!src/cli/**/*.ts',           // CLI modules require integration tests
     '!src/locales/backup-*.ts',   // Backup locale files
+    '!src/locales/af.ts',         // Non-English locales (translations only)
+    '!src/locales/ar.ts',
+    '!src/locales/bn.ts',
+    '!src/locales/da.ts',
+    '!src/locales/de.ts',
+    '!src/locales/es.ts',
+    '!src/locales/es-MX.ts',
+    '!src/locales/fi.ts',
+    '!src/locales/fr.ts',
+    '!src/locales/hi.ts',
+    '!src/locales/id.ts',
+    '!src/locales/it.ts',
+    '!src/locales/ja.ts',
+    '!src/locales/ko.ts',
+    '!src/locales/nl.ts',
+    '!src/locales/no.ts',
+    '!src/locales/pl.ts',
+    '!src/locales/pt.ts',
+    '!src/locales/pt-BR.ts',
+    '!src/locales/ru.ts',
+    '!src/locales/sv.ts',
+    '!src/locales/sw.ts',
+    '!src/locales/th.ts',
+    '!src/locales/tr.ts',
+    '!src/locales/vi.ts',
+    '!src/locales/zh.ts',
     '!**/node_modules/**'
   ],
   
