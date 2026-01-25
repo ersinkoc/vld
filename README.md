@@ -1,6 +1,6 @@
 # VLD - Fast & Lightweight TypeScript Validation Library
 
-[![NPM Version](https://img.shields.io/npm/v/@oxog/vld.svg)](https://www.npmjs.com/package/@oxog/vld) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/) [![Zero Dependencies](https://img.shields.io/badge/Dependencies-0-green.svg)](package.json) [![Test Coverage](https://img.shields.io/badge/Coverage-99.25%25-brightgreen.svg)](package.json)
+[![NPM Version](https://img.shields.io/npm/v/@oxog/vld.svg)](https://www.npmjs.com/package/@oxog/vld) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/) [![Zero Dependencies](https://img.shields.io/badge/Dependencies-0-green.svg)](package.json) [![Test Coverage](https://img.shields.io/badge/Coverage-99.23%25-brightgreen.svg)](package.json)
 
 VLD is a blazing-fast, type-safe validation library for TypeScript and JavaScript with **full Zod feature parity**. Built with performance in mind, it provides a simple and intuitive API while maintaining excellent type inference and 27+ language internationalization support.
 
@@ -34,7 +34,7 @@ VLD is a blazing-fast, type-safe validation library for TypeScript and JavaScrip
 - **Composable**: Chain validations for complex schemas
 - **Advanced Error Formatting**: Tree, pretty, and flatten error utilities
 - **Multi-language**: Built-in support for 27+ languages
-- **99.25% Test Coverage**: Rigorously tested with 1683 passing tests
+- **99.23% Test Coverage**: Rigorously tested with 1858 passing tests
 - **Industry Leading Performance**: 1.98x faster than Zod on average
 
 ### Advanced Zod-Compatible Features
@@ -46,6 +46,35 @@ VLD is a blazing-fast, type-safe validation library for TypeScript and JavaScrip
 - **Default Values**: `default()` for handling undefined inputs elegantly
 - **Fallback Handling**: `catch()` for graceful error recovery
 - **Object Utilities**: `pick()`, `omit()`, `extend()` for flexible object schemas
+
+### NEW in v2.0.0 - Modular Architecture
+
+#### Tree-Shakable Mini API
+```typescript
+import { string, number, object, optional } from '@oxog/vld/mini';
+
+const schema = object({
+  name: string().min(1),
+  age: optional(number().positive()),
+});
+```
+- **82% smaller bundles** when using only needed validators
+- Individual factory functions for optimal tree-shaking
+- Full TypeScript support with identical type inference
+
+#### Lazy Locale Loading
+```typescript
+import { setLocaleAsync } from '@oxog/vld/locales';
+await setLocaleAsync('tr'); // Loads Turkish on demand
+```
+- **92% bundle reduction** - Only English bundled by default
+- `preloadLocales()` for SSR/batch loading
+- Full backwards compatibility with `setLocale()`
+
+#### Dual ESM/CJS Build
+- ESM builds for modern bundlers (Vite, esbuild)
+- CJS builds for Node.js and legacy environments
+- Proper `exports` field with conditional exports
 
 ### NEW in v1.5.0 - Major Platform Release
 

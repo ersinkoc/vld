@@ -1,6 +1,6 @@
 # Getting Started with VLD
 
-A comprehensive guide to get you up and running with VLD (v1.5.0), the blazing-fast TypeScript validation library with full Zod 4 API parity, plugin system, and CLI tools.
+A comprehensive guide to get you up and running with VLD (v2.0), the blazing-fast TypeScript validation library with full Zod 4 API parity, modular architecture, plugin system, and CLI tools.
 
 ## Table of Contents
 
@@ -38,6 +38,31 @@ VLD provides a simple, chainable API for building validation schemas. The core c
 2. **Composable**: Build complex schemas from simple primitives
 3. **Performant**: Optimized for speed with zero dependencies
 4. **Developer-Friendly**: Clear error messages and intuitive API
+
+## Import Options
+
+VLD v2.0 provides multiple import options for different needs:
+
+### Full API (Classic)
+```typescript
+import { v } from '@oxog/vld';
+const schema = v.string().min(1);
+```
+
+### Tree-Shakable Mini API (NEW in v2.0)
+```typescript
+import { string, number, object, optional } from '@oxog/vld/mini';
+const schema = object({
+  name: string().min(1),
+  age: optional(number()),
+});
+```
+
+### Lazy Locale Loading (NEW in v2.0)
+```typescript
+import { setLocaleAsync } from '@oxog/vld/locales';
+await setLocaleAsync('tr'); // Loads Turkish on demand
+```
 
 ## Your First Schema
 

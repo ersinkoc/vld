@@ -5,6 +5,122 @@ All notable changes to VLD will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2026-01-25
+
+### 🧪 Test Coverage Improvements
+- **99.23% Statement Coverage**: Up from previous release
+- **1,858 Tests Passing**: Comprehensive test suite with 100% success rate
+- **Coverage Gap Tests**: Added dedicated test file for edge cases
+
+### 🔧 Bug Fixes
+- Fixed TypeScript errors in test files
+- Fixed lazy locale loader edge cases
+- Improved codec error handling tests
+
+### 📚 Documentation
+- Updated version references across documentation
+- Improved test coverage documentation
+
+---
+
+## [2.0.0] - 2026-01-20
+
+### 🚀 **Major Release - Modular Architecture**
+
+This release introduces a completely new modular architecture for better tree-shaking, lazy locale loading, and dual ESM/CJS support.
+
+### ✨ New Features
+
+#### **Tree-Shakable Mini API** (`@oxog/vld/mini`)
+New functional API that enables proper tree-shaking:
+```typescript
+import { string, number, object, optional } from '@oxog/vld/mini';
+
+const schema = object({
+  name: string().min(1),
+  age: optional(number().positive()),
+});
+```
+- **82% bundle size reduction** when using only needed validators
+- Individual factory functions instead of monolithic `v` object
+- Full TypeScript support with identical type inference
+
+#### **Lazy Locale Loading** (`@oxog/vld/locales`)
+Async locale loading to reduce initial bundle size:
+```typescript
+import { setLocaleAsync } from '@oxog/vld/locales';
+await setLocaleAsync('tr'); // Loads Turkish on demand
+```
+- **92% bundle reduction** - Only English bundled by default
+- `preloadLocales()` for SSR/batch loading
+- `registerLocale()` for static imports
+- Full backwards compatibility with existing `setLocale()`
+
+#### **Dual ESM/CJS Build System**
+- ESM builds for modern bundlers (Vite, esbuild, webpack 5+)
+- CJS builds for Node.js and legacy environments
+- Proper `exports` field in package.json with conditional exports
+
+#### **New Coercion Module** (`@oxog/vld/coercion`)
+Dedicated coercion validators export:
+```typescript
+import { VldCoerceString, VldCoerceNumber } from '@oxog/vld/coercion';
+```
+
+### 📦 Package Exports
+
+New conditional exports for optimal imports:
+```json
+{
+  "@oxog/vld": "Full API (backwards compatible)",
+  "@oxog/vld/mini": "Tree-shakable functional API",
+  "@oxog/vld/locales": "Lazy locale loader",
+  "@oxog/vld/locales/*": "Individual locale files",
+  "@oxog/vld/validators/*": "Individual validators",
+  "@oxog/vld/codecs": "Codec utilities",
+  "@oxog/vld/errors": "Error formatting utilities"
+}
+```
+
+### 🔧 Build System Changes
+- Migrated to Rollup with `@rollup/plugin-typescript`
+- Removed duplicate `rollup-plugin-typescript2`
+- Added `tsconfig.build.json` for type declarations
+- Inline dynamic imports for CJS lazy locale build
+
+### 📊 Bundle Size Comparison
+
+| Scenario | v1.x | v2.0 | Improvement |
+|----------|------|------|-------------|
+| Full API import | 45KB | 45KB | - |
+| Mini API (string + object) | 45KB | ~8KB | **82%** |
+| Single validator | 45KB | ~3KB | **93%** |
+| With 1 locale only | 108KB+ | ~8KB | **92%** |
+
+### 🧪 Testing
+- **1,858 tests** - All passing
+- **99.23% coverage** - Comprehensive test suite
+- Added tests for mini API, lazy locales, and coverage gaps
+
+### ⚠️ Migration Guide
+
+**No breaking changes** - v2.0 is fully backwards compatible:
+
+```typescript
+// Old way (still works)
+import { v, setLocale } from '@oxog/vld';
+setLocale('tr');
+const schema = v.string().min(1);
+
+// New way (tree-shakable)
+import { string } from '@oxog/vld/mini';
+import { setLocaleAsync } from '@oxog/vld/locales';
+await setLocaleAsync('tr');
+const schema = string().min(1);
+```
+
+---
+
 ## [1.4.0] - 2026-01-02
 
 ### 🚀 **Zod 4 Full API Parity Achieved**

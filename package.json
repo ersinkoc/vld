@@ -1,9 +1,9 @@
 {
   "name": "@oxog/vld",
-  "version": "1.5.0",
+  "version": "2.0.1",
   "description": "Ultra-fast TypeScript-first schema validation with zero dependencies, 27+ language support, plugin system, and CLI tools",
   "type": "module",
-  "main": "./dist/index.js",
+  "main": "./dist/cjs/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
@@ -13,7 +13,59 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "require": "./dist/index.js"
+      "require": "./dist/cjs/index.cjs"
+    },
+    "./mini": {
+      "types": "./dist/mini.d.ts",
+      "import": "./dist/mini.js",
+      "require": "./dist/cjs/mini.cjs"
+    },
+    "./errors": {
+      "types": "./dist/errors.d.ts",
+      "import": "./dist/errors.js",
+      "require": "./dist/cjs/errors.cjs"
+    },
+    "./validators": {
+      "types": "./dist/validators/index.d.ts",
+      "import": "./dist/validators/index.js"
+    },
+    "./validators/*": {
+      "types": "./dist/validators/*.d.ts",
+      "import": "./dist/validators/*.js"
+    },
+    "./coercion": {
+      "types": "./dist/coercion/index.d.ts",
+      "import": "./dist/coercion/index.js"
+    },
+    "./codecs": {
+      "types": "./dist/codecs/index.d.ts",
+      "import": "./dist/codecs/index.js"
+    },
+    "./locales": {
+      "types": "./dist/locales/index.d.ts",
+      "import": "./dist/locales/index.js",
+      "require": "./dist/cjs/locales/index.cjs"
+    },
+    "./locales/lazy": {
+      "types": "./dist/locales/lazy.d.ts",
+      "import": "./dist/locales/lazy.js",
+      "require": "./dist/cjs/locales/lazy.cjs"
+    },
+    "./locales/*": {
+      "types": "./dist/locales/*.d.ts",
+      "import": "./dist/locales/*.js"
+    },
+    "./result": {
+      "types": "./dist/compat/result.d.ts",
+      "import": "./dist/compat/result.js"
+    },
+    "./kernel": {
+      "types": "./dist/kernel.d.ts",
+      "import": "./dist/kernel.js"
+    },
+    "./pigment": {
+      "types": "./dist/pigment.d.ts",
+      "import": "./dist/pigment.js"
     },
     "./cli": {
       "types": "./dist/cli/index.d.ts",
@@ -22,11 +74,18 @@
     "./plugins": {
       "types": "./dist/plugins/index.d.ts",
       "import": "./dist/plugins/index.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "sideEffects": false,
   "scripts": {
-    "build": "tsc && node scripts/fix-imports.cjs",
+    "build": "npm run build:clean && npm run build:esm && npm run build:cjs && npm run build:types && npm run build:fix",
+    "build:clean": "node -e \"require('fs').rmSync('./dist', { recursive: true, force: true })\"",
+    "build:esm": "rollup -c rollup.config.mjs",
+    "build:cjs": "echo 'CJS built by rollup'",
+    "build:types": "tsc -p tsconfig.build.json",
+    "build:fix": "node scripts/fix-imports.cjs",
+    "build:legacy": "tsc && node scripts/fix-imports.cjs",
     "test": "jest --coverage",
     "test:types": "tsc --noEmit",
     "benchmark": "node benchmarks/quick-bench.cjs",
@@ -87,7 +146,6 @@
     "jest-junit": "^16.0.0",
     "prettier": "^3.1.1",
     "rollup": "^4.46.2",
-    "rollup-plugin-typescript2": "^0.36.0",
     "ts-jest": "^29.4.1",
     "typescript": "^5.3.3",
     "zod": "^4.0.17"

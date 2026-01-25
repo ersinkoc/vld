@@ -1,10 +1,11 @@
 # VLD API Reference
 
-Complete API documentation for the VLD validation library (v1.5.0 - Full Zod 4 API Parity + Plugin System + CLI Tools).
+Complete API documentation for the VLD validation library (v2.0 - Modular Architecture + Full Zod 4 API Parity + Plugin System + CLI Tools).
 
 ## Table of Contents
 
 - [Installation](#installation)
+- [Import Options](#import-options)
 - [Basic Usage](#basic-usage)
 - [Core Methods](#core-methods)
 - [Primitive Types](#primitive-types)
@@ -35,6 +36,49 @@ npm install @oxog/vld
 yarn add @oxog/vld
 # or
 pnpm add @oxog/vld
+```
+
+## Import Options
+
+VLD v2.0 provides multiple import strategies for different needs:
+
+### Full API (Classic)
+```typescript
+import { v, setLocale } from '@oxog/vld';
+setLocale('tr');
+const schema = v.string().min(1);
+```
+
+### Tree-Shakable Mini API (NEW in v2.0)
+Ideal for production applications where bundle size matters:
+```typescript
+import { string, number, object, optional, array } from '@oxog/vld/mini';
+
+const userSchema = object({
+  name: string().min(1),
+  age: optional(number().positive()),
+  tags: array(string()),
+});
+```
+
+### Lazy Locale Loading (NEW in v2.0)
+Load locales on demand to reduce initial bundle size:
+```typescript
+import { setLocaleAsync, preloadLocales } from '@oxog/vld/locales';
+
+// Async loading
+await setLocaleAsync('tr');
+
+// Preload for SSR
+await preloadLocales(['en', 'tr', 'de']);
+```
+
+### Individual Imports
+Import only what you need:
+```typescript
+import { VldString } from '@oxog/vld/validators/string';
+import { stringToNumber } from '@oxog/vld/codecs';
+import { VldError, prettifyError } from '@oxog/vld/errors';
 ```
 
 ## Basic Usage
