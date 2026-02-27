@@ -36,3 +36,4 @@ benchmarks/
 *.tmp
 node_modules/
 CONTRIBUTING.md
+nul

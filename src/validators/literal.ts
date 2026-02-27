@@ -9,10 +9,17 @@ export class VldLiteral<T extends string | number | boolean | null | undefined> 
    * Private constructor to enforce immutability
    */
   private constructor(
-    private readonly literal: T,
+    private readonly _literal: T,
     private readonly errorMessage?: string
   ) {
     super();
+  }
+
+  /**
+   * Get the literal value
+   */
+  get literal(): T {
+    return this._literal;
   }
   
   /**
@@ -26,27 +33,27 @@ export class VldLiteral<T extends string | number | boolean | null | undefined> 
    * Parse and validate a literal value
    */
   parse(value: unknown): T {
-    if (value !== this.literal) {
+    if (value !== this._literal) {
       throw new Error(
-        this.errorMessage || 
-        getMessages().literalExpected(JSON.stringify(this.literal), JSON.stringify(value))
+        this.errorMessage ||
+        getMessages().literalExpected(JSON.stringify(this._literal), JSON.stringify(value))
       );
     }
-    return this.literal;
+    return this._literal;
   }
-  
+
   /**
    * Safely parse and validate a literal value
    */
   safeParse(value: unknown): ParseResult<T> {
-    if (value === this.literal) {
-      return { success: true, data: this.literal };
+    if (value === this._literal) {
+      return { success: true, data: this._literal };
     }
-    return { 
-      success: false, 
+    return {
+      success: false,
       error: new Error(
-        this.errorMessage || 
-        getMessages().literalExpected(JSON.stringify(this.literal), JSON.stringify(value))
+        this.errorMessage ||
+        getMessages().literalExpected(JSON.stringify(this._literal), JSON.stringify(value))
       )
     };
   }

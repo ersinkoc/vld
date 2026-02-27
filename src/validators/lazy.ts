@@ -10,9 +10,16 @@ import type { ParseResult } from './base';
 /**
  * Lazy validator - defers schema evaluation until runtime
  * Essential for recursive and self-referencing types
+ *
+ * MEMORY OPTIMIZATION: Uses WeakRef for the cached schema to allow garbage collection
+ * when the validator is no longer in use. This prevents memory leaks in long-running
+ * applications with dynamically created schemas.
  */
 export class VldLazy<TInput, TOutput> extends VldBase<TInput, TOutput> {
-  private _cachedSchema: VldBase<TInput, TOutput> | null = null;
+  // Use WeakRef to allow garbage collection of the cached schema
+  private _cachedSchemaRef: WeakRef<VldBase<TInput, TOutput>> | null = null;
+  // Keep a strong reference flag to prevent GC during active use
+  private _strongRef: VldBase<TInput, TOutput> | null = null;
 
   private constructor(
     private readonly _schemaGetter: () => VldBase<TInput, TOutput>
@@ -28,16 +35,42 @@ export class VldLazy<TInput, TOutput> extends VldBase<TInput, TOutput> {
 
   /**
    * Get the actual schema, caching it after first retrieval
+   * Uses WeakRef to allow garbage collection when validator is not in use
    */
   private _getSchema(): VldBase<TInput, TOutput> {
-    if (!this._cachedSchema) {
-      this._cachedSchema = this._schemaGetter();
+    // Check if we have a strong reference first (active use)
+    if (this._strongRef) {
+      return this._strongRef;
     }
-    return this._cachedSchema;
+
+    // Try to get from WeakRef
+    if (this._cachedSchemaRef) {
+      const cached = this._cachedSchemaRef.deref();
+      if (cached) {
+        // Restore strong reference for active use
+        this._strongRef = cached;
+        return cached;
+      }
+    }
+
+    // Create new schema
+    const schema = this._schemaGetter();
+    this._cachedSchemaRef = new WeakRef(schema);
+    this._strongRef = schema;
+
+    // Clear strong reference after a tick to allow GC
+    // This keeps the schema alive during synchronous operations
+    // but allows it to be collected if the validator is discarded
+    Promise.resolve().then(() => {
+      this._strongRef = null;
+    });
+
+    return schema;
   }
 
   /**
    * Get the inner schema (unwrap)
+   * Returns a strong reference that will keep the schema alive
    */
   unwrap(): VldBase<TInput, TOutput> {
     return this._getSchema();

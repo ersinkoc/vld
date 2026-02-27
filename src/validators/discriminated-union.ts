@@ -15,11 +15,10 @@ import type { ParseResult } from './base';
  */
 function extractLiteralValues(schema: VldBase<unknown, any>): unknown[] {
   if (schema instanceof VldLiteral) {
-    const value = (schema as any).literal;
-    return [value];
+    return [schema.literal];
   }
   if (schema instanceof VldEnum) {
-    return (schema as any).values as unknown[];
+    return [...schema.values];
   }
   throw new Error('Discriminator must be a literal or enum schema');
 }
@@ -90,7 +89,7 @@ export class VldDiscriminatedUnion<K extends string, Options extends VldBase<any
     }
 
     // Get discriminator value
-    const discriminatorValue = (value as any)[this._discriminator];
+    const discriminatorValue = (value as Record<string, unknown>)[this._discriminator];
 
     // Look up matching schema
     const matchedSchema = this._discriminatorMap.get(discriminatorValue);

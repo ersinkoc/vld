@@ -9,10 +9,17 @@ export class VldEnum<T extends readonly [string, ...string[]]> extends VldBase<s
    * Private constructor to enforce immutability
    */
   private constructor(
-    private readonly values: T,
+    private readonly _values: T,
     private readonly errorMessage?: string
   ) {
     super();
+  }
+
+  /**
+   * Get the enum values
+   */
+  get values(): T {
+    return this._values;
   }
   
   /**
@@ -30,13 +37,13 @@ export class VldEnum<T extends readonly [string, ...string[]]> extends VldBase<s
     if (typeof value !== 'string') {
       throw new Error(
         this.errorMessage ||
-        getMessages().enumExpected([...this.values], JSON.stringify(value))
+        getMessages().enumExpected([...this._values], JSON.stringify(value))
       );
     }
-    if (!this.values.includes(value)) {
+    if (!this._values.includes(value)) {
       throw new Error(
         this.errorMessage ||
-        getMessages().enumExpected([...this.values], JSON.stringify(value))
+        getMessages().enumExpected([...this._values], JSON.stringify(value))
       );
     }
     return value as T[number];
@@ -52,18 +59,18 @@ export class VldEnum<T extends readonly [string, ...string[]]> extends VldBase<s
         success: false,
         error: new Error(
           this.errorMessage ||
-          getMessages().enumExpected([...this.values], JSON.stringify(value))
+          getMessages().enumExpected([...this._values], JSON.stringify(value))
         )
       };
     }
-    if (this.values.includes(value)) {
+    if (this._values.includes(value)) {
       return { success: true, data: value as T[number] };
     }
     return {
       success: false,
       error: new Error(
         this.errorMessage ||
-        getMessages().enumExpected([...this.values], JSON.stringify(value))
+        getMessages().enumExpected([...this._values], JSON.stringify(value))
       )
     };
   }
@@ -75,7 +82,7 @@ export class VldEnum<T extends readonly [string, ...string[]]> extends VldBase<s
   exclude<const E extends readonly string[]>(...excludeValues: E): VldEnum<
     T[number] extends E[number] ? never : T[number] extends Exclude<T[number], E[number]> ? T : Exclude<T, E>
   > {
-    const filtered = this.values.filter(v => !excludeValues.includes(v));
+    const filtered = this._values.filter(v => !excludeValues.includes(v));
     if (filtered.length === 0) {
       throw new Error('Cannot exclude all enum values');
     }
@@ -88,7 +95,7 @@ export class VldEnum<T extends readonly [string, ...string[]]> extends VldBase<s
    * Creates a new enum validator with only the specified values
    */
   extract<const E extends readonly string[]>(...extractValues: E): VldEnum<[string, ...string[]]> {
-    const extracted = this.values.filter(v => extractValues.includes(v));
+    const extracted = this._values.filter(v => extractValues.includes(v));
     if (extracted.length === 0) {
       throw new Error('Cannot extract non-existent enum values');
     }

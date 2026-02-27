@@ -1,6 +1,6 @@
 {
   "name": "@oxog/vld",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Ultra-fast TypeScript-first schema validation with zero dependencies, 27+ language support, plugin system, and CLI tools",
   "type": "module",
   "main": "./dist/cjs/index.cjs",

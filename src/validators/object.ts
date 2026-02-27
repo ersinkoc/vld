@@ -26,19 +26,42 @@ interface ObjectValidatorConfig<T extends Record<string, any>> {
  * Features pre-computed keys and Set-based lookups for better performance
  */
 export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T> {
-  private readonly config: ObjectValidatorConfig<T>;
-  private readonly shapeKeys: string[];
-  private readonly shapeKeysSet: Set<string>;
-  
+  private readonly _config: ObjectValidatorConfig<T>;
+  private readonly _shapeKeys: string[];
+  private readonly _shapeKeysSet: Set<string>;
+
   /**
    * Private constructor to enforce immutability
    */
   private constructor(config: ObjectValidatorConfig<T>) {
     super();
-    this.config = config;
+    this._config = config;
     // Pre-compute shape keys for faster access
-    this.shapeKeys = Object.keys(config.shape);
-    this.shapeKeysSet = new Set(this.shapeKeys);
+    this._shapeKeys = Object.keys(config.shape);
+    this._shapeKeysSet = new Set(this._shapeKeys);
+  }
+
+  /**
+   * Get the validator configuration
+   * @internal Used by discriminated union validator
+   */
+  get config(): ObjectValidatorConfig<T> {
+    return this._config;
+  }
+
+  /**
+   * Get the shape keys array
+   */
+  get shapeKeys(): string[] {
+    return this._shapeKeys;
+  }
+
+  /**
+   * Get the shape keys set for O(1) lookups
+   * @internal Used by discriminated union validator
+   */
+  get shapeKeysSet(): Set<string> {
+    return this._shapeKeysSet;
   }
   
   /**
@@ -57,16 +80,16 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
   parse(value: unknown): T {
     // Fast type check
     if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-      throw new Error(this.config.errorMessage || getMessages().invalidObject);
+      throw new Error(this._config.errorMessage || getMessages().invalidObject);
     }
-    
+
     const obj = value as Record<string, unknown>;
     const result: any = {};
-    
+
     // Ultra-optimized field validation with inline fast paths
-    for (let i = 0; i < this.shapeKeys.length; i++) {
-      const key = this.shapeKeys[i];
-      const validator = this.config.shape[key];
+    for (let i = 0; i < this._shapeKeys.length; i++) {
+      const key = this._shapeKeys[i];
+      const validator = this._config.shape[key];
       const fieldValue = obj[key];
 
       // BUG-NEW-002 FIX: Use instanceof instead of constructor.name
@@ -121,42 +144,44 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
       }
     }
     
-    // Handle strict mode - optimized with Set
-    if (this.config.strict) {
+    // Handle strict/passthrough/catchall modes - optimized single Object.keys() call
+    if (this._config.strict || this._config.passthrough || this._config.catchall) {
       const objKeys = Object.keys(obj);
-      const extraKeys: string[] = [];
 
-      for (let i = 0; i < objKeys.length; i++) {
-        if (!this.shapeKeysSet.has(objKeys[i])) {
-          extraKeys.push(objKeys[i]);
+      // Handle strict mode - optimized with Set
+      if (this._config.strict) {
+        const extraKeys: string[] = [];
+
+        for (let i = 0; i < objKeys.length; i++) {
+          if (!this._shapeKeysSet.has(objKeys[i])) {
+            extraKeys.push(objKeys[i]);
+          }
+        }
+
+        if (extraKeys.length > 0) {
+          throw new Error(getMessages().unexpectedKeys(extraKeys));
         }
       }
 
-      if (extraKeys.length > 0) {
-        throw new Error(getMessages().unexpectedKeys(extraKeys));
-      }
-    }
-
-    // Handle passthrough mode - optimized with comprehensive prototype pollution protection
-    if (this.config.passthrough) {
-      const objKeys = Object.keys(obj);
-      for (let i = 0; i < objKeys.length; i++) {
-        const key = objKeys[i];
-        // Skip dangerous keys to prevent prototype pollution
-        if (!this.shapeKeysSet.has(key) && !this.isDangerousKey(key)) {
-          result[key] = obj[key];
+      // Handle passthrough mode - optimized with comprehensive prototype pollution protection
+      if (this._config.passthrough) {
+        for (let i = 0; i < objKeys.length; i++) {
+          const key = objKeys[i];
+          // Skip dangerous keys to prevent prototype pollution
+          if (!this._shapeKeysSet.has(key) && !this.isDangerousKey(key)) {
+            result[key] = obj[key];
+          }
         }
       }
-    }
 
-    // Handle catchall - validate extra keys with catchall validator
-    if (this.config.catchall) {
-      const objKeys = Object.keys(obj);
-      for (let i = 0; i < objKeys.length; i++) {
-        const key = objKeys[i];
-        // Skip keys already in shape and dangerous keys
-        if (!this.shapeKeysSet.has(key) && !this.isDangerousKey(key)) {
-          result[key] = this.config.catchall.parse(obj[key]);
+      // Handle catchall - validate extra keys with catchall validator
+      if (this._config.catchall) {
+        for (let i = 0; i < objKeys.length; i++) {
+          const key = objKeys[i];
+          // Skip keys already in shape and dangerous keys
+          if (!this._shapeKeysSet.has(key) && !this.isDangerousKey(key)) {
+            result[key] = this._config.catchall.parse(obj[key]);
+          }
         }
       }
     }
@@ -173,21 +198,21 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
     if (typeof value !== 'object' || value === null || Array.isArray(value)) {
       return {
         success: false,
-        error: new Error(this.config.errorMessage || getMessages().invalidObject)
+        error: new Error(this._config.errorMessage || getMessages().invalidObject)
       };
     }
-    
+
     const obj = value as Record<string, unknown>;
     const result: any = {};
-    
+
     // Validate all fields
-    for (let i = 0; i < this.shapeKeys.length; i++) {
-      const key = this.shapeKeys[i];
-      const validator = this.config.shape[key];
+    for (let i = 0; i < this._shapeKeys.length; i++) {
+      const key = this._shapeKeys[i];
+      const validator = this._config.shape[key];
       const fieldValue = obj[key];
-      
+
       const parseResult = validator.safeParse(fieldValue);
-      
+
       if (parseResult.success) {
         result[key] = parseResult.data;
       } else {
@@ -197,53 +222,55 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
         };
       }
     }
-    
-    // Handle strict mode
-    if (this.config.strict) {
+
+    // Handle strict/passthrough/catchall modes - optimized single Object.keys() call
+    if (this._config.strict || this._config.passthrough || this._config.catchall) {
       const objKeys = Object.keys(obj);
-      const extraKeys: string[] = [];
 
-      for (let i = 0; i < objKeys.length; i++) {
-        if (!this.shapeKeysSet.has(objKeys[i])) {
-          extraKeys.push(objKeys[i]);
-        }
-      }
+      // Handle strict mode
+      if (this._config.strict) {
+        const extraKeys: string[] = [];
 
-      if (extraKeys.length > 0) {
-        return {
-          success: false,
-          error: new Error(getMessages().unexpectedKeys(extraKeys))
-        };
-      }
-    }
-
-    // Handle passthrough mode with comprehensive prototype pollution protection
-    if (this.config.passthrough) {
-      const objKeys = Object.keys(obj);
-      for (let i = 0; i < objKeys.length; i++) {
-        const key = objKeys[i];
-        // Skip dangerous keys to prevent prototype pollution
-        if (!this.shapeKeysSet.has(key) && !this.isDangerousKey(key)) {
-          result[key] = obj[key];
-        }
-      }
-    }
-
-    // Handle catchall - validate extra keys with catchall validator
-    if (this.config.catchall) {
-      const objKeys = Object.keys(obj);
-      for (let i = 0; i < objKeys.length; i++) {
-        const key = objKeys[i];
-        // Skip keys already in shape and dangerous keys
-        if (!this.shapeKeysSet.has(key) && !this.isDangerousKey(key)) {
-          const catchallResult = this.config.catchall.safeParse(obj[key]);
-          if (!catchallResult.success) {
-            return {
-              success: false,
-              error: new Error(getMessages().objectField(key, catchallResult.error.message))
-            };
+        for (let i = 0; i < objKeys.length; i++) {
+          if (!this._shapeKeysSet.has(objKeys[i])) {
+            extraKeys.push(objKeys[i]);
           }
-          result[key] = catchallResult.data;
+        }
+
+        if (extraKeys.length > 0) {
+          return {
+            success: false,
+            error: new Error(getMessages().unexpectedKeys(extraKeys))
+          };
+        }
+      }
+
+      // Handle passthrough mode with comprehensive prototype pollution protection
+      if (this._config.passthrough) {
+        for (let i = 0; i < objKeys.length; i++) {
+          const key = objKeys[i];
+          // Skip dangerous keys to prevent prototype pollution
+          if (!this._shapeKeysSet.has(key) && !this.isDangerousKey(key)) {
+            result[key] = obj[key];
+          }
+        }
+      }
+
+      // Handle catchall - validate extra keys with catchall validator
+      if (this._config.catchall) {
+        for (let i = 0; i < objKeys.length; i++) {
+          const key = objKeys[i];
+          // Skip keys already in shape and dangerous keys
+          if (!this._shapeKeysSet.has(key) && !this.isDangerousKey(key)) {
+            const catchallResult = this._config.catchall.safeParse(obj[key]);
+            if (!catchallResult.success) {
+              return {
+                success: false,
+                error: new Error(getMessages().objectField(key, catchallResult.error.message))
+              };
+            }
+            result[key] = catchallResult.data;
+          }
         }
       }
     }
@@ -318,7 +345,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
    */
   strict(message?: string): VldObject<T> {
     return new VldObject({
-      ...this.config,
+      ...this._config,
       strict: true,
       passthrough: false,
       errorMessage: message
@@ -330,78 +357,78 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
    */
   passthrough(): VldObject<T> {
     return new VldObject({
-      ...this.config,
+      ...this._config,
       strict: false,
       passthrough: true
     });
   }
-  
+
   /**
    * Create a new validator with all fields optional
    */
   partial(): VldObject<{ [K in keyof T]?: T[K] }> {
     const partialShape: any = {};
-    for (const key in this.config.shape) {
-      partialShape[key] = new VldOptional(this.config.shape[key]);
+    for (const key in this._config.shape) {
+      partialShape[key] = new VldOptional(this._config.shape[key]);
     }
-    return new VldObject({ 
-      ...this.config, 
-      shape: partialShape 
+    return new VldObject({
+      ...this._config,
+      shape: partialShape
     }) as any;
   }
-  
+
   /**
    * Create a new validator with deep partial (nested objects also partial)
    */
   deepPartial(): VldObject<any> {
     const deepPartialShape: any = {};
-    for (const key in this.config.shape) {
-      const validator = this.config.shape[key];
+    for (const key in this._config.shape) {
+      const validator = this._config.shape[key];
       if (validator instanceof VldObject) {
         deepPartialShape[key] = new VldOptional(validator.deepPartial());
       } else {
         deepPartialShape[key] = new VldOptional(validator);
       }
     }
-    return new VldObject({ 
-      ...this.config, 
-      shape: deepPartialShape 
+    return new VldObject({
+      ...this._config,
+      shape: deepPartialShape
     });
   }
-  
+
   /**
    * Create a new validator with only specified keys
    */
   pick<K extends keyof T>(...keys: K[]): VldObject<Pick<T, K>> {
     const pickedShape: any = {};
     for (const key of keys) {
-      if (key in this.config.shape) {
-        pickedShape[key] = this.config.shape[key];
+      if (key in this._config.shape) {
+        pickedShape[key] = this._config.shape[key];
       }
     }
-    return new VldObject({ 
-      ...this.config, 
-      shape: pickedShape 
+    return new VldObject({
+      ...this._config,
+      shape: pickedShape
     });
   }
-  
+
   /**
    * Create a new validator without specified keys
    */
   omit<K extends keyof T>(...keys: K[]): VldObject<Omit<T, K>> {
     const omittedShape: any = {};
     const keysToOmit = new Set(keys);
-    for (const key in this.config.shape) {
+    for (const key in this._config.shape) {
       if (!keysToOmit.has(key as any)) {
-        omittedShape[key] = this.config.shape[key];
+        omittedShape[key] = this._config.shape[key];
       }
     }
-    return new VldObject({ 
-      ...this.config, 
-      shape: omittedShape 
+    return new VldObject({
+      ...this._config,
+      shape: omittedShape
     });
   }
-  
+
   /**
    * Create a new validator with additional fields
    */
@@ -409,11 +436,11 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
     extension: { [K in keyof U]: VldBase<unknown, U[K]> }
   ): VldObject<T & U> {
     return new VldObject({
-      ...this.config,
-      shape: { ...this.config.shape, ...extension } as any
+      ...this._config,
+      shape: { ...this._config.shape, ...extension } as any
     });
   }
-  
+
   /**
    * Create a new validator by merging with another object validator
    */
@@ -421,18 +448,18 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
     other: VldObject<U>
   ): VldObject<T & U> {
     return new VldObject({
-      ...this.config,
-      shape: { ...this.config.shape, ...other.config.shape } as any
+      ...this._config,
+      shape: { ...this._config.shape, ...other.config.shape } as any
     });
   }
-  
+
   /**
    * Create a new validator with all fields required (removes optional)
    */
   required(): VldObject<{ [K in keyof T]-?: T[K] }> {
     const requiredShape: any = {};
-    for (const key in this.config.shape) {
-      const validator = this.config.shape[key];
+    for (const key in this._config.shape) {
+      const validator = this._config.shape[key];
       // If it's optional, unwrap it
       if (validator instanceof VldOptional) {
         // BUG-001 FIX: Add defensive check for baseValidator property
@@ -446,7 +473,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
       }
     }
     return new VldObject({
-      ...this.config,
+      ...this._config,
       shape: requiredShape
     }) as any;
   }
@@ -457,7 +484,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
    */
   catchall<U>(schema: VldBase<unknown, U>): VldObject<any> {
     return new VldObject({
-      ...this.config,
+      ...this._config,
       catchall: schema,
       passthrough: false // catchall overrides passthrough
     }) as any;
@@ -468,7 +495,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
    * Zod 4 API parity - returns the shape object
    */
   get shape(): { readonly [K in keyof T]: VldBase<unknown, T[K]> } {
-    return this.config.shape;
+    return this._config.shape;
   }
 
   /**
@@ -476,7 +503,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
    * Zod 4 API parity - creates literal union of keys
    */
   keyof(): VldEnum<[string, ...string[]]> {
-    const keys = Object.keys(this.config.shape);
+    const keys = Object.keys(this._config.shape);
     if (keys.length === 0) {
       throw new Error('Cannot create keyof enum from empty object');
     }
@@ -498,7 +525,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
     extension: { [K in keyof U]: VldBase<unknown, U[K]> }
   ): VldObject<T & U> {
     // Check for overlapping keys
-    const existingKeys = new Set(Object.keys(this.config.shape));
+    const existingKeys = new Set(Object.keys(this._config.shape));
     const extensionKeys = Object.keys(extension);
     const overlappingKeys: string[] = [];
 
@@ -513,8 +540,8 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
     }
 
     return new VldObject({
-      ...this.config,
-      shape: { ...this.config.shape, ...extension } as any
+      ...this._config,
+      shape: { ...this._config.shape, ...extension } as any
     });
   }
 }

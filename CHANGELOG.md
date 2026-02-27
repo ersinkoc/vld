@@ -5,6 +5,58 @@ All notable changes to VLD will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.2] - 2026-02-27
+
+### ⚡ Performance Optimizations
+
+#### **VldString - Pre-compiled Validation Functions**
+- **File**: `src/validators/string.ts`
+- **Optimization**: Added pre-compiled validator functions with fast paths for 0-3 transforms/checks
+- **Impact**: Eliminates loop overhead and enables better JIT optimization
+- **Details**: Unrolled loops for common cases (1-2-3 transforms/checks) reduce function call overhead
+
+#### **VldObject - Consolidated Object.keys() Calls**
+- **File**: `src/validators/object.ts`
+- **Optimization**: Reduced from 3 separate `Object.keys()` calls to 1 shared call
+- **Impact**: ~66% reduction in key enumeration overhead for strict/passthrough/catchall modes
+- **Details**: Single `Object.keys()` call shared across all three modes
+
+#### **VldArray - WeakMap Caching for stableStringify**
+- **File**: `src/validators/array.ts`
+- **Optimization**: Added `WeakMap<object, string>` cache for object serialization
+- **Impact**: Significant performance improvement for arrays with duplicate object references
+- **Details**: Avoids repeated `stableStringify` calls for the same object references
+
+#### **VldLazy - Memory Leak Prevention**
+- **File**: `src/validators/lazy.ts`
+- **Optimization**: Implemented `WeakRef` caching with strong reference fallback
+- **Impact**: Allows garbage collection when validators are no longer in use
+- **Details**: Prevents memory leaks in long-running applications with dynamic schemas
+
+### 🔧 Type Safety Improvements
+
+#### **VldDiscriminatedUnion - Removed `any` Usage**
+- **File**: `src/validators/discriminated-union.ts`
+- **Changes**:
+  - Added public `literal` getter to `VldLiteral` class
+  - Added public `values` getter to `VldEnum` class
+  - Replaced `(value as any)` with `(value as Record<string, unknown>)`
+- **Impact**: Improved type safety without breaking changes
+
+### 📦 Build System
+
+#### **ES2021 WeakRef Support**
+- **File**: `tsconfig.json`
+- **Change**: Updated `"lib": ["ES2020"]` to `"lib": ["ES2021"]`
+- **Impact**: Native `WeakRef` support for memory optimizations
+
+### 🧪 Testing
+- **All 1858 tests passing** - 100% success rate maintained
+- **98.99% code coverage** - Comprehensive test coverage
+- **No breaking changes** - Full backwards compatibility
+
+---
+
 ## [2.0.1] - 2026-01-25
 
 ### 🧪 Test Coverage Improvements

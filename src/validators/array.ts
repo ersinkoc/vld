@@ -67,16 +67,9 @@ export class VldArray<T> extends VldBase<unknown[], T[]> {
       result[i] = parseResult.data; // Direct assignment is faster than push
     }
     
-    // Check uniqueness if required
+    // Check uniqueness if required - optimized with Map-based approach
     if (this.config.unique) {
-      const seen = new Set<any>();
-      for (const item of result) {
-        const key = typeof item === 'object' ? this.stableStringify(item) : item;
-        if (seen.has(key)) {
-          throw new Error('Array must contain unique items');
-        }
-        seen.add(key);
-      }
+      this.checkUnique(result);
     }
     
     return result;
@@ -90,6 +83,40 @@ export class VldArray<T> extends VldBase<unknown[], T[]> {
       return { success: true, data: this.parse(value) };
     } catch (error) {
       return { success: false, error: error as Error };
+    }
+  }
+
+  /**
+   * Optimized uniqueness check using Map-based approach
+   * Avoids repeated stableStringify calls by caching serialized values
+   */
+  private checkUnique(items: T[]): void {
+    const seen = new Set<unknown>(); // Set of seen keys
+    const objectKeys = new WeakMap<object, string>(); // Cache for object->string mappings
+
+    for (const item of items) {
+      let key: unknown;
+
+      if (typeof item === 'object' && item !== null) {
+        // Check if we've already serialized this object reference
+        const cached = objectKeys.get(item);
+        if (cached !== undefined) {
+          key = cached;
+        } else {
+          // Serialize and cache
+          const serialized = this.stableStringify(item);
+          key = serialized;
+          objectKeys.set(item, serialized);
+        }
+      } else {
+        // Primitives can be used directly as keys
+        key = item;
+      }
+
+      if (seen.has(key)) {
+        throw new Error('Array must contain unique items');
+      }
+      seen.add(key);
     }
   }
 

@@ -43,11 +43,19 @@ interface StringValidatorConfig {
 }
 
 /**
+ * Pre-compiled validator function type
+ */
+type CompiledStringValidator = (value: string) => { success: true; value: string } | { success: false; error: string };
+
+/**
  * Immutable string validator with chainable methods
+ * Features pre-compiled validation functions for maximum performance
  */
 export class VldString extends VldBase<string, string> {
   protected readonly config: StringValidatorConfig;
-  
+  // Cache for pre-compiled validation function
+  private _compiledValidator: CompiledStringValidator | null = null;
+
   /**
    * Protected constructor to allow extension while maintaining immutability
    */
@@ -59,6 +67,96 @@ export class VldString extends VldBase<string, string> {
       errorMessage: config?.errorMessage
     };
   }
+
+  /**
+   * Compile all transforms and checks into a single optimized function
+   * This eliminates loop overhead and enables better JIT optimization
+   */
+  private _compileValidator(): CompiledStringValidator {
+    const transforms = this.config.transforms;
+    const checks = this.config.checks;
+    const errorMessage = this.config.errorMessage || getMessages().invalidString;
+
+    // Fast path: no transforms or checks
+    if (transforms.length === 0 && checks.length === 0) {
+      return (value: string) => ({ success: true, value });
+    }
+
+    // Fast path: only transforms, no checks
+    if (checks.length === 0) {
+      switch (transforms.length) {
+        case 1:
+          return (value: string) => ({ success: true, value: transforms[0](value) });
+        case 2:
+          return (value: string) => ({ success: true, value: transforms[1](transforms[0](value)) });
+        case 3:
+          return (value: string) => ({ success: true, value: transforms[2](transforms[1](transforms[0](value))) });
+        default:
+          return (value: string) => {
+            let result = value;
+            for (let i = 0; i < transforms.length; i++) {
+              result = transforms[i](result);
+            }
+            return { success: true, value: result };
+          };
+      }
+    }
+
+    // Fast path: only checks, no transforms
+    if (transforms.length === 0) {
+      switch (checks.length) {
+        case 1:
+          return (value: string) => {
+            if (!checks[0](value)) return { success: false, error: errorMessage };
+            return { success: true, value };
+          };
+        case 2:
+          return (value: string) => {
+            if (!checks[0](value) || !checks[1](value)) return { success: false, error: errorMessage };
+            return { success: true, value };
+          };
+        case 3:
+          return (value: string) => {
+            if (!checks[0](value) || !checks[1](value) || !checks[2](value)) return { success: false, error: errorMessage };
+            return { success: true, value };
+          };
+        default:
+          return (value: string) => {
+            for (let i = 0; i < checks.length; i++) {
+              if (!checks[i](value)) return { success: false, error: errorMessage };
+            }
+            return { success: true, value };
+          };
+      }
+    }
+
+    // General case: both transforms and checks
+    return (value: string) => {
+      let result = value;
+
+      // Apply transforms
+      for (let i = 0; i < transforms.length; i++) {
+        result = transforms[i](result);
+      }
+
+      // Apply checks
+      for (let i = 0; i < checks.length; i++) {
+        if (!checks[i](result)) return { success: false, error: errorMessage };
+      }
+
+      return { success: true, value: result };
+    };
+  }
+
+  /**
+   * Get the cached compiled validator, creating it if necessary
+   */
+  private _getCompiledValidator(): CompiledStringValidator {
+    if (!this._compiledValidator) {
+      this._compiledValidator = this._compileValidator();
+    }
+    return this._compiledValidator;
+  }
   
   /**
    * Create a new string validator
@@ -68,30 +166,21 @@ export class VldString extends VldBase<string, string> {
   }
   
   /**
-   * Parse and validate a string value - ultra-optimized
+   * Parse and validate a string value - ultra-optimized with pre-compiled validator
    */
   parse(value: unknown): string {
     if (typeof value !== 'string') {
       throw new Error(this.config.errorMessage || getMessages().invalidString);
     }
-    
-    let result = value;
-    
-    // Apply transformations with optimized loop
-    const transformsLength = this.config.transforms.length;
-    for (let i = 0; i < transformsLength; i++) {
-      result = this.config.transforms[i](result);
+
+    // Use pre-compiled validator for maximum performance
+    const result = this._getCompiledValidator()(value);
+
+    if (!result.success) {
+      throw new Error(result.error);
     }
-    
-    // Apply checks with optimized loop and early termination
-    const checksLength = this.config.checks.length;
-    for (let i = 0; i < checksLength; i++) {
-      if (!this.config.checks[i](result)) {
-        throw new Error(this.config.errorMessage || getMessages().invalidString);
-      }
-    }
-    
-    return result;
+
+    return result.value;
   }
   
   /**
