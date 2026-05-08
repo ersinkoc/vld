@@ -1,5 +1,5 @@
 import { VldBoolean } from '../validators/boolean';
-import { ParseResult } from '../validators/base';
+import { ParseResult, VLD_VALIDATOR_TYPES } from '../validators/base';
 import { getMessages } from '../locales';
 
 /**
@@ -11,6 +11,10 @@ export class VldCoerceBoolean extends VldBoolean {
    */
   static create(): VldCoerceBoolean {
     return new VldCoerceBoolean();
+  }
+
+  constructor() {
+    super(undefined, VLD_VALIDATOR_TYPES.COERCE_BOOLEAN);
   }
   
   /**

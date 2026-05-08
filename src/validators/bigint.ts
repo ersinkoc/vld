@@ -1,4 +1,4 @@
-import { VldBase, ParseResult } from './base';
+import { VldBase, ParseResult, VLD_VALIDATOR_TYPES, ValidatorType } from './base';
 import { getMessages } from '../locales';
 
 /**
@@ -12,6 +12,7 @@ type BigIntCheck = (value: bigint) => boolean;
 interface BigIntValidatorConfig {
   readonly checks: ReadonlyArray<BigIntCheck>;
   readonly errorMessage?: string;
+  readonly validatorType?: ValidatorType;
 }
 
 /**
@@ -19,12 +20,12 @@ interface BigIntValidatorConfig {
  */
 export class VldBigInt extends VldBase<bigint, bigint> {
   protected readonly config: BigIntValidatorConfig;
-  
+
   /**
    * Protected constructor to allow extension while maintaining immutability
    */
   protected constructor(config?: Partial<BigIntValidatorConfig>) {
-    super();
+    super(config?.validatorType || VLD_VALIDATOR_TYPES.BIGINT);
     this.config = {
       checks: config?.checks || [],
       errorMessage: config?.errorMessage

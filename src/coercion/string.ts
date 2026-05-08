@@ -1,5 +1,5 @@
 import { VldString } from '../validators/string';
-import { ParseResult } from '../validators/base';
+import { ParseResult, VLD_VALIDATOR_TYPES } from '../validators/base';
 import { getMessages } from '../locales';
 import { isValidIPv6 } from '../utils/ip-validation';
 
@@ -11,7 +11,8 @@ import { isValidIPv6 } from '../utils/ip-validation';
  */
 export class VldCoerceString extends VldString {
   protected constructor(config?: any) {
-    super(config);
+    // Pass COERCE_STRING type to base class instead of STRING
+    super({ ...config, validatorType: VLD_VALIDATOR_TYPES.COERCE_STRING });
   }
   
   /**

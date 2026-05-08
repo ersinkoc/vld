@@ -1,5 +1,5 @@
 import { VldDate } from '../validators/date';
-import { ParseResult } from '../validators/base';
+import { ParseResult, VLD_VALIDATOR_TYPES } from '../validators/base';
 import { getMessages } from '../locales';
 
 /**
@@ -11,6 +11,10 @@ export class VldCoerceDate extends VldDate {
    */
   static create(): VldCoerceDate {
     return new VldCoerceDate();
+  }
+
+  constructor() {
+    super({ validatorType: VLD_VALIDATOR_TYPES.COERCE_DATE });
   }
   
   /**

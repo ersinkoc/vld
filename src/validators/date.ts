@@ -1,4 +1,4 @@
-import { VldBase, ParseResult } from './base';
+import { VldBase, ParseResult, VLD_VALIDATOR_TYPES, ValidatorType } from './base';
 import { getMessages } from '../locales';
 
 /**
@@ -17,6 +17,7 @@ interface DateCheck {
 interface DateValidatorConfig {
   readonly checks: ReadonlyArray<DateCheck>;
   readonly errorMessage?: string;
+  readonly validatorType?: ValidatorType;
 }
 
 /**
@@ -29,7 +30,7 @@ export class VldDate extends VldBase<Date, Date> {
    * Protected constructor to allow extension while maintaining immutability
    */
   protected constructor(config?: Partial<DateValidatorConfig>) {
-    super();
+    super(config?.validatorType || VLD_VALIDATOR_TYPES.DATE);
     this.config = {
       checks: config?.checks || [],
       errorMessage: config?.errorMessage

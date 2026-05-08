@@ -1,4 +1,4 @@
-import { VldBase, ParseResult } from './base';
+import { VldBase, ParseResult, VLD_VALIDATOR_TYPES, ValidatorType } from './base';
 import { getMessages } from '../locales';
 
 /**
@@ -12,6 +12,7 @@ type NumberCheck = (value: number) => boolean;
 interface NumberValidatorConfig {
   readonly checks: ReadonlyArray<NumberCheck>;
   readonly errorMessage?: string;
+  readonly validatorType?: ValidatorType;
 }
 
 /**
@@ -19,12 +20,12 @@ interface NumberValidatorConfig {
  */
 export class VldNumber extends VldBase<number, number> {
   protected readonly config: NumberValidatorConfig;
-  
+
   /**
    * Protected constructor to allow extension while maintaining immutability
    */
   protected constructor(config?: Partial<NumberValidatorConfig>) {
-    super();
+    super(config?.validatorType || VLD_VALIDATOR_TYPES.NUMBER);
     this.config = {
       checks: config?.checks || [],
       errorMessage: config?.errorMessage

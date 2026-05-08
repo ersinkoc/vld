@@ -1,5 +1,5 @@
 import { VldNumber } from '../validators/number';
-import { ParseResult } from '../validators/base';
+import { ParseResult, VLD_VALIDATOR_TYPES } from '../validators/base';
 import { getMessages } from '../locales';
 
 /**
@@ -7,7 +7,7 @@ import { getMessages } from '../locales';
  */
 export class VldCoerceNumber extends VldNumber {
   protected constructor(config?: any) {
-    super(config);
+    super({ ...config, validatorType: VLD_VALIDATOR_TYPES.COERCE_NUMBER });
   }
   
   /**

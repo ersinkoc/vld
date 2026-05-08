@@ -1,14 +1,6 @@
-import { VldBase, ParseResult, VldOptional } from './base';
+import { VldBase, ParseResult, VldOptional, VLD_VALIDATOR_TYPES } from './base';
 import { getMessages } from '../locales';
-import { VldString } from './string';
-import { VldNumber } from './number';
-import { VldBoolean } from './boolean';
-import { VldDate } from './date';
 import { VldEnum } from './enum';
-import { VldCoerceString } from '../coercion/string';
-import { VldCoerceNumber } from '../coercion/number';
-import { VldCoerceBoolean } from '../coercion/boolean';
-import { VldCoerceDate } from '../coercion/date';
 
 /**
  * Configuration for object validator
@@ -99,51 +91,65 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
       // Note: Coercion validators extend their base validators, so we need to check for
       // coercion types first (more specific) before checking base types
 
-      // Check for coercion validators first - they need full safeParse for type conversion
-      if (validator instanceof VldCoerceString ||
-          validator instanceof VldCoerceNumber ||
-          validator instanceof VldCoerceBoolean ||
-          validator instanceof VldCoerceDate) {
-        // Coercion validators need safeParse to handle type conversion
-        const parseResult = validator.safeParse(fieldValue);
-        if (!parseResult.success) {
-          throw new Error(getMessages().objectField(key, parseResult.error.message));
+      switch (validator.validatorType) {
+        case VLD_VALIDATOR_TYPES.COERCE_STRING:
+        case VLD_VALIDATOR_TYPES.COERCE_NUMBER:
+        case VLD_VALIDATOR_TYPES.COERCE_BOOLEAN:
+        case VLD_VALIDATOR_TYPES.COERCE_DATE: {
+          const parseResult = validator.safeParse(fieldValue);
+          if (!parseResult.success) {
+            throw new Error(getMessages().objectField(key, parseResult.error.message));
+          }
+          result[key] = parseResult.data;
+          break;
         }
-        result[key] = parseResult.data;
-      } else if (validator instanceof VldString) {
-        // For string with validations, use safeParse to handle email, regex etc.
-        const parseResult = validator.safeParse(fieldValue);
-        if (!parseResult.success) {
-          throw new Error(getMessages().objectField(key, parseResult.error.message));
+        case VLD_VALIDATOR_TYPES.STRING: {
+          const parseResult = validator.safeParse(fieldValue);
+          if (!parseResult.success) {
+            throw new Error(getMessages().objectField(key, parseResult.error.message));
+          }
+          result[key] = parseResult.data;
+          break;
         }
-        result[key] = parseResult.data;
-      } else if (validator instanceof VldNumber) {
-        if (typeof fieldValue !== 'number' || isNaN(fieldValue)) {
-          throw new Error(getMessages().objectField(key, getMessages().invalidNumber));
+        // NOTE: For validators with additional checks (min, max, positive, etc.),
+        // we must use safeParse to run all checks. Inline paths are only for
+        // basic type validation without custom checks.
+        case VLD_VALIDATOR_TYPES.NUMBER: {
+          const parseResult = validator.safeParse(fieldValue);
+          if (!parseResult.success) {
+            throw new Error(getMessages().objectField(key, parseResult.error.message));
+          }
+          result[key] = parseResult.data;
+          break;
         }
-        result[key] = fieldValue;
-      } else if (validator instanceof VldBoolean) {
-        if (typeof fieldValue !== 'boolean') {
-          throw new Error(getMessages().objectField(key, getMessages().invalidBoolean));
+        case VLD_VALIDATOR_TYPES.BOOLEAN: {
+          const parseResult = validator.safeParse(fieldValue);
+          if (!parseResult.success) {
+            throw new Error(getMessages().objectField(key, parseResult.error.message));
+          }
+          result[key] = parseResult.data;
+          break;
         }
-        result[key] = fieldValue;
-      } else if (validator instanceof VldDate) {
-        // Use the actual validator for Date parsing (handles string conversion)
-        const parseResult = validator.safeParse(fieldValue);
-        if (!parseResult.success) {
-          throw new Error(getMessages().objectField(key, parseResult.error.message));
+        case VLD_VALIDATOR_TYPES.DATE: {
+          const parseResult = validator.safeParse(fieldValue);
+          if (!parseResult.success) {
+            throw new Error(getMessages().objectField(key, parseResult.error.message));
+          }
+          result[key] = parseResult.data;
+          break;
         }
-        result[key] = parseResult.data;
-      } else {
-        // Fallback to safeParse for complex validators
-        const parseResult = validator.safeParse(fieldValue);
-        if (!parseResult.success) {
-          throw new Error(getMessages().objectField(key, parseResult.error.message));
+        default: {
+          const parseResult = validator.safeParse(fieldValue);
+          if (!parseResult.success) {
+            throw new Error(getMessages().objectField(key, parseResult.error.message));
+          }
+          result[key] = parseResult.data;
+          break;
         }
-        result[key] = parseResult.data;
       }
+
     }
-    
+
     // Handle strict/passthrough/catchall modes - optimized single Object.keys() call
     if (this._config.strict || this._config.passthrough || this._config.catchall) {
       const objKeys = Object.keys(obj);
@@ -205,21 +211,85 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
     const obj = value as Record<string, unknown>;
     const result: any = {};
 
-    // Validate all fields
+    // Ultra-optimized field validation with inline fast paths
     for (let i = 0; i < this._shapeKeys.length; i++) {
       const key = this._shapeKeys[i];
       const validator = this._config.shape[key];
       const fieldValue = obj[key];
 
-      const parseResult = validator.safeParse(fieldValue);
-
-      if (parseResult.success) {
-        result[key] = parseResult.data;
-      } else {
-        return {
-          success: false,
-          error: new Error(getMessages().objectField(key, parseResult.error.message))
-        };
+      switch (validator.validatorType) {
+        case VLD_VALIDATOR_TYPES.COERCE_STRING:
+        case VLD_VALIDATOR_TYPES.COERCE_NUMBER:
+        case VLD_VALIDATOR_TYPES.COERCE_BOOLEAN:
+        case VLD_VALIDATOR_TYPES.COERCE_DATE: {
+          const parseResult = validator.safeParse(fieldValue);
+          if (!parseResult.success) {
+            return {
+              success: false,
+              error: new Error(getMessages().objectField(key, parseResult.error.message))
+            };
+          }
+          result[key] = parseResult.data;
+          break;
+        }
+        case VLD_VALIDATOR_TYPES.STRING: {
+          const parseResult = validator.safeParse(fieldValue);
+          if (!parseResult.success) {
+            return {
+              success: false,
+              error: new Error(getMessages().objectField(key, parseResult.error.message))
+            };
+          }
+          result[key] = parseResult.data;
+          break;
+        }
+        // NOTE: For validators with additional checks (min, max, positive, etc.),
+        // we must use safeParse to run all checks. Inline paths are only for
+        // basic type validation without custom checks.
+        case VLD_VALIDATOR_TYPES.NUMBER: {
+          const parseResult = validator.safeParse(fieldValue);
+          if (!parseResult.success) {
+            return {
+              success: false,
+              error: new Error(getMessages().objectField(key, parseResult.error.message))
+            };
+          }
+          result[key] = parseResult.data;
+          break;
+        }
+        case VLD_VALIDATOR_TYPES.BOOLEAN: {
+          const parseResult = validator.safeParse(fieldValue);
+          if (!parseResult.success) {
+            return {
+              success: false,
+              error: new Error(getMessages().objectField(key, parseResult.error.message))
+            };
+          }
+          result[key] = parseResult.data;
+          break;
+        }
+        case VLD_VALIDATOR_TYPES.DATE: {
+          const parseResult = validator.safeParse(fieldValue);
+          if (!parseResult.success) {
+            return {
+              success: false,
+              error: new Error(getMessages().objectField(key, parseResult.error.message))
+            };
+          }
+          result[key] = parseResult.data;
+          break;
+        }
+        default: {
+          const parseResult = validator.safeParse(fieldValue);
+          if (!parseResult.success) {
+            return {
+              success: false,
+              error: new Error(getMessages().objectField(key, parseResult.error.message))
+            };
+          }
+          result[key] = parseResult.data;
+          break;
+        }
       }
     }
 

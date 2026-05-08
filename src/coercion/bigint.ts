@@ -1,5 +1,5 @@
 import { VldBigInt } from '../validators/bigint';
-import { ParseResult } from '../validators/base';
+import { ParseResult, VLD_VALIDATOR_TYPES } from '../validators/base';
 import { getMessages } from '../locales';
 
 /**
@@ -7,7 +7,7 @@ import { getMessages } from '../locales';
  */
 export class VldCoerceBigInt extends VldBigInt {
   protected constructor(config?: any) {
-    super(config);
+    super({ ...config, validatorType: VLD_VALIDATOR_TYPES.COERCE_BIGINT });
   }
   
   /**

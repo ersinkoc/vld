@@ -6,6 +6,82 @@ export type ParseResult<T> =
   | { readonly success: false; readonly error: Error };
 
 /**
+ * Validator type constants for O(1) dispatch
+ * Used by VldObject to replace instanceof chains with Map lookups
+ */
+export const VLD_VALIDATOR_TYPES = {
+  // Primitives
+  STRING: 'string',
+  NUMBER: 'number',
+  BOOLEAN: 'boolean',
+  DATE: 'date',
+  BIGINT: 'bigint',
+  UNDEFINED: 'undefined',
+  NULL: 'null',
+  UNKNOWN: 'unknown',
+  ANY: 'any',
+  VOID: 'void',
+  NEVER: 'never',
+  SYMBOL: 'symbol',
+  NAN: 'nan',
+
+  // Coercion
+  COERCE_STRING: 'coerceString',
+  COERCE_NUMBER: 'coerceNumber',
+  COERCE_BOOLEAN: 'coerceBoolean',
+  COERCE_DATE: 'coerceDate',
+  COERCE_BIGINT: 'coerceBigint',
+
+  // Composite
+  OBJECT: 'object',
+  ARRAY: 'array',
+  TUPLE: 'tuple',
+  SET: 'set',
+  MAP: 'map',
+  RECORD: 'record',
+
+  // Union types
+  UNION: 'union',
+  DISCRIMINATED_UNION: 'discriminatedUnion',
+  INTERSECTION: 'intersection',
+  XOR: 'xor',
+
+  // Values
+  ENUM: 'enum',
+  LITERAL: 'literal',
+
+  // Special validators
+  LAZY: 'lazy',
+  CUSTOM: 'custom',
+  FUNCTION: 'function',
+  FILE: 'file',
+  JSON: 'json',
+  TEMPLATE_LITERAL: 'templateLiteral',
+
+  // Wrapper/Modifier validators
+  OPTIONAL: 'optional',
+  NULLABLE: 'nullable',
+  NULLISH: 'nullish',
+  EXACT_OPTIONAL: 'exactOptional',
+  DEFAULT: 'default',
+  CATCH: 'catch',
+  REFINE: 'refine',
+  TRANSFORM: 'transform',
+  PIPE: 'pipe',
+  PREPROCESS: 'preprocess',
+  SUPER_REFINE: 'superRefine',
+  BRAND: 'brand',
+  READONLY: 'readonly',
+  META: 'meta',
+  PREFault: 'prefault',
+
+  // Codec
+  CODEC: 'codec',
+} as const;
+
+export type ValidatorType = typeof VLD_VALIDATOR_TYPES[keyof typeof VLD_VALIDATOR_TYPES];
+
+/**
  * Context for superRefine - allows adding multiple issues
  */
 export interface SuperRefineContext {
@@ -18,6 +94,20 @@ export interface SuperRefineContext {
  * Implements immutable pattern to prevent memory leaks and race conditions
  */
 export abstract class VldBase<TInput, TOutput = TInput> {
+  /**
+   * Runtime type identifier for O(1) dispatch
+   * Used by VldObject instead of instanceof chains
+   */
+  readonly validatorType: ValidatorType;
+
+  /**
+   * Constructor with runtime type identifier
+   * @param validatorType The runtime type identifier
+   */
+  constructor(validatorType: ValidatorType = 'unknown') {
+    this.validatorType = validatorType;
+  }
+
   /**
    * Parse and validate a value, throwing an error if invalid
    * @param value The value to validate

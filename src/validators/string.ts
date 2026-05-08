@@ -1,4 +1,4 @@
-import { VldBase, ParseResult } from './base';
+import { VldBase, ParseResult, VLD_VALIDATOR_TYPES, ValidatorType } from './base';
 import { getMessages } from '../locales';
 import { isValidIPv6 } from '../utils/ip-validation';
 
@@ -40,6 +40,7 @@ interface StringValidatorConfig {
   readonly checks: ReadonlyArray<StringCheck>;
   readonly transforms: ReadonlyArray<StringTransform>;
   readonly errorMessage?: string;
+  readonly validatorType?: ValidatorType;
 }
 
 /**
@@ -60,7 +61,8 @@ export class VldString extends VldBase<string, string> {
    * Protected constructor to allow extension while maintaining immutability
    */
   protected constructor(config?: Partial<StringValidatorConfig>) {
-    super();
+    // Use config.validatorType if provided (for coercion validators), otherwise default to STRING
+    super(config?.validatorType || VLD_VALIDATOR_TYPES.STRING);
     this.config = {
       checks: config?.checks || [],
       transforms: config?.transforms || [],

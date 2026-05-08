@@ -1,4 +1,4 @@
-import { VldBase, ParseResult } from './base';
+import { VldBase, ParseResult, VLD_VALIDATOR_TYPES, ValidatorType } from './base';
 import { getMessages } from '../locales';
 
 /**
@@ -6,12 +6,12 @@ import { getMessages } from '../locales';
  */
 export class VldBoolean extends VldBase<boolean, boolean> {
   private readonly errorMessage?: string;
-  
+
   /**
    * Protected constructor to allow extension while maintaining immutability
    */
-  protected constructor(errorMessage?: string) {
-    super();
+  protected constructor(errorMessage?: string, validatorType?: ValidatorType) {
+    super(validatorType || VLD_VALIDATOR_TYPES.BOOLEAN);
     this.errorMessage = errorMessage;
   }
   
