@@ -111,9 +111,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
           result[key] = parseResult.data;
           break;
         }
-        // NOTE: For validators with additional checks (min, max, positive, etc.),
-        // we must use safeParse to run all checks. Inline paths are only for
-        // basic type validation without custom checks.
+        // Use safeParse to ensure all checks (min, max, positive, etc.) run
         case VLD_VALIDATOR_TYPES.NUMBER: {
           const parseResult = validator.safeParse(fieldValue);
           if (!parseResult.success) {
@@ -243,16 +241,11 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
           result[key] = parseResult.data;
           break;
         }
-        // NOTE: For validators with additional checks (min, max, positive, etc.),
-        // we must use safeParse to run all checks. Inline paths are only for
-        // basic type validation without custom checks.
+        // Use safeParse to ensure all checks (min, max, positive, etc.) run
         case VLD_VALIDATOR_TYPES.NUMBER: {
           const parseResult = validator.safeParse(fieldValue);
           if (!parseResult.success) {
-            return {
-              success: false,
-              error: new Error(getMessages().objectField(key, parseResult.error.message))
-            };
+            return { success: false, error: new Error(getMessages().objectField(key, parseResult.error.message)) };
           }
           result[key] = parseResult.data;
           break;
@@ -260,10 +253,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
         case VLD_VALIDATOR_TYPES.BOOLEAN: {
           const parseResult = validator.safeParse(fieldValue);
           if (!parseResult.success) {
-            return {
-              success: false,
-              error: new Error(getMessages().objectField(key, parseResult.error.message))
-            };
+            return { success: false, error: new Error(getMessages().objectField(key, parseResult.error.message)) };
           }
           result[key] = parseResult.data;
           break;
