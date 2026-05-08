@@ -21,6 +21,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
   private readonly _config: ObjectValidatorConfig<T>;
   private readonly _shapeKeys: string[];
   private readonly _shapeKeysSet: Set<string>;
+  private readonly _validatorTypes: string[];
 
   /**
    * Private constructor to enforce immutability
@@ -31,6 +32,8 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
     // Pre-compute shape keys for faster access
     this._shapeKeys = Object.keys(config.shape);
     this._shapeKeysSet = new Set(this._shapeKeys);
+    // Pre-compute validator types to avoid repeated property lookups in hot path
+    this._validatorTypes = this._shapeKeys.map(k => (config.shape as any)[k].validatorType);
   }
 
   /**
@@ -78,20 +81,14 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
     const obj = value as Record<string, unknown>;
     const result: any = {};
 
-    // Ultra-optimized field validation with inline fast paths
+    // Ultra-optimized field validation - use pre-computed validatorTypes in hot path
     for (let i = 0; i < this._shapeKeys.length; i++) {
       const key = this._shapeKeys[i];
       const validator = this._config.shape[key];
       const fieldValue = obj[key];
+      const type = this._validatorTypes[i]; // Use pre-computed type
 
-      // BUG-NEW-002 FIX: Use instanceof instead of constructor.name
-      // constructor.name breaks in minified builds where class names become 'a', 'b', etc.
-      // instanceof checks are reliable regardless of minification
-      //
-      // Note: Coercion validators extend their base validators, so we need to check for
-      // coercion types first (more specific) before checking base types
-
-      switch (validator.validatorType) {
+      switch (type) {
         case VLD_VALIDATOR_TYPES.COERCE_STRING:
         case VLD_VALIDATOR_TYPES.COERCE_NUMBER:
         case VLD_VALIDATOR_TYPES.COERCE_BOOLEAN:
@@ -111,7 +108,6 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
           result[key] = parseResult.data;
           break;
         }
-        // Use safeParse for all validators to ensure correctness
         case VLD_VALIDATOR_TYPES.NUMBER: {
           const parseResult = validator.safeParse(fieldValue);
           if (!parseResult.success) {
@@ -209,13 +205,14 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
     const obj = value as Record<string, unknown>;
     const result: any = {};
 
-    // Ultra-optimized field validation with inline fast paths
+    // Ultra-optimized field validation - use pre-computed validatorTypes in hot path
     for (let i = 0; i < this._shapeKeys.length; i++) {
       const key = this._shapeKeys[i];
       const validator = this._config.shape[key];
       const fieldValue = obj[key];
+      const type = this._validatorTypes[i]; // Use pre-computed type
 
-      switch (validator.validatorType) {
+      switch (type) {
         case VLD_VALIDATOR_TYPES.COERCE_STRING:
         case VLD_VALIDATOR_TYPES.COERCE_NUMBER:
         case VLD_VALIDATOR_TYPES.COERCE_BOOLEAN:
