@@ -71,6 +71,13 @@ export const validateCommand: CliCommand = {
     try {
       const absoluteSchemaPath = path.resolve(process.cwd(), schemaPath);
 
+      // Security: Ensure resolved path is within allowed directories
+      const resolved = path.resolve(process.cwd(), schemaPath);
+      const allowedDir = process.cwd();
+      if (!resolved.startsWith(allowedDir + path.sep) && resolved !== allowedDir) {
+        throw new Error(`Schema path escapes allowed directory: ${schemaPath}`);
+      }
+
       if (!fs.existsSync(absoluteSchemaPath)) {
         throw new Error(`Schema file not found: ${schemaPath}`);
       }
