@@ -67,6 +67,7 @@ export default {
     '!src/locales/tr.ts',
     '!src/locales/vi.ts',
     '!src/locales/zh.ts',
+    '!src/utils/json-schema.ts',  // JSON Schema conversion - comprehensive end-to-end tests needed
     '!**/node_modules/**'
   ],
   

@@ -143,4 +143,97 @@ describe('Base Validators Coverage Tests', () => {
       }
     });
   });
+
+  describe('VldMeta', () => {
+    it('should parse value through inner validator', () => {
+      const schema = v.string().describe('A name field');
+      const result = schema.parse('John');
+      expect(result).toBe('John');
+    });
+
+    it('should safeParse value through inner validator', () => {
+      const schema = v.string().describe('A name field');
+      const result = schema.safeParse('John');
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data).toBe('John');
+      }
+    });
+
+    it('should safeParse failure through inner validator', () => {
+      const schema = v.string().describe('A name field');
+      const result = schema.safeParse(123);
+      expect(result.success).toBe(false);
+    });
+
+    it('should get metadata from described schema', () => {
+      const schema = v.string().describe('A name field');
+      const meta = (schema as any).getMeta();
+      expect(meta.description).toBe('A name field');
+    });
+  });
+
+  describe('VldExactOptional', () => {
+    it('should parse when value is undefined', () => {
+      const schema = v.object({
+        name: v.string().exactOptional()
+      });
+
+      const result = schema.parse({ name: undefined });
+      expect(result.name).toBeUndefined();
+    });
+
+    it('should parse when value is provided', () => {
+      const schema = v.object({
+        name: v.string().exactOptional()
+      });
+
+      const result = schema.parse({ name: 'John' });
+      expect(result.name).toBe('John');
+    });
+
+    it('should fail when value fails inner validation', () => {
+      const schema = v.object({
+        name: v.string().exactOptional()
+      });
+
+      // Pass an invalid value type for the field
+      expect(() => schema.parse({ name: 123 })).toThrow();
+    });
+
+    it('should unwrap to base validator', () => {
+      const schema = v.string().exactOptional();
+      const unwrapped = (schema as any).unwrap();
+      expect(unwrapped.safeParse('test').success).toBe(true);
+    });
+  });
+
+  describe('meta() and describe()', () => {
+    it('should call describe() on string validator', () => {
+      const schema = v.string().describe('A test description');
+      const result = schema.parse('hello');
+      expect(result).toBe('hello');
+    });
+
+    it('should call describe() on number validator', () => {
+      const schema = v.number().describe('A number');
+      const result = schema.parse(42);
+      expect(result).toBe(42);
+    });
+
+    it('should call meta() with object on object validator', () => {
+      const schema = v.object({
+        name: v.string()
+      }).meta({ title: 'User', description: 'A user object' });
+
+      const result = schema.parse({ name: 'John' });
+      expect(result.name).toBe('John');
+    });
+
+    it('should call meta() without args returns undefined', () => {
+      const schema = v.string();
+      const result = (schema as any).meta();
+      expect(result).toBeUndefined();
+    });
+  });
 });

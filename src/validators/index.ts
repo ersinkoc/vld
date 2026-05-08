@@ -11,6 +11,7 @@ export {
   VldDefault,
   VldCatch,
   VldOptional,
+  VldExactOptional,
   VldNullable,
   VldNullish,
   VldPipe,
@@ -65,6 +66,9 @@ export { VldFile, file } from './file';
 export type { VldFileValue } from './file';
 export { VldFunction, functionValidator } from './function';
 
+// Export Promise validator
+export { VldPromise, promise } from './promise';
+
 // Export string format validators
 export {
   email,
@@ -84,11 +88,16 @@ export {
   ipv6,
   mac,
   cidrv4,
+  cidrv6,
   e164,
   hash,
   iso,
   stringFormat,
-  regexes
+  regexes,
+  // Zod v4 parity
+  xid,
+  guid,
+  httpUrl
 } from './string-formats';
 
 // Import base for type inference

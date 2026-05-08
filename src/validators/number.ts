@@ -259,4 +259,70 @@ export class VldNumber extends VldBase<number, number> {
   lte(value: number, message?: string): VldNumber {
     return this.max(value, message);
   }
+
+  /**
+   * Create a validator for unsigned 32-bit integers
+   * Range: 0 to 4,294,967,295
+   */
+  uint32(message?: string): VldNumber {
+    return new VldNumber({
+      checks: [...this.config.checks, (v: number) => Number.isSafeInteger(v) && v >= 0 && v <= 4294967295],
+      errorMessage: message || 'Expected an unsigned 32-bit integer'
+    });
+  }
+
+  /**
+   * Create a validator for unsigned 64-bit integers
+   * Range: 0 to 2^53-1 (safe integer limit)
+   */
+  uint64(message?: string): VldNumber {
+    return new VldNumber({
+      checks: [...this.config.checks, (v: number) => Number.isSafeInteger(v) && v >= 0],
+      errorMessage: message || 'Expected an unsigned 64-bit integer'
+    });
+  }
+
+  /**
+   * Create a validator for signed 32-bit integers
+   * Range: -2,147,483,648 to 2,147,483,647
+   */
+  int32(message?: string): VldNumber {
+    return new VldNumber({
+      checks: [...this.config.checks, (v: number) => Number.isSafeInteger(v) && v >= -2147483648 && v <= 2147483647],
+      errorMessage: message || 'Expected a signed 32-bit integer'
+    });
+  }
+
+  /**
+   * Create a validator for signed 64-bit integers
+   * Range: -(2^53-1) to 2^53-1 (safe integer limit)
+   */
+  int64(message?: string): VldNumber {
+    return new VldNumber({
+      checks: [...this.config.checks, (v: number) => Number.isSafeInteger(v)],
+      errorMessage: message || 'Expected a signed 64-bit integer'
+    });
+  }
+
+  /**
+   * Create a validator for 32-bit floats (IEEE 754 single precision)
+   * Range: -3.4e38 to 3.4e38, precision ~7 decimal digits
+   */
+  float32(message?: string): VldNumber {
+    return new VldNumber({
+      checks: [...this.config.checks, (v: number) => Number.isFinite(v) && Math.abs(v) <= 3.4e38],
+      errorMessage: message || 'Expected a 32-bit float'
+    });
+  }
+
+  /**
+   * Create a validator for 64-bit floats (IEEE 754 double precision)
+   * Alias for standard number validation
+   */
+  float64(message?: string): VldNumber {
+    return new VldNumber({
+      checks: [...this.config.checks, (v: number) => Number.isFinite(v)],
+      errorMessage: message || 'Expected a 64-bit float'
+    });
+  }
 }

@@ -5,6 +5,48 @@ All notable changes to VLD will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.3] - 2026-05-08
+
+### 🐛 Bug Fixes
+
+#### **VldPromise - Thenable Check Before Promise.resolve**
+- **File**: `src/validators/promise.ts`
+- **Fix**: `_isThenable()` check now happens BEFORE `Promise.resolve()` wrapping
+- **Issue**: Everything becomes thenable after Promise.resolve wrapping
+- **Impact**: Correctly rejects non-Promise, non-thenable inputs
+
+### ✨ New Features
+
+#### **Number Bit-Width Validators**
+- **Files**: `src/validators/number.ts`
+- **Added**: `uint32()`, `uint64()`, `int32()`, `int64()`, `float32()`, `float64()`
+- **Use case**: Validate integers/floats within specific bit ranges
+
+#### **VldMeta - Metadata Support**
+- **File**: `src/validators/base.ts`
+- **Added**: `VldMeta` class and `SchemaMetadata` interface
+- **Methods**: `describe()`, `meta()` for attaching documentation
+
+#### **exactOptional() Validator**
+- **File**: `src/validators/base.ts`
+- **Added**: `VldExactOptional` for strict optional handling
+- **Use case**: When `undefined` should only appear if explicitly set
+
+### 📝 Documentation
+
+#### **README Updates**
+- Coverage badge: 98.34% (was 98.99%)
+- Test count: 1914 tests (was 1858)
+- Note: Increased test suite size slightly reduced percentage but improved coverage
+
+### ✅ Testing
+
+#### **Coverage Test Suite Expansion**
+- Added `tests/validators/promise-coverage.test.ts` - 19 tests for Promise validator
+- Added `tests/validators/base-coverage.test.ts` - VldMeta, exactOptional, describe tests
+- Added `tests/validators/string-formats-coverage.test.ts` - xid, guid, httpUrl, hash tests
+- Total: 76 test suites, 1914 tests passing
+
 ## [2.0.2] - 2026-02-27
 
 ### ⚡ Performance Optimizations

@@ -150,6 +150,17 @@ export abstract class VldBase<TInput, TOutput = TInput> {
   }
 
   /**
+   * Make this validator exactly optional - allows undefined but not missing
+   * Unlike .optional() which treats missing as undefined, exactOptional()
+   * requires the key to be present but allows undefined as a value
+   * Zod 4 API parity
+   * @returns A new exact optional validator
+   */
+  exactOptional(): VldExactOptional<TInput, TOutput> {
+    return new VldExactOptional(this);
+  }
+
+  /**
    * Pipe the output of this validator into another validator
    * @param next The next validator to pipe into
    * @returns A new piped validator
@@ -195,6 +206,105 @@ export abstract class VldBase<TInput, TOutput = TInput> {
    */
   apply<TNewOutput>(fn: (schema: this) => VldBase<TInput, TNewOutput>): VldBase<TInput, TNewOutput> {
     return fn(this);
+  }
+
+  /**
+   * Create a new validator that refines this one with a custom predicate
+   * Alias for refine() - check() is the Zod 4 API name
+   * @param predicate The refinement predicate
+   * @param message Optional custom error message
+   * @returns A new refined validator
+   */
+  check<TRefined extends TOutput>(
+    predicate: (value: TOutput) => value is TRefined,
+    message?: string
+  ): VldRefine<TInput, TOutput, TRefined>;
+  check(
+    predicate: (value: TOutput) => boolean,
+    message?: string
+  ): VldRefine<TInput, TOutput, TOutput>;
+  check(
+    predicate: (value: TOutput) => boolean,
+    message?: string
+  ): VldRefine<TInput, TOutput, TOutput> {
+    return new VldRefine(this, predicate, message);
+  }
+
+  /**
+   * Get metadata for this schema
+   * Zod 4 API parity - allows attaching OpenAPI/JSON Schema metadata
+   * @returns Metadata object or undefined
+   */
+  meta(): SchemaMetadata | undefined;
+
+  /**
+   * Set metadata for this schema
+   * Zod 4 API parity - allows attaching OpenAPI/JSON Schema metadata
+   * @param data Metadata to attach
+   * @returns A new validator with the metadata
+   */
+  meta(data: Partial<SchemaMetadata>): VldMeta<TInput, TOutput>;
+
+  /**
+   * Get or set metadata for this schema
+   */
+  meta(data?: Partial<SchemaMetadata>): SchemaMetadata | undefined | VldMeta<TInput, TOutput> {
+    if (data === undefined) {
+      return undefined;
+    }
+    return new VldMeta(this, data);
+  }
+
+  /**
+   * Add a description to this schema
+   * Zod 4 API parity - convenience method for .meta({ description: ... })
+   * @param description The description to add
+   * @returns A new validator with the description
+   */
+  describe(description: string): VldMeta<TInput, TOutput> {
+    return new VldMeta(this, { description });
+  }
+}
+
+/**
+ * Schema metadata interface for OpenAPI/JSON Schema compatibility
+ */
+export interface SchemaMetadata {
+  id?: string;
+  title?: string;
+  description?: string;
+  examples?: unknown[];
+  default?: unknown;
+  deprecated?: boolean;
+  readOnly?: boolean;
+  writeOnly?: boolean;
+  [key: string]: unknown;
+}
+
+/**
+ * Metadata validator - wraps a schema with metadata
+ */
+export class VldMeta<TInput, TOutput> extends VldBase<TInput, TOutput> {
+  constructor(
+    private readonly baseValidator: VldBase<TInput, TOutput>,
+    private readonly metadata: Partial<SchemaMetadata>
+  ) {
+    super();
+  }
+
+  parse(value: unknown): TOutput {
+    return this.baseValidator.parse(value);
+  }
+
+  safeParse(value: unknown): ParseResult<TOutput> {
+    return this.baseValidator.safeParse(value);
+  }
+
+  /**
+   * Get the metadata
+   */
+  getMeta(): Readonly<Partial<SchemaMetadata>> {
+    return this.metadata;
   }
 }
 
@@ -437,6 +547,42 @@ export class VldOptional<TInput, TOutput> extends VldBase<TInput | undefined, TO
   }
 
   safeParse(value: unknown): ParseResult<TOutput | undefined> {
+    if (value === undefined) {
+      return { success: true, data: undefined };
+    }
+    return this.baseValidator.safeParse(value);
+  }
+
+  unwrap(): VldBase<TInput, TOutput> {
+    return this.baseValidator;
+  }
+}
+
+/**
+ * Exact optional validator - allows undefined but requires key presence
+ * Unlike Optional which treats missing as undefined, ExactOptional
+ * requires the key to be present (not missing from object) but allows undefined
+ * Zod 4 API parity
+ */
+export class VldExactOptional<TInput, TOutput> extends VldBase<TInput | undefined, TOutput | undefined> {
+  constructor(private readonly baseValidator: VldBase<TInput, TOutput>) {
+    super();
+  }
+
+  static create<TInput, TOutput>(baseValidator: VldBase<TInput, TOutput>): VldExactOptional<TInput, TOutput> {
+    return new VldExactOptional(baseValidator);
+  }
+
+  parse(value: unknown): TOutput | undefined {
+    if (value === undefined) {
+      return undefined;
+    }
+    return this.baseValidator.parse(value);
+  }
+
+  safeParse(value: unknown): ParseResult<TOutput | undefined> {
+    // Unlike regular optional, undefined is explicitly valid
+    // but we still validate through the base validator
     if (value === undefined) {
       return { success: true, data: undefined };
     }

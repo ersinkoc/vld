@@ -41,6 +41,10 @@ const REGEXES = {
   sha256: /^[a-f0-9]{64}$/i,
   sha384: /^[a-f0-9]{96}$/i,
   sha512: /^[a-f0-9]{128}$/i,
+  // Additional formats (Zod v4 parity)
+  xid: /^[A-HJKMNP-TV-Z0-9]{20}$/, // ksort's XID format
+  guid: /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/i, // Alias for UUID
+  httpUrl: /^https?:\/\/[^\s/$.?#].[^\s]*$/, // HTTP/HTTPS URL
 } as const;
 
 /**
@@ -155,6 +159,15 @@ export const cidrv6 = (): VldStringFormat =>
 
 export const e164 = (): VldStringFormat =>
   VldStringFormat.create('e164', (val) => REGEXES.e164.test(val));
+
+export const xid = (): VldStringFormat =>
+  VldStringFormat.create('xid', (val) => REGEXES.xid.test(val));
+
+export const guid = (): VldStringFormat =>
+  VldStringFormat.create('guid', (val) => REGEXES.guid.test(val));
+
+export const httpUrl = (): VldStringFormat =>
+  VldStringFormat.create('httpUrl', (val) => REGEXES.httpUrl.test(val));
 
 export const hash = (algorithm: 'md5' | 'sha1' | 'sha256' | 'sha384' | 'sha512'): VldStringFormat =>
   VldStringFormat.create('hash', (val) => (REGEXES as any)[algorithm]?.test(val) ?? false, `Invalid ${algorithm} hash`);

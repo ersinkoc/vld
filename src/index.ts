@@ -52,12 +52,14 @@ import { file as fileFn } from './validators/file';
 import { functionValidator as functionFn } from './validators/function';
 import { VldPreprocess } from './validators/base';
 import { VldOptional } from './validators/base';
+import { VldExactOptional } from './validators/base';
 import { VldNullable } from './validators/base';
 import { VldNullish } from './validators/base';
 import { VldCodec } from './validators/codec';
 import { VldBase64 } from './validators/base64';
 import { VldHex } from './validators/hex';
 import { VldUint8Array } from './validators/uint8array';
+import { promise as vldPromise } from './validators/promise';
 
 // Import coercion validators
 import { VldCoerceString } from './coercion/string';
@@ -76,6 +78,7 @@ export type { Infer, Input, Output } from './validators';
 // Re-export base classes for extension
 export { VldBase } from './validators/base';
 export { VldIntersection } from './validators/intersection';
+export { VldMeta, type SchemaMetadata } from './validators/base';
 
 // Re-export locale functionality
 export { setLocale, getLocale, getMessages, type Locale } from './locales';
@@ -155,6 +158,11 @@ export const v = {
   number: () => VldNumber.create(),
   int: () => VldNumber.create().int(),
   int32: () => VldNumber.create().int().min(-2147483648).max(2147483647),
+  uint32: () => VldNumber.create().uint32(),
+  uint64: () => VldNumber.create().uint64(),
+  int64: () => VldNumber.create().int64(),
+  float32: () => VldNumber.create().float32(),
+  float64: () => VldNumber.create().float64(),
   boolean: () => VldBoolean.create(),
   date: () => VldDate.create(),
   bigint: () => VldBigInt.create(),
@@ -210,6 +218,7 @@ export const v = {
   optional: <T>(validator: VldBase<unknown, T>) => VldOptional.create(validator),
   nullable: <T>(validator: VldBase<unknown, T>) => VldNullable.create(validator),
   nullish: <T>(validator: VldBase<unknown, T>) => VldNullish.create(validator),
+  exactOptional: <T>(validator: VldBase<unknown, T>) => VldExactOptional.create(validator),
 
   // Recursive schemas
   lazy: <T>(schemaGetter: () => VldBase<unknown, T>) => VldLazy.create(schemaGetter),
@@ -274,6 +283,11 @@ export const v = {
   stringFormat: (name: string, validator: ((val: string) => boolean) | RegExp) =>
     stringFormats.stringFormat(name, validator),
 
+  // Zod v4 parity string formats
+  xid: () => stringFormats.xid(),
+  guid: () => stringFormats.guid(),
+  httpUrl: () => stringFormats.httpUrl(),
+
   // Template literal validator
   templateLiteral: (...components: (VldBase<any, any> | string)[]) => templateLiteral(...components),
 
@@ -290,7 +304,10 @@ export const v = {
       decode: (value: TInput) => TOutput | Promise<TOutput>;
       encode: (value: TOutput) => TInput | Promise<TInput>;
     }
-  ) => VldCodec.create(inputValidator, outputValidator, transform)
+  ) => VldCodec.create(inputValidator, outputValidator, transform),
+
+  // Promise validator (Zod v4 parity)
+  promise: <T>(inner: VldBase<unknown, T>) => vldPromise(inner)
 };
 
 // ============================================
@@ -425,6 +442,17 @@ export {
   createTheme,
   type Theme
 } from './pigment';
+
+// ============================================
+// JSON Schema Support (v2.1+ features)
+// ============================================
+
+export {
+  toJSONSchema,
+  fromJSONSchema,
+  type JSONSchemaDefinition,
+  type ToJSONSchemaOptions
+} from './utils/json-schema';
 
 // For backward compatibility during migration
 export default v;
