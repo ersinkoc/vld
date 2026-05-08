@@ -14,6 +14,14 @@ export class VldBoolean extends VldBase<boolean, boolean> {
     super(validatorType || VLD_VALIDATOR_TYPES.BOOLEAN);
     this.errorMessage = errorMessage;
   }
+
+  /**
+   * Returns true if this is a simple boolean validator with no custom checks
+   * Used by VldObject for optimized fast-path dispatch
+   */
+  get isSimple(): boolean {
+    return true;
+  }
   
   /**
    * Create a new boolean validator
@@ -68,6 +76,10 @@ class VldTrue extends VldBoolean {
     super(message);
   }
 
+  get isSimple(): boolean {
+    return false;
+  }
+
   parse(value: unknown): boolean {
     const result = super.parse(value);
     if (result !== true) {
@@ -98,6 +110,10 @@ class VldTrue extends VldBoolean {
 class VldFalse extends VldBoolean {
   constructor(private readonly message: string) {
     super(message);
+  }
+
+  get isSimple(): boolean {
+    return false;
   }
 
   parse(value: unknown): boolean {

@@ -111,7 +111,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
           result[key] = parseResult.data;
           break;
         }
-        // Use safeParse to ensure all checks (min, max, positive, etc.) run
+        // Use safeParse for all validators to ensure correctness
         case VLD_VALIDATOR_TYPES.NUMBER: {
           const parseResult = validator.safeParse(fieldValue);
           if (!parseResult.success) {
@@ -241,7 +241,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
           result[key] = parseResult.data;
           break;
         }
-        // Use safeParse to ensure all checks (min, max, positive, etc.) run
+        // Use safeParse for all validators to ensure correctness
         case VLD_VALIDATOR_TYPES.NUMBER: {
           const parseResult = validator.safeParse(fieldValue);
           if (!parseResult.success) {

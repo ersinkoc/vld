@@ -31,6 +31,22 @@ export class VldNumber extends VldBase<number, number> {
       errorMessage: config?.errorMessage
     };
   }
+
+  /**
+   * Returns true if this validator has custom checks (min, max, positive, etc.)
+   * Used by VldObject for optimized fast-path dispatch
+   */
+  get hasCustomChecks(): boolean {
+    return this.config.checks.length > 0;
+  }
+
+  /**
+   * Returns true if this is a simple number validator with no custom checks
+   * Used by VldObject for optimized fast-path dispatch
+   */
+  get isSimple(): boolean {
+    return this.config.checks.length === 0;
+  }
   
   /**
    * Create a new number validator
