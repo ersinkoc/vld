@@ -149,63 +149,67 @@ describe('VldObject Coverage Tests', () => {
     });
   });
 
-  describe('isDangerousKey patterns', () => {
-    it('should detect nested prototype patterns', () => {
+  describe('dangerous key filtering in passthrough', () => {
+    it('filters the canonical prototype-pollution sinks', () => {
       const schema = v.object({
         name: v.string()
       }).passthrough();
 
-      // Create input with dangerous-looking keys
-      const input = Object.create(null);
+      const input: Record<string, unknown> = Object.create(null);
       input.name = 'John';
-      input['constructor.prototype'] = 'polluted';
+      input['__proto__'] = { polluted: true };
+      input['constructor'] = 'hacked';
+      input['prototype'] = 'exploited';
 
       const result = schema.safeParse(input);
 
       expect(result.success).toBe(true);
       if (result.success) {
-        // The key 'constructor.prototype' should be filtered
-        expect(Object.keys(result.data)).not.toContain('constructor.prototype');
+        expect(Object.keys(result.data)).not.toContain('__proto__');
+        expect(Object.keys(result.data)).not.toContain('constructor');
+        expect(Object.keys(result.data)).not.toContain('prototype');
         expect(result.data.name).toBe('John');
+        expect((Object.prototype as any).polluted).toBeUndefined();
       }
     });
 
-    it('should detect property access chains', () => {
+    it('preserves dotted property names (they cannot pollute the prototype)', () => {
       const schema = v.object({
         name: v.string()
       }).passthrough();
 
-      const input = Object.create(null);
+      const input: Record<string, unknown> = Object.create(null);
       input.name = 'John';
+      input['constructor.prototype'] = 'literal-key';
       input['__proto__.polluted'] = 'value';
-      input['prototype.foo'] = 'bar';
 
       const result = schema.safeParse(input);
 
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(Object.keys(result.data)).not.toContain('__proto__.polluted');
-        expect(Object.keys(result.data)).not.toContain('prototype.foo');
+        expect(Object.keys(result.data)).toEqual(
+          expect.arrayContaining(['name', 'constructor.prototype', '__proto__.polluted'])
+        );
       }
     });
 
-    it('should detect shadowing patterns', () => {
+    it('preserves keys named after Object.prototype methods', () => {
       const schema = v.object({
         name: v.string()
       }).passthrough();
 
-      const input = Object.create(null);
-      input.name = 'John';
-      input.hasOwnProperty = 'evil';
-      input.toString = 'also evil';
+      const input: Record<string, unknown> = Object.create(null);
+      input['name'] = 'John';
+      input['hasOwnProperty'] = 'data';
+      input['toString'] = 'display name';
 
       const result = schema.safeParse(input);
 
       expect(result.success).toBe(true);
       if (result.success) {
-        // Dangerous shadowing keys should be filtered
-        expect(Object.keys(result.data)).not.toContain('hasOwnProperty');
-        expect(Object.keys(result.data)).not.toContain('toString');
+        expect(Object.keys(result.data)).toEqual(
+          expect.arrayContaining(['name', 'hasOwnProperty', 'toString'])
+        );
       }
     });
   });

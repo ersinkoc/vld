@@ -160,29 +160,27 @@ describe('Fourth Bug Analysis Fixes', () => {
         expect(isDangerousKey('prototype')).toBe(true);
       });
 
-      test('should detect nested patterns', () => {
-        expect(isDangerousKey('constructor.prototype')).toBe(true);
-        expect(isDangerousKey('__proto__.toString')).toBe(true);
-        expect(isDangerousKey('prototype.constructor')).toBe(true);
+      test('should not flag dotted keys (object property names do not contain dots)', () => {
+        // Previous behavior over-blocked these as a defense-in-depth heuristic.
+        // The runtime sinks for prototype pollution operate on the literal key
+        // string, not on dotted access paths, so these checks were ineffective
+        // and confused callers writing path-aware logic elsewhere.
+        expect(isDangerousKey('constructor.prototype')).toBe(false);
+        expect(isDangerousKey('__proto__.toString')).toBe(false);
+        expect(isDangerousKey('x.constructor.polluted')).toBe(false);
       });
 
-      test('should detect dangerous chains', () => {
-        expect(isDangerousKey('x.constructor.polluted')).toBe(true);
-        expect(isDangerousKey('x.__proto__.polluted')).toBe(true);
-        expect(isDangerousKey('x.prototype.polluted')).toBe(true);
-      });
-
-      test('should detect shadowing patterns', () => {
-        expect(isDangerousKey('hasOwnProperty')).toBe(true);
-        expect(isDangerousKey('toString')).toBe(true);
-        expect(isDangerousKey('valueOf')).toBe(true);
-        expect(isDangerousKey('isPrototypeOf')).toBe(true);
-        expect(isDangerousKey('propertyIsEnumerable')).toBe(true);
-      });
-
-      test('should detect nested shadowing', () => {
-        expect(isDangerousKey('x.hasOwnProperty')).toBe(true);
-        expect(isDangerousKey('x.toString')).toBe(true);
+      test('should allow legitimate data keys that happen to shadow Object.prototype methods', () => {
+        // Real-world payloads legitimately contain keys like `toString` or
+        // `valueOf` (localization tables, custom widget config, etc.). A
+        // validation library must not silently drop them; consumers that
+        // need to call host methods on user data should use Object.prototype
+        // forms (e.g. Object.prototype.hasOwnProperty.call(o, k)).
+        expect(isDangerousKey('hasOwnProperty')).toBe(false);
+        expect(isDangerousKey('toString')).toBe(false);
+        expect(isDangerousKey('valueOf')).toBe(false);
+        expect(isDangerousKey('isPrototypeOf')).toBe(false);
+        expect(isDangerousKey('propertyIsEnumerable')).toBe(false);
       });
 
       test('should allow safe keys', () => {
@@ -220,34 +218,37 @@ describe('Fourth Bug Analysis Fixes', () => {
         expect((result as any).prototype).not.toBe('exploited');
       });
 
-      test('should block nested dangerous patterns', () => {
+      test('should preserve dotted keys (they cannot cause prototype pollution)', () => {
+        // Dotted strings are just property names; assignment via `obj["a.b"]`
+        // creates a single own property and does not traverse prototype.
         const validator = v.record(v.string());
 
-        const maliciousData = {
-          'constructor.prototype': 'attack1',
-          '__proto__.toString': 'attack2',
-          'x.constructor.y': 'attack3',
+        const data = {
+          'constructor.prototype': 'literal-key-1',
+          '__proto__.toString': 'literal-key-2',
+          'x.constructor.y': 'literal-key-3',
           'safe_key': 'ok'
         };
 
-        const result = validator.parse(maliciousData);
+        const result = validator.parse(data);
 
-        expect(result).toEqual({ safe_key: 'ok' });
+        expect(result).toEqual(data);
       });
 
-      test('should block property shadowing attempts', () => {
+      test('should preserve keys named after Object.prototype methods', () => {
+        // toString / valueOf / hasOwnProperty are legitimate data field names.
         const validator = v.record(v.number());
 
-        const maliciousData = {
+        const data = {
           'hasOwnProperty': 42,
           'toString': 43,
           'valueOf': 44,
           'normal_prop': 45
         };
 
-        const result = validator.parse(maliciousData);
+        const result = validator.parse(data);
 
-        expect(result).toEqual({ normal_prop: 45 });
+        expect(result).toEqual(data);
       });
     });
 
@@ -258,18 +259,18 @@ describe('Fourth Bug Analysis Fixes', () => {
         const target = { safe: 'value1' };
         const maliciousSource = {
           '__proto__': { polluted: true },
-          'constructor.prototype': { hacked: true },
+          'constructor': { hacked: true },
           'safe': 'value2',
           'also_safe': 'value3'
         };
 
         const result = deepMerge(target, maliciousSource);
 
-        // Should only merge safe keys
+        // Real prototype-pollution sinks are filtered; safe keys still merge.
         expect(result.safe).toBe('value2');
         expect(result.also_safe).toBe('value3');
-        expect((result as any).__proto__).not.toEqual({ polluted: true });
         expect((Object.prototype as any).polluted).toBeUndefined();
+        expect((result as any).hacked).toBeUndefined();
       });
     });
   });

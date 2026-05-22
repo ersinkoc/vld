@@ -318,10 +318,22 @@ describe('String Format Validators', () => {
         expect(isoDuration.safeParse('P1Y').success).toBe(true);
         expect(isoDuration.safeParse('P1DT12H').success).toBe(true);
         expect(isoDuration.safeParse('PT5M30S').success).toBe(true);
+        expect(isoDuration.safeParse('P1W').success).toBe(true);
+        expect(isoDuration.safeParse('P1Y2M3DT4H5M6S').success).toBe(true);
+        expect(isoDuration.safeParse('P1.5Y').success).toBe(true);
+        expect(isoDuration.safeParse('-P1Y').success).toBe(true);
+        expect(isoDuration.safeParse('PT0S').success).toBe(true);
       });
 
       it('should reject invalid durations', () => {
         expect(isoDuration.safeParse('1Y').success).toBe(false);
+        // Regression: previously /^P/.test(val) accepted any string starting with "P".
+        expect(isoDuration.safeParse('PIZZA').success).toBe(false);
+        expect(isoDuration.safeParse('Penguin').success).toBe(false);
+        expect(isoDuration.safeParse('P').success).toBe(false);
+        expect(isoDuration.safeParse('PT').success).toBe(false);
+        expect(isoDuration.safeParse('').success).toBe(false);
+        expect(isoDuration.safeParse('P1H').success).toBe(false); // H must be inside T
       });
     });
   });
