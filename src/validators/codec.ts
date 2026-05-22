@@ -48,9 +48,9 @@ export class VldCodec<TInput, TOutput> extends VldBase<TInput, TOutput> {
     // First validate the input
     const inputResult = this.inputValidator.safeParse(value);
     if (!inputResult.success) {
-      return inputResult as ParseResult<TOutput>;
+      return { success: false, error: inputResult.error };
     }
-    
+
     try {
       // Then decode to output
       const decoded = this.codecTransform.decode(inputResult.data);
@@ -95,9 +95,9 @@ export class VldCodec<TInput, TOutput> extends VldBase<TInput, TOutput> {
     // First validate the output
     const outputResult = this.outputValidator.safeParse(value);
     if (!outputResult.success) {
-      return outputResult as ParseResult<TInput>;
+      return { success: false, error: outputResult.error };
     }
-    
+
     try {
       // Then encode to input
       const encoded = this.codecTransform.encode(outputResult.data);
@@ -142,9 +142,9 @@ export class VldCodec<TInput, TOutput> extends VldBase<TInput, TOutput> {
     // First validate the input
     const inputResult = this.inputValidator.safeParse(value);
     if (!inputResult.success) {
-      return inputResult as ParseResult<TOutput>;
+      return { success: false, error: inputResult.error };
     }
-    
+
     try {
       // Then decode to output (supports async)
       const decoded = await this.codecTransform.decode(inputResult.data);
@@ -182,9 +182,9 @@ export class VldCodec<TInput, TOutput> extends VldBase<TInput, TOutput> {
     // First validate the output
     const outputResult = this.outputValidator.safeParse(value);
     if (!outputResult.success) {
-      return outputResult as ParseResult<TInput>;
+      return { success: false, error: outputResult.error };
     }
-    
+
     try {
       // Then encode to input (supports async)
       const encoded = await this.codecTransform.encode(outputResult.data);

@@ -415,7 +415,7 @@ export class VldReadonly<TInput, TOutput> extends VldBase<TInput, Readonly<TOutp
     if (result.success) {
       return { success: true, data: result.data as Readonly<TOutput> };
     }
-    return result as ParseResult<Readonly<TOutput>>;
+    return { success: false, error: result.error };
   }
 }
 
@@ -447,7 +447,7 @@ export class VldBrand<TInput, TOutput, TBrand extends string> extends VldBase<
         data: result.data as TOutput & { readonly __brand: TBrand }
       };
     }
-    return result as ParseResult<TOutput & { readonly __brand: TBrand }>;
+    return { success: false, error: result.error };
   }
 }
 
@@ -765,7 +765,7 @@ export class VldPipe<TInput, TIntermediate, TOutput> extends VldBase<TInput, TOu
   safeParse(value: unknown): ParseResult<TOutput> {
     const firstResult = this.first.safeParse(value);
     if (!firstResult.success) {
-      return firstResult as ParseResult<TOutput>;
+      return { success: false, error: firstResult.error };
     }
     return this.second.safeParse(firstResult.data);
   }
@@ -805,7 +805,7 @@ export class VldSuperRefine<TInput, TOutput> extends VldBase<TInput, TOutput> {
 
   safeParse(value: unknown): ParseResult<TOutput> {
     const result = this._inner.safeParse(value);
-    if (!result.success) return result as ParseResult<TOutput>;
+    if (!result.success) return { success: false, error: result.error };
 
     const issues: { message: string; code?: string }[] = [];
     const ctx: SuperRefineContext = {

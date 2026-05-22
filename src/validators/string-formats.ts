@@ -180,7 +180,11 @@ export const iso = {
   time: () => VldStringFormat.create('time', (val) => REGEXES.isoTime.test(val)),
   dateTime: (_options?: { offset?: boolean }) =>
     VldStringFormat.create('datetime', (val) => REGEXES.isoDateTime.test(val)),
-  duration: () => VldStringFormat.create('duration', (val) => /^P/.test(val)),
+  duration: () => VldStringFormat.create(
+    'duration',
+    (val) =>
+      /^-?P(?!$)(?:\d+(?:\.\d+)?Y)?(?:\d+(?:\.\d+)?M)?(?:\d+(?:\.\d+)?W)?(?:\d+(?:\.\d+)?D)?(?:T(?=\d)(?:\d+(?:\.\d+)?H)?(?:\d+(?:\.\d+)?M)?(?:\d+(?:\.\d+)?S)?)?$/.test(val)
+  ),
 };
 
 /**

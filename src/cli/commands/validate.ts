@@ -10,6 +10,13 @@ import { pigment } from '../../pigment';
 import { prettifyError, prettifyErrorColored } from '../../errors';
 import type { CliCommand } from '../index';
 
+function assertWithinCwd(absolutePath: string, label: string, original: string): void {
+  const allowedDir = process.cwd();
+  if (!absolutePath.startsWith(allowedDir + path.sep) && absolutePath !== allowedDir) {
+    throw new Error(`${label} path escapes allowed directory: ${original}`);
+  }
+}
+
 /**
  * Validate command
  */
@@ -72,11 +79,7 @@ export const validateCommand: CliCommand = {
       const absoluteSchemaPath = path.resolve(process.cwd(), schemaPath);
 
       // Security: Ensure resolved path is within allowed directories
-      const resolved = path.resolve(process.cwd(), schemaPath);
-      const allowedDir = process.cwd();
-      if (!resolved.startsWith(allowedDir + path.sep) && resolved !== allowedDir) {
-        throw new Error(`Schema path escapes allowed directory: ${schemaPath}`);
-      }
+      assertWithinCwd(absoluteSchemaPath, 'Schema', schemaPath);
 
       if (!fs.existsSync(absoluteSchemaPath)) {
         throw new Error(`Schema file not found: ${schemaPath}`);
@@ -108,6 +111,9 @@ export const validateCommand: CliCommand = {
         data = JSON.parse(dataArg);
       } else {
         const absoluteDataPath = path.resolve(process.cwd(), dataArg);
+
+        // Security: Ensure resolved path is within allowed directories
+        assertWithinCwd(absoluteDataPath, 'Data', dataArg);
 
         if (!fs.existsSync(absoluteDataPath)) {
           throw new Error(`Data file not found: ${dataArg}`);
