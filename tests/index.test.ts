@@ -223,7 +223,14 @@ describe('index.ts - Main API Coverage', () => {
       expect(api.getLogger()?.getLevel()).toBe('silent');
 
       expect(api.strip(api.red('text'))).toBe('text');
+      // supportsColor() reads the live environment (TTY/NO_COLOR/FORCE_COLOR),
+      // so a bare assertion is environment-dependent and flakes under cmd.exe /
+      // CI where stdout.isTTY is true. Force NO_COLOR to assert deterministically.
+      const priorNoColor = process.env['NO_COLOR'];
+      process.env['NO_COLOR'] = '1';
       expect(api.supportsColor()).toBe(false);
+      if (priorNoColor === undefined) delete process.env['NO_COLOR'];
+      else process.env['NO_COLOR'] = priorNoColor;
       expect(api.pigment.strip(api.pigment.red('text'))).toBe('text');
       expect(api.bold('text')).toContain('text');
       expect(api.dim('text')).toContain('text');

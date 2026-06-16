@@ -1,6 +1,24 @@
-const { execFileSync } = require('child_process');
+const { execFileSync, execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+
+// Windows resolves bare commands (npm) and .cmd/.bat shims only through a shell:
+// Node refuses to spawn a .cmd without one (EINVAL) and cannot find a bare "npm"
+// without one (ENOENT). Route those through the shell with space-containing
+// arguments quoted so paths survive; native executables given by absolute path
+// keep using execFileSync directly.
+function execFileCompat(command, args, options) {
+  const needsShell =
+    process.platform === 'win32' &&
+    (/\.(cmd|bat)$/i.test(command) || !path.isAbsolute(command));
+  if (needsShell) {
+    const commandLine = [command, ...args]
+      .map((part) => (/\s/.test(part) ? `"${part}"` : part))
+      .join(' ');
+    return execSync(commandLine, options);
+  }
+  return execFileSync(command, args, options);
+}
 
 const rootDir = path.resolve(__dirname, '..');
 const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
@@ -110,7 +128,7 @@ function collectExpectedFiles() {
 }
 
 function readPackFileList() {
-  const output = execFileSync('npm', ['pack', '--dry-run', '--json'], {
+  const output = execFileCompat('npm', ['pack', '--dry-run', '--json'], {
     cwd: rootDir,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -265,7 +283,12 @@ for (const file of expectedExecutableFiles) {
   if (!metadata) {
     continue;
   }
-  if ((metadata.mode & 0o111) === 0) {
+  // Windows filesystems do not track the Unix executable bit, so the chmod() in
+  // the build is a no-op and `npm pack` always reports 0o644 here. The exec bit
+  // is only meaningful (and verifiable) when packing from a POSIX host such as
+  // CI, which is where releases are published; npm also restores +x on bin files
+  // at install time. Skip the assertion on Windows rather than fail spuriously.
+  if (process.platform !== 'win32' && (metadata.mode & 0o111) === 0) {
     errors.push(`Package bin file must be executable in the tarball: ${file}`);
   }
 }

@@ -1,6 +1,24 @@
-const { execFileSync } = require('child_process');
+const { execFileSync, execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+
+// Windows resolves bare commands (npm) and .cmd/.bat shims (e.g. the installed
+// vld.cmd binary) only through a shell: Node refuses to spawn a .cmd without one
+// (EINVAL) and cannot find a bare "npm" without one (ENOENT). Route those through
+// the shell with space-containing arguments quoted so paths survive; native
+// executables given by absolute path (process.execPath) keep using execFileSync.
+function execFileCompat(command, args, options) {
+  const needsShell =
+    process.platform === 'win32' &&
+    (/\.(cmd|bat)$/i.test(command) || !path.isAbsolute(command));
+  if (needsShell) {
+    const commandLine = [command, ...args]
+      .map((part) => (/\s/.test(part) ? `"${part}"` : part))
+      .join(' ');
+    return execSync(commandLine, options);
+  }
+  return execFileSync(command, args, options);
+}
 
 const rootDir = path.resolve(__dirname, '..');
 const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
@@ -94,7 +112,7 @@ function createIdentifierMap(specifiers) {
 
 function run(label, command, args, options = {}) {
   try {
-    return execFileSync(command, args, {
+    return execFileCompat(command, args, {
       cwd: options.cwd || rootDir,
       encoding: options.encoding || 'utf8',
       stdio: options.stdio || ['ignore', 'pipe', 'pipe'],
