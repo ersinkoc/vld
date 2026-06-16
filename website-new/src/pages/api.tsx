@@ -145,7 +145,7 @@ const apiMethods: ApiMethod[] = [
   { name: 'getLocale()', description: 'Get current locale', category: 'i18n', signature: 'getLocale(): string' },
   { name: 'getMessages()', description: 'Get all messages for current locale', category: 'i18n', signature: 'getMessages(): Messages' },
 
-  // Result Pattern (v1.5)
+  // Result Pattern
   { name: 'Ok()', description: 'Create a successful result', category: 'Result Pattern', signature: 'Ok<T>(value: T): Result<T, never>', example: `const success = Ok(42)` },
   { name: 'Err()', description: 'Create a failure result', category: 'Result Pattern', signature: 'Err<E>(error: E): Result<never, E>', example: `const failure = Err(new Error("failed"))` },
   { name: 'tryCatch()', description: 'Wrap throwable operations in a Result', category: 'Result Pattern', signature: 'tryCatch<T>(fn: () => T): Result<T, Error>', example: `const result = tryCatch(() => JSON.parse(data))` },
@@ -157,14 +157,14 @@ const apiMethods: ApiMethod[] = [
   { name: 'isErr()', description: 'Type guard for failure', category: 'Result Pattern', signature: 'isErr<T, E>(result): result is Err<E>' },
   { name: 'all()', description: 'Combine multiple Results', category: 'Result Pattern', signature: 'all<T>(results: Result<T>[]): Result<T[]>', example: `const combined = all([Ok(1), Ok(2), Ok(3)])` },
 
-  // Plugin System (v1.5)
+  // Plugin System
   { name: 'definePlugin()', description: 'Define a VLD plugin with validators, transforms, and hooks', category: 'Plugin System', signature: 'definePlugin(config): VldPlugin', example: `const plugin = definePlugin({\n  name: "my-plugin",\n  validators: { phone: () => v.string().regex(/.../) }\n})` },
   { name: 'usePlugin()', description: 'Register a plugin globally', category: 'Plugin System', signature: 'usePlugin(plugin): void', example: `usePlugin(myPlugin)` },
   { name: 'createVldKernel()', description: 'Create isolated VLD instance with plugins', category: 'Plugin System', signature: 'createVldKernel(options?): VldKernelInstance', example: `const kernel = createVldKernel({ plugins: [myPlugin] })` },
   { name: 'getVldKernel()', description: 'Get the global kernel instance', category: 'Plugin System', signature: 'getVldKernel(): VldKernelInstance' },
   { name: 'resetVldKernel()', description: 'Reset the global kernel', category: 'Plugin System', signature: 'resetVldKernel(): void' },
 
-  // Event Emitter (v1.5)
+  // Event Emitter
   { name: 'createEmitter()', description: 'Create a typed event emitter', category: 'Event Emitter', signature: 'createEmitter<T>(): Emitter<T>', example: `const emitter = createEmitter<VldEvents>()` },
   { name: 'createEventBus()', description: 'Create a global event bus', category: 'Event Emitter', signature: 'createEventBus<T>(): Emitter<T>' },
   { name: 'withEmitter()', description: 'Attach emitter to a schema', category: 'Event Emitter', signature: 'withEmitter(schema, emitter): schema' },
@@ -172,7 +172,7 @@ const apiMethods: ApiMethod[] = [
   { name: 'emitter.once()', description: 'Subscribe to event once', category: 'Event Emitter', signature: 'once(event, handler): unsubscribe' },
   { name: 'emitter.emit()', description: 'Emit an event', category: 'Event Emitter', signature: 'emit(event, payload): void' },
 
-  // Logger (v1.5)
+  // Logger
   { name: 'createLogger()', description: 'Create a logger instance', category: 'Logger', signature: 'createLogger(options?): Logger', example: `const logger = createLogger({ level: "debug" })` },
   { name: 'initLogger()', description: 'Initialize the global logger', category: 'Logger', signature: 'initLogger(options?): void' },
   { name: 'getLogger()', description: 'Get the global logger', category: 'Logger', signature: 'getLogger(): Logger' },

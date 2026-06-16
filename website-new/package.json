@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "sync-docs": "node -e \"const fs = require('fs'); fs.rmSync('public/docs', {recursive: true, force: true}); fs.cpSync('../docs', 'public/docs', {recursive: true});\"",
+    "sync-docs": "node -e \"const fs = require('fs'); fs.rmSync('public/docs', {recursive: true, force: true}); fs.cpSync('../docs', 'public/docs', {recursive: true}); fs.copyFileSync('public/docs/api.md', 'public/docs/API.md'); fs.copyFileSync('public/docs/migration.md', 'public/docs/MIGRATION.md');\"",
     "dev": "vite",
     "build": "npm run sync-docs && tsc -b && vite build",
     "lint": "eslint .",

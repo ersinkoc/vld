@@ -60,9 +60,10 @@ const sidebarSections: SidebarSection[] = [
     ],
   },
   {
-    title: 'v1.5 Features',
+    title: 'Compatibility',
     icon: Plug,
     items: [
+      { title: 'Drop-in Subpaths', slug: 'drop-in-subpaths' },
       { title: 'Result Pattern', slug: 'result-pattern' },
       { title: 'Plugin System', slug: 'plugin-system' },
       { title: 'Event Emitter', slug: 'event-emitter' },
@@ -90,7 +91,7 @@ interface DocContent {
 const docContent: Record<string, DocContent> = {
   introduction: {
     title: 'Introduction',
-    description: 'VLD is an ultra-fast, type-safe validation library for TypeScript. It provides a clean, chainable API similar to Zod but with significantly better performance.',
+    description: 'VLD is an ultra-fast, type-safe validation library for TypeScript. It provides Zod-compatible root and subpath APIs with release-gated runtime, startup, memory, package, and drop-in app checks.',
     code: `import { v } from "@oxog/vld"
 
 // Define a schema
@@ -117,10 +118,10 @@ if (result.success) {
 }`,
     lang: 'typescript',
     tips: [
-      'VLD is on average 2.5x faster than Zod v4',
-      'Zero dependencies - 57KB gzipped',
+      'VLD v2.1.0 is checked against Zod 4.4.3',
+      'Root, v4, v4-mini, v4/core, and v4/locales entry points are covered',
       'Full TypeScript inference',
-      '27+ languages supported',
+      '2160 tests with 100% statement, branch, and line coverage',
     ],
   },
   installation: {
@@ -179,16 +180,16 @@ if (result.success) {
   },
   'why-vld': {
     title: 'Why VLD?',
-    description: 'VLD was built to address performance limitations while maintaining an ergonomic API.',
+    description: 'VLD was built to address performance limitations while maintaining an ergonomic API and practical Zod replacement paths.',
     code: `// VLD advantages over alternatives:
 
-// 1. Performance - 2.5x faster than Zod v4 on average
-const result = schema.safeParse(data) // VLD wins 9/10 benchmarks
+// 1. Performance - release-gated against Zod 4.4.3
+const result = schema.safeParse(data) // v2.1.0 runtime guard: 11x+ snapshot
 
-// 2. Bundle Size - 57KB gzipped (14% smaller)
-import { v } from "@oxog/vld" // 57KB vs 66KB (Zod v4)
+// 2. Package health
+// exports, bundle, install, package, and type declarations are checked
 
-// 3. Memory Usage - 3x less memory overall
+// 3. Memory Usage - 4.7x+ less retained heap in the v2.1.0 guard
 
 // 4. Built-in i18n - 27+ languages
 import { setLocale } from "@oxog/vld"
@@ -198,9 +199,36 @@ setLocale("tr") // Turkish error messages
 import { codecs } from "@oxog/vld"
 const num = codecs.stringToNumber.decode("123") // 123
 
-// 6. Same API as Zod - Easy migration
+// 6. Same package shape as Zod - Easy migration
 import { v } from "@oxog/vld" // Just change the import!`,
     lang: 'typescript',
+  },
+  'drop-in-subpaths': {
+    title: 'Drop-in Subpaths',
+    description: 'VLD exposes Zod-compatible package entry points so applications can migrate root and Zod 4 subpath imports by changing the package name.',
+    code: `// Before
+import { z } from "zod"
+import * as v4 from "zod/v4"
+import * as mini from "zod/v4-mini"
+import * as core from "zod/v4/core"
+import * as locales from "zod/v4/locales"
+
+// After
+import { z } from "@oxog/vld"
+import * as v4 from "@oxog/vld/v4"
+import * as mini from "@oxog/vld/v4-mini"
+import * as core from "@oxog/vld/v4/core"
+import * as locales from "@oxog/vld/v4/locales"
+
+const schema = z.object({
+  email: z.string().email(),
+})`,
+    lang: 'typescript',
+    tips: [
+      'npm run verify:zod compares exports and typeof values against latest stable Zod',
+      'npm run verify:drop-in compiles and runs the same TypeScript app with both packages',
+      'npm run release:check runs both checks before publishing',
+    ],
   },
   string: {
     title: 'String Validation',

@@ -45,7 +45,7 @@ export function Footer() {
             </Link>
             <p className="text-sm text-muted-foreground mb-6 max-w-xs leading-relaxed">
               Ultra-fast, type-safe validation for TypeScript.
-              2.5x faster than Zod with zero dependencies.
+              Zod-compatible root and subpath APIs with zero dependencies.
             </p>
             <div className="flex items-center gap-3">
               <a

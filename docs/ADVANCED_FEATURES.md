@@ -1,6 +1,6 @@
 # VLD Advanced Features
 
-Deep dive into VLD's advanced features and capabilities for complex validation scenarios (v1.5.0 - Full Zod 4 API Parity + Plugin System + CLI Tools).
+Deep dive into VLD's advanced features and capabilities for complex validation scenarios (v2.1.0 - Zod-compatible package subpaths + Plugin System + CLI Tools).
 
 ## Table of Contents
 
@@ -788,4 +788,4 @@ if (shape.type === "circle") {
 
 ---
 
-For more information, see the [API Reference](./API.md) or [Getting Started Guide](./GETTING_STARTED.md).
+For more information, see the [API Reference](./api.md) or [Getting Started Guide](./GETTING_STARTED.md).

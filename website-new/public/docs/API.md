@@ -1,6 +1,6 @@
 # VLD API Reference
 
-Complete API documentation for the VLD validation library (v2.0 - Modular Architecture + Full Zod 4 API Parity + Plugin System + CLI Tools).
+Complete API documentation for the VLD validation library (v2.1.0 - Zod-compatible root and subpath APIs + Modular Architecture + Plugin System + CLI Tools).
 
 ## Table of Contents
 
@@ -40,7 +40,7 @@ pnpm add @oxog/vld
 
 ## Import Options
 
-VLD v2.0 provides multiple import strategies for different needs:
+VLD v2.1.0 provides multiple import strategies for different needs:
 
 ### Full API (Classic)
 ```typescript
@@ -49,7 +49,7 @@ setLocale('tr');
 const schema = v.string().min(1);
 ```
 
-### Tree-Shakable Mini API (NEW in v2.0)
+### Tree-Shakable Mini API
 Ideal for production applications where bundle size matters:
 ```typescript
 import { string, number, object, optional, array } from '@oxog/vld/mini';
@@ -61,7 +61,7 @@ const userSchema = object({
 });
 ```
 
-### Lazy Locale Loading (NEW in v2.0)
+### Lazy Locale Loading
 Load locales on demand to reduce initial bundle size:
 ```typescript
 import { setLocaleAsync, preloadLocales } from '@oxog/vld/locales';
@@ -80,6 +80,24 @@ import { VldString } from '@oxog/vld/validators/string';
 import { stringToNumber } from '@oxog/vld/codecs';
 import { VldError, prettifyError } from '@oxog/vld/errors';
 ```
+
+### Zod-Compatible Package Subpaths
+Use these entry points when replacing Zod imports in applications that already depend on Zod 4 package structure:
+
+```typescript
+import { z } from '@oxog/vld';
+import * as v4 from '@oxog/vld/v4';
+import * as mini from '@oxog/vld/v4-mini';
+import * as miniAlias from '@oxog/vld/v4/mini';
+import * as core from '@oxog/vld/v4/core';
+import * as locales from '@oxog/vld/v4/locales';
+
+const user = z.object({
+  id: z.string().uuid(),
+});
+```
+
+`npm run verify:zod` checks these subpaths against the installed latest stable Zod release, and `npm run verify:drop-in` compiles and runs the same TypeScript app against both packages.
 
 ## Basic Usage
 

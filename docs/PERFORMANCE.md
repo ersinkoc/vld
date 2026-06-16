@@ -1,6 +1,6 @@
 # VLD Performance Guide
 
-Comprehensive guide to understanding and optimizing VLD's performance in your applications (v1.5.0).
+Comprehensive guide to understanding and optimizing VLD's performance in your applications (v2.1.0).
 
 ## Table of Contents
 
@@ -14,7 +14,7 @@ Comprehensive guide to understanding and optimizing VLD's performance in your ap
 
 ## Performance Overview
 
-VLD is built from the ground up with performance as a primary goal. Every line of code is optimized for the V8 JavaScript engine, resulting in validation that doesn't slow down your application.
+VLD is built from the ground up with performance as a primary goal. The v2.1.0 release gate compares VLD against Zod 4.4.3 across runtime throughput, startup behavior, retained heap, packaging, installability, type declarations, and real app drop-in behavior.
 
 ### Key Performance Features
 
@@ -23,29 +23,24 @@ VLD is built from the ground up with performance as a primary goal. Every line o
 - **Immutable Validators**: Prevents memory leaks and improves caching
 - **Minimal Allocations**: Reduces garbage collection pressure
 - **Fast-Path Optimizations**: Common cases are optimized for speed
+- **Release Guards**: `npm run release:check` blocks releases that fall below runtime, startup, memory, docs, exports, package, install, type, security, Zod parity, and drop-in app thresholds
 
 ## Benchmark Results
 
-### Overall Performance
+### Release-Gated Snapshot
 
-VLD consistently outperforms Zod across all validation scenarios:
+The latest v2.1.0 release check measured VLD against Zod 4.4.3 with focused CI-friendly guards:
 
-| Operation | VLD Performance | Zod Performance | Improvement |
-|-----------|----------------|-----------------|-------------|
-| Simple String | 73.0M ops/sec | 36.0M ops/sec | **2.03x faster** |
-| Email Validation | 21.8M ops/sec | 6.7M ops/sec | **3.25x faster** |
-| Number Validation | 36.3M ops/sec | 11.2M ops/sec | **3.23x faster** |
-| Simple Object | 7.1M ops/sec | 6.9M ops/sec | **1.02x faster** |
-| Complex Object | 1.9M ops/sec | 1.4M ops/sec | **1.34x faster** |
-| Array Validation | 7.5M ops/sec | 5.6M ops/sec | **1.35x faster** |
-| Union Types | 7.1M ops/sec | 5.5M ops/sec | **1.29x faster** |
-| Optional Values | 36.1M ops/sec | 11.4M ops/sec | **3.16x faster** |
-| SafeParse | 60.0M ops/sec | 22.0M ops/sec | **2.73x faster** |
-| Type Coercion | 20.4M ops/sec | 20.2M ops/sec | **1.01x faster** |
-| Enum Validation | 60.3M ops/sec | 28.9M ops/sec | **2.08x faster** |
-| Discriminated Union | 3.6M ops/sec | 4.6M ops/sec | Zod 1.27x faster |
+| Guard | v2.1.0 Snapshot | Release Threshold |
+|-------|------------------|-------------------|
+| Runtime throughput | **11.67x faster average** | Must stay faster than Zod |
+| Import startup | **1.32x faster** | >= 1.10x |
+| Total startup | **1.55x faster** | >= 1.25x |
+| Warm parse startup | **2.90x faster** | >= 1.25x |
+| Retained heap | **4.76x less heap** | Must stay below Zod |
+| Aggregate memory speed | **3.13x faster** | Must stay faster than Zod |
 
-**VLD won 11/12 tests | Average: 1.98x faster than Zod**
+Release checks also verify 239 Zod exports against 339 VLD exports across root and subpath entry points, then run a real TypeScript fixture against both packages.
 
 ### Memory Usage
 
@@ -53,19 +48,16 @@ VLD uses significantly less memory than Zod:
 
 | Metric | VLD | Zod | Improvement |
 |--------|-----|-----|-------------|
-| Schema Creation | 2.1 MB | 98.5 MB | **98% less** |
-| Data Parsing | 15.3 MB | 31.2 MB | **51% less** |
-| Error Handling | 3.2 MB | 22.9 MB | **86% less** |
-| Overall Average | 6.9 MB | 50.9 MB | **86% less** |
+| Retained Heap | Baseline | 4.76x higher | **4.76x less retained heap** |
+| Aggregate Memory Guard | Baseline | 3.13x slower | **3.13x faster aggregate memory behavior** |
 
 ### Startup Performance
 
-| Metric | VLD | Zod | Improvement |
-|--------|-----|-----|-------------|
-| Library Import | 12.3ms | 23.8ms | **1.94x faster** |
-| First Schema | 0.15ms | 1.23ms | **8.22x faster** |
-| First Validation | 0.21ms | 0.45ms | **2.14x faster** |
-| Warmed Performance | 0.028ms | 0.051ms | **1.82x faster** |
+| Metric | Improvement |
+|--------|-------------|
+| Library Import | **1.32x faster** |
+| Total Startup | **1.55x faster** |
+| Warm Parse | **2.90x faster** |
 
 ## Optimization Techniques
 
@@ -377,12 +369,13 @@ VLD has zero dependencies, resulting in smaller bundle sizes:
 
 | Library | Minified | Gzipped | Dependencies |
 |---------|----------|---------|--------------|
-| VLD | 45 KB | 13 KB | 0 |
-| Zod 4 | 150 KB | 38 KB | 0 |
+| VLD root string bundle | 53.0 KiB | release-gated | 0 |
+| VLD mini string bundle | 52.9 KiB | release-gated | 0 |
+| Zod 4 | varies by import path | external baseline | 0 |
 | Yup | 145 KB | 42 KB | 15 |
 | Joi | 218 KB | 61 KB | 12 |
 
-*Note: VLD size increased slightly in v1.5.0 due to plugin system, CLI tools, and event system features.*
+The release gate checks bundle output and package size on every release. The v2.1.0 package check produced a 295.0 KiB tarball with 1,674.1 KiB unpacked size and 299 files.
 
 ### Tree Shaking
 
@@ -407,36 +400,7 @@ const schema = object({
 npm run benchmark
 ```
 
-Output:
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                    VLD vs Zod Performance Benchmark
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-1. Simple String Validation
-  VLD: 72,998,029 ops/sec
-  Zod: 35,975,105 ops/sec
-  VLD is 2.03x faster
-
-2. Email Validation
-  VLD: 21,826,913 ops/sec
-  Zod: 6,720,611 ops/sec
-  VLD is 3.25x faster
-
-3. Number Validation
-  VLD: 36,269,994 ops/sec
-  Zod: 11,237,470 ops/sec
-  VLD is 3.23x faster
-
-...
-
-SUMMARY
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  VLD won: 11/12 tests
-  Zod won: 1/12 tests
-  Average performance ratio: 1.98x
-  ✅ VLD is faster overall!
-```
+Use this for local exploratory benchmarking. Release decisions should rely on the guarded scripts below because they enforce thresholds and compare against the installed latest stable Zod.
 
 ### Memory Benchmark
 
@@ -455,6 +419,14 @@ npm run benchmark:startup
 ```bash
 npm run benchmark:all
 ```
+
+### Release Gate
+
+```bash
+npm run release:check
+```
+
+This runs linting, TypeScript checks, the full Jest suite, build, ASCII/docs/export/bundle/type/package/install/security verification, Zod parity checks, real app drop-in verification, and runtime/startup/memory performance guards.
 
 ## Performance Tips Summary
 

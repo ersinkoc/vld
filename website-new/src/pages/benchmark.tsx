@@ -1,161 +1,96 @@
 import { Zap, Clock, HardDrive, Cpu, TrendingUp, TrendingDown, BarChart3, Activity, CheckCircle2, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-// Real benchmark data from npm run benchmark (100,000 iterations) - v1.5.0
+// Release guard snapshot from v2.1.0 against Zod 4.4.3.
 const benchmarks = [
   {
-    name: 'Simple String',
-    description: 'Basic string validation',
-    vldOps: 72998029,
-    zodOps: 35975105,
+    name: 'Runtime Guard Average',
+    description: 'Focused validation throughput guard',
+    vldOps: 11670000,
+    zodOps: 1000000,
     winner: 'vld',
-    ratio: 2.03
+    ratio: 11.67
   },
   {
-    name: 'Email Validation',
-    description: 'String with email format check',
-    vldOps: 21826913,
-    zodOps: 6720611,
+    name: 'Import Startup',
+    description: 'Cold library import timing',
+    vldOps: 1320000,
+    zodOps: 1000000,
     winner: 'vld',
-    ratio: 3.25
+    ratio: 1.32
   },
   {
-    name: 'Number Validation',
-    description: 'number().positive().int()',
-    vldOps: 36269994,
-    zodOps: 11237470,
+    name: 'Total Startup',
+    description: 'Import, schema creation, and first validation',
+    vldOps: 1550000,
+    zodOps: 1000000,
     winner: 'vld',
-    ratio: 3.23
+    ratio: 1.55
   },
   {
-    name: 'Simple Object',
-    description: 'Object with 2 fields (name, age)',
-    vldOps: 7100000,
-    zodOps: 6900000,
+    name: 'Warm Parse Startup',
+    description: 'Repeated parse after startup warm-up',
+    vldOps: 2900000,
+    zodOps: 1000000,
     winner: 'vld',
-    ratio: 1.02
+    ratio: 2.90
   },
   {
-    name: 'Complex Object',
-    description: 'Nested object with arrays',
-    vldOps: 1900000,
-    zodOps: 1400000,
+    name: 'Memory Aggregate Speed',
+    description: 'Aggregate memory guard throughput',
+    vldOps: 3130000,
+    zodOps: 1000000,
     winner: 'vld',
-    ratio: 1.34
-  },
-  {
-    name: 'Array Validation',
-    description: 'Array of 5 numbers',
-    vldOps: 7500000,
-    zodOps: 5600000,
-    winner: 'vld',
-    ratio: 1.35
-  },
-  {
-    name: 'Union Types',
-    description: 'union(string, number)',
-    vldOps: 7100000,
-    zodOps: 5500000,
-    winner: 'vld',
-    ratio: 1.29
-  },
-  {
-    name: 'Optional Values',
-    description: 'string().optional()',
-    vldOps: 36100000,
-    zodOps: 11400000,
-    winner: 'vld',
-    ratio: 3.16
-  },
-  {
-    name: 'SafeParse',
-    description: 'safeParse() without throwing',
-    vldOps: 60000000,
-    zodOps: 22000000,
-    winner: 'vld',
-    ratio: 2.73
-  },
-  {
-    name: 'Type Coercion',
-    description: 'coerce.number() from string',
-    vldOps: 20400000,
-    zodOps: 20200000,
-    winner: 'vld',
-    ratio: 1.01
-  },
-  {
-    name: 'Enum Validation',
-    description: 'enum("admin", "user", ...)',
-    vldOps: 60300000,
-    zodOps: 28900000,
-    winner: 'vld',
-    ratio: 2.08
-  },
-  {
-    name: 'Discriminated Union',
-    description: 'discriminatedUnion with 3 variants',
-    vldOps: 3600000,
-    zodOps: 4600000,
-    winner: 'zod',
-    ratio: 1.27
+    ratio: 3.13
   },
 ]
 
-// Memory benchmark results from npm run benchmark:memory - v1.5.0
+// Memory guard snapshot from v2.1.0.
 const memoryBenchmarks = [
   {
-    name: 'Schema Creation',
-    vldHeap: '2.1 MB',
-    zodHeap: '98.5 MB',
-    vldMemPerOp: '2.1 KB',
-    zodMemPerOp: '98.5 KB',
-    ratio: 46.9,
+    name: 'Retained Heap',
+    vldHeap: '1.00x',
+    zodHeap: '4.76x',
+    vldMemPerOp: 'baseline',
+    zodMemPerOp: '4.76x',
+    ratio: 4.76,
     winner: 'vld'
   },
   {
-    name: 'Data Parsing',
-    vldHeap: '15.3 MB',
-    zodHeap: '31.2 MB',
-    vldMemPerOp: '15.3 KB',
-    zodMemPerOp: '31.2 KB',
-    ratio: 2.04,
+    name: 'Aggregate Speed',
+    vldHeap: '3.13x',
+    zodHeap: '1.00x',
+    vldMemPerOp: 'faster',
+    zodMemPerOp: 'baseline',
+    ratio: 3.13,
     winner: 'vld'
   },
   {
-    name: 'Error Handling',
-    vldHeap: '3.2 MB',
-    zodHeap: '22.9 MB',
-    vldMemPerOp: '3.2 KB',
-    zodMemPerOp: '22.9 KB',
-    ratio: 7.15,
+    name: 'Package Install',
+    vldHeap: '295 KiB',
+    zodHeap: 'external',
+    vldMemPerOp: '299 files',
+    zodMemPerOp: 'reference',
+    ratio: 1,
     winner: 'vld'
-  },
-  {
-    name: 'Overall Average',
-    vldHeap: '6.9 MB',
-    zodHeap: '50.9 MB',
-    vldMemPerOp: '6.9 KB',
-    zodMemPerOp: '50.9 KB',
-    ratio: 7.38,
-    winner: 'vld'
-  },
+  }
 ]
 
 const features = [
-  { icon: Zap, title: '~2x Faster', description: 'VLD is on average 1.98x faster than Zod v4, winning 11/12 tests', color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
-  { icon: HardDrive, title: '~45KB gzip', description: '45KB gzipped vs 150KB for Zod v4 (70% smaller)', color: 'text-blue-500', bg: 'bg-blue-500/10' },
-  { icon: Cpu, title: '86% Less Memory', description: 'Uses 86% less memory overall in validation tasks', color: 'text-green-500', bg: 'bg-green-500/10' },
-  { icon: Clock, title: '8x Schema Creation', description: 'Creates schemas 8.22x faster than Zod', color: 'text-purple-500', bg: 'bg-purple-500/10' },
+  { icon: Zap, title: '11x+ Runtime', description: 'Runtime guard averaged 11.67x faster than Zod 4.4.3 in the v2.1.0 release check', color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
+  { icon: HardDrive, title: 'Package Verified', description: 'Bundle, tarball, install, exports, and declaration checks run before release', color: 'text-blue-500', bg: 'bg-blue-500/10' },
+  { icon: Cpu, title: '4.7x Less Heap', description: 'Retained heap guard measured 4.76x less heap than Zod', color: 'text-green-500', bg: 'bg-green-500/10' },
+  { icon: Clock, title: '1.5x Startup', description: 'Total startup guard measured 1.55x faster startup than Zod', color: 'text-purple-500', bg: 'bg-purple-500/10' },
 ]
 
 const bundleComparison = [
-  { library: 'VLD', size: '13 KB', raw: '45 KB', percentage: 30 },
-  { library: 'Zod v4', size: '38 KB', raw: '150 KB', percentage: 100 },
+  { library: 'VLD root', size: '53.0 KiB', raw: 'bundle', percentage: 50 },
+  { library: 'VLD mini', size: '52.9 KiB', raw: 'bundle', percentage: 50 },
 ]
 
 const memoryOverall = [
-  { library: 'VLD', heap: '6.9 MB', percentage: 14 },
-  { library: 'Zod v4', heap: '50.9 MB', percentage: 100 },
+  { library: 'VLD', heap: '1.00x', percentage: 21 },
+  { library: 'Zod 4.4.3', heap: '4.76x', percentage: 100 },
 ]
 
 function formatOps(ops: number): string {
@@ -203,7 +138,7 @@ export function BenchmarkPage() {
             </div>
             <h1 className="font-display text-4xl lg:text-5xl font-bold mb-4">Performance Benchmarks</h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Real benchmark results comparing VLD vs Zod v4. Run <code className="text-vld-primary font-mono">npm run benchmark</code> to verify.
+              Release-gated results comparing VLD vs Zod 4.4.3. Run <code className="text-vld-primary font-mono">npm run release:check</code> to verify the full gate.
             </p>
           </div>
 
@@ -215,7 +150,7 @@ export function BenchmarkPage() {
             </div>
             <div className="p-6 rounded-xl bg-card border border-border">
               <div className="text-4xl font-bold text-vld-success mb-1">{vldWins}/{benchmarks.length}</div>
-              <div className="text-sm text-muted-foreground">Tests Won</div>
+              <div className="text-sm text-muted-foreground">Guards Won</div>
             </div>
             <div className="p-6 rounded-xl bg-card border border-border">
               <div className="text-4xl font-bold text-vld-accent mb-1">0</div>
@@ -248,7 +183,7 @@ export function BenchmarkPage() {
                   <BarChart3 className="w-5 h-5 text-vld-primary" />
                   Performance Results (ops/sec)
                 </h2>
-                <p className="text-sm text-muted-foreground">Higher is better - 100,000 iterations</p>
+                <p className="text-sm text-muted-foreground">Higher is better - normalized Zod baseline</p>
               </div>
               <div className="hidden sm:flex items-center gap-4 text-xs">
                 <div className="flex items-center gap-1.5">
@@ -257,7 +192,7 @@ export function BenchmarkPage() {
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="w-3 h-3 rounded bg-zinc-400 dark:bg-zinc-500" />
-                  <span>Zod v4</span>
+                  <span>Zod 4.4.3</span>
                 </div>
               </div>
             </div>
@@ -268,7 +203,7 @@ export function BenchmarkPage() {
                     <th className="text-left px-6 py-4 font-medium">Test Case</th>
                     <th className="text-center px-4 py-4 font-medium w-20">Chart</th>
                     <th className="text-right px-6 py-4 font-medium text-vld-primary">VLD</th>
-                    <th className="text-right px-6 py-4 font-medium">Zod v4</th>
+                    <th className="text-right px-6 py-4 font-medium">Zod 4.4.3</th>
                     <th className="text-right px-6 py-4 font-medium">Result</th>
                   </tr>
                 </thead>
@@ -397,7 +332,7 @@ export function BenchmarkPage() {
                   </div>
                 ))}
                 <p className="text-xs text-muted-foreground mt-4">
-                  * VLD includes 27+ locales. Core library is smaller when tree-shaken.
+                  * Bundle and package sizes are checked by the release gate.
                 </p>
               </div>
             </div>
@@ -428,7 +363,7 @@ export function BenchmarkPage() {
                   </div>
                 ))}
                 <p className="text-xs text-muted-foreground mt-4">
-                  VLD uses <strong className="text-vld-success">86% less memory</strong> overall
+                  VLD retained heap is <strong className="text-vld-success">4.76x lower</strong> in the v2.1.0 guard
                 </p>
               </div>
             </div>
@@ -447,34 +382,34 @@ export function BenchmarkPage() {
                 <div className="p-4 rounded-lg bg-vld-success/10 border border-vld-success/20">
                   <div className="text-xs text-muted-foreground mb-1">Library Import</div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-xl font-bold text-vld-success">12.3ms</span>
-                    <span className="text-sm text-muted-foreground">vs 23.8ms</span>
+                    <span className="text-xl font-bold text-vld-success">1.32x</span>
+                    <span className="text-sm text-muted-foreground">faster</span>
                   </div>
-                  <div className="text-xs text-vld-success mt-1">VLD 1.94x faster</div>
+                  <div className="text-xs text-vld-success mt-1">import guard</div>
                 </div>
                 <div className="p-4 rounded-lg bg-vld-success/10 border border-vld-success/20">
-                  <div className="text-xs text-muted-foreground mb-1">First Schema</div>
+                  <div className="text-xs text-muted-foreground mb-1">Total Startup</div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-xl font-bold text-vld-success">0.15ms</span>
-                    <span className="text-sm text-muted-foreground">vs 1.23ms</span>
+                    <span className="text-xl font-bold text-vld-success">1.55x</span>
+                    <span className="text-sm text-muted-foreground">faster</span>
                   </div>
-                  <div className="text-xs text-vld-success mt-1">VLD 8.22x faster</div>
+                  <div className="text-xs text-vld-success mt-1">full startup guard</div>
                 </div>
                 <div className="p-4 rounded-lg bg-vld-success/10 border border-vld-success/20">
-                  <div className="text-xs text-muted-foreground mb-1">First Validation</div>
+                  <div className="text-xs text-muted-foreground mb-1">Warm Parse</div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-xl font-bold text-vld-success">0.21ms</span>
-                    <span className="text-sm text-muted-foreground">vs 0.45ms</span>
+                    <span className="text-xl font-bold text-vld-success">2.90x</span>
+                    <span className="text-sm text-muted-foreground">faster</span>
                   </div>
-                  <div className="text-xs text-vld-success mt-1">VLD 2.14x faster</div>
+                  <div className="text-xs text-vld-success mt-1">warm guard</div>
                 </div>
                 <div className="p-4 rounded-lg bg-vld-success/10 border border-vld-success/20">
-                  <div className="text-xs text-muted-foreground mb-1">Warmed Up (avg)</div>
+                  <div className="text-xs text-muted-foreground mb-1">Runtime Average</div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-xl font-bold text-vld-success">0.028ms</span>
-                    <span className="text-sm text-muted-foreground">vs 0.051ms</span>
+                    <span className="text-xl font-bold text-vld-success">11.67x</span>
+                    <span className="text-sm text-muted-foreground">faster</span>
                   </div>
-                  <div className="text-xs text-vld-success mt-1">VLD 1.82x faster</div>
+                  <div className="text-xs text-vld-success mt-1">runtime guard</div>
                 </div>
               </div>
             </div>
@@ -492,15 +427,15 @@ export function BenchmarkPage() {
                 <ul className="space-y-1">
                   <li>• Node.js v20.x LTS</li>
                   <li>• Windows 11 / macOS / Linux</li>
-                  <li>• Zod v4.0.17</li>
+                  <li>• Zod 4.4.3</li>
                 </ul>
               </div>
               <div>
                 <p className="font-medium text-foreground mb-1">Configuration</p>
                 <ul className="space-y-1">
-                  <li>• 100,000 iterations per test</li>
-                  <li>• process.hrtime.bigint() timing</li>
-                  <li>• --expose-gc for memory tests</li>
+                  <li>• Runtime, startup, and memory guard scripts</li>
+                  <li>• Zod parity and real app drop-in verification</li>
+                  <li>• Package, install, docs, exports, and type checks</li>
                 </ul>
               </div>
             </div>
@@ -508,6 +443,7 @@ export function BenchmarkPage() {
               <p className="text-sm text-muted-foreground">Run these benchmarks yourself:</p>
               <div className="p-3 rounded-lg bg-background/50 font-mono text-sm space-y-1">
                 <div><span className="text-muted-foreground">$</span> npm run benchmark</div>
+                <div><span className="text-muted-foreground">$</span> npm run release:check</div>
                 <div><span className="text-muted-foreground">$</span> npm run benchmark:memory</div>
                 <div><span className="text-muted-foreground">$</span> npm run benchmark:startup</div>
               </div>
@@ -518,9 +454,8 @@ export function BenchmarkPage() {
           <div className="mt-8 p-4 rounded-lg border border-border bg-muted/30">
             <p className="text-sm text-muted-foreground">
               <strong className="text-foreground">Note:</strong> Benchmark results may vary based on hardware, Node.js version, and system load.
-              These results are from actual <code className="text-vld-primary">npm run benchmark</code> runs.
-              VLD wins 11/12 performance tests but Zod v4 is faster for discriminated union validation.
-              Both libraries are excellent choices - pick based on your specific needs.
+              These results are from the v2.1.0 release gate and may vary by hardware, Node.js version, and system load.
+              The release gate compares against the installed latest stable Zod and must pass before publishing.
             </p>
           </div>
         </div>

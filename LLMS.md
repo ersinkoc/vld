@@ -57,13 +57,13 @@ if (result.success) {
 ## Package Overview
 
 ### Purpose
-VLD is a blazing-fast, type-safe validation library for TypeScript and JavaScript with full Zod API parity. Built for performance, it provides an intuitive API while maintaining excellent type inference and comprehensive internationalization support.
+VLD is a blazing-fast, type-safe validation library for TypeScript and JavaScript with Zod-compatible root and subpath APIs. Built for performance, it provides an intuitive API while maintaining excellent type inference and comprehensive internationalization support.
 
 ### Key Features
 - **Zero Dependencies**: Lightweight with no external runtime dependencies
-- **Blazing Fast**: 2.52x faster than Zod on average, optimized for V8 engine
+- **Blazing Fast**: v2.1.0 release guards measured an 11x+ runtime speed snapshot against Zod 4.4.3
 - **Full TypeScript Support**: Excellent type inference with strict mode
-- **100% Zod API Compatible**: Drop-in replacement for Zod
+- **Zod-Compatible Package Shape**: Root, v4, v4-mini, v4/core, and v4/locales imports are checked against Zod
 - **27+ Languages**: Built-in internationalization support
 - **19 Built-in Codecs**: Bidirectional data transformations
 - **96.55% Test Coverage**: Rigorously tested with 1142 passing tests
@@ -1373,7 +1373,7 @@ function handleAction(action: Action) {
 
 ## Migration from Zod
 
-VLD provides 100% API compatibility with Zod. Migration is typically a simple import swap.
+VLD provides Zod-compatible root and subpath APIs. Migration is typically a package-name swap for supported root, v4, v4-mini, v4/core, and v4/locales imports.
 
 ```typescript
 // Before (Zod)
@@ -1402,24 +1402,19 @@ type Email = Infer<typeof schema>;
 
 ### Benchmarks vs Zod
 
-| Test Case | Improvement |
-|-----------|-------------|
-| Simple String | 1.67x faster |
-| Email Validation | 3.63x faster |
-| Number Validation | 2.62x faster |
-| Object Validation | 1.27x faster |
-| Array Validation | 1.29x faster |
-| Union Types | 1.54x faster |
-| Optional Values | 4.52x faster |
-| Type Coercion | 1.46x faster |
-| **Average** | **2.52x faster** |
+| Release Guard | Improvement vs Zod 4.4.3 |
+|---------------|--------------------------|
+| Runtime Throughput | 11.67x faster snapshot |
+| Import Startup | 1.32x faster |
+| Total Startup | 1.55x faster |
+| Warm Parse Startup | 2.90x faster |
+| Retained Heap | 4.76x less |
 
 ### Memory Usage
 
-- **98% less memory** for validator creation
-- **51% less memory** for data parsing
-- **86% less memory** for error handling
-- **78% less memory** overall
+- **4.76x less retained heap** in the v2.1.0 release guard snapshot
+- **3.13x faster aggregate memory behavior** in the v2.1.0 memory guard
+- **Real app drop-in verification** runs against both Zod and built VLD before publishing
 
 ### Optimization Tips
 

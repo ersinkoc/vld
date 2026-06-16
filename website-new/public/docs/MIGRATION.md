@@ -1,14 +1,15 @@
 # Migrating from Zod to VLD
 
-A complete guide for migrating your codebase from Zod to VLD with minimal changes and maximum performance gains.
+A complete guide for migrating your codebase from Zod to VLD with minimal changes, Zod-compatible package subpaths, and release-gated parity checks.
 
-**VLD v1.5.0 has full Zod 4 API parity plus plugin system, CLI tools, and event system!**
+**VLD v2.1.0 targets drop-in replacement workflows for Zod 4.4.3 root and subpath imports while keeping plugin system, CLI tools, i18n, codecs, and event system support.**
 
 ## Table of Contents
 
 - [Why Migrate?](#why-migrate)
 - [Quick Migration](#quick-migration)
 - [API Compatibility](#api-compatibility)
+- [Zod 4 Package Subpaths](#zod-4-package-subpaths)
 - [Zod 4 API Parity](#zod-4-api-parity)
 - [Breaking Changes](#breaking-changes)
 - [Migration Strategies](#migration-strategies)
@@ -20,9 +21,9 @@ A complete guide for migrating your codebase from Zod to VLD with minimal change
 
 ### Performance Benefits
 
-- **1.98x faster** average performance (11/12 tests won)
-- **98% less memory** for validator creation
-- **8.22x faster** schema creation
+- **11x+ guarded runtime speedup** in the v2.1.0 release check snapshot
+- **4.7x+ less retained heap** in the v2.1.0 memory guard snapshot
+- **1.5x+ total startup speedup** in the v2.1.0 startup guard snapshot
 - **Zero dependencies** for smaller bundle size
 
 ### Additional Features
@@ -30,11 +31,12 @@ A complete guide for migrating your codebase from Zod to VLD with minimal change
 - **Built-in i18n**: 27+ languages supported out of the box
 - **Better error formatting**: Tree, pretty, and flatten utilities
 - **Immutable validators**: Prevent memory leaks
-- **99.25% test coverage**: Battle-tested with 1683 tests
+- **100% statement, branch, and line coverage**: Battle-tested with 2160 passing tests
 - **Plugin system**: Extend VLD with custom validators
 - **CLI tools**: Command-line validation and benchmarking
 - **Event system**: Validation lifecycle hooks
 - **Result pattern**: Functional error handling
+- **Real app drop-in verification**: A TypeScript fixture is compiled and run once with `zod` and once with built VLD
 
 ## Quick Migration
 
@@ -65,7 +67,29 @@ const schema = z.string().email();
 const schema = v.string().email();
 ```
 
-That's it! VLD maintains 100% API compatibility for most common use cases.
+That's it for root imports. VLD also provides Zod-compatible package subpaths for projects that import Zod 4 entry points directly.
+
+## Zod 4 Package Subpaths
+
+For applications that import Zod subpaths, replace the package name and keep the entry point shape:
+
+```javascript
+// Before (Zod)
+import { z } from 'zod';
+import * as v4 from 'zod/v4';
+import * as mini from 'zod/v4-mini';
+import * as core from 'zod/v4/core';
+import * as locales from 'zod/v4/locales';
+
+// After (VLD)
+import { z } from '@oxog/vld';
+import * as v4 from '@oxog/vld/v4';
+import * as mini from '@oxog/vld/v4-mini';
+import * as core from '@oxog/vld/v4/core';
+import * as locales from '@oxog/vld/v4/locales';
+```
+
+Release checks compare export names and `typeof` values for `zod/v4`, `zod/v4-mini`, `zod/v4/mini`, `zod/v4/core`, and `zod/v4/locales` against the installed latest Zod. `npm run verify:drop-in` also compiles and runs the same TypeScript app against both real `zod` and the local built `@oxog/vld` package.
 
 ## API Compatibility
 
@@ -129,7 +153,7 @@ v.never()           // z.never()
 
 ## Zod 4 API Parity
 
-VLD v1.4.0 adds full compatibility with Zod 4 APIs:
+VLD v2.1.0 keeps expanding compatibility with Zod 4 APIs:
 
 ### Discriminated Union (Now Supported!)
 
@@ -140,14 +164,14 @@ const schema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("b"), value: z.number() })
 ]);
 
-// VLD (identical syntax now supported!)
-const schema = v.discriminatedUnion("type",
+// VLD
+const schema = v.discriminatedUnion("type", [
   v.object({ type: v.literal("a"), value: v.string() }),
   v.object({ type: v.literal("b"), value: v.number() })
-);
+]);
 ```
 
-### New Validators in v1.4.0
+### Zod 4-Compatible Validators and Helpers
 
 ```javascript
 // Integer shortcuts
@@ -205,14 +229,14 @@ v.NEVER                  // Never constant for transforms
 ### 1. Union Syntax
 
 ```javascript
-// Zod (array syntax)
+// Zod
 const schema = z.union([z.string(), z.number()]);
 
-// VLD (variadic syntax)
-const schema = v.union(v.string(), v.number());
+// VLD supports Zod-style array syntax
+const schema = v.union([v.string(), v.number()]);
 ```
 
-**Note:** Discriminated unions now use the same syntax as Zod 4!
+**Note:** Discriminated unions support the same array option shape used by Zod 4.
 
 ### 2. Type Inference
 
@@ -385,27 +409,24 @@ const schema = v.object({
   age: v.number().positive()
 });
 
-// VLD: 7.6M ops/sec
-// Zod: 6.0M ops/sec
-// 27% faster
+// v2.1.0 release guard snapshot:
+// Runtime throughput: 11.67x faster than Zod 4.4.3
+// Total startup: 1.55x faster
+// Warm parse startup: 2.90x faster
 ```
 
 ### Memory Usage
 
 ```javascript
-// Creating 1000 schemas
-// VLD: 2.1 MB
-// Zod: 98.5 MB
-// 98% less memory
+// v2.1.0 memory guard snapshot:
+// VLD retained heap: 4.76x lower than Zod 4.4.3
 ```
 
 ### Startup Time
 
 ```javascript
-// Library import time
-// VLD: 12ms
-// Zod: 45ms
-// 73% faster startup
+// v2.1.0 startup guard snapshot:
+// Import startup: 1.32x faster than Zod 4.4.3
 ```
 
 ## Troubleshooting
@@ -469,7 +490,7 @@ setLocale('es'); // Spanish error messages
 
 ## Need Help?
 
-- Check the [API Reference](./API.md) for detailed documentation
+- Check the [API Reference](./api.md) for detailed documentation
 - Review [Advanced Features](./ADVANCED_FEATURES.md) for VLD-specific features
 - See [Getting Started](./GETTING_STARTED.md) for basic usage
 

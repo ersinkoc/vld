@@ -6,8 +6,8 @@ import { CodeBlock, CommandLine } from '@/components/ui/code-block'
 const features = [
   {
     icon: Zap,
-    title: 'Blazing Fast',
-    description: '~2x faster than Zod v4 on average. Wins 11 out of 12 benchmark tests.',
+    title: 'Release-Gated Speed',
+    description: '11x+ guarded runtime speedup against Zod 4.4.3 in the v2.1.0 release check.',
     color: 'from-amber-500 to-orange-500',
   },
   {
@@ -19,7 +19,7 @@ const features = [
   {
     icon: Package,
     title: 'Zero Dependencies',
-    description: '~45KB gzipped, 70% smaller than Zod. No bloat, just validation.',
+    description: 'No runtime dependencies, verified package exports, installability, and type declarations.',
     color: 'from-blue-500 to-cyan-500',
   },
   {
@@ -30,14 +30,14 @@ const features = [
   },
   {
     icon: Cpu,
-    title: 'Plugin System',
-    description: 'Extend VLD with custom validators, transforms, and lifecycle hooks.',
+    title: 'Drop-in Subpaths',
+    description: 'Root, v4, v4-mini, v4/core, and v4/locales entry points are checked against Zod.',
     color: 'from-rose-500 to-red-500',
   },
   {
     icon: Code,
-    title: 'Result Pattern',
-    description: 'Functional error handling with Ok/Err. Match, map, flatMap utilities.',
+    title: 'Real App Verified',
+    description: 'The same TypeScript fixture is compiled and run with Zod and built VLD.',
     color: 'from-indigo-500 to-violet-500',
   },
 ]
@@ -71,7 +71,7 @@ const schema = z.object({
   email: z.string().email(),
 })
 
-// VLD - Same API, ~2x faster
+// VLD - same package shape, release-gated faster
 import { v } from "@oxog/vld"
 const schema = v.object({
   name: v.string().min(2),
@@ -96,17 +96,17 @@ const myPlugin = definePlugin({
 })`
 
 const stats = [
-  { value: '~2x', label: 'Faster', sublabel: 'than Zod v4' },
+  { value: '11x+', label: 'Runtime', sublabel: 'guard snapshot' },
   { value: '0', label: 'Dependencies', sublabel: 'zero bloat' },
-  { value: '27+', label: 'Languages', sublabel: 'i18n built-in' },
-  { value: '19', label: 'Codecs', sublabel: 'data transforms' },
+  { value: '2160', label: 'Tests', sublabel: 'release gate' },
+  { value: '100%', label: 'Coverage', sublabel: 'stmt/branch/line' },
 ]
 
 const comparisons = [
-  { feature: 'Avg Performance', vld: '1.98x faster', zod: 'baseline', winner: 'vld' },
-  { feature: 'Test Wins', vld: '11/12', zod: '1/12', winner: 'vld' },
-  { feature: 'Memory Usage', vld: '86% less', zod: 'baseline', winner: 'vld' },
-  { feature: 'Bundle Size', vld: '45KB', zod: '150KB', winner: 'vld' },
+  { feature: 'Runtime Guard', vld: '11x+ faster', zod: 'baseline', winner: 'vld' },
+  { feature: 'Startup Guard', vld: '1.5x+ faster', zod: 'baseline', winner: 'vld' },
+  { feature: 'Memory Guard', vld: '4.7x+ less heap', zod: 'baseline', winner: 'vld' },
+  { feature: 'Drop-in App', vld: 'verified', zod: 'reference', winner: 'vld' },
   { feature: 'TypeScript Inference', vld: 'Full', zod: 'Full', winner: 'tie' },
   { feature: 'Built-in i18n', vld: '27+ langs', zod: 'None', winner: 'vld' },
   { feature: 'Built-in Codecs', vld: '19 codecs', zod: 'None', winner: 'vld' },
@@ -130,7 +130,7 @@ export function HomePage() {
               <div className="animate-fade-in">
                 <div className="tag mb-6">
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>v1.5.0 — Plugin System & Result Pattern</span>
+                  <span>v2.1.0 — Zod-Compatible Drop-in Release</span>
                 </div>
               </div>
 
@@ -141,7 +141,7 @@ export function HomePage() {
 
               <p className="animate-fade-in stagger-2 text-lg text-muted-foreground mb-8 leading-relaxed">
                 A lightning-fast, type-safe validation library with zero dependencies.
-                Drop-in Zod replacement, averaging 1.98x better performance.
+                Drop-in Zod replacement with root and subpath APIs verified against Zod 4.4.3.
               </p>
 
               <div className="animate-fade-in stagger-3 flex flex-wrap items-center gap-4 mb-10">
@@ -275,7 +275,7 @@ export function HomePage() {
               Why Switch to VLD?
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Drop-in replacement for Zod with significantly better performance and extra features.
+              Drop-in replacement for Zod with release-gated performance and package compatibility.
             </p>
           </div>
 
@@ -364,8 +364,7 @@ export function HomePage() {
             Ready to Validate Faster?
           </h2>
           <p className="text-lg text-muted-foreground mb-10 max-w-xl mx-auto">
-            Join developers who switched from Zod to VLD for better performance
-            without compromising on features.
+            Swap the package name, keep the Zod-shaped imports, and verify with the same release checks used by VLD.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10">

@@ -1,6 +1,6 @@
 # Getting Started with VLD
 
-A comprehensive guide to get you up and running with VLD (v2.0), the blazing-fast TypeScript validation library with full Zod 4 API parity, modular architecture, plugin system, and CLI tools.
+A comprehensive guide to get you up and running with VLD (v2.1.0), the blazing-fast TypeScript validation library with Zod-compatible root and subpath APIs, modular architecture, plugin system, and CLI tools.
 
 ## Table of Contents
 
@@ -36,12 +36,13 @@ VLD provides a simple, chainable API for building validation schemas. The core c
 
 1. **Type-First**: Every validator is fully typed in TypeScript
 2. **Composable**: Build complex schemas from simple primitives
-3. **Performant**: Optimized for speed with zero dependencies
-4. **Developer-Friendly**: Clear error messages and intuitive API
+3. **Performant**: Release-gated against the latest stable Zod for runtime, startup, and memory behavior
+4. **Drop-in Focused**: Root, v4, v4-mini, v4/core, and v4/locales entry points are checked against Zod
+5. **Developer-Friendly**: Clear error messages and intuitive API
 
 ## Import Options
 
-VLD v2.0 provides multiple import options for different needs:
+VLD v2.1.0 provides multiple import options for different needs:
 
 ### Full API (Classic)
 ```typescript
@@ -49,7 +50,7 @@ import { v } from '@oxog/vld';
 const schema = v.string().min(1);
 ```
 
-### Tree-Shakable Mini API (NEW in v2.0)
+### Tree-Shakable Mini API
 ```typescript
 import { string, number, object, optional } from '@oxog/vld/mini';
 const schema = object({
@@ -58,11 +59,26 @@ const schema = object({
 });
 ```
 
-### Lazy Locale Loading (NEW in v2.0)
+### Lazy Locale Loading
 ```typescript
 import { setLocaleAsync } from '@oxog/vld/locales';
 await setLocaleAsync('tr'); // Loads Turkish on demand
 ```
+
+### Zod-Compatible Subpaths
+```typescript
+import { z } from '@oxog/vld';
+import * as v4 from '@oxog/vld/v4';
+import * as mini from '@oxog/vld/v4-mini';
+import * as core from '@oxog/vld/v4/core';
+import * as locales from '@oxog/vld/v4/locales';
+
+const schema = z.object({
+  email: z.string().email(),
+});
+```
+
+The release gate compares VLD exports against Zod 4.4.3 and runs the same TypeScript fixture once with `zod` and once with the built `@oxog/vld` package.
 
 ## Your First Schema
 
@@ -437,9 +453,9 @@ if (event.type === 'click') {
 
 Now that you understand the basics, explore these advanced topics:
 
-1. **[API Reference](./API.md)** - Complete API documentation
+1. **[API Reference](./api.md)** - Complete API documentation
 2. **[Advanced Features](./ADVANCED_FEATURES.md)** - Transformations, refinements, and more
-3. **[Migration Guide](./MIGRATION.md)** - Migrating from Zod to VLD
+3. **[Migration Guide](./migration.md)** - Migrating from Zod to VLD
 4. **[Performance Guide](./PERFORMANCE.md)** - Optimization tips and benchmarks
 
 ## Examples Repository

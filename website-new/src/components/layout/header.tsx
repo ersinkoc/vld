@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import { Moon, Sun, Github, Menu, X, Zap, ExternalLink } from 'lucide-react'
 import { useState, useEffect } from 'react'
-import { useTheme } from '@/hooks/use-theme'
+import { useTheme } from '@/hooks/theme-context'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 

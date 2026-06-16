@@ -2,7 +2,7 @@
 
 > Ultra-fast TypeScript-first schema validation library with zero dependencies and 27+ language support
 
-VLD is a blazing-fast validation library designed as a high-performance alternative to Zod. It provides 100% API compatibility with Zod while being 2.52x faster on average, with optimizations that make it up to 110x faster for certain operations like union type validation.
+VLD is a blazing-fast validation library designed as a high-performance alternative to Zod. It provides Zod-compatible root and subpath APIs, release-gated parity against Zod 4.4.3, and real TypeScript app drop-in verification.
 
 **Version:** 1.4.0 | **License:** MIT | **Author:** Ersin Koc
 
@@ -37,8 +37,9 @@ if (result.success) {
 ## Core Features
 
 - **Zero Dependencies** - Lightweight and tree-shakeable
-- **2.52x Faster** than Zod on average, up to 4.52x for optional values
-- **100% Zod Compatible** - Drop-in replacement with identical API
+- **11x+ Runtime Guard Snapshot** against Zod 4.4.3 in the v2.1.0 release check
+- **Zod-Compatible Package Shape** - root, v4, v4-mini, v4/core, and v4/locales entry points
+- **Real App Drop-in Verified** - the same TypeScript fixture runs against Zod and built VLD
 - **27+ Languages** - Built-in i18n with setLocale()
 - **96.55% Test Coverage** - 1142 passing tests
 - **Full TypeScript Support** - Excellent type inference
@@ -157,7 +158,7 @@ import { z } from 'zod';
 const schema = z.string().email();
 type T = z.infer<typeof schema>;
 
-// After (VLD) - Just change imports!
+// After (VLD) - Change the package name
 import { v, Infer } from '@oxog/vld';
 const schema = v.string().email();
 type T = Infer<typeof schema>;
@@ -165,21 +166,22 @@ type T = Infer<typeof schema>;
 
 ## Performance
 
-| Benchmark | VLD vs Zod |
-|-----------|------------|
-| Simple String | 1.67x faster |
-| Email Validation | 3.63x faster |
-| Number Validation | 2.62x faster |
-| Object Validation | 1.27x faster |
-| Optional Values | 4.52x faster |
-| Memory Usage | 78% less |
+| Release Guard | VLD vs Zod 4.4.3 |
+|---------------|------------------|
+| Runtime Throughput | 11.67x faster snapshot |
+| Import Startup | 1.32x faster |
+| Total Startup | 1.55x faster |
+| Warm Parse Startup | 2.90x faster |
+| Retained Heap | 4.76x less |
+
+Run `npm run release:check` for the full lint, test, build, docs, package, install, security, Zod parity, real app drop-in, and performance gate.
 
 ## Documentation
 
 - [Full LLM Documentation](LLMS.md): Comprehensive API reference
 - [Getting Started](docs/GETTING_STARTED.md): Quick start guide
-- [API Reference](docs/API.md): Complete API documentation
-- [Migration Guide](docs/MIGRATION.md): Migrating from Zod
+- [API Reference](docs/api.md): Complete API documentation
+- [Migration Guide](docs/migration.md): Migrating from Zod
 - [Advanced Features](docs/ADVANCED_FEATURES.md): Complex patterns
 
 ## Links

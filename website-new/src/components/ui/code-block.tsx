@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { highlight } from '@oxog/codeshine'
 import { cn } from '@/lib/utils'
 import { Check, Copy, FileCode, Terminal } from 'lucide-react'
-import { useTheme } from '@/hooks/use-theme'
+import { useTheme } from '@/hooks/theme-context'
 
 interface CodeBlockProps {
   code: string
