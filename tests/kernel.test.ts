@@ -147,7 +147,7 @@ describe('VLD Kernel', () => {
         .build();
 
       expect(plugin.validators).toBeDefined();
-      expect(plugin.validators?.custom).toBeDefined();
+      expect(plugin.validators?.['custom']).toBeDefined();
     });
 
     it('should build a plugin with transforms', () => {
@@ -158,7 +158,7 @@ describe('VLD Kernel', () => {
         .build();
 
       expect(plugin.transforms).toBeDefined();
-      expect(plugin.transforms?.uppercase).toBeDefined();
+      expect(plugin.transforms?.['uppercase']).toBeDefined();
     });
 
     it('should build a plugin with codecs', () => {
@@ -174,7 +174,7 @@ describe('VLD Kernel', () => {
         .build();
 
       expect(plugin.codecs).toBeDefined();
-      expect(plugin.codecs?.json).toBeDefined();
+      expect(plugin.codecs?.['json']).toBeDefined();
     });
 
     it('should chain all builder methods', () => {
@@ -384,6 +384,23 @@ describe('VLD Kernel', () => {
       expect(consoleSpy).toHaveBeenCalled();
       consoleSpy.mockRestore();
     });
+
+    it('should isolate dispose uninstall errors without logging when debug is disabled', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const kernel = createVldKernel({ debug: false });
+
+      kernel.use({
+        name: 'silent-dispose-error-plugin',
+        version: '1.0.0',
+        uninstall: () => {
+          throw new Error('Uninstall failed');
+        }
+      });
+
+      await expect(kernel.dispose()).resolves.toBeUndefined();
+      expect(consoleSpy).not.toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
   });
 
   describe('Hook execution', () => {
@@ -467,6 +484,19 @@ describe('VLD Kernel', () => {
       expect(successes).toEqual(['success-data']);
     });
 
+    it('should ignore plugins that do not implement lifecycle hooks', () => {
+      const kernel = createVldKernel();
+      const mockSchema = { parse: (v: unknown) => v } as any;
+      const parseResult = { success: true as const, data: 'test' };
+
+      kernel.use({ name: 'metadata-only-plugin', version: '1.0.0' });
+
+      expect(kernel.executeBeforeParse('value', mockSchema, createMockHookContext())).toBe('value');
+      expect(kernel.executeAfterParse(parseResult, mockSchema, createMockHookContext())).toBe(parseResult);
+      expect(() => kernel.executeOnError({ message: 'test', issues: [] } as any, mockSchema, createMockHookContext())).not.toThrow();
+      expect(() => kernel.executeOnSuccess('data', mockSchema, createMockHookContext())).not.toThrow();
+    });
+
     it('should handle hook errors with throw strategy', () => {
       const kernel = createVldKernel({ errorStrategy: 'throw' });
 
@@ -498,6 +528,24 @@ describe('VLD Kernel', () => {
       kernel.executeBeforeParse('test', mockSchema, createMockHookContext());
 
       expect(consoleSpy).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
+    it('should isolate onBeforeParse hook errors without logging when debug is disabled', () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const kernel = createVldKernel({ errorStrategy: 'isolate', debug: false });
+
+      kernel.use({
+        name: 'silent-before-error-plugin',
+        version: '1.0.0',
+        onBeforeParse: () => {
+          throw new Error('Hook error');
+        }
+      });
+
+      const mockSchema = { parse: (v: unknown) => v } as any;
+      expect(kernel.executeBeforeParse('test', mockSchema, createMockHookContext())).toBe('test');
+      expect(consoleSpy).not.toHaveBeenCalled();
       consoleSpy.mockRestore();
     });
 
@@ -535,6 +583,25 @@ describe('VLD Kernel', () => {
       consoleSpy.mockRestore();
     });
 
+    it('should isolate onAfterParse hook errors without logging when debug is disabled', () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const kernel = createVldKernel({ errorStrategy: 'isolate', debug: false });
+      const parseResult = { success: true as const, data: 'test' };
+
+      kernel.use({
+        name: 'silent-after-error-plugin',
+        version: '1.0.0',
+        onAfterParse: () => {
+          throw new Error('After parse error in isolate');
+        }
+      });
+
+      const mockSchema = { parse: (v: unknown) => v } as any;
+      expect(kernel.executeAfterParse(parseResult, mockSchema, createMockHookContext())).toBe(parseResult);
+      expect(consoleSpy).not.toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
     it('should handle onError hook errors in debug mode', () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
       const kernel = createVldKernel({ debug: true });
@@ -554,6 +621,24 @@ describe('VLD Kernel', () => {
       consoleSpy.mockRestore();
     });
 
+    it('should isolate onError hook errors without logging when debug is disabled', () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const kernel = createVldKernel({ debug: false });
+
+      kernel.use({
+        name: 'silent-error-in-error-plugin',
+        version: '1.0.0',
+        onError: () => {
+          throw new Error('Error in error handler');
+        }
+      });
+
+      const mockSchema = { parse: (v: unknown) => v } as any;
+      expect(() => kernel.executeOnError({ message: 'test', issues: [] } as any, mockSchema, createMockHookContext())).not.toThrow();
+      expect(consoleSpy).not.toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
     it('should handle onSuccess hook errors in debug mode', () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
       const kernel = createVldKernel({ debug: true });
@@ -570,6 +655,24 @@ describe('VLD Kernel', () => {
       kernel.executeOnSuccess('data', mockSchema, createMockHookContext());
 
       expect(consoleSpy).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
+    it('should isolate onSuccess hook errors without logging when debug is disabled', () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const kernel = createVldKernel({ debug: false });
+
+      kernel.use({
+        name: 'silent-error-in-success-plugin',
+        version: '1.0.0',
+        onSuccess: () => {
+          throw new Error('Error in success handler');
+        }
+      });
+
+      const mockSchema = { parse: (v: unknown) => v } as any;
+      expect(() => kernel.executeOnSuccess('data', mockSchema, createMockHookContext())).not.toThrow();
+      expect(consoleSpy).not.toHaveBeenCalled();
       consoleSpy.mockRestore();
     });
   });
@@ -668,6 +771,24 @@ describe('VLD Kernel', () => {
       consoleSpy.mockRestore();
     });
 
+    it('should isolate async install errors without logging when debug is disabled', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const kernel = createVldKernel({ errorStrategy: 'isolate', debug: false });
+
+      const plugin: VldPlugin = {
+        name: 'silent-async-error-install',
+        version: '1.0.0',
+        install: async () => {
+          throw new Error('Async install error');
+        }
+      };
+
+      kernel.use(plugin);
+      await new Promise(r => setTimeout(r, 10));
+      expect(consoleSpy).not.toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
     it('should handle sync install errors with throw strategy', () => {
       const kernel = createVldKernel({ errorStrategy: 'throw' });
 
@@ -696,6 +817,23 @@ describe('VLD Kernel', () => {
 
       kernel.use(plugin);
       expect(consoleSpy).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
+    it('should isolate sync install errors without logging when debug is disabled', () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const kernel = createVldKernel({ errorStrategy: 'isolate', debug: false });
+
+      const plugin: VldPlugin = {
+        name: 'silent-sync-error-install',
+        version: '1.0.0',
+        install: () => {
+          throw new Error('Sync install error');
+        }
+      };
+
+      kernel.use(plugin);
+      expect(consoleSpy).not.toHaveBeenCalled();
       consoleSpy.mockRestore();
     });
 
@@ -737,6 +875,25 @@ describe('VLD Kernel', () => {
       consoleSpy.mockRestore();
     });
 
+    it('should isolate async uninstall errors without logging when debug is disabled', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const kernel = createVldKernel({ debug: false });
+
+      const plugin: VldPlugin = {
+        name: 'silent-async-error-uninstall',
+        version: '1.0.0',
+        uninstall: async () => {
+          throw new Error('Async uninstall error');
+        }
+      };
+
+      kernel.use(plugin);
+      kernel.remove('silent-async-error-uninstall');
+      await new Promise(r => setTimeout(r, 10));
+      expect(consoleSpy).not.toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
     it('should handle sync uninstall errors in debug mode', () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
       const kernel = createVldKernel({ debug: true });
@@ -752,6 +909,24 @@ describe('VLD Kernel', () => {
       kernel.use(plugin);
       kernel.remove('sync-error-uninstall');
       expect(consoleSpy).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
+    it('should isolate sync uninstall errors without logging when debug is disabled', () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const kernel = createVldKernel({ debug: false });
+
+      const plugin: VldPlugin = {
+        name: 'silent-sync-error-uninstall',
+        version: '1.0.0',
+        uninstall: () => {
+          throw new Error('Sync uninstall error');
+        }
+      };
+
+      kernel.use(plugin);
+      kernel.remove('silent-sync-error-uninstall');
+      expect(consoleSpy).not.toHaveBeenCalled();
       consoleSpy.mockRestore();
     });
   });

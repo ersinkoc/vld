@@ -15,7 +15,7 @@ export default {
         target: 'ES2020',
         allowJs: true,
         esModuleInterop: true,
-        skipLibCheck: true
+        skipLibCheck: false
       }
     }]
   },
@@ -25,13 +25,13 @@ export default {
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html', 'json-summary'],
   
-  // Coverage thresholds - MUST be 80%
+  // Coverage thresholds must protect the published quality bar.
   coverageThreshold: {
     global: {
-      branches: 80,
-      functions: 80,
-      lines: 80,
-      statements: 80
+      branches: 100,
+      functions: 93,
+      lines: 100,
+      statements: 100
     }
   },
   
@@ -67,6 +67,9 @@ export default {
     '!src/locales/tr.ts',
     '!src/locales/vi.ts',
     '!src/locales/zh.ts',
+    '!src/v3/**/*.ts',            // Zod subpath compatibility wrappers verified by parity/install guards
+    '!src/v4/**/*.ts',
+    '!src/v4-mini/**/*.ts',
     '!src/utils/json-schema.ts',  // JSON Schema conversion - comprehensive end-to-end tests needed
     '!**/node_modules/**'
   ],

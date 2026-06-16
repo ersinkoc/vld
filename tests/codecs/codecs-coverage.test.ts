@@ -24,6 +24,12 @@ describe('Codecs Coverage Tests', () => {
       expect(url.hostname).toBe('example.com');
       expect(url.pathname).toBe('/path');
     });
+
+    it('should guard direct URL transform failures', () => {
+      const transform = (stringToURL as any).codecTransform;
+
+      expect(() => transform.decode('http://[invalid')).toThrow('Invalid URL');
+    });
   });
 
   describe('stringToHttpURL codec', () => {
@@ -41,6 +47,19 @@ describe('Codecs Coverage Tests', () => {
     it('should parse valid HTTP URL', () => {
       const url = stringToHttpURL.parse('https://example.com');
       expect(url.protocol).toBe('https:');
+    });
+
+    it('should encode HTTP URL objects back to strings', () => {
+      const url = new URL('https://example.com/path');
+
+      expect(stringToHttpURL.encode(url)).toBe('https://example.com/path');
+    });
+
+    it('should guard direct HTTP URL transform failures', () => {
+      const transform = (stringToHttpURL as any).codecTransform;
+
+      expect(() => transform.decode('ftp://example.com')).toThrow('Invalid HTTP URL');
+      expect(() => transform.decode('http://[invalid')).toThrow('Invalid HTTP URL');
     });
   });
 
@@ -106,6 +125,13 @@ describe('Codecs Coverage Tests', () => {
 
       expect(decoded.sub).toBe('1234567890');
       expect(decoded.name).toBe('John Doe');
+    });
+
+    it('should guard direct JWT payload transform failures', () => {
+      const transform = (jwtPayload() as any).codecTransform;
+
+      expect(() => transform.decode('header.payload')).toThrow('Failed to decode JWT payload');
+      expect(() => transform.encode({ sub: '1234' })).toThrow('JWT encoding not supported');
     });
   });
 });

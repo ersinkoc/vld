@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
-import { v } from '../../src/index';
+import { v, ZodCodec } from '../../src/index';
 import {
   base64ToUint8Array,
   uint8ArrayToBase64,
@@ -36,6 +36,22 @@ describe('VldCodec', () => {
       if (encodeResult.success) {
         expect(encodeResult.data).toBe('999');
       }
+    });
+
+    it('should invert codecs through the Zod-compatible static helper', () => {
+      const stringToNumber = v.codec(
+        v.string(),
+        v.number(),
+        {
+          decode: (str: string) => Number(str),
+          encode: (num: number) => String(num)
+        }
+      );
+
+      const numberToString = ZodCodec.invert(stringToNumber);
+
+      expect(numberToString.parse(42)).toBe('42');
+      expect(numberToString.encode('123')).toBe(123);
     });
     
     it('should validate input before decoding', () => {

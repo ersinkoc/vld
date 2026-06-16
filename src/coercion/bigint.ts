@@ -1,6 +1,6 @@
 import { VldBigInt } from '../validators/bigint';
 import { ParseResult, VLD_VALIDATOR_TYPES } from '../validators/base';
-import { getMessages } from '../locales';
+import { getMessages } from '../locales/runtime';
 
 /**
  * BigInt coercion validator that attempts to convert values to bigint
@@ -13,47 +13,47 @@ export class VldCoerceBigInt extends VldBigInt {
   /**
    * Create a new coerce bigint validator
    */
-  static create(): VldCoerceBigInt {
+  static override create(): VldCoerceBigInt {
     return new VldCoerceBigInt();
   }
   
   // Override all chain methods to return VldCoerceBigInt instances
-  min(value: bigint, message?: string): VldCoerceBigInt {
+  override min(value: bigint, message?: string): VldCoerceBigInt {
     return new VldCoerceBigInt({
       checks: [...this.config.checks, (v: bigint) => v >= value],
       errorMessage: message || `BigInt must be at least ${value}`
     });
   }
   
-  max(value: bigint, message?: string): VldCoerceBigInt {
+  override max(value: bigint, message?: string): VldCoerceBigInt {
     return new VldCoerceBigInt({
       checks: [...this.config.checks, (v: bigint) => v <= value],
       errorMessage: message || `BigInt must be at most ${value}`
     });
   }
   
-  positive(message?: string): VldCoerceBigInt {
+  override positive(message?: string): VldCoerceBigInt {
     return new VldCoerceBigInt({
       checks: [...this.config.checks, (v: bigint) => v > 0n],
       errorMessage: message || 'BigInt must be positive'
     });
   }
   
-  negative(message?: string): VldCoerceBigInt {
+  override negative(message?: string): VldCoerceBigInt {
     return new VldCoerceBigInt({
       checks: [...this.config.checks, (v: bigint) => v < 0n],
       errorMessage: message || 'BigInt must be negative'
     });
   }
   
-  nonnegative(message?: string): VldCoerceBigInt {
+  override nonnegative(message?: string): VldCoerceBigInt {
     return new VldCoerceBigInt({
       checks: [...this.config.checks, (v: bigint) => v >= 0n],
       errorMessage: message || 'BigInt must be non-negative'
     });
   }
   
-  nonpositive(message?: string): VldCoerceBigInt {
+  override nonpositive(message?: string): VldCoerceBigInt {
     return new VldCoerceBigInt({
       checks: [...this.config.checks, (v: bigint) => v <= 0n],
       errorMessage: message || 'BigInt must be non-positive'
@@ -63,7 +63,7 @@ export class VldCoerceBigInt extends VldBigInt {
   /**
    * Parse and coerce a value to bigint
    */
-  parse(value: unknown): bigint {
+  override parse(value: unknown): bigint {
     // If it's already a bigint, use parent validation directly
     if (typeof value === 'bigint') {
       return super.parse(value);
@@ -109,7 +109,7 @@ export class VldCoerceBigInt extends VldBigInt {
   /**
    * Safely parse and coerce a value to bigint
    */
-  safeParse(value: unknown): ParseResult<bigint> {
+  override safeParse(value: unknown): ParseResult<bigint> {
     try {
       return { success: true, data: this.parse(value) };
     } catch (error) {

@@ -3,7 +3,7 @@
  * Note: File API is only available in browsers, so we use mocks for testing
  */
 
-import { v } from '../../src';
+import { v, getMessages, registerLocale, setLocale } from '../../src';
 
 // Mock File class for Node.js environment
 class MockFile implements File {
@@ -56,11 +56,26 @@ describe('v.file()', () => {
       expect(schema.parse(file)).toBe(file);
     });
 
+    it('should accept runtime File instances when the File API exists', () => {
+      const schema = v.file();
+      const file = new File(['hello'], 'hello.txt', { type: 'text/plain' });
+
+      expect(schema.parse(file)).toBe(file);
+    });
+
     it('should accept plain objects with size and type for Node.js compatibility', () => {
       const schema = v.file();
       const fileObj = { size: 1024, type: 'text/plain', name: 'test.txt' };
 
       expect(schema.parse(fileObj)).toEqual(fileObj);
+    });
+
+    it('should validate known file-like values without changing identity', () => {
+      const schema = v.file().mime('text/plain').max(2048);
+      const fileObj = { size: 1024, type: 'text/plain', name: 'test.txt' };
+
+      expect((schema as any).parseKnownFile(fileObj)).toBe(fileObj);
+      expect(() => (schema as any).parseKnownFile({ ...fileObj, type: 'image/png' })).toThrow(/Invalid file type/);
     });
 
     it('should reject non-file values', () => {
@@ -71,6 +86,51 @@ describe('v.file()', () => {
       expect(() => schema.parse(null)).toThrow();
       expect(() => schema.parse(undefined)).toThrow();
       expect(() => schema.parse({})).toThrow(); // Missing size and type
+    });
+
+    it('should report unsupported File API when no File constructor is available', () => {
+      const originalFile = (global as any).File;
+
+      try {
+        delete (global as any).File;
+        const schema = v.file();
+        const result = schema.safeParse('not a file');
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.message).toContain('File API not supported');
+        }
+      } finally {
+        (global as any).File = originalFile;
+      }
+    });
+
+    it('should use built-in fallbacks when file locale messages are omitted', () => {
+      const originalFile = (global as any).File;
+      const messages = {
+        ...getMessages(),
+        invalidFile: undefined,
+        fileNotSupported: undefined,
+        fileMinSize: undefined,
+        fileMaxSize: undefined,
+        fileMimeType: undefined
+      } as unknown as ReturnType<typeof getMessages>;
+
+      registerLocale('zy' as any, messages);
+      setLocale('zy' as any);
+
+      try {
+        expect(() => v.file().parse({})).toThrow('Expected a File object');
+        expect(() => v.file().min(1024).parse(new MockFile(512, 'text/plain'))).toThrow('File size must be at least 1024 bytes');
+        expect(() => v.file().max(1024).parse(new MockFile(2048, 'text/plain'))).toThrow('File size must not exceed 1024 bytes');
+        expect(() => v.file().mime(['image/png']).parse(new MockFile(1024, 'text/plain'))).toThrow('Invalid file type. Expected: image/png');
+
+        delete (global as any).File;
+        expect(() => v.file().parse('not a file')).toThrow('File API not supported in this environment');
+      } finally {
+        (global as any).File = originalFile;
+        setLocale('en');
+      }
     });
   });
 
@@ -284,6 +344,17 @@ describe('v.file()', () => {
       expect(schema.parse({ avatar: validFile })).toEqual({ avatar: validFile });
       expect(() => schema.parse({ avatar: tooLarge })).toThrow();
       expect(() => schema.parse({ avatar: wrongType })).toThrow();
+    });
+
+    it('should use the known-file object path for file-like objects', () => {
+      const schema = v.object({
+        avatar: v.file().mime('image/png').max(2048)
+      });
+      const validFile = { size: 1024, type: 'image/png', name: 'avatar.png' };
+      const invalidFile = { size: 4096, type: 'image/png', name: 'avatar.png' };
+
+      expect(schema.parse({ avatar: validFile })).toEqual({ avatar: validFile });
+      expect(schema.safeParse({ avatar: invalidFile }).success).toBe(false);
     });
 
     it('should work in arrays', () => {

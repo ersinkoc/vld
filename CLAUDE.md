@@ -12,7 +12,7 @@ npm run test:types         # Type check without emitting files
 
 ### Testing
 ```bash
-npm test                   # Run Jest tests with coverage (must maintain 80% threshold)
+npm test                   # Run Jest tests with enforced coverage thresholds
 npm run test -- --watch    # Run tests in watch mode
 npm run test -- tests/validators/string.test.ts  # Run specific test file
 ```
@@ -26,10 +26,13 @@ npm run format             # Prettier formatting
 ### Performance Benchmarking
 ```bash
 npm run benchmark          # Quick performance comparison (vs Zod)
+npm run benchmark:stable   # Median-based stable benchmark suite
+npm run benchmark:guard    # CI-friendly performance regression guard
 npm run benchmark:full     # Full performance suite
 npm run benchmark:memory   # Memory usage analysis
 npm run benchmark:startup  # Startup time comparison
 npm run benchmark:all      # Run all benchmarks
+npm run release:check      # Full release gate: lint, source/published types, tests, build, package install, audit, Zod parity, performance guard
 ```
 
 ## Architecture Overview
@@ -43,13 +46,13 @@ npm run benchmark:all      # Run all benchmarks
 ### Module Structure
 ```
 src/
-├── validators/        # Core validator implementations (base, string, number, etc.)
-├── coercion/         # Type coercion validators (string, number, boolean, date, bigint)
-├── codecs/           # Bidirectional codec implementations (19 built-in codecs)
-├── locales/          # 27+ language translations (types.ts defines message templates)
-├── utils/            # Utilities (deep-merge, ip-validation, security, codec-utils)
-├── errors.ts         # VldError class and formatting utilities (treeify, prettify, flatten)
-└── index.ts          # Main API export with factory methods (the `v` object)
+-  validators/        # Core validator implementations (base, string, number, etc.)
+-  coercion/         # Type coercion validators (string, number, boolean, date, bigint)
+-  codecs/           # Bidirectional codec implementations (19 built-in codecs)
+-  locales/          # 27+ language translations (types.ts defines message templates)
+-  utils/            # Utilities (deep-merge, ip-validation, security, codec-utils)
+-  errors.ts         # VldError class and formatting utilities (treeify, prettify, flatten)
+-  index.ts          # Main API export with factory methods (the `v` object)
 ```
 
 ### Key Architecture Patterns
@@ -76,7 +79,8 @@ Three error formats for different use cases:
 
 ### Testing Strategy
 - Jest with ts-jest for ESM support
-- 80% minimum coverage threshold enforced
+- 100% statement, branch, and line coverage thresholds enforced
+- 93% function coverage threshold enforced
 - Test files in `tests/` directory mirror source structure:
   - `tests/validators/` - Individual validator tests
   - `tests/coercion/` - Type coercion tests

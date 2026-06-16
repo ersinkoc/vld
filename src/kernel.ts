@@ -455,16 +455,19 @@ export function definePlugin(): PluginBuilder {
         throw new Error('Plugin name is required');
       }
 
-      return {
+      const plugin: VldPlugin = {
         name: _name,
         version: _version,
         description: _description,
-        validators: Object.keys(_validators).length > 0 ? _validators : undefined,
-        transforms: Object.keys(_transforms).length > 0 ? _transforms : undefined,
-        codecs: Object.keys(_codecs).length > 0 ? _codecs : undefined,
-        install: _install,
         ..._hooks
       };
+
+      if (Object.keys(_validators).length > 0) plugin.validators = _validators;
+      if (Object.keys(_transforms).length > 0) plugin.transforms = _transforms;
+      if (Object.keys(_codecs).length > 0) plugin.codecs = _codecs;
+      if (_install !== undefined) plugin.install = _install;
+
+      return plugin;
     }
   };
 

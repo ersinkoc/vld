@@ -3,7 +3,14 @@
  * Validates that the resolved value matches the inner schema
  */
 
-import { type ParseResult } from './base';
+import { type ParseResult, type StandardSchemaV1Props, type StandardSchemaV1Result, type StandardTypedV1Types, VLD_VALIDATOR_TYPES } from './base';
+
+type PromiseInner<T> = {
+  parse(value: unknown): T;
+  safeParse(value: unknown): ParseResult<T>;
+  parseAsync?(value: unknown): Promise<T>;
+  safeParseAsync?(value: unknown): Promise<ParseResult<T>>;
+};
 
 /**
  * Promise validator - validates Promise<T> where T matches inner schema
@@ -15,7 +22,24 @@ import { type ParseResult } from './base';
  * Use parseAsync() or safeParseAsync() for proper async handling.
  */
 export class VldPromise<T> {
-  constructor(private readonly inner: { parse(value: unknown): T; safeParse(value: unknown): ParseResult<T> }) {
+  readonly validatorType = VLD_VALIDATOR_TYPES.PROMISE;
+
+  constructor(private readonly inner: PromiseInner<T>) {
+  }
+
+  get '~standard'(): StandardSchemaV1Props<unknown, T> {
+    return {
+      version: 1,
+      vendor: 'vld',
+      validate: async (value: unknown): Promise<StandardSchemaV1Result<T>> => {
+        const result = await this.safeParseAsync(value);
+        if (result.success) {
+          return { value: result.data };
+        }
+        return { issues: [{ message: result.error.message }] };
+      },
+      types: undefined as unknown as StandardTypedV1Types<unknown, T>
+    };
   }
 
   /**
@@ -24,6 +48,10 @@ export class VldPromise<T> {
    */
   private _isThenable(value: unknown): boolean {
     return value !== null && typeof (value as any).then === 'function';
+  }
+
+  unwrap(): PromiseInner<T> {
+    return this.inner;
   }
 
   /**
@@ -39,7 +67,11 @@ export class VldPromise<T> {
     }
     // Now we can safely await it
     const resolved = await Promise.resolve(value);
-    return this.inner.parse(resolved);
+    return this.inner.parseAsync ? this.inner.parseAsync(resolved) : this.inner.parse(resolved);
+  }
+
+  parseAsync(value: unknown): Promise<T> {
+    return this.parse(value);
   }
 
   /**
@@ -58,17 +90,26 @@ export class VldPromise<T> {
 
     try {
       const resolved = await Promise.resolve(value);
-      const validated = this.inner.parse(resolved);
-      return {
-        success: true as const,
-        data: validated
-      };
+      if (this.inner.safeParseAsync) {
+        return await this.inner.safeParseAsync(resolved);
+      }
+
+      const innerResult = this.inner.safeParse(resolved);
+      if (!innerResult.success) {
+        return innerResult;
+      }
+
+      return { success: true as const, data: innerResult.data };
     } catch (err) {
       return {
         success: false as const,
         error: err instanceof Error ? err : new Error(String(err))
       };
     }
+  }
+
+  safeParseAsync(value: unknown): Promise<ParseResult<T>> {
+    return this.safeParse(value);
   }
 }
 
@@ -81,6 +122,6 @@ export class VldPromise<T> {
  * const result = await promiseSchema.parse(Promise.resolve("hello"));
  * // result is string
  */
-export function promise<T>(inner: { parse(value: unknown): T; safeParse(value: unknown): ParseResult<T> }): VldPromise<T> {
+export function promise<T>(inner: PromiseInner<T>): VldPromise<T> {
   return new VldPromise(inner);
 }

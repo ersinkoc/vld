@@ -4,7 +4,7 @@
  * Ensures exactly one schema in the union matches
  */
 
-import { VldBase } from './base';
+import { VldBase, VLD_VALIDATOR_TYPES } from './base';
 import type { ParseResult } from './base';
 
 /**
@@ -13,7 +13,7 @@ import type { ParseResult } from './base';
  */
 export class VldXor<Options extends VldBase<any, any>[]> extends VldBase<unknown, Options[number] extends VldBase<any, infer T> ? T : never> {
   constructor(private readonly _options: Options) {
-    super();
+    super(VLD_VALIDATOR_TYPES.XOR);
   }
 
   static create<Options extends VldBase<any, any>[]>(

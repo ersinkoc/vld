@@ -22,5 +22,19 @@
     "es2020": true,
     "node": true,
     "jest": true
-  }
+  },
+  "overrides": [
+    {
+      "files": [
+        "src/cli/**/*.ts",
+        "src/compat/emitter.ts",
+        "src/kernel.ts",
+        "src/locales/lazy.ts",
+        "src/logger.ts"
+      ],
+      "rules": {
+        "no-console": "off"
+      }
+    }
+  ]
 }

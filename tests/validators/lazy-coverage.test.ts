@@ -53,6 +53,17 @@ describe('VldLazy Coverage Tests', () => {
       expect(unwrapped.safeParse('test').success).toBe(true);
       expect(unwrapped.safeParse(123).success).toBe(false);
     });
+
+    it('should cache the resolved schema across parse, safeParse, and unwrap', () => {
+      const innerSchema = v.string();
+      const getter = jest.fn(() => innerSchema);
+      const lazySchema = v.lazy(getter);
+
+      expect(lazySchema.parse('first')).toBe('first');
+      expect(lazySchema.safeParse('second').success).toBe(true);
+      expect(lazySchema.unwrap()).toBe(innerSchema);
+      expect(getter).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('safeParse() method', () => {

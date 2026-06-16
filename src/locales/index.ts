@@ -1,4 +1,15 @@
 import { Locale, LocaleMessages } from './types';
+import {
+  getLocale,
+  getMessages,
+  getMessagesForLocale,
+  getSupportedLocales,
+  isLocaleLoaded,
+  isLocaleSupported,
+  registerFallbackLocale,
+  registerLocale,
+  setLocale
+} from './runtime';
 
 // Import all language files
 import { en } from './en';
@@ -37,9 +48,26 @@ import { af } from './af';
 import { ptBR } from './pt-BR';
 import { esMX } from './es-MX';
 
-// Create comprehensive locale registry
-const locales: Record<Locale, LocaleMessages> = {
-  // Base languages (already existing)
+const translatedLocaleCodes = [
+  'en', 'tr', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'ja', 'ko', 'zh', 'ar', 'hi', 'nl', 'pl',
+  'da', 'sv', 'no', 'fi',
+  'th', 'vi', 'id', 'bn',
+  'sw', 'af',
+  'pt-BR', 'es-MX'
+] as const satisfies readonly Locale[];
+
+const fallbackLocaleCodes = [
+  'is', 'cs', 'sk', 'hu', 'ro', 'bg', 'hr', 'sl', 'lv', 'lt', 'et',
+  'el', 'mk', 'sq', 'sr', 'bs', 'me', 'mt', 'ga', 'cy', 'eu', 'ca',
+  'ms', 'tl', 'ur', 'fa', 'he', 'ka', 'am', 'hy', 'az', 'kk', 'ky',
+  'uz', 'tg', 'mn', 'my', 'km', 'lo', 'si', 'ta', 'te', 'ml', 'kn',
+  'gu', 'pa', 'or', 'as', 'ne', 'mr', 'sd', 'dv',
+  'ha', 'yo', 'ig', 'zu', 'xh', 'st', 'tn', 'ts', 've', 'nr', 'ss',
+  'es-AR', 'fr-CA', 'qu', 'gn', 'ay'
+] as const satisfies readonly Locale[];
+
+const translatedLocales: Record<typeof translatedLocaleCodes[number], LocaleMessages> = {
+  // Base languages
   en, tr, es, fr, de, it, pt, ru, ja, ko, zh, ar, hi, nl, pl,
   
   // Major European Languages
@@ -54,60 +82,39 @@ const locales: Record<Locale, LocaleMessages> = {
   // American Languages
   'pt-BR': ptBR,
   'es-MX': esMX,
-  
-  // TODO: Add remaining languages from types.ts
-  // For now, fallback to English for unimplemented languages
-  is: en, cs: en, sk: en, hu: en, ro: en, bg: en, hr: en, sl: en, 
-  lv: en, lt: en, et: en, el: en, mk: en, sq: en, sr: en, bs: en, 
-  me: en, mt: en, ga: en, cy: en, eu: en, ca: en,
-  
-  // Asian languages fallbacks
-  ms: en, tl: en, ur: en, fa: en, he: en, ka: en, am: en, hy: en, 
-  az: en, kk: en, ky: en, uz: en, tg: en, mn: en, my: en, km: en, 
-  lo: en, si: en, ta: en, te: en, ml: en, kn: en, gu: en, pa: en, 
-  or: en, as: en, ne: en, mr: en, sd: en, dv: en,
-  
-  // African languages fallbacks
-  ha: en, yo: en, ig: en, zu: en, xh: en, st: en, tn: en, ts: en, 
-  ve: en, nr: en, ss: en,
-  
-  // American languages fallbacks
-  'es-AR': en, 'fr-CA': en, qu: en, gn: en, ay: en
 };
 
-// Current locale state
-let currentLocale: Locale = 'en';
+for (const locale of translatedLocaleCodes) {
+  registerLocale(locale, translatedLocales[locale]);
+}
 
-/**
- * Set the current locale for validation messages
- */
-export function setLocale(locale: Locale): void {
-  if (!(locale in locales)) {
-    throw new Error(`Unsupported locale: ${locale}`);
-  }
-  currentLocale = locale;
+for (const locale of fallbackLocaleCodes) {
+  registerFallbackLocale(locale);
 }
 
 /**
- * Get the current locale
+ * Set the current locale asynchronously.
+ *
+ * The eager locale entrypoint already bundles translated locales and English
+ * fallbacks, so this mirrors setLocale() while preserving async API parity.
  */
-export function getLocale(): Locale {
-  return currentLocale;
+export async function setLocaleAsync(locale: Locale): Promise<void> {
+  setLocale(locale);
 }
 
 /**
- * Get messages for the current locale
+ * Register or override a locale for synchronous validation messages.
  */
-export function getMessages(): LocaleMessages {
-  return locales[currentLocale];
-}
-
-/**
- * Get messages for a specific locale
- */
-export function getMessagesForLocale(locale: Locale): LocaleMessages {
-  return locales[locale] || locales.en;
-}
+export {
+  getLocale,
+  getMessages,
+  getMessagesForLocale,
+  getSupportedLocales,
+  isLocaleLoaded,
+  isLocaleSupported,
+  registerLocale,
+  setLocale
+};
 
 // Re-export types
 export type { Locale, LocaleMessages } from './types';

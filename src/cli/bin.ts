@@ -8,6 +8,13 @@
 import { vldCli } from './index';
 import { validateCommand } from './commands/validate';
 import { benchmarkCommand } from './commands/benchmark';
+import { readFileSync } from 'fs';
+
+const packageJson = JSON.parse(
+  readFileSync(new URL('../../package.json', import.meta.url), 'utf-8')
+) as { version?: string };
+const version = packageJson.version || '0.0.0';
+vldCli.version = version;
 
 // Register commands
 vldCli.command(validateCommand);
@@ -28,7 +35,7 @@ vldCli.command({
   name: 'version',
   description: 'Show version information',
   action: () => {
-    console.log('vld v1.5.0');
+    console.log(`vld v${version}`);
   }
 });
 

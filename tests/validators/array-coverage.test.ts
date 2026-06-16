@@ -4,6 +4,7 @@
  */
 
 import { v } from '../../src';
+import { VldArray } from '../../src/validators/array';
 
 describe('VldArray Coverage Tests', () => {
   describe('stableStringify edge cases', () => {
@@ -75,6 +76,14 @@ describe('VldArray Coverage Tests', () => {
       expect(result.success).toBe(true);
     });
 
+    it('should stringify nested null and undefined values during uniqueness checks', () => {
+      const schema = v.array(v.any()).unique();
+
+      expect(schema.safeParse([{ value: null }, { value: undefined }]).success).toBe(true);
+      expect(schema.safeParse([{ value: null }, { value: null }]).success).toBe(false);
+      expect(schema.safeParse([{ value: undefined }, { value: undefined }]).success).toBe(false);
+    });
+
     it('should handle arrays with bigint values', () => {
       const schema = v.array(v.any()).unique();
 
@@ -90,9 +99,36 @@ describe('VldArray Coverage Tests', () => {
       const result = schema.safeParse([BigInt(123), BigInt(123)]);
       expect(result.success).toBe(false);
     });
+
+    it('should reuse cached object keys for repeated object references', () => {
+      const schema = v.array(v.any()).unique();
+      const shared = { id: 1 };
+
+      const result = schema.safeParse([shared, shared]);
+      expect(result.success).toBe(false);
+    });
+
+    it('should fall back to a safe representation when stable stringify fails', () => {
+      const schema = v.array(v.any()).unique();
+      const value = Object.defineProperty({}, 'unstable', {
+        enumerable: true,
+        get() {
+          throw new Error('unreadable property');
+        }
+      });
+
+      expect(schema.safeParse([value]).success).toBe(true);
+    });
   });
 
   describe('Array validation', () => {
+    it('should use the boolean item fast path', () => {
+      const schema = v.array(v.boolean());
+
+      expect(schema.parse([true, false])).toEqual([true, false]);
+      expect(schema.safeParse([true, 'false']).success).toBe(false);
+    });
+
     it('should validate minimum length', () => {
       const schema = v.array(v.string()).min(2);
 
@@ -115,11 +151,42 @@ describe('VldArray Coverage Tests', () => {
       expect(schema.safeParse(['a', 'b']).success).toBe(true);
     });
 
+    it('should use custom messages for length constraints', () => {
+      expect(() => v.array(v.string()).length(2, 'Need exactly two').parse(['a'])).toThrow('Need exactly two');
+      expect(() => v.array(v.string()).min(2, 'Need at least two').parse(['a'])).toThrow('Need at least two');
+      expect(() => v.array(v.string()).max(1, 'Need at most one').parse(['a', 'b'])).toThrow('Need at most one');
+    });
+
+    it('should fall back to locale messages when internal length configs have no error message', () => {
+      const exact = new (VldArray as any)({ itemValidator: v.string(), exactLength: 2 }) as VldArray<string>;
+      const min = new (VldArray as any)({ itemValidator: v.string(), minLength: 2 }) as VldArray<string>;
+      const max = new (VldArray as any)({ itemValidator: v.string(), maxLength: 1 }) as VldArray<string>;
+
+      expect(() => exact.parseKnownArray(['a'])).toThrow('Array must have exactly 2 items');
+      expect(() => min.parseKnownArray(['a'])).toThrow('Array must have at least 2 items');
+      expect(() => max.parseKnownArray(['a', 'b'])).toThrow('Array must have at most 1 items');
+    });
+
     it('should validate non-empty arrays', () => {
       const schema = v.array(v.string()).nonempty();
 
       expect(schema.safeParse([]).success).toBe(false);
       expect(schema.safeParse(['a']).success).toBe(true);
+    });
+
+    it('should stringify non-Error item parse failures', () => {
+      const throwingValidator = {
+        parse() {
+          throw 'plain item failure';
+        },
+        safeParse() {
+          return { success: false, error: new Error('plain item failure') };
+        }
+      };
+      const schema = v.array(throwingValidator as any);
+
+      expect(() => schema.parse(['value'])).toThrow('plain item failure');
+      expect(schema.safeParse(['value']).success).toBe(false);
     });
   });
 });

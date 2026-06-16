@@ -1,141 +1,9 @@
 // VLD Error System - Advanced error formatting and utilities
 
 import { type Theme, vldTheme } from './pigment';
-
-export type VldErrorCode =
-  | 'invalid_type'
-  | 'invalid_string'
-  | 'string_too_small'
-  | 'string_too_big'
-  | 'invalid_email'
-  | 'invalid_url'
-  | 'invalid_uuid'
-  | 'invalid_regex'
-  | 'invalid_number'
-  | 'too_small'
-  | 'too_big'
-  | 'not_integer'
-  | 'not_finite'
-  | 'not_safe'
-  | 'invalid_boolean'
-  | 'invalid_date'
-  | 'invalid_array'
-  | 'invalid_object'
-  | 'unrecognized_keys'
-  | 'invalid_union'
-  | 'invalid_literal'
-  | 'invalid_enum'
-  | 'custom';
-
-export interface VldIssue {
-  code: VldErrorCode;
-  path: (string | number)[];
-  message: string;
-  expected?: string;
-  received?: string;
-  keys?: string[];
-  minimum?: number;
-  maximum?: number;
-  exact?: number;
-  inclusive?: boolean;
-}
-
-export class VldError extends Error {
-  public readonly issues: VldIssue[];
-
-  constructor(issues: VldIssue[]) {
-    const message =
-      issues.length === 1 ? issues[0].message : `${issues.length} validation errors`;
-
-    super(message);
-    this.name = 'VldError';
-    this.issues = issues;
-
-    // Maintain proper stack trace
-    if (Error.captureStackTrace) {
-      Error.captureStackTrace(this, VldError);
-    }
-  }
-
-  get firstError(): VldIssue | undefined {
-    return this.issues[0];
-  }
-
-  get formattedErrors(): string[] {
-    return this.issues.map((issue) => issue.message);
-  }
-
-  /**
-   * Convert error to JSON representation
-   * Compatible with @oxog/types OxogError
-   */
-  toJSON(): VldErrorJSON {
-    return {
-      name: this.name,
-      message: this.message,
-      code: 'VLD_VALIDATION_ERROR',
-      issues: this.issues.map((issue) => ({
-        code: issue.code,
-        path: issue.path,
-        message: issue.message,
-        expected: issue.expected,
-        received: issue.received,
-        keys: issue.keys,
-        minimum: issue.minimum,
-        maximum: issue.maximum,
-        exact: issue.exact,
-        inclusive: issue.inclusive
-      }))
-    };
-  }
-
-  /**
-   * Create VldError from JSON representation
-   */
-  static fromJSON(json: VldErrorJSON): VldError {
-    const issues: VldIssue[] = json.issues.map((issue) => ({
-      code: issue.code as VldErrorCode,
-      path: issue.path,
-      message: issue.message,
-      expected: issue.expected,
-      received: issue.received,
-      keys: issue.keys,
-      minimum: issue.minimum,
-      maximum: issue.maximum,
-      exact: issue.exact,
-      inclusive: issue.inclusive
-    }));
-    return new VldError(issues);
-  }
-
-  /**
-   * Check if a value is a VldError
-   */
-  static isVldError(value: unknown): value is VldError {
-    return value instanceof VldError;
-  }
-}
-
-/**
- * JSON representation of VldError
- */
-export interface VldErrorJSON {
-  name: string;
-  message: string;
-  code: string;
-  issues: Array<{
-    code: string;
-    path: (string | number)[];
-    message: string;
-    expected?: string;
-    received?: string;
-    keys?: string[];
-    minimum?: number;
-    maximum?: number;
-    exact?: number;
-    inclusive?: boolean;
-  }>;
-}
+export { VldError } from './errors-core';
+export type { VldErrorCode, VldErrorJSON, VldIssue } from './errors-core';
+import { VldError, type VldErrorCode, type VldIssue } from './errors-core';
 
 // Error tree structure for nested validation
 export interface VldErrorTree {
@@ -313,7 +181,8 @@ export function flattenError(error: VldError): VldFlattenedError {
     if (issue.path.length === 0) {
       formErrors.push(issue.message);
     } else {
-      const fieldName = issue.path[0].toString();
+      const firstPathSegment = issue.path[0]!;
+      const fieldName = firstPathSegment.toString();
       if (!fieldErrors[fieldName]) {
         fieldErrors[fieldName] = [];
       }

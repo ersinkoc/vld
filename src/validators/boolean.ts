@@ -1,11 +1,16 @@
 import { VldBase, ParseResult, VLD_VALIDATOR_TYPES, ValidatorType } from './base';
-import { getMessages } from '../locales';
+import { getMessages } from '../locales/runtime';
+import { VldError } from '../errors-core';
+
+function createBooleanError(message: string): VldError {
+  return new VldError([{ code: 'invalid_boolean', path: [], message }]);
+}
 
 /**
  * Immutable boolean validator
  */
 export class VldBoolean extends VldBase<boolean, boolean> {
-  private readonly errorMessage?: string;
+  private readonly errorMessage: string | undefined;
 
   /**
    * Protected constructor to allow extension while maintaining immutability
@@ -39,6 +44,14 @@ export class VldBoolean extends VldBase<boolean, boolean> {
     }
     return value;
   }
+
+  /**
+   * Parse a value that has already passed the boolean type guard.
+   * @internal Used by object validators to avoid duplicate hot-path checks.
+   */
+  parseKnownBoolean(value: boolean): boolean {
+    return value;
+  }
   
   /**
    * Safely parse and validate a boolean value
@@ -49,7 +62,7 @@ export class VldBoolean extends VldBase<boolean, boolean> {
     }
     return { 
       success: false, 
-      error: new Error(this.errorMessage || getMessages().invalidBoolean) 
+      error: createBooleanError(this.errorMessage || getMessages().invalidBoolean)
     };
   }
   
@@ -76,31 +89,33 @@ class VldTrue extends VldBoolean {
     super(message);
   }
 
-  get isSimple(): boolean {
+  override get isSimple(): boolean {
     return false;
   }
 
-  parse(value: unknown): boolean {
-    const result = super.parse(value);
-    if (result !== true) {
+  override parse(value: unknown): boolean {
+    if (value !== true) {
       throw new Error(this.message);
     }
-    return result;
+    return true;
+  }
+
+  override parseKnownBoolean(value: boolean): boolean {
+    if (value !== true) {
+      throw new Error(this.message);
+    }
+    return true;
   }
 
   // BUG-003 FIX: Override safeParse to ensure true validation
-  safeParse(value: unknown): ParseResult<boolean> {
-    const result = super.safeParse(value);
-    if (!result.success) {
-      return result;
-    }
-    if (result.data !== true) {
+  override safeParse(value: unknown): ParseResult<boolean> {
+    if (value !== true) {
       return {
         success: false,
-        error: new Error(this.message)
+        error: createBooleanError(this.message)
       };
     }
-    return result;
+    return { success: true, data: true };
   }
 }
 
@@ -112,30 +127,32 @@ class VldFalse extends VldBoolean {
     super(message);
   }
 
-  get isSimple(): boolean {
+  override get isSimple(): boolean {
     return false;
   }
 
-  parse(value: unknown): boolean {
-    const result = super.parse(value);
-    if (result !== false) {
+  override parse(value: unknown): boolean {
+    if (value !== false) {
       throw new Error(this.message);
     }
-    return result;
+    return false;
+  }
+
+  override parseKnownBoolean(value: boolean): boolean {
+    if (value !== false) {
+      throw new Error(this.message);
+    }
+    return false;
   }
 
   // BUG-003 FIX: Override safeParse to ensure false validation
-  safeParse(value: unknown): ParseResult<boolean> {
-    const result = super.safeParse(value);
-    if (!result.success) {
-      return result;
-    }
-    if (result.data !== false) {
+  override safeParse(value: unknown): ParseResult<boolean> {
+    if (value !== false) {
       return {
         success: false,
-        error: new Error(this.message)
+        error: createBooleanError(this.message)
       };
     }
-    return result;
+    return { success: true, data: false };
   }
 }

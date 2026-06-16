@@ -465,7 +465,7 @@ describe('Logger', () => {
       logger.info('colored test');
 
       expect(infoSpy).toHaveBeenCalled();
-      const output = infoSpy.mock.calls[0][0] as string;
+      const output = infoSpy.mock.calls[0]![0] as string;
       // Should contain ANSI escape codes
       expect(output).toContain('\x1b[');
 
@@ -479,7 +479,7 @@ describe('Logger', () => {
       logger.info('plain test');
 
       expect(infoSpy).toHaveBeenCalled();
-      const output = infoSpy.mock.calls[0][0] as string;
+      const output = infoSpy.mock.calls[0]![0] as string;
       // Should NOT contain ANSI escape codes
       expect(output).not.toContain('\x1b[');
 
@@ -493,7 +493,7 @@ describe('Logger', () => {
       logger.info('no timestamp test');
 
       expect(infoSpy).toHaveBeenCalled();
-      const output = infoSpy.mock.calls[0][0] as string;
+      const output = infoSpy.mock.calls[0]![0] as string;
       // Should not have ISO time format (HH:MM:SS.mmm)
       expect(output).not.toMatch(/\d{2}:\d{2}:\d{2}\.\d{3}/);
 
@@ -507,7 +507,7 @@ describe('Logger', () => {
       logger.info('timestamp test');
 
       expect(infoSpy).toHaveBeenCalled();
-      const output = infoSpy.mock.calls[0][0] as string;
+      const output = infoSpy.mock.calls[0]![0] as string;
       // Should have ISO time format (HH:MM:SS.mmm)
       expect(output).toMatch(/\d{2}:\d{2}:\d{2}\.\d{3}/);
 

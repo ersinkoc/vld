@@ -1,6 +1,11 @@
-import { VldBase, ParseResult } from './base';
+import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
 import { deepMerge, isPlainObject } from '../utils/deep-merge';
-import { getMessages } from '../locales';
+import { getMessages } from '../locales/runtime';
+import { VldError } from '../errors-core';
+
+function createIntersectionError(message: string): VldError {
+  return new VldError([{ code: 'invalid_type', path: [], message }]);
+}
 
 /**
  * Immutable intersection validator for combining validators
@@ -13,7 +18,7 @@ export class VldIntersection<A, B> extends VldBase<unknown, A & B> {
     private readonly validatorA: VldBase<unknown, A>,
     private readonly validatorB: VldBase<unknown, B>
   ) {
-    super();
+    super(VLD_VALIDATOR_TYPES.INTERSECTION);
   }
   
   /**
@@ -69,7 +74,7 @@ export class VldIntersection<A, B> extends VldBase<unknown, A & B> {
     try {
       return { success: true, data: this.parse(value) };
     } catch (error) {
-      return { success: false, error: error as Error };
+      return { success: false, error: createIntersectionError((error as Error).message) };
     }
   }
 }

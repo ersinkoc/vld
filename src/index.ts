@@ -15,7 +15,9 @@
  */
 
 // Import base class
-import { VldBase } from './validators/base';
+import { VldBase, resolveErrorMessage, type ErrorParam, type ParseResult, type SchemaMetadata, type SuperRefineContext } from './validators/base';
+import type { Infer, Input, Output } from './validators';
+import { globalRegistry } from './registry';
 
 // Import validators
 import { VldString } from './validators/string';
@@ -46,20 +48,34 @@ import { VldLazy } from './validators/lazy';
 import { VldDiscriminatedUnion } from './validators/discriminated-union';
 import { VldXor } from './validators/xor';
 import { VldJson } from './validators/json';
-import { templateLiteral } from './validators/template-literal';
-import { custom as customFn, type CustomValidatorOptions } from './validators/custom';
-import { file as fileFn } from './validators/file';
-import { functionValidator as functionFn } from './validators/function';
-import { VldPreprocess } from './validators/base';
-import { VldOptional } from './validators/base';
-import { VldExactOptional } from './validators/base';
-import { VldNullable } from './validators/base';
-import { VldNullish } from './validators/base';
+import { VldTemplateLiteral, templateLiteral as createTemplateLiteral } from './validators/template-literal';
+import { VldCustom, custom as customFn, type CustomValidatorOptions } from './validators/custom';
+import { VldFile, file as fileFn } from './validators/file';
+import { VldFunction, functionValidator as functionFn } from './validators/function';
+import {
+  VldBrand,
+  VldCatch,
+  VldDefault,
+  VldExactOptional,
+  VldMeta,
+  VldNullable,
+  VldNullish,
+  VldOptional,
+  VldPipe,
+  VldPrefault,
+  VldPreprocess,
+  VldReadonly,
+  VldRefine,
+  VldTransform
+} from './validators/base';
 import { VldCodec } from './validators/codec';
 import { VldBase64 } from './validators/base64';
 import { VldHex } from './validators/hex';
 import { VldUint8Array } from './validators/uint8array';
-import { promise as vldPromise } from './validators/promise';
+import { VldPromise, promise as vldPromise } from './validators/promise';
+import { map as mapResult } from './compat/result';
+import type { Result } from './compat/result';
+import * as localeNamespace from './locales';
 
 // Import coercion validators
 import { VldCoerceString } from './coercion/string';
@@ -67,21 +83,364 @@ import { VldCoerceNumber } from './coercion/number';
 import { VldCoerceBoolean } from './coercion/boolean';
 import { VldCoerceDate } from './coercion/date';
 import { VldCoerceBigInt } from './coercion/bigint';
+import {
+  VldError as VldErrorClass,
+  flattenError as flattenErrorFn,
+  prettifyError as prettifyErrorFn,
+  treeifyError as treeifyErrorFn
+} from './errors';
+import { toJSONSchema as toJSONSchemaFn } from './utils/json-schema';
 
 // Import string format validators
 import * as stringFormats from './validators/string-formats';
 
+type NativeEnumLike = Record<string, string | number>;
+type Constructor<T = unknown> = abstract new (...args: any[]) => T;
+type RefinementMessage = string | { error?: string; message?: string };
+type GlobalConfig = { customError?: unknown; errorMap?: unknown; locale?: unknown; [key: string]: unknown };
+
+let globalConfig: GlobalConfig = {};
+let globalErrorMap: unknown;
+
+function configure(config?: GlobalConfig): GlobalConfig {
+  if (config === undefined) {
+    return { ...globalConfig };
+  }
+  globalConfig = { ...globalConfig, ...config };
+  if ('customError' in config) {
+    globalErrorMap = config.customError;
+  } else if ('errorMap' in config) {
+    globalErrorMap = config.errorMap;
+  }
+  return { ...globalConfig };
+}
+
+function setGlobalErrorMap(errorMap: unknown): void {
+  globalErrorMap = errorMap;
+  globalConfig = { ...globalConfig, errorMap };
+}
+
+function getGlobalErrorMap(): unknown {
+  return globalErrorMap;
+}
+
+function enumValuesFromNativeEnum(enumObject: NativeEnumLike): [string | number, ...(string | number)[]] {
+  const values = Object.keys(enumObject)
+    .filter(key => !/^\d+$/.test(key))
+    .map(key => enumObject[key])
+    .filter((value): value is string | number => typeof value === 'string' || typeof value === 'number');
+
+  const uniqueValues = Array.from(new Set(values));
+  if (uniqueValues.length === 0) {
+    throw new Error('nativeEnum requires at least one string or number value');
+  }
+  return uniqueValues as [string | number, ...(string | number)[]];
+}
+
+export interface FormattedError {
+  _errors: string[];
+  [key: string]: FormattedError | string[];
+}
+
+function toErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function addFormattedIssue(root: FormattedError, path: (string | number)[], message: string): void {
+  let current = root;
+  for (const segment of path) {
+    const key = String(segment);
+    const next = current[key];
+    if (!next || Array.isArray(next)) {
+      current[key] = { _errors: [] };
+    }
+    current = current[key] as FormattedError;
+  }
+  current._errors.push(message);
+}
+
+function isCodec(schema: VldBase<unknown, unknown>): schema is VldCodec<unknown, unknown> {
+  return schema instanceof VldCodec;
+}
+
+function messageFromRefinementParam(param: RefinementMessage | undefined): string | undefined {
+  return param === undefined ? undefined : resolveErrorMessage(param, 'Refinement check failed');
+}
+
+function cloneSchema<T extends VldBase<any, any>>(schema: T): T {
+  return schema;
+}
+
+function createTransform<I = unknown, O = I>(
+  transformer: (input: I, ctx?: SuperRefineContext) => O | Promise<O>
+): VldBase<I, Awaited<O>> {
+  return customFn<Awaited<O>>({
+    parse: (value: unknown) => {
+      const transformed = transformer(value as I, { addIssue: () => undefined, path: [] });
+      if (transformed !== null && typeof transformed === 'object' && typeof (transformed as { then?: unknown }).then === 'function') {
+        throw new Error('Use parseAsync for async transforms');
+      }
+      return transformed as Awaited<O>;
+    },
+    parseAsync: async (value: unknown): Promise<Awaited<O>> => {
+      const transformed = await Promise.resolve(transformer(value as I, { addIssue: () => undefined, path: [] }));
+      return transformed as Awaited<O>;
+    }
+  }) as VldBase<I, Awaited<O>>;
+}
+
+function createRefinement<T = unknown>(
+  predicate: (value: T) => boolean | Promise<boolean>,
+  message?: RefinementMessage
+): VldBase<unknown, T> {
+  return customFn<T>({
+    parse: (value: unknown) => {
+      const passed = predicate(value as T);
+      if (passed !== null && typeof passed === 'object' && typeof (passed as { then?: unknown }).then === 'function') {
+        throw new Error('Use parseAsync for async refinements');
+      }
+      if (!passed) {
+        throw new Error(messageFromRefinementParam(message) || 'Refinement check failed');
+      }
+      return value as T;
+    },
+    parseAsync: async (value: unknown) => {
+      if (!await predicate(value as T)) {
+        throw new Error(messageFromRefinementParam(message) || 'Refinement check failed');
+      }
+      return value as T;
+    }
+  });
+}
+
+function createSuperRefinement<T = unknown>(
+  refinement: (value: T, ctx: SuperRefineContext) => void | Promise<void>
+): VldBase<unknown, T> {
+  return VldUnknown.create().superRefine(refinement as (value: unknown, ctx: SuperRefineContext) => void | Promise<void>) as VldBase<unknown, T>;
+}
+
+function propertyCheck<K extends string, T>(
+  property: K,
+  schema: VldBase<unknown, T>,
+  message?: RefinementMessage
+): VldBase<unknown, { [P in K]: T }> {
+  return customFn<{ [P in K]: T }>({
+    parse: (value: unknown) => {
+      if (typeof value !== 'object' || value === null || !(property in value)) {
+        throw new Error(messageFromRefinementParam(message) || `Expected object with property "${property}"`);
+      }
+      const result = schema.safeParse((value as Record<string, unknown>)[property]);
+      if (!result.success) {
+        throw new Error(messageFromRefinementParam(message) || result.error.message);
+      }
+      return value as { [P in K]: T };
+    }
+  });
+}
+
+function getParsedType(value: unknown): string {
+  if (value === null) return 'null';
+  if (Array.isArray(value)) return 'array';
+  if (Number.isNaN(value)) return 'nan';
+  return typeof value;
+}
+
+export const TimePrecision = {
+  Any: null,
+  Minute: -1,
+  Second: 0,
+  Millisecond: 3,
+  Microsecond: 6
+} as const;
+
+export const ZodFirstPartyTypeKind = {} as const;
+export const $brand = Symbol.for('vld_brand');
+export const $input = Symbol.for('VldInput');
+export const $output = Symbol.for('VldOutput');
+
+export const ZodIssueCode = {
+  invalid_type: 'invalid_type',
+  too_big: 'too_big',
+  too_small: 'too_small',
+  invalid_format: 'invalid_format',
+  not_multiple_of: 'not_multiple_of',
+  unrecognized_keys: 'unrecognized_keys',
+  invalid_union: 'invalid_union',
+  invalid_key: 'invalid_key',
+  invalid_element: 'invalid_element',
+  invalid_value: 'invalid_value',
+  custom: 'custom'
+} as const;
+
+export const util = {
+  getParsedType,
+  propertyKeyTypes: new Set(['string', 'number', 'symbol']),
+  primitiveTypes: new Set(['string', 'number', 'bigint', 'boolean', 'symbol', 'undefined', 'null']),
+  assert: (condition: unknown, message = 'Assertion failed'): asserts condition => {
+    if (!condition) {
+      throw new Error(message);
+    }
+  },
+  assertNever: (value: never): never => {
+    throw new Error(`Unexpected value: ${String(value)}`);
+  },
+  joinValues: (values: readonly unknown[], separator = ' | '): string => values.map(value => JSON.stringify(value)).join(separator),
+  jsonStringifyReplacer: (_key: string, value: unknown): unknown =>
+    typeof value === 'bigint' ? value.toString() : value,
+  nullish: (value: unknown): value is null | undefined => value === null || value === undefined,
+  cached: <T>(getter: () => T): (() => T) => {
+    let initialized = false;
+    let value: T;
+    return () => {
+      if (!initialized) {
+        value = getter();
+        initialized = true;
+      }
+      return value;
+    };
+  }
+} as const;
+
+export const core = {
+  util,
+  regexes: stringFormats.regexes,
+  locales: localeNamespace,
+  NEVER: VldNever.create(),
+  TimePrecision,
+  ZodIssueCode,
+  globalRegistry,
+  config: configure,
+  getErrorMap: getGlobalErrorMap,
+  setErrorMap: setGlobalErrorMap,
+  parse: <T>(schema: VldBase<unknown, T>, value: unknown): T => schema.parse(value),
+  safeParse: <T>(schema: VldBase<unknown, T>, value: unknown): ParseResult<T> => schema.safeParse(value),
+  parseAsync: <T>(schema: VldBase<unknown, T>, value: unknown): Promise<T> => schema.parseAsync(value),
+  safeParseAsync: <T>(schema: VldBase<unknown, T>, value: unknown): Promise<ParseResult<T>> => schema.safeParseAsync(value)
+} as const;
+
 // Re-export types
-export type { ParseResult } from './validators/base';
+export type {
+  ParseResult,
+  StandardSchemaV1,
+  StandardSchemaV1FailureResult,
+  StandardSchemaV1Issue,
+  StandardSchemaV1Options,
+  StandardSchemaV1PathSegment,
+  StandardSchemaV1Props,
+  StandardSchemaV1Result,
+  StandardSchemaV1SuccessResult,
+  StandardTypedV1,
+  StandardTypedV1Props,
+  StandardTypedV1Types
+} from './validators/base';
 export type { Infer, Input, Output } from './validators';
 
 // Re-export base classes for extension
 export { VldBase } from './validators/base';
 export { VldIntersection } from './validators/intersection';
 export { VldMeta, type SchemaMetadata } from './validators/base';
+export {
+  VldBase as ZodType,
+  VldAny as ZodAny,
+  VldArray as ZodArray,
+  VldBigInt as ZodBigInt,
+  VldBigInt as ZodBigIntFormat,
+  VldBoolean as ZodBoolean,
+  VldBrand as ZodBranded,
+  VldCatch as ZodCatch,
+  VldCodec as ZodCodec,
+  VldCustom as ZodCustom,
+  VldCustom as ZodSuccess,
+  VldDate as ZodDate,
+  VldDefault as ZodDefault,
+  VldDiscriminatedUnion as ZodDiscriminatedUnion,
+  VldEnum as ZodEnum,
+  VldExactOptional as ZodExactOptional,
+  VldFile as ZodFile,
+  VldFunction as ZodFunction,
+  VldIntersection as ZodIntersection,
+  VldJson as ZodJSON,
+  VldLazy as ZodLazy,
+  VldLiteral as ZodLiteral,
+  VldMap as ZodMap,
+  VldMeta as ZodMeta,
+  VldNan as ZodNaN,
+  VldNever as ZodNever,
+  VldNull as ZodNull,
+  VldNullable as ZodNullable,
+  VldNumber as ZodNumber,
+  VldNumber as ZodNumberFormat,
+  VldObject as ZodObject,
+  VldOptional as ZodOptional,
+  VldPipe as ZodPipe,
+  VldPrefault as ZodPrefault,
+  VldPreprocess as ZodPreprocess,
+  VldPromise as ZodPromise,
+  VldReadonly as ZodReadonly,
+  VldRecord as ZodRecord,
+  VldRefine as ZodNonOptional,
+  VldSet as ZodSet,
+  VldString as ZodString,
+  VldSymbol as ZodSymbol,
+  VldTemplateLiteral as ZodTemplateLiteral,
+  VldTuple as ZodTuple,
+  VldTransform as ZodTransform,
+  VldUndefined as ZodUndefined,
+  VldUnion as ZodUnion,
+  VldUnknown as ZodUnknown,
+  VldVoid as ZodVoid,
+  VldXor as ZodXor
+};
+export {
+  VldStringFormat as ZodBase64,
+  VldStringFormat as ZodBase64URL,
+  VldStringFormat as ZodCIDRv4,
+  VldStringFormat as ZodCIDRv6,
+  VldStringFormat as ZodCUID,
+  VldStringFormat as ZodCUID2,
+  VldStringFormat as ZodCustomStringFormat,
+  VldStringFormat as ZodE164,
+  VldStringFormat as ZodEmail,
+  VldStringFormat as ZodEmoji,
+  VldStringFormat as ZodGUID,
+  VldStringFormat as ZodIPv4,
+  VldStringFormat as ZodIPv6,
+  VldStringFormat as ZodISODate,
+  VldStringFormat as ZodISODateTime,
+  VldStringFormat as ZodISODuration,
+  VldStringFormat as ZodISOTime,
+  VldStringFormat as ZodJWT,
+  VldStringFormat as ZodKSUID,
+  VldStringFormat as ZodMAC,
+  VldStringFormat as ZodNanoID,
+  VldStringFormat as ZodStringFormat,
+  VldStringFormat as ZodULID,
+  VldStringFormat as ZodURL,
+  VldStringFormat as ZodUUID,
+  VldStringFormat as ZodXID
+} from './validators/string-formats';
+export {
+  VldError as ZodError,
+  VldError as ZodRealError
+} from './errors';
+export {
+  registry,
+  globalRegistry,
+  type SchemaRegistry
+} from './registry';
 
 // Re-export locale functionality
-export { setLocale, getLocale, getMessages, type Locale } from './locales';
+export {
+  setLocale,
+  setLocaleAsync,
+  registerLocale,
+  getLocale,
+  getMessages,
+  isLocaleLoaded,
+  getSupportedLocales,
+  isLocaleSupported,
+  type Locale
+} from './locales';
 
 // Re-export error formatting utilities
 export {
@@ -115,6 +474,7 @@ export type { CodecTransform } from './validators/codec';
 
 // Re-export predefined codecs
 export {
+  invertCodec,
   // String conversion codecs
   stringToNumber,
   stringToInt,
@@ -196,11 +556,13 @@ export const v = {
   ) => VldDiscriminatedUnion.create(discriminator, [...options] as any),
   xor: <T extends readonly VldBase<any, any>[]>(...options: T) =>
     VldXor.create([...options] as any),
+  keyof: <T extends Record<string, any>>(schema: VldObject<T>) => schema.keyof(),
   
   // Literal and enum
   literal: <T extends string | number | boolean | null | undefined>(value: T) => 
     VldLiteral.create(value),
-  enum: <T extends readonly [string, ...string[]]>(...values: T) => VldEnum.create(values as any),
+  enum: <T extends readonly [string | number, ...(string | number)[]]>(...values: T) => VldEnum.create(values as any),
+  nativeEnum: <T extends NativeEnumLike>(enumObject: T) => VldEnum.create(enumValuesFromNativeEnum(enumObject) as any),
   
   // Special validators
   any: () => VldAny.create(),
@@ -213,12 +575,81 @@ export const v = {
 
   // NEVER constant - Zod 4 API parity for use in transforms
   NEVER: VldNever.create(),
+  TimePrecision,
+  ZodIssueCode,
+  ZodFirstPartyTypeKind,
   
   // Utility validators
   optional: <T>(validator: VldBase<unknown, T>) => VldOptional.create(validator),
   nullable: <T>(validator: VldBase<unknown, T>) => VldNullable.create(validator),
   nullish: <T>(validator: VldBase<unknown, T>) => VldNullish.create(validator),
   exactOptional: <T>(validator: VldBase<unknown, T>) => VldExactOptional.create(validator),
+  nonoptional: <T>(validator: VldBase<unknown, T | undefined>, message?: RefinementMessage) =>
+    validator.refine((value): value is Exclude<T, undefined> => value !== undefined, messageFromRefinementParam(message)),
+  catch: <T>(validator: VldBase<unknown, T>, fallbackValue: T) => validator.catch(fallbackValue),
+  prefault: <T>(validator: VldBase<unknown, T>, defaultValue: T | (() => T)) =>
+    validator.default(typeof defaultValue === 'function' ? (defaultValue as () => T)() : defaultValue).prefault(),
+  readonly: <T>(validator: VldBase<unknown, T>) => validator.readonly(),
+  pipe: <TInput, TIntermediate, TOutput>(
+    first: VldBase<TInput, TIntermediate>,
+    second: VldBase<TIntermediate, TOutput>
+  ) => first.pipe(second),
+  clone: <T extends VldBase<any, any>>(schema: T) => cloneSchema(schema),
+  describe: <TInput, TOutput>(
+    schemaOrDescription: VldBase<TInput, TOutput> | string,
+    description?: string
+  ) => schemaOrDescription instanceof VldBase
+    ? schemaOrDescription.describe(description || '')
+    : VldUnknown.create().describe(schemaOrDescription),
+  meta: <TInput, TOutput>(
+    schemaOrMetadata: VldBase<TInput, TOutput> | Partial<SchemaMetadata>,
+    metadata?: Partial<SchemaMetadata>
+  ) => schemaOrMetadata instanceof VldBase
+    ? schemaOrMetadata.meta(metadata || {})
+    : VldUnknown.create().meta(schemaOrMetadata),
+  transform: <TInput = unknown, TOutput = TInput>(
+    schemaOrTransformer: VldBase<unknown, TInput> | ((value: TInput, ctx?: SuperRefineContext) => TOutput | Promise<TOutput>),
+    transformer?: (value: TInput) => TOutput | Promise<TOutput>
+  ) => schemaOrTransformer instanceof VldBase
+    ? schemaOrTransformer.transform(transformer || ((value: TInput) => value as unknown as TOutput))
+    : createTransform(schemaOrTransformer),
+  overwrite: <T>(transformer: (value: T) => T) => createTransform(transformer),
+  refine: <T = unknown>(
+    schemaOrPredicate: VldBase<unknown, T> | ((value: T) => boolean | Promise<boolean>),
+    predicateOrMessage?: ((value: T) => boolean | Promise<boolean>) | RefinementMessage,
+    message?: RefinementMessage
+  ) => schemaOrPredicate instanceof VldBase
+    ? schemaOrPredicate.refine(predicateOrMessage as (value: T) => boolean | Promise<boolean>, messageFromRefinementParam(message))
+    : createRefinement(schemaOrPredicate, predicateOrMessage as RefinementMessage | undefined),
+  check: <T = unknown>(
+    schemaOrPredicate: VldBase<unknown, T> | ((value: T) => boolean | Promise<boolean>),
+    predicateOrMessage?: ((value: T) => boolean | Promise<boolean>) | RefinementMessage,
+    message?: RefinementMessage
+  ) => schemaOrPredicate instanceof VldBase
+    ? schemaOrPredicate.check(predicateOrMessage as (value: T) => boolean | Promise<boolean>, messageFromRefinementParam(message))
+    : createRefinement(schemaOrPredicate, predicateOrMessage as RefinementMessage | undefined),
+  superRefine: <T = unknown>(
+    schemaOrRefinement: VldBase<unknown, T> | ((value: T, ctx: SuperRefineContext) => void | Promise<void>),
+    refinement?: (value: T, ctx: SuperRefineContext) => void | Promise<void>
+  ) => schemaOrRefinement instanceof VldBase
+    ? schemaOrRefinement.superRefine(refinement || (() => undefined))
+    : createSuperRefinement(schemaOrRefinement),
+  property: propertyCheck,
+  instanceof: <T>(constructor: Constructor<T>, message?: RefinementMessage) =>
+    customFn<T>({
+      parse: (value: unknown) => {
+        if (!(value instanceof constructor)) {
+          throw new Error(messageFromRefinementParam(message) || `Expected instance of ${constructor.name || 'provided constructor'}`);
+        }
+        return value;
+      }
+    }),
+  config: configure,
+  setErrorMap: setGlobalErrorMap,
+  getErrorMap: getGlobalErrorMap,
+  core,
+  util,
+  locales: localeNamespace,
 
   // Recursive schemas
   lazy: <T>(schemaGetter: () => VldBase<unknown, T>) => VldLazy.create(schemaGetter),
@@ -254,8 +685,11 @@ export const v = {
 
   // String format validators (Zod 4 parity)
   email: (options?: { pattern?: RegExp }) => stringFormats.email(options),
+  url: () => VldString.create().url(),
   uuid: (options?: { version?: 'v4' | 'v6' | 'v7' }) => stringFormats.uuid(options),
   uuidv4: () => stringFormats.uuidv4(),
+  uuidv6: () => stringFormats.uuidv6(),
+  uuidv7: () => stringFormats.uuidv7(),
   hostname: () => stringFormats.hostname(),
   emoji: () => stringFormats.emoji(),
   base64: () => stringFormats.base64(),
@@ -282,14 +716,49 @@ export const v = {
   },
   stringFormat: (name: string, validator: ((val: string) => boolean) | RegExp) =>
     stringFormats.stringFormat(name, validator),
+  minLength: (value: number, message?: ErrorParam) => VldString.create().min(value, message),
+  maxLength: (value: number, message?: ErrorParam) => VldString.create().max(value, message),
+  length: (value: number, message?: ErrorParam) => VldString.create().length(value, message),
+  regex: (pattern: RegExp, message?: ErrorParam) => VldString.create().regex(pattern, message),
+  startsWith: (value: string, message?: ErrorParam) => VldString.create().startsWith(value, message),
+  endsWith: (value: string, message?: ErrorParam) => VldString.create().endsWith(value, message),
+  includes: (value: string, message?: ErrorParam) => VldString.create().includes(value, message),
+  trim: () => VldString.create().trim(),
+  toLowerCase: () => VldString.create().toLowerCase(),
+  lowercase: () => VldString.create().toLowerCase(),
+  toUpperCase: () => VldString.create().toUpperCase(),
+  uppercase: () => VldString.create().toUpperCase(),
+  gt: (value: number, message?: ErrorParam) => VldNumber.create().gt(value, message),
+  gte: (value: number, message?: ErrorParam) => VldNumber.create().gte(value, message),
+  lt: (value: number, message?: ErrorParam) => VldNumber.create().lt(value, message),
+  lte: (value: number, message?: ErrorParam) => VldNumber.create().lte(value, message),
+  positive: (message?: ErrorParam) => VldNumber.create().positive(message),
+  negative: (message?: ErrorParam) => VldNumber.create().negative(message),
+  nonnegative: (message?: ErrorParam) => VldNumber.create().nonnegative(message),
+  nonpositive: (message?: ErrorParam) => VldNumber.create().nonpositive(message),
+  multipleOf: (value: number, message?: ErrorParam) => VldNumber.create().multipleOf(value, message),
+  minSize: (value: number, message?: ErrorParam) => VldString.create().min(value, message),
+  maxSize: (value: number, message?: ErrorParam) => VldString.create().max(value, message),
+  size: (value: number, message?: ErrorParam) => VldString.create().length(value, message),
+  normalize: (form?: 'NFC' | 'NFD' | 'NFKC' | 'NFKD' | (string & {})) => VldString.create().transform(value => value.normalize(form)),
+  slugify: () => VldString.create().transform(value => value
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')),
+  mime: (types: string | string[], message?: string) => VldFile.create().mime(types, message),
 
   // Zod v4 parity string formats
   xid: () => stringFormats.xid(),
   guid: () => stringFormats.guid(),
   httpUrl: () => stringFormats.httpUrl(),
+  ksuid: () => stringFormats.ksuid(),
+  regexes: stringFormats.regexes,
 
   // Template literal validator
-  templateLiteral: (...components: (VldBase<any, any> | string)[]) => templateLiteral(...components),
+  templateLiteral: (...components: (VldBase<any, any> | string)[]) => createTemplateLiteral(...components),
 
   // Codec validators (binary data validators)
   base64Bytes: () => VldBase64.create(),
@@ -305,10 +774,248 @@ export const v = {
       encode: (value: TOutput) => TInput | Promise<TInput>;
     }
   ) => VldCodec.create(inputValidator, outputValidator, transform),
+  invertCodec: <TInput, TOutput>(codec: VldCodec<TInput, TOutput>) => codec.invert(),
 
   // Promise validator (Zod v4 parity)
-  promise: <T>(inner: VldBase<unknown, T>) => vldPromise(inner)
+  promise: <T>(inner: VldBase<unknown, T>) => vldPromise(inner),
+
+  // Root parse helpers (Zod v4 parity)
+  parse: <T>(schema: VldBase<unknown, T>, value: unknown): T => schema.parse(value),
+  safeParse: <T>(schema: VldBase<unknown, T>, value: unknown): ParseResult<T> => schema.safeParse(value),
+  parseAsync: <T>(schema: VldBase<unknown, T>, value: unknown): Promise<T> => schema.parseAsync(value),
+  safeParseAsync: <T>(schema: VldBase<unknown, T>, value: unknown): Promise<ParseResult<T>> => schema.safeParseAsync(value),
+  decode: <T>(schema: VldBase<unknown, T>, value: unknown): T => schema.parse(value),
+  safeDecode: <T>(schema: VldBase<unknown, T>, value: unknown): ParseResult<T> => schema.safeParse(value),
+  decodeAsync: <T>(schema: VldBase<unknown, T>, value: unknown): Promise<T> => schema.parseAsync(value),
+  safeDecodeAsync: <T>(schema: VldBase<unknown, T>, value: unknown): Promise<ParseResult<T>> => schema.safeParseAsync(value),
+  encode: <TInput, TOutput>(schema: VldBase<TInput, TOutput>, value: unknown): TInput | TOutput =>
+    isCodec(schema as unknown as VldBase<unknown, unknown>)
+      ? (schema as unknown as VldCodec<TInput, TOutput>).encode(value)
+      : schema.parse(value) as TOutput,
+  safeEncode: <TInput, TOutput>(schema: VldBase<TInput, TOutput>, value: unknown): ParseResult<TInput | TOutput> =>
+    isCodec(schema as unknown as VldBase<unknown, unknown>)
+      ? (schema as unknown as VldCodec<TInput, TOutput>).safeEncode(value) as ParseResult<TInput>
+      : schema.safeParse(value) as ParseResult<TOutput>,
+  encodeAsync: async <TInput, TOutput>(schema: VldBase<TInput, TOutput>, value: unknown): Promise<TInput | TOutput> =>
+    isCodec(schema as unknown as VldBase<unknown, unknown>)
+      ? (schema as unknown as VldCodec<TInput, TOutput>).encodeAsync(value)
+      : schema.parseAsync(value),
+  safeEncodeAsync: async <TInput, TOutput>(schema: VldBase<TInput, TOutput>, value: unknown): Promise<ParseResult<TInput | TOutput>> =>
+    isCodec(schema as unknown as VldBase<unknown, unknown>)
+      ? (schema as unknown as VldCodec<TInput, TOutput>).safeEncodeAsync(value) as Promise<ParseResult<TInput>>
+      : schema.safeParseAsync(value) as Promise<ParseResult<TOutput>>,
+  formatError: (error: Error): FormattedError => {
+    const formatted: FormattedError = { _errors: [] };
+    if (error instanceof VldErrorClass) {
+      for (const issue of error.issues) {
+        addFormattedIssue(formatted, issue.path, issue.message);
+      }
+      return formatted;
+    }
+    formatted._errors.push(toErrorMessage(error));
+    return formatted;
+  },
+  treeifyError: treeifyErrorFn,
+  prettifyError: prettifyErrorFn,
+  flattenError: flattenErrorFn,
+  toJSONSchema: toJSONSchemaFn
 };
+
+// eslint-disable-next-line @typescript-eslint/no-namespace
+export namespace v {
+  export type infer<T extends VldBase<any, any>> = Infer<T>;
+  export type input<T extends VldBase<any, any>> = Input<T>;
+  export type output<T extends VldBase<any, any>> = Output<T>;
+}
+
+/**
+ * Zod-compatible namespace alias.
+ */
+export const z = v;
+
+/**
+ * Zod-compatible root-level factory aliases.
+ *
+ * VLD's primary API remains `v.*`, but Zod exposes most factories directly
+ * from the package root. Re-exporting these aliases makes migration less
+ * intrusive without changing existing behavior.
+ */
+export const {
+  string,
+  number,
+  int,
+  int32,
+  uint32,
+  uint64,
+  int64,
+  float32,
+  float64,
+  boolean,
+  date,
+  bigint,
+  symbol,
+  stringbool,
+  array,
+  object,
+  strictObject,
+  looseObject,
+  tuple,
+  record,
+  partialRecord,
+  looseRecord,
+  set,
+  union,
+  intersection,
+  discriminatedUnion,
+  xor,
+  keyof,
+  literal,
+  nativeEnum,
+  any,
+  unknown,
+  nan,
+  optional,
+  nullable,
+  nullish,
+  exactOptional,
+  nonoptional,
+  readonly,
+  pipe,
+  clone,
+  describe,
+  meta,
+  transform,
+  overwrite,
+  refine,
+  check,
+  superRefine,
+  property,
+  config,
+  setErrorMap,
+  getErrorMap,
+  locales,
+  lazy,
+  json,
+  custom,
+  file,
+  preprocess,
+  coerce,
+  email,
+  url,
+  uuid,
+  uuidv4,
+  uuidv6,
+  uuidv7,
+  hostname,
+  emoji,
+  base64,
+  base64url,
+  hex,
+  jwt,
+  nanoid,
+  cuid,
+  cuid2,
+  ulid,
+  ipv4,
+  ipv6,
+  mac,
+  cidrv4,
+  cidrv6,
+  e164,
+  hash,
+  iso,
+  stringFormat,
+  normalize,
+  slugify,
+  mime,
+  xid,
+  guid,
+  httpUrl,
+  ksuid,
+  regexes,
+  templateLiteral,
+  base64Bytes,
+  hexBytes,
+  uint8Array,
+  codec,
+  promise,
+  prefault,
+  parse,
+  safeParse,
+  parseAsync,
+  safeParseAsync,
+  decode,
+  safeDecode,
+  decodeAsync,
+  safeDecodeAsync,
+  encode,
+  safeEncode,
+  encodeAsync,
+  safeEncodeAsync,
+  formatError,
+  NEVER
+} = v;
+
+const catchFactory = v.catch;
+const enumFactory = v.enum;
+const functionFactory = v.function;
+const instanceOfFactory = v.instanceof;
+const mapFactory = v.map;
+const neverFactory = v.never;
+const nullFactory = v.null;
+const undefinedFactory = v.undefined;
+const voidFactory = v.void;
+const defaultFactory = v;
+const zodStringFactory = VldString;
+
+export {
+  catchFactory as catch,
+  defaultFactory as _default,
+  enumFactory as enum,
+  functionFactory as function,
+  functionFactory as _function,
+  instanceOfFactory as instanceof,
+  mapFactory as mapSchema,
+  neverFactory as never,
+  nullFactory as null,
+  undefinedFactory as undefined,
+  voidFactory as void,
+  zodStringFactory as _ZodString
+};
+
+export function map<K, V>(key: VldBase<unknown, K>, value: VldBase<unknown, V>): VldMap<K, V>;
+export function map<T, U, E>(result: Result<T, E>, fn: (value: T) => U): Result<U, E>;
+export function map(first: unknown, second: unknown): unknown {
+  if (first instanceof VldBase && second instanceof VldBase) {
+    return v.map(first, second);
+  }
+  return mapResult(first as never, second as never);
+}
+
+export const minLength = (value: number, message?: ErrorParam): VldString => v.string().min(value, message);
+export const maxLength = (value: number, message?: ErrorParam): VldString => v.string().max(value, message);
+export const length = (value: number, message?: ErrorParam): VldString => v.string().length(value, message);
+export const regex = (pattern: RegExp, message?: ErrorParam): VldString => v.string().regex(pattern, message);
+export const startsWith = (value: string, message?: ErrorParam): VldString => v.string().startsWith(value, message);
+export const endsWith = (value: string, message?: ErrorParam): VldString => v.string().endsWith(value, message);
+export const includes = (value: string, message?: ErrorParam): VldString => v.string().includes(value, message);
+export const trim = (): VldString => v.string().trim();
+export const toLowerCase = (): VldString => v.string().toLowerCase();
+export const lowercase = toLowerCase;
+export const toUpperCase = (): VldString => v.string().toUpperCase();
+export const uppercase = toUpperCase;
+export const gt = (value: number, message?: ErrorParam): VldNumber => v.number().gt(value, message);
+export const gte = (value: number, message?: ErrorParam): VldNumber => v.number().gte(value, message);
+export const lt = (value: number, message?: ErrorParam): VldNumber => v.number().lt(value, message);
+export const lte = (value: number, message?: ErrorParam): VldNumber => v.number().lte(value, message);
+export const positive = (message?: ErrorParam): VldNumber => v.number().positive(message);
+export const negative = (message?: ErrorParam): VldNumber => v.number().negative(message);
+export const nonnegative = (message?: ErrorParam): VldNumber => v.number().nonnegative(message);
+export const nonpositive = (message?: ErrorParam): VldNumber => v.number().nonpositive(message);
+export const multipleOf = (value: number, message?: ErrorParam): VldNumber => v.number().multipleOf(value, message);
+export const minSize = minLength;
+export const maxSize = maxLength;
+export const size = length;
 
 // ============================================
 // Result Pattern (v1.5+ features)
@@ -326,7 +1033,6 @@ export {
   isResult,
   unwrap,
   unwrapOr,
-  map,
   mapErr,
   flatMap,
   match,

@@ -22,6 +22,30 @@ import {
  * Predefined codecs for common transformations (Zod-compatible)
  */
 
+export interface VldUrl {
+  hash: string;
+  host: string;
+  hostname: string;
+  readonly href: string;
+  password: string;
+  pathname: string;
+  port: string;
+  readonly protocol: string;
+  search: string;
+  username: string;
+  toString(): string;
+  toJSON(): string;
+}
+
+/**
+ * Invert a codec, swapping encode and decode directions.
+ */
+export function invertCodec<TInput, TOutput>(
+  codec: VldCodec<TInput, TOutput>
+): VldCodec<TOutput, TInput> {
+  return codec.invert();
+}
+
 // ===== STRING TO NUMBER CODECS =====
 
 /**
@@ -157,25 +181,25 @@ export const jsonCodec = <T = any>(schema?: any) => {
 /**
  * String to URL codec
  */
-export const stringToURL = VldCodec.create(
+export const stringToURL: VldCodec<string, VldUrl> = VldCodec.create(
   VldString.create().url(),
   VldUnknown.create() as any, // URL object
   {
     decode: (urlString: string) => {
       try {
-        return new URL(urlString);
+        return new URL(urlString) as VldUrl;
       } catch {
         throw new Error('Invalid URL');
       }
     },
-    encode: (url: URL) => url.toString()
+    encode: (url: VldUrl) => url.toString()
   }
 );
 
 /**
  * String to HTTP/HTTPS URL codec
  */
-export const stringToHttpURL = VldCodec.create(
+export const stringToHttpURL: VldCodec<string, VldUrl> = VldCodec.create(
   VldString.create().regex(/^https?:\/\//, 'Must be HTTP or HTTPS URL'),
   VldUnknown.create() as any, // URL object
   {
@@ -185,12 +209,12 @@ export const stringToHttpURL = VldCodec.create(
         if (!['http:', 'https:'].includes(url.protocol)) {
           throw new Error('Must be HTTP or HTTPS');
         }
-        return url;
+        return url as VldUrl;
       } catch {
         throw new Error('Invalid HTTP URL');
       }
     },
-    encode: (url: URL) => url.toString()
+    encode: (url: VldUrl) => url.toString()
   }
 );
 

@@ -72,13 +72,13 @@ import { deepMerge } from '../src/utils/deep-merge';
 describe('Deep Merge Coverage', () => {
   test('deepMerge with null prototype object', () => {
     const obj = Object.create(null);
-    obj.a = 1;
+    obj['a'] = 1;
     const result = deepMerge({} as Record<string, unknown>, obj as Record<string, unknown>);
-    expect((result as Record<string, unknown>).a).toBe(1);
+    expect((result as Record<string, unknown>)['a']).toBe(1);
   });
 
   test('deepMerge with undefined values', () => {
-    const result = deepMerge({ a: 1 }, { a: undefined });
+    const result = deepMerge<{ a: number | undefined }>({ a: 1 }, { a: undefined });
     expect(result.a).toBe(undefined);
   });
 });
@@ -106,7 +106,7 @@ describe('Array Validator Coverage', () => {
   test('array with non-JSON-serializable items', () => {
     const schema = v.array(v.any());
     const circular: Record<string, unknown> = { a: 1 };
-    circular.self = circular;
+    circular['self'] = circular;
     const result = schema.safeParse([circular]);
     expect(result.success).toBe(true);
   });
@@ -154,8 +154,8 @@ describe('Object Validator Coverage', () => {
     });
 
     expect(result.name).toBe('test');
-    expect((result as Record<string, unknown>).extra1).toBe(1);
-    expect((result as Record<string, unknown>).extra2).toBe(2);
+    expect((result as Record<string, unknown>)['extra1']).toBe(1);
+    expect((result as Record<string, unknown>)['extra2']).toBe(2);
   });
 });
 
@@ -567,7 +567,7 @@ describe('More Errors Coverage', () => {
     expect(json.code).toBe('VLD_VALIDATION_ERROR');
 
     const restored = VldErr.fromJSON(json);
-    expect(restored.issues[0].message).toBe('Test');
+    expect(restored.issues[0]!.message).toBe('Test');
   });
 
   test('VldError.isVldError checks correctly', () => {
@@ -712,14 +712,14 @@ describe('Additional Deep Merge Coverage', () => {
     });
     Object.defineProperty(source, '__proto__', { value: { malicious: true }, enumerable: true });
     const result = deepMerge(target, source);
-    expect(result.a).toBe(1);
-    expect(result.b).toBe(2);
+    expect(result['a']).toBe(1);
+    expect(result['b']).toBe(2);
     expect((result as any).malicious).toBeUndefined();
   });
 
   test('deepFreeze with circular reference', () => {
     const obj: Record<string, unknown> = { a: 1 };
-    obj.self = obj;
+    obj['self'] = obj;
     const frozen = deepFreeze(obj);
     expect(Object.isFrozen(frozen)).toBe(true);
   });

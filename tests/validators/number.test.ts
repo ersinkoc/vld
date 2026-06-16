@@ -237,6 +237,51 @@ describe('VldNumber - Comprehensive Tests', () => {
     });
   });
 
+  describe('Optimized number paths', () => {
+    it('should expose simple and custom-check metadata consistently', () => {
+      const simple = VldNumber.create();
+      const positive = simple.positive();
+
+      expect(simple.isSimple).toBe(true);
+      expect(simple.hasCustomChecks).toBe(false);
+      expect(positive.isSimple).toBe(false);
+      expect(positive.hasCustomChecks).toBe(true);
+    });
+
+    it('should handle simple parseKnownNumber directly', () => {
+      const validator = VldNumber.create() as any;
+
+      expect(validator.parseKnownNumber(42)).toBe(42);
+    });
+
+    it('should handle positive fast path success and failure through parseKnownNumber', () => {
+      const validator = VldNumber.create().positive() as any;
+
+      expect(validator.parseKnownNumber(42)).toBe(42);
+      expect(() => validator.parseKnownNumber(0)).toThrow();
+      expect(() => validator.parseKnownNumber(-1)).toThrow();
+    });
+
+    it('should handle positive integer fast path success and failure', () => {
+      const validator = VldNumber.create().positive().int() as any;
+
+      expect(validator.parseKnownNumber(42)).toBe(42);
+      expect(() => validator.parseKnownNumber(0)).toThrow();
+      expect(() => validator.parseKnownNumber(1.5)).toThrow();
+      expect(() => validator.parseKnownNumber(-1)).toThrow();
+    });
+
+    it('should use optimized safeParse checks for positive and positive integer schemas', () => {
+      const positive = VldNumber.create().positive();
+      const positiveInt = VldNumber.create().positive().int();
+
+      expect(positive.safeParse(1)).toEqual({ success: true, data: 1 });
+      expect(positive.safeParse(0).success).toBe(false);
+      expect(positiveInt.safeParse(1)).toEqual({ success: true, data: 1 });
+      expect(positiveInt.safeParse(1.5).success).toBe(false);
+    });
+  });
+
   describe('Custom Error Messages', () => {
     it('should use custom error messages', () => {
       const validator = VldNumber.create().min(10, 'Must be at least 10');

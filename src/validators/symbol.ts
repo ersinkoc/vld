@@ -1,17 +1,22 @@
-import { VldBase, ParseResult } from './base';
-import { getMessages } from '../locales';
+import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
+import { getMessages } from '../locales/runtime';
+import { VldError } from '../errors-core';
+
+function createSymbolError(message: string): VldError {
+  return new VldError([{ code: 'invalid_type', path: [], message }]);
+}
 
 /**
  * Immutable symbol validator
  */
 export class VldSymbol extends VldBase<symbol, symbol> {
-  private readonly errorMessage?: string;
+  private readonly errorMessage: string | undefined;
   
   /**
    * Private constructor to enforce immutability
    */
   private constructor(errorMessage?: string) {
-    super();
+    super(VLD_VALIDATOR_TYPES.SYMBOL);
     this.errorMessage = errorMessage;
   }
   
@@ -21,6 +26,10 @@ export class VldSymbol extends VldBase<symbol, symbol> {
   static create(): VldSymbol {
     return new VldSymbol();
   }
+
+  get isSimple(): boolean {
+    return true;
+  }
   
   /**
    * Parse and validate a symbol value
@@ -29,6 +38,14 @@ export class VldSymbol extends VldBase<symbol, symbol> {
     if (typeof value !== 'symbol') {
       throw new Error(this.errorMessage || getMessages().invalidSymbol);
     }
+    return value;
+  }
+
+  /**
+   * Parse a value that has already passed the symbol type guard.
+   * @internal Used by object validators to avoid duplicate hot-path checks.
+   */
+  parseKnownSymbol(value: symbol): symbol {
     return value;
   }
   
@@ -41,7 +58,7 @@ export class VldSymbol extends VldBase<symbol, symbol> {
     }
     return { 
       success: false, 
-      error: new Error(this.errorMessage || getMessages().invalidSymbol) 
+      error: createSymbolError(this.errorMessage || getMessages().invalidSymbol)
     };
   }
 }

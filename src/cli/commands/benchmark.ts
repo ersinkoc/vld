@@ -105,9 +105,9 @@ export const benchmarkCommand: CliCommand = {
     }
   ],
   action: async (_args, options) => {
-    const iterations = options.iterations as number;
-    const suite = options.suite as string;
-    const json = options.json as boolean;
+    const iterations = options['iterations'] as number;
+    const suite = options['suite'] as string;
+    const json = options['json'] as boolean;
     const noColor = options['no-color'] as boolean;
     const colored = !noColor;
 

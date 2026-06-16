@@ -273,11 +273,12 @@ describe('New Advanced Features Tests', () => {
         expect(schema.parse([])).toBe('');
       });
 
-      it('should reject null and undefined', () => {
+      it('should coerce nullish and symbol values using String semantics', () => {
         const schema = v.coerce.string();
         
-        expect(() => schema.parse(null)).toThrow('Cannot coerce null to string');
-        expect(() => schema.parse(undefined)).toThrow('Cannot coerce undefined to string');
+        expect(schema.parse(null)).toBe('null');
+        expect(schema.parse(undefined)).toBe('undefined');
+        expect(schema.parse(Symbol('test'))).toBe('Symbol(test)');
       });
 
       it('should work with string validations', () => {
@@ -319,20 +320,20 @@ describe('New Advanced Features Tests', () => {
         const schema = v.coerce.number();
         
         expect(() => schema.parse('not-a-number')).toThrow('Cannot coerce "not-a-number" to number');
-        expect(() => schema.parse('')).toThrow('Cannot coerce "" to number');
-        expect(() => schema.parse('   ')).toThrow('Cannot coerce "   " to number');
       });
 
-      it('should reject null and undefined', () => {
+      it('should coerce empty and null values using Number semantics', () => {
         const schema = v.coerce.number();
         
-        expect(() => schema.parse(null)).toThrow('Cannot coerce null to number');
+        expect(schema.parse('')).toBe(0);
+        expect(schema.parse('   ')).toBe(0);
+        expect(schema.parse(null)).toBe(0);
         expect(() => schema.parse(undefined)).toThrow('Cannot coerce undefined to number');
       });
     });
 
     describe('Boolean Coercion', () => {
-      it('should coerce truthy strings', () => {
+      it('should coerce using JavaScript Boolean semantics', () => {
         const schema = v.coerce.boolean();
         
         expect(schema.parse('true')).toBe(true);
@@ -340,16 +341,11 @@ describe('New Advanced Features Tests', () => {
         expect(schema.parse('1')).toBe(true);
         expect(schema.parse('yes')).toBe(true);
         expect(schema.parse('YES')).toBe(true);
-      });
-
-      it('should coerce falsy strings', () => {
-        const schema = v.coerce.boolean();
-        
-        expect(schema.parse('false')).toBe(false);
-        expect(schema.parse('FALSE')).toBe(false);
-        expect(schema.parse('0')).toBe(false);
-        expect(schema.parse('no')).toBe(false);
-        expect(schema.parse('NO')).toBe(false);
+        expect(schema.parse('false')).toBe(true);
+        expect(schema.parse('FALSE')).toBe(true);
+        expect(schema.parse('0')).toBe(true);
+        expect(schema.parse('no')).toBe(true);
+        expect(schema.parse('')).toBe(false);
       });
 
       it('should coerce numbers', () => {
@@ -357,21 +353,15 @@ describe('New Advanced Features Tests', () => {
         
         expect(schema.parse(1)).toBe(true);
         expect(schema.parse(0)).toBe(false);
-        expect(() => schema.parse(2)).toThrow('Cannot coerce 2 to boolean');
-        expect(() => schema.parse(-1)).toThrow('Cannot coerce -1 to boolean');
+        expect(schema.parse(2)).toBe(true);
+        expect(schema.parse(-1)).toBe(true);
       });
 
-      it('should reject invalid strings', () => {
+      it('should coerce nullish values to false', () => {
         const schema = v.coerce.boolean();
         
-        expect(() => schema.parse('maybe')).toThrow('Cannot coerce "maybe" to boolean');
-      });
-
-      it('should reject null and undefined', () => {
-        const schema = v.coerce.boolean();
-        
-        expect(() => schema.parse(null)).toThrow('Cannot coerce null to boolean');
-        expect(() => schema.parse(undefined)).toThrow('Cannot coerce undefined to boolean');
+        expect(schema.parse(null)).toBe(false);
+        expect(schema.parse(undefined)).toBe(false);
       });
     });
 
@@ -431,10 +421,12 @@ describe('New Advanced Features Tests', () => {
         expect(result.getTime()).toBe(timestamp);
       });
 
-      it('should reject null and undefined', () => {
+      it('should coerce nullable and boolean values using Date semantics', () => {
         const schema = v.coerce.date();
         
-        expect(() => schema.parse(null)).toThrow('Cannot coerce null to date');
+        expect(schema.parse(null).toISOString()).toBe('1970-01-01T00:00:00.000Z');
+        expect(schema.parse(false).toISOString()).toBe('1970-01-01T00:00:00.000Z');
+        expect(schema.parse(true).toISOString()).toBe('1970-01-01T00:00:00.001Z');
         expect(() => schema.parse(undefined)).toThrow('Cannot coerce undefined to date');
       });
     });

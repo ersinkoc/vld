@@ -58,6 +58,13 @@ describe('VldRecord Coverage Tests', () => {
         // Should be the same instance or equivalent
         expect(stillLoose.safeParse({ a: 'test' }).success).toBe(true);
       });
+
+      it('should expose the wrapped value schema metadata', () => {
+        const valueSchema = v.string();
+        const looseSchema = v.record(valueSchema).loose() as any;
+
+        expect(looseSchema.valueSchema).toBe(valueSchema);
+      });
     });
 
     describe('dangerous key filtering', () => {
@@ -71,7 +78,7 @@ describe('VldRecord Coverage Tests', () => {
         };
 
         const result = schema.parse(input);
-        expect(result.safe).toBe('value');
+        expect(result['safe']).toBe('value');
         expect(Object.keys(result)).not.toContain('__proto__');
         expect(Object.keys(result)).not.toContain('constructor');
       });
@@ -88,8 +95,8 @@ describe('VldRecord Coverage Tests', () => {
         };
 
         const result = schema.parse(input);
-        expect(result.valid).toBe(123);
-        expect(result.anotherValid).toBe(456);
+        expect(result['valid']).toBe(123);
+        expect(result['anotherValid']).toBe(456);
         expect(Object.keys(result)).not.toContain('invalid');
       });
     });
@@ -102,6 +109,27 @@ describe('VldRecord Coverage Tests', () => {
 
         const result = schema.safeParse({ a: 'hello', b: 'world' });
         expect(result.success).toBe(true);
+      });
+    });
+
+    describe('simple value mode helpers', () => {
+      it('should expose expected simple value errors for all optimized modes', () => {
+        const helpers = [
+          { schema: v.record(v.string()), message: 'Invalid string' },
+          { schema: v.record(v.number()), message: 'Invalid number' },
+          { schema: v.record(v.boolean()), message: 'Invalid boolean' },
+          { schema: v.record(v.bigint()), message: 'Invalid bigint' },
+          { schema: v.record(v.symbol()), message: 'Invalid symbol' },
+          { schema: v.record(v.undefined()), message: 'Expected undefined' }
+        ];
+
+        for (const { schema, message } of helpers) {
+          expect((schema as any).getSimpleValueError('received')).toBe(message);
+        }
+
+        expect((v.record(v.null()) as any).getSimpleValueError(undefined)).toBe('Expected null, received undefined');
+        expect((v.record(v.string()) as any).getSimpleValueMode({ isSimple: true, validatorType: 'unsupported' })).toBeUndefined();
+        expect((v.record(v.array(v.string())) as any).getSimpleValueError('received')).toBe('Invalid record');
       });
     });
   });

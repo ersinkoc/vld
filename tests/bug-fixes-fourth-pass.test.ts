@@ -213,7 +213,7 @@ describe('Fourth Bug Analysis Fixes', () => {
 
         // Only safe key should be present
         expect(result).toEqual({ normal: 'safe' });
-        expect(result.__proto__).not.toBe('polluted');
+        expect(result['__proto__']).not.toBe('polluted');
         expect(result.constructor).not.toBe('hacked');
         expect((result as any).prototype).not.toBe('exploited');
       });

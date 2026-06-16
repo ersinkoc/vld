@@ -1,6 +1,6 @@
-import { VldBase, ParseResult } from './base';
+import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
 import { VldError, createIssue } from '../errors';
-import { getMessages } from '../locales';
+import { getMessages } from '../locales/runtime';
 
 /**
  * Codec transform functions for bidirectional transformations
@@ -24,7 +24,7 @@ export class VldCodec<TInput, TOutput> extends VldBase<TInput, TOutput> {
     outputValidator: VldBase<unknown, TOutput>,
     codecTransform: CodecTransform<TInput, TOutput>
   ) {
-    super();
+    super(VLD_VALIDATOR_TYPES.CODEC);
     this.inputValidator = inputValidator;
     this.outputValidator = outputValidator;
     this.codecTransform = codecTransform;
@@ -75,6 +75,16 @@ export class VldCodec<TInput, TOutput> extends VldBase<TInput, TOutput> {
         ])
       };
     }
+  }
+
+  /**
+   * Create a new codec with input and output directions swapped.
+   */
+  invert(): VldCodec<TOutput, TInput> {
+    return new VldCodec(this.outputValidator, this.inputValidator, {
+      decode: this.codecTransform.encode,
+      encode: this.codecTransform.decode
+    });
   }
   
   /**
@@ -127,7 +137,7 @@ export class VldCodec<TInput, TOutput> extends VldBase<TInput, TOutput> {
   /**
    * Async version of parse (decode)
    */
-  async parseAsync(value: unknown): Promise<TOutput> {
+  override async parseAsync(value: unknown): Promise<TOutput> {
     const result = await this.safeParseAsync(value);
     if (!result.success) {
       throw result.error;
@@ -138,7 +148,7 @@ export class VldCodec<TInput, TOutput> extends VldBase<TInput, TOutput> {
   /**
    * Async version of safeParse (decode)
    */
-  async safeParseAsync(value: unknown): Promise<ParseResult<TOutput>> {
+  override async safeParseAsync(value: unknown): Promise<ParseResult<TOutput>> {
     // First validate the input
     const inputResult = this.inputValidator.safeParse(value);
     if (!inputResult.success) {
@@ -213,5 +223,12 @@ export class VldCodec<TInput, TOutput> extends VldBase<TInput, TOutput> {
     codecTransform: CodecTransform<TInput, TOutput>
   ): VldCodec<TInput, TOutput> {
     return new VldCodec(inputValidator, outputValidator, codecTransform);
+  }
+
+  /**
+   * Create a codec with input and output directions swapped.
+   */
+  static invert<TInput, TOutput>(codec: VldCodec<TInput, TOutput>): VldCodec<TOutput, TInput> {
+    return codec.invert();
   }
 }

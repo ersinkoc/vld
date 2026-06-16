@@ -80,9 +80,13 @@ describe('VldBase64', () => {
     });
 
     it('should test constructor default parameter branch', () => {
+      const defaultValidator = new VldBase64();
       const standardValidator = VldBase64.create(false); // Explicit false
       const urlSafeValidator = VldBase64.create(true);   // Explicit true
       
+      expect(defaultValidator.isValid('SGVsbG8gV29ybGQ=')).toBe(true);
+      expect(defaultValidator.safeParse('SGVsbG8_V29ybGQ=').success).toBe(false);
+
       expect(standardValidator.isValid('SGVsbG8gV29ybGQ=')).toBe(true);
       expect(standardValidator.safeParse('SGVsbG8_V29ybGQ=').success).toBe(false);
       

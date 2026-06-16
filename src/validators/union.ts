@@ -1,5 +1,17 @@
-import { VldBase, ParseResult } from './base';
-import { getMessages } from '../locales';
+import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
+import { getMessages } from '../locales/runtime';
+
+type SimpleUnionMode =
+  | 'string'
+  | 'number'
+  | 'boolean'
+  | 'bigint'
+  | 'symbol'
+  | 'null'
+  | 'undefined'
+  | 'literal'
+  | 'passthrough'
+  | undefined;
 
 /**
  * Optimized immutable union validator for multiple type options
@@ -10,10 +22,10 @@ export class VldUnion<T extends readonly VldBase<any, any>[]> extends VldBase<
   T[number] extends VldBase<any, infer U> ? U : never
 > {
   private readonly validators: T;
-  private readonly errorMessage?: string;
-  
-  // Cache for type checking optimization
-  private readonly typeCheckers: Map<VldBase<any, any>, (value: unknown) => boolean>;
+  private readonly errorMessage: string | undefined;
+  private readonly typeCheckers: Array<(value: unknown) => boolean>;
+  private readonly simpleModes: SimpleUnionMode[];
+  private readonly simpleValues: unknown[];
   
   /**
    * Private constructor to enforce immutability
@@ -22,14 +34,65 @@ export class VldUnion<T extends readonly VldBase<any, any>[]> extends VldBase<
     validators: T,
     errorMessage?: string
   ) {
-    super();
+    super(VLD_VALIDATOR_TYPES.UNION);
     this.validators = validators;
     this.errorMessage = errorMessage;
-    this.typeCheckers = new Map();
-    
-    // Pre-compile type checkers for common types
-    for (const validator of validators) {
-      this.typeCheckers.set(validator, this.createTypeChecker(validator));
+    this.typeCheckers = validators.map(validator => this.createTypeChecker(validator));
+    this.simpleModes = validators.map(validator => this.createSimpleMode(validator));
+    this.simpleValues = validators.map((validator, i) =>
+      this.simpleModes[i] === 'literal' ? (validator as { literal?: unknown }).literal : undefined
+    );
+  }
+
+  private createSimpleMode(validator: VldBase<any, any>): SimpleUnionMode {
+    if ((validator as { isSimple?: boolean }).isSimple !== true) {
+      return undefined;
+    }
+
+    switch (validator.validatorType) {
+      case VLD_VALIDATOR_TYPES.STRING:
+        return 'string';
+      case VLD_VALIDATOR_TYPES.NUMBER:
+        return 'number';
+      case VLD_VALIDATOR_TYPES.BOOLEAN:
+        return 'boolean';
+      case VLD_VALIDATOR_TYPES.BIGINT:
+        return 'bigint';
+      case VLD_VALIDATOR_TYPES.SYMBOL:
+        return 'symbol';
+      case VLD_VALIDATOR_TYPES.NULL:
+        return 'null';
+      case VLD_VALIDATOR_TYPES.UNDEFINED:
+      case VLD_VALIDATOR_TYPES.VOID:
+        return 'undefined';
+      case VLD_VALIDATOR_TYPES.LITERAL:
+        return 'literal';
+      case VLD_VALIDATOR_TYPES.ANY:
+      case VLD_VALIDATOR_TYPES.UNKNOWN:
+        return 'passthrough';
+      default:
+        return undefined;
+    }
+  }
+
+  private parseSimpleValue(mode: SimpleUnionMode, index: number, value: unknown): unknown {
+    switch (mode) {
+      case 'string':
+      case 'number':
+      case 'boolean':
+      case 'bigint':
+      case 'symbol':
+        return value;
+      case 'null':
+        return null;
+      case 'undefined':
+        return undefined;
+      case 'literal':
+        return this.simpleValues[index];
+      case 'passthrough':
+        return value;
+      default:
+        return undefined;
     }
   }
   
@@ -38,51 +101,42 @@ export class VldUnion<T extends readonly VldBase<any, any>[]> extends VldBase<
    * Uses a safer approach that's less prone to spoofing
    */
   private createTypeChecker(validator: VldBase<any, any>): (value: unknown) => boolean {
-    // More conservative approach that prioritizes security and stability
-    // Only use fast path checks for very common, unambiguous types
-
-    try {
-      // Test basic types with safe parsing to validate the validator
-      const stringTest = validator.safeParse('test');
-      if (stringTest.success) {
+    switch (validator.validatorType) {
+      case VLD_VALIDATOR_TYPES.STRING:
         return (v) => typeof v === 'string';
-      }
-
-      const numberTest = validator.safeParse(123);
-      if (numberTest.success) {
-        return (v) => typeof v === 'number' && !isNaN(v as number);
-      }
-
-      const booleanTest = validator.safeParse(true);
-      if (booleanTest.success) {
+      case VLD_VALIDATOR_TYPES.NUMBER:
+        return (v) => typeof v === 'number' && !isNaN(v);
+      case VLD_VALIDATOR_TYPES.BOOLEAN:
         return (v) => typeof v === 'boolean';
-      }
-
-      const arrayTest = validator.safeParse([]);
-      if (arrayTest.success) {
-        return (v) => Array.isArray(v);
-      }
-
-      const objectTest = validator.safeParse({});
-      if (objectTest.success) {
+      case VLD_VALIDATOR_TYPES.BIGINT:
+        return (v) => typeof v === 'bigint';
+      case VLD_VALIDATOR_TYPES.SYMBOL:
+        return (v) => typeof v === 'symbol';
+      case VLD_VALIDATOR_TYPES.NAN:
+        return (v) => typeof v === 'number' && Number.isNaN(v);
+      case VLD_VALIDATOR_TYPES.ARRAY:
+        return Array.isArray;
+      case VLD_VALIDATOR_TYPES.OBJECT:
         return (v) => typeof v === 'object' && v !== null && !Array.isArray(v);
-      }
-
-      const nullTest = validator.safeParse(null);
-      if (nullTest.success) {
+      case VLD_VALIDATOR_TYPES.NULL:
         return (v) => v === null;
-      }
-
-      const undefinedTest = validator.safeParse(undefined);
-      if (undefinedTest.success) {
+      case VLD_VALIDATOR_TYPES.UNDEFINED:
+      case VLD_VALIDATOR_TYPES.VOID:
         return (v) => v === undefined;
+      case VLD_VALIDATOR_TYPES.ENUM:
+        return (v) => typeof v === 'string' || typeof v === 'number';
+      case VLD_VALIDATOR_TYPES.LITERAL: {
+        const literal = (validator as { literal?: unknown }).literal;
+        return (v) => v === literal;
       }
-    } catch {
-      // If safe testing fails, fall back to safe validation
+      case VLD_VALIDATOR_TYPES.NEVER:
+        return () => false;
+      case VLD_VALIDATOR_TYPES.ANY:
+      case VLD_VALIDATOR_TYPES.UNKNOWN:
+        return () => true;
+      default:
+        return () => true;
     }
-
-    // Fallback: no quick check available - use safe validation
-    return () => true;
   }
   
   /**
@@ -94,29 +148,33 @@ export class VldUnion<T extends readonly VldBase<any, any>[]> extends VldBase<
   
   /**
    * Parse and validate a value against union options
-   * Optimized with type checking and safeParse to avoid try-catch overhead
+   * Optimized with type checking and direct parsing to avoid success-result allocations
    * BUG-NEW-013 FIX: Single-pass error collection to avoid double parsing
    */
   parse(value: unknown): T[number] extends VldBase<any, infer U> ? U : never {
     // Single pass: collect errors during validation
     const errors: string[] = [];
 
-    for (const validator of this.validators) {
-      const typeChecker = this.typeCheckers.get(validator);
+    for (let i = 0; i < this.validators.length; i++) {
+      const validator = this.validators[i]!;
+      const typeChecker = this.typeCheckers[i];
 
       // Skip validators that definitely won't match based on type
       if (typeChecker && !typeChecker(value)) {
         continue;
       }
 
-      // Use safeParse to avoid try-catch overhead
-      const result = validator.safeParse(value);
-      if (result.success) {
-        return result.data;
+      const simpleMode = this.simpleModes[i];
+      if (simpleMode !== undefined) {
+        return this.parseSimpleValue(simpleMode, i, value) as T[number] extends VldBase<any, infer U> ? U : never;
       }
 
-      // Collect error for final message if all validators fail
-      errors.push(result.error.message);
+      try {
+        return validator.parse(value);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        errors.push(message);
+      }
     }
 
     // All validators failed - throw with collected errors
@@ -135,21 +193,29 @@ export class VldUnion<T extends readonly VldBase<any, any>[]> extends VldBase<
     // Single pass: collect errors during validation
     const errors: string[] = [];
 
-    for (const validator of this.validators) {
-      const typeChecker = this.typeCheckers.get(validator);
+    for (let i = 0; i < this.validators.length; i++) {
+      const validator = this.validators[i]!;
+      const typeChecker = this.typeCheckers[i];
 
       // Skip validators that definitely won't match based on type
       if (typeChecker && !typeChecker(value)) {
         continue;
       }
 
-      const result = validator.safeParse(value);
-      if (result.success) {
-        return result;
+      const simpleMode = this.simpleModes[i];
+      if (simpleMode !== undefined) {
+        return {
+          success: true,
+          data: this.parseSimpleValue(simpleMode, i, value) as T[number] extends VldBase<any, infer U> ? U : never
+        };
       }
 
-      // Collect error for final message if all validators fail
-      errors.push(result.error.message);
+      try {
+        return { success: true, data: validator.parse(value) };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        errors.push(message);
+      }
     }
 
     // All validators failed - return error with collected messages

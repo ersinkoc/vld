@@ -10,7 +10,7 @@ function isDirectory(p) {
 }
 
 function fixImportPath(importPath, currentDir) {
-  if (importPath.endsWith('.js')) {
+  if (path.extname(importPath)) {
     return importPath;
   }
   const fullPath = path.resolve(currentDir, importPath);
@@ -26,23 +26,27 @@ function fixImports(dir) {
     const fullPath = path.join(dir, file.name);
     if (file.isDirectory()) {
       fixImports(fullPath);
-    } else if (file.name.endsWith('.js')) {
+    } else if (file.name.endsWith('.js') || file.name.endsWith('.d.ts')) {
       let content = fs.readFileSync(fullPath, 'utf-8');
       const currentDir = path.dirname(fullPath);
-      const importRegex = /from\s+['"](\.[^'"]+)['"]/g;
-      const matches = [...content.matchAll(importRegex)];
-      for (const match of matches) {
-        const originalPath = match[1];
-        if (!originalPath.endsWith('.js')) {
-          const fixedPath = fixImportPath(originalPath, currentDir);
-          content = content.split("from '" + originalPath + "'").join("from '" + fixedPath + "'");
-          content = content.split('from "' + originalPath + '"').join("from '" + fixedPath + "'");
-        }
-      }
+
+      content = content.replace(/from\s+(['"])(\.[^'"]+)\1/g, (match, quote, importPath) => {
+        return `from ${quote}${fixImportPath(importPath, currentDir)}${quote}`;
+      });
+
+      content = content.replace(/import\(\s*(['"])(\.[^'"]+)\1\s*\)/g, (match, quote, importPath) => {
+        return `import(${quote}${fixImportPath(importPath, currentDir)}${quote})`;
+      });
+
       fs.writeFileSync(fullPath, content);
     }
   }
 }
 
 fixImports('./dist');
+for (const binPath of ['./dist/cli/bin.js']) {
+  if (fs.existsSync(binPath)) {
+    fs.chmodSync(binPath, 0o755);
+  }
+}
 console.log('Fixed all imports');

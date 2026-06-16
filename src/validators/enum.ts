@@ -1,10 +1,14 @@
-import { VldBase, ParseResult } from './base';
-import { getMessages } from '../locales';
+import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
+import { getMessages } from '../locales/runtime';
 
 /**
- * Immutable enum validator for string enum values
+ * Immutable enum validator for string and number enum values
  */
-export class VldEnum<T extends readonly [string, ...string[]]> extends VldBase<string, T[number]> {
+type EnumValue = string | number;
+
+export class VldEnum<T extends readonly [EnumValue, ...EnumValue[]]> extends VldBase<EnumValue, T[number]> {
+  private readonly _valueSet: ReadonlySet<EnumValue> | undefined;
+
   /**
    * Private constructor to enforce immutability
    */
@@ -12,7 +16,15 @@ export class VldEnum<T extends readonly [string, ...string[]]> extends VldBase<s
     private readonly _values: T,
     private readonly errorMessage?: string
   ) {
-    super();
+    super(VLD_VALIDATOR_TYPES.ENUM);
+    this._valueSet = _values.length > 6 ? new Set(_values) : undefined;
+  }
+
+  private createError(value: unknown): Error {
+    return new Error(
+      this.errorMessage ||
+      getMessages().enumExpected([...this._values], JSON.stringify(value))
+    );
   }
 
   /**
@@ -25,7 +37,7 @@ export class VldEnum<T extends readonly [string, ...string[]]> extends VldBase<s
   /**
    * Create a new enum validator
    */
-  static create<T extends readonly [string, ...string[]]>(values: T): VldEnum<T> {
+  static create<T extends readonly [EnumValue, ...EnumValue[]]>(values: T): VldEnum<T> {
     return new VldEnum(values);
   }
   
@@ -34,19 +46,42 @@ export class VldEnum<T extends readonly [string, ...string[]]> extends VldBase<s
    */
   parse(value: unknown): T[number] {
     // BUG-002 FIX: Add type check before includes() to prevent type confusion
-    if (typeof value !== 'string') {
-      throw new Error(
-        this.errorMessage ||
-        getMessages().enumExpected([...this._values], JSON.stringify(value))
-      );
+    if (typeof value !== 'string' && typeof value !== 'number') {
+      throw this.createError(value);
     }
-    if (!this._values.includes(value)) {
-      throw new Error(
-        this.errorMessage ||
-        getMessages().enumExpected([...this._values], JSON.stringify(value))
-      );
+
+    const values = this._values;
+    switch (values.length) {
+      case 1:
+        if (value === values[0]) return value as T[number];
+        break;
+      case 2:
+        if (value === values[0] || value === values[1]) return value as T[number];
+        break;
+      case 3:
+        if (value === values[0] || value === values[1] || value === values[2]) return value as T[number];
+        break;
+      case 4:
+        if (value === values[0] || value === values[1] || value === values[2] || value === values[3]) {
+          return value as T[number];
+        }
+        break;
+      case 5:
+        if (value === values[0] || value === values[1] || value === values[2] || value === values[3] || value === values[4]) {
+          return value as T[number];
+        }
+        break;
+      case 6:
+        if (value === values[0] || value === values[1] || value === values[2] || value === values[3] || value === values[4] || value === values[5]) {
+          return value as T[number];
+        }
+        break;
+      default:
+        if (this._valueSet!.has(value)) return value as T[number];
+        break;
     }
-    return value as T[number];
+
+    throw this.createError(value);
   }
 
   /**
@@ -54,24 +89,47 @@ export class VldEnum<T extends readonly [string, ...string[]]> extends VldBase<s
    */
   safeParse(value: unknown): ParseResult<T[number]> {
     // BUG-002 FIX: Add type check before includes() to prevent type confusion
-    if (typeof value !== 'string') {
+    if (typeof value !== 'string' && typeof value !== 'number') {
       return {
         success: false,
-        error: new Error(
-          this.errorMessage ||
-          getMessages().enumExpected([...this._values], JSON.stringify(value))
-        )
+        error: this.createError(value)
       };
     }
-    if (this._values.includes(value)) {
-      return { success: true, data: value as T[number] };
+
+    const values = this._values;
+    switch (values.length) {
+      case 1:
+        if (value === values[0]) return { success: true, data: value as T[number] };
+        break;
+      case 2:
+        if (value === values[0] || value === values[1]) return { success: true, data: value as T[number] };
+        break;
+      case 3:
+        if (value === values[0] || value === values[1] || value === values[2]) return { success: true, data: value as T[number] };
+        break;
+      case 4:
+        if (value === values[0] || value === values[1] || value === values[2] || value === values[3]) {
+          return { success: true, data: value as T[number] };
+        }
+        break;
+      case 5:
+        if (value === values[0] || value === values[1] || value === values[2] || value === values[3] || value === values[4]) {
+          return { success: true, data: value as T[number] };
+        }
+        break;
+      case 6:
+        if (value === values[0] || value === values[1] || value === values[2] || value === values[3] || value === values[4] || value === values[5]) {
+          return { success: true, data: value as T[number] };
+        }
+        break;
+      default:
+        if (this._valueSet!.has(value)) return { success: true, data: value as T[number] };
+        break;
     }
+
     return {
       success: false,
-      error: new Error(
-        this.errorMessage ||
-        getMessages().enumExpected([...this._values], JSON.stringify(value))
-      )
+      error: this.createError(value)
     };
   }
 
@@ -79,7 +137,7 @@ export class VldEnum<T extends readonly [string, ...string[]]> extends VldBase<s
    * Exclude specific values from the enum
    * Creates a new enum validator without the specified values
    */
-  exclude<const E extends readonly string[]>(...excludeValues: E): VldEnum<
+  exclude<const E extends readonly EnumValue[]>(...excludeValues: E): VldEnum<
     T[number] extends E[number] ? never : T[number] extends Exclude<T[number], E[number]> ? T : Exclude<T, E>
   > {
     const filtered = this._values.filter(v => !excludeValues.includes(v));
@@ -94,7 +152,7 @@ export class VldEnum<T extends readonly [string, ...string[]]> extends VldBase<s
    * Extract specific values from the enum
    * Creates a new enum validator with only the specified values
    */
-  extract<const E extends readonly string[]>(...extractValues: E): VldEnum<[string, ...string[]]> {
+  extract<const E extends readonly EnumValue[]>(...extractValues: E): VldEnum<[E[number], ...E[number][]]> {
     const extracted = this._values.filter(v => extractValues.includes(v));
     if (extracted.length === 0) {
       throw new Error('Cannot extract non-existent enum values');

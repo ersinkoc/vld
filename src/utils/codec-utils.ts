@@ -31,7 +31,7 @@ export function uint8ArrayToBase64(bytes: Uint8Array): string {
   // Convert Uint8Array to binary string
   let binaryString = '';
   for (let i = 0; i < bytes.length; i++) {
-    binaryString += String.fromCharCode(bytes[i]);
+    binaryString += String.fromCharCode(bytes[i]!);
   }
   
   // Encode to base64
@@ -87,7 +87,7 @@ export function hexToUint8Array(hex: string): Uint8Array {
 export function uint8ArrayToHex(bytes: Uint8Array): string {
   let hex = '';
   for (let i = 0; i < bytes.length; i++) {
-    const byte = bytes[i].toString(16);
+    const byte = bytes[i]!.toString(16);
     hex += byte.length === 1 ? '0' + byte : byte;
   }
   return hex;
@@ -219,7 +219,7 @@ export function safeAtob(encoded: string): string {
   if (typeof atob !== 'undefined') {
     try {
       return atob(encoded);
-    } catch (error) {
+    } catch {
       throw new Error('Failed to decode base64 data');
     }
   }

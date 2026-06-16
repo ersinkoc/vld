@@ -480,22 +480,22 @@ describe('Pigment', () => {
     });
 
     it('should return false when NO_COLOR is set', () => {
-      process.env.NO_COLOR = '1';
+      process.env['NO_COLOR'] = '1';
       // Re-import to get fresh supportsColor check
       const { supportsColor: freshSupportsColor } = require('../src/pigment');
       expect(freshSupportsColor()).toBe(false);
     });
 
     it('should return true when FORCE_COLOR is set', () => {
-      delete process.env.NO_COLOR;
-      process.env.FORCE_COLOR = '1';
+      delete process.env['NO_COLOR'];
+      process.env['FORCE_COLOR'] = '1';
       const { supportsColor: freshSupportsColor } = require('../src/pigment');
       expect(freshSupportsColor()).toBe(true);
     });
 
     it('should return true when stdout is a TTY', () => {
-      delete process.env.NO_COLOR;
-      delete process.env.FORCE_COLOR;
+      delete process.env['NO_COLOR'];
+      delete process.env['FORCE_COLOR'];
       Object.defineProperty(process, 'stdout', {
         value: { isTTY: true },
         writable: true,
@@ -506,8 +506,8 @@ describe('Pigment', () => {
     });
 
     it('should return false when stdout is not a TTY and no env vars set', () => {
-      delete process.env.NO_COLOR;
-      delete process.env.FORCE_COLOR;
+      delete process.env['NO_COLOR'];
+      delete process.env['FORCE_COLOR'];
       Object.defineProperty(process, 'stdout', {
         value: { isTTY: false },
         writable: true,
@@ -515,6 +515,24 @@ describe('Pigment', () => {
       });
       const { supportsColor: freshSupportsColor } = require('../src/pigment');
       expect(freshSupportsColor()).toBe(false);
+    });
+
+    it('should return false in browser-like environments', () => {
+      delete process.env['NO_COLOR'];
+      delete process.env['FORCE_COLOR'];
+      Object.defineProperty(process, 'stdout', {
+        value: { isTTY: false },
+        writable: true,
+        configurable: true
+      });
+      (globalThis as any).window = {};
+
+      try {
+        const { supportsColor: freshSupportsColor } = require('../src/pigment');
+        expect(freshSupportsColor()).toBe(false);
+      } finally {
+        delete (globalThis as any).window;
+      }
     });
 
     it('should handle TTY detection', () => {
@@ -550,8 +568,8 @@ describe('Pigment', () => {
     });
 
     it('should output ANSI codes when FORCE_COLOR is set', () => {
-      process.env.FORCE_COLOR = '1';
-      delete process.env.NO_COLOR;
+      process.env['FORCE_COLOR'] = '1';
+      delete process.env['NO_COLOR'];
 
       const { pigment: coloredPigment } = require('../src/pigment');
       const result = coloredPigment.red('test');
@@ -563,8 +581,8 @@ describe('Pigment', () => {
     });
 
     it('should apply combine function with ANSI codes when enabled', () => {
-      process.env.FORCE_COLOR = '1';
-      delete process.env.NO_COLOR;
+      process.env['FORCE_COLOR'] = '1';
+      delete process.env['NO_COLOR'];
 
       const { pigment: coloredPigment } = require('../src/pigment');
       const combineFn = coloredPigment.combine(coloredPigment.codes.bold, coloredPigment.codes.red);
@@ -578,8 +596,8 @@ describe('Pigment', () => {
     });
 
     it('should return plain text when NO_COLOR is set', () => {
-      process.env.NO_COLOR = '1';
-      delete process.env.FORCE_COLOR;
+      process.env['NO_COLOR'] = '1';
+      delete process.env['FORCE_COLOR'];
 
       const { pigment: plainPigment } = require('../src/pigment');
       const result = plainPigment.red('test');
@@ -589,8 +607,8 @@ describe('Pigment', () => {
     });
 
     it('combine should return plain text when colors disabled', () => {
-      process.env.NO_COLOR = '1';
-      delete process.env.FORCE_COLOR;
+      process.env['NO_COLOR'] = '1';
+      delete process.env['FORCE_COLOR'];
 
       const { pigment: plainPigment } = require('../src/pigment');
       const combineFn = plainPigment.combine(plainPigment.codes.bold, plainPigment.codes.red);
@@ -598,6 +616,15 @@ describe('Pigment', () => {
 
       // Should NOT contain ANSI escape codes
       expect(result).toBe('test');
+    });
+  });
+
+  describe('createTheme defaults', () => {
+    it('should return the default theme when no overrides are supplied', () => {
+      const theme = createTheme();
+
+      expect(theme.error).toBe(vldTheme.error);
+      expect(theme.success).toBe(vldTheme.success);
     });
   });
 });

@@ -11,10 +11,12 @@ import typescript from '@rollup/plugin-typescript';
 import terser from '@rollup/plugin-terser';
 import fg from 'fast-glob';
 import path from 'path';
+import { builtinModules } from 'module';
 
 const { globSync } = fg;
 
 const isProduction = process.env.NODE_ENV === 'production';
+const nodeBuiltins = [...builtinModules, ...builtinModules.map((mod) => `node:${mod}`)];
 
 // ============================================
 // Shared Plugins
@@ -23,10 +25,16 @@ const isProduction = process.env.NODE_ENV === 'production';
 const createTypescriptPlugin = (options = {}) =>
   typescript({
     tsconfig: './tsconfig.json',
+    ...options,
     declaration: false,
     declarationMap: false,
-    sourceMap: !isProduction,
-    ...options,
+    sourceMap: false,
+    inlineSources: false,
+    compilerOptions: {
+      sourceMap: false,
+      inlineSources: false,
+      ...(options.compilerOptions || {}),
+    },
   });
 
 const productionPlugins = isProduction ? [terser()] : [];
@@ -41,12 +49,22 @@ const mainEntries = {
   mini: 'src/mini.ts',
   errors: 'src/errors.ts',
   kernel: 'src/kernel.ts',
+  registry: 'src/registry.ts',
   pigment: 'src/pigment.ts',
+};
+
+const zodCompatEntries = {
+  'v3/index': 'src/v3/index.ts',
+  'v4/index': 'src/v4/index.ts',
+  'v4-mini/index': 'src/v4-mini/index.ts',
+  'v4/mini/index': 'src/v4/mini/index.ts',
+  'v4/core/index': 'src/v4/core/index.ts',
+  'v4/locales/index': 'src/v4/locales/index.ts',
 };
 
 // Locale entry points (for individual imports)
 const localeFiles = globSync('src/locales/*.ts', {
-  ignore: ['src/locales/index.ts', 'src/locales/types.ts', 'src/locales/backup-*.ts'],
+  ignore: ['src/locales/index.ts', 'src/locales/lazy.ts', 'src/locales/types.ts', 'src/locales/backup-*.ts'],
 });
 
 const localeEntries = Object.fromEntries(
@@ -56,13 +74,23 @@ const localeEntries = Object.fromEntries(
   })
 );
 
-// Add lazy loader as main locale entry
-localeEntries['locales/index'] = 'src/locales/lazy.ts';
+// Add the full locale registry and the lazy loader as separate public subpaths
+localeEntries['locales/index'] = 'src/locales/index.ts';
+localeEntries['locales/lazy'] = 'src/locales/lazy.ts';
 
-// Validators entry
-const validatorEntries = {
-  'validators/index': 'src/validators/index.ts',
-};
+// Validators entries
+const validatorFiles = globSync('src/validators/*.ts', {
+  ignore: ['src/validators/index.ts'],
+});
+
+const validatorEntries = Object.fromEntries(
+  validatorFiles.map((file) => {
+    const name = path.basename(file, '.ts');
+    return [`validators/${name}`, file];
+  })
+);
+
+validatorEntries['validators/index'] = 'src/validators/index.ts';
 
 // Coercion entry
 const coercionEntries = {
@@ -74,6 +102,17 @@ const codecEntries = {
   'codecs/index': 'src/codecs/index.ts',
 };
 
+// CLI entries
+const cliEntries = {
+  'cli/index': 'src/cli/index.ts',
+  'cli/bin': 'src/cli/bin.ts',
+};
+
+// Plugin entries
+const pluginEntries = {
+  'plugins/index': 'src/plugins/index.ts',
+};
+
 // Compat entries
 const compatEntries = {
   'compat/result': 'src/compat/result.ts',
@@ -83,10 +122,13 @@ const compatEntries = {
 // All entries combined
 const allEntries = {
   ...mainEntries,
+  ...zodCompatEntries,
   ...localeEntries,
   ...validatorEntries,
   ...coercionEntries,
   ...codecEntries,
+  ...cliEntries,
+  ...pluginEntries,
   ...compatEntries,
 };
 
@@ -105,12 +147,12 @@ export default [
       format: 'esm',
       entryFileNames: '[name].js',
       chunkFileNames: 'chunks/[name]-[hash].js',
-      sourcemap: !isProduction,
+      sourcemap: false,
       preserveModules: false,
       hoistTransitiveImports: false,
     },
     plugins: [createTypescriptPlugin(), ...productionPlugins],
-    external: [],
+    external: nodeBuiltins,
     treeshake: {
       moduleSideEffects: false,
       propertyReadSideEffects: false,
@@ -118,85 +160,20 @@ export default [
   },
 
   // ==========================================
-  // CJS Build - Main Bundle
+  // CJS Build - Public Subpaths
   // ==========================================
   {
-    input: 'src/index.ts',
+    input: allEntries,
     output: {
-      file: 'dist/cjs/index.cjs',
+      dir: 'dist/cjs',
       format: 'cjs',
+      entryFileNames: '[name].cjs',
+      chunkFileNames: 'chunks/[name]-[hash].cjs',
       exports: 'named',
-      sourcemap: !isProduction,
+      sourcemap: false,
       interop: 'auto',
     },
-    plugins: [createTypescriptPlugin(), ...productionPlugins],
-    external: [],
-  },
-
-  // ==========================================
-  // CJS Build - Mini Bundle
-  // ==========================================
-  {
-    input: 'src/mini.ts',
-    output: {
-      file: 'dist/cjs/mini.cjs',
-      format: 'cjs',
-      exports: 'named',
-      sourcemap: !isProduction,
-      interop: 'auto',
-    },
-    plugins: [createTypescriptPlugin(), ...productionPlugins],
-    external: [],
-  },
-
-  // ==========================================
-  // CJS Build - Errors
-  // ==========================================
-  {
-    input: 'src/errors.ts',
-    output: {
-      file: 'dist/cjs/errors.cjs',
-      format: 'cjs',
-      exports: 'named',
-      sourcemap: !isProduction,
-      interop: 'auto',
-    },
-    plugins: [createTypescriptPlugin(), ...productionPlugins],
-    external: [],
-  },
-
-  // ==========================================
-  // CJS Build - Locales (Full)
-  // ==========================================
-  {
-    input: 'src/locales/index.ts',
-    output: {
-      file: 'dist/cjs/locales/index.cjs',
-      format: 'cjs',
-      exports: 'named',
-      sourcemap: !isProduction,
-      interop: 'auto',
-    },
-    plugins: [createTypescriptPlugin(), ...productionPlugins],
-    external: [],
-  },
-
-  // ==========================================
-  // CJS Build - Lazy Locales
-  // Note: inlineDynamicImports is required because lazy.ts uses dynamic imports
-  // This means all locales will be bundled into the CJS lazy file
-  // ==========================================
-  {
-    input: 'src/locales/lazy.ts',
-    output: {
-      file: 'dist/cjs/locales/lazy.cjs',
-      format: 'cjs',
-      exports: 'named',
-      sourcemap: !isProduction,
-      interop: 'auto',
-      inlineDynamicImports: true,
-    },
-    plugins: [createTypescriptPlugin(), ...productionPlugins],
-    external: [],
+    plugins: [createTypescriptPlugin({ compilerOptions: { outDir: 'dist/cjs' } }), ...productionPlugins],
+    external: nodeBuiltins,
   },
 ];

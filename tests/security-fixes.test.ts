@@ -183,9 +183,9 @@ describe('Security Fixes Validation', () => {
       expect(typeof result).toBe('string');
     });
 
-    it('should reject symbols', () => {
+    it('should coerce symbols without invoking user code', () => {
       const validator = VldCoerceString.create();
-      expect(() => validator.parse(Symbol('test'))).toThrow();
+      expect(validator.parse(Symbol('test'))).toBe('Symbol(test)');
     });
 
     it('should enforce length limits', () => {

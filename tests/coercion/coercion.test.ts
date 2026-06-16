@@ -28,10 +28,11 @@ describe('Coercion Validators - Comprehensive Tests', () => {
       expect(validator.parse('')).toBe('');
     });
 
-    it('should reject null and undefined', () => {
+    it('should coerce nullish values using String semantics', () => {
       const validator = VldCoerceString.create();
-      expect(() => validator.parse(null)).toThrow();
-      expect(() => validator.parse(undefined)).toThrow();
+      expect(validator.parse(null)).toBe('null');
+      expect(validator.parse(undefined)).toBe('undefined');
+      expect(validator.parse(Symbol('test'))).toBe('Symbol(test)');
     });
 
     it('should coerce objects to strings', () => {
@@ -90,13 +91,14 @@ describe('Coercion Validators - Comprehensive Tests', () => {
     it('should reject invalid strings', () => {
       const validator = VldCoerceNumber.create();
       expect(() => validator.parse('not a number')).toThrow();
-      expect(() => validator.parse('')).toThrow();
       expect(() => validator.parse('123abc')).toThrow();
     });
 
-    it('should reject null and undefined', () => {
+    it('should coerce null and empty values using Number semantics', () => {
       const validator = VldCoerceNumber.create();
-      expect(() => validator.parse(null)).toThrow();
+      expect(validator.parse(null)).toBe(0);
+      expect(validator.parse('')).toBe(0);
+      expect(validator.parse('   ')).toBe(0);
       expect(() => validator.parse(undefined)).toThrow();
     });
 
@@ -120,10 +122,9 @@ describe('Coercion Validators - Comprehensive Tests', () => {
   });
 
   describe('VldCoerceBoolean', () => {
-    it('should coerce string values', () => {
+    it('should coerce string values with JavaScript Boolean semantics', () => {
       const validator = VldCoerceBoolean.create();
       
-      // True values
       expect(validator.parse('true')).toBe(true);
       expect(validator.parse('TRUE')).toBe(true);
       expect(validator.parse('1')).toBe(true);
@@ -131,23 +132,22 @@ describe('Coercion Validators - Comprehensive Tests', () => {
       expect(validator.parse('YES')).toBe(true);
       expect(validator.parse('on')).toBe(true);
       expect(validator.parse('  true  ')).toBe(true);
-      
-      // False values
-      expect(validator.parse('false')).toBe(false);
-      expect(validator.parse('FALSE')).toBe(false);
-      expect(validator.parse('0')).toBe(false);
-      expect(validator.parse('no')).toBe(false);
-      expect(validator.parse('NO')).toBe(false);
-      expect(validator.parse('off')).toBe(false);
-      expect(validator.parse('  false  ')).toBe(false);
+      expect(validator.parse('false')).toBe(true);
+      expect(validator.parse('FALSE')).toBe(true);
+      expect(validator.parse('0')).toBe(true);
+      expect(validator.parse('no')).toBe(true);
+      expect(validator.parse('NO')).toBe(true);
+      expect(validator.parse('off')).toBe(true);
+      expect(validator.parse('  false  ')).toBe(true);
+      expect(validator.parse('')).toBe(false);
     });
 
     it('should coerce number values', () => {
       const validator = VldCoerceBoolean.create();
       expect(validator.parse(1)).toBe(true);
       expect(validator.parse(0)).toBe(false);
-      expect(() => validator.parse(2)).toThrow();
-      expect(() => validator.parse(-1)).toThrow();
+      expect(validator.parse(2)).toBe(true);
+      expect(validator.parse(-1)).toBe(true);
     });
 
     it('should pass through booleans', () => {
@@ -156,17 +156,18 @@ describe('Coercion Validators - Comprehensive Tests', () => {
       expect(validator.parse(false)).toBe(false);
     });
 
-    it('should reject invalid strings', () => {
+    it('should coerce arbitrary values', () => {
       const validator = VldCoerceBoolean.create();
-      expect(() => validator.parse('maybe')).toThrow();
-      expect(() => validator.parse('2')).toThrow();
-      expect(() => validator.parse('')).toThrow();
+      expect(validator.parse('maybe')).toBe(true);
+      expect(validator.parse('2')).toBe(true);
+      expect(validator.parse([])).toBe(true);
+      expect(validator.parse({})).toBe(true);
     });
 
-    it('should reject null and undefined', () => {
+    it('should coerce null and undefined to false', () => {
       const validator = VldCoerceBoolean.create();
-      expect(() => validator.parse(null)).toThrow();
-      expect(() => validator.parse(undefined)).toThrow();
+      expect(validator.parse(null)).toBe(false);
+      expect(validator.parse(undefined)).toBe(false);
     });
 
     it('should handle safeParse', () => {
@@ -177,8 +178,11 @@ describe('Coercion Validators - Comprehensive Tests', () => {
         expect(success.data).toBe(true);
       }
 
-      const failure = validator.safeParse('maybe');
-      expect(failure.success).toBe(false);
+      const falseResult = validator.safeParse('');
+      expect(falseResult.success).toBe(true);
+      if (falseResult.success) {
+        expect(falseResult.data).toBe(false);
+      }
     });
   });
 
@@ -216,9 +220,11 @@ describe('Coercion Validators - Comprehensive Tests', () => {
       expect(() => validator.parse('2023-13-45')).toThrow(); // Invalid date
     });
 
-    it('should reject null and undefined', () => {
+    it('should coerce nullable and boolean values using Date semantics', () => {
       const validator = VldCoerceDate.create();
-      expect(() => validator.parse(null)).toThrow();
+      expect(validator.parse(null).toISOString()).toBe('1970-01-01T00:00:00.000Z');
+      expect(validator.parse(false).toISOString()).toBe('1970-01-01T00:00:00.000Z');
+      expect(validator.parse(true).toISOString()).toBe('1970-01-01T00:00:00.001Z');
       expect(() => validator.parse(undefined)).toThrow();
     });
 

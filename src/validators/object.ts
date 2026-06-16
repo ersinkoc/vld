@@ -1,7 +1,20 @@
 import { VldBase, ParseResult, VldOptional, VLD_VALIDATOR_TYPES } from './base';
-import { getMessages } from '../locales';
+import { getMessages } from '../locales/runtime';
 import { VldEnum } from './enum';
 import { isDangerousKey } from '../utils/security';
+import { VldError } from '../errors-core';
+
+type SimpleFieldMode =
+  | 'string'
+  | 'number'
+  | 'boolean'
+  | 'bigint'
+  | 'symbol'
+  | 'null'
+  | 'undefinedValue'
+  | 'literal'
+  | 'passthrough'
+  | undefined;
 
 /**
  * Configuration for object validator
@@ -11,7 +24,7 @@ interface ObjectValidatorConfig<T extends Record<string, any>> {
   readonly strict?: boolean;
   readonly passthrough?: boolean;
   readonly catchall?: VldBase<unknown, any>;
-  readonly errorMessage?: string;
+  readonly errorMessage?: string | undefined;
 }
 
 /**
@@ -22,19 +35,403 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
   private readonly _config: ObjectValidatorConfig<T>;
   private readonly _shapeKeys: string[];
   private readonly _shapeKeysSet: Set<string>;
+  private readonly _validators: Array<VldBase<unknown, any> | undefined>;
   private readonly _validatorTypes: string[];
+  private readonly _simpleFieldModes: SimpleFieldMode[];
+  private readonly _simpleFieldValues: unknown[];
+  private readonly _canUseSimpleObjectFastPath: boolean;
+  private readonly _canUseSafeParseFastPath: boolean;
+
+  private createSafeParseError(message: string): VldError {
+    return new VldError([{ code: 'invalid_object', path: [], message }]);
+  }
 
   /**
    * Private constructor to enforce immutability
    */
   private constructor(config: ObjectValidatorConfig<T>) {
-    super();
+    super(VLD_VALIDATOR_TYPES.OBJECT);
     this._config = config;
     // Pre-compute shape keys for faster access
     this._shapeKeys = Object.keys(config.shape);
     this._shapeKeysSet = new Set(this._shapeKeys);
-    // Pre-compute validator types to avoid repeated property lookups in hot path
-    this._validatorTypes = this._shapeKeys.map(k => (config.shape as any)[k].validatorType);
+    this._validators = this._shapeKeys.map(k => this.tryGetFieldValidator(k));
+    // Pre-compute validator types when possible. Getter-based recursive schemas
+    // may reference the object being constructed, so unresolved getters fall
+    // back to the generic path and are resolved at parse time.
+    this._validatorTypes = this._shapeKeys.map((k, i) => this._validators[i]?.validatorType || this.getValidatorType(k));
+    this._simpleFieldModes = this._validators.map((validator, i) => this.getSimpleFieldMode(validator, this._validatorTypes[i]!));
+    this._simpleFieldValues = this._validators.map((validator, i) =>
+      this._simpleFieldModes[i] === 'literal' ? (validator as any).literal : undefined
+    );
+    this._canUseSimpleObjectFastPath =
+      !config.strict &&
+      !config.passthrough &&
+      !config.catchall &&
+      this._shapeKeys.length > 0 &&
+      this._simpleFieldModes.every(mode => mode !== undefined);
+    this._canUseSafeParseFastPath =
+      this._validators.every(validator => validator instanceof VldBase) &&
+      (config.catchall === undefined || config.catchall instanceof VldBase);
+  }
+
+  private tryGetFieldValidator(key: string): VldBase<unknown, any> | undefined {
+    try {
+      const descriptor = Object.getOwnPropertyDescriptor(this._config.shape, key);
+      if (descriptor?.get) {
+        return undefined;
+      }
+      return this.resolveFieldValidator(key);
+    } catch {
+      return undefined;
+    }
+  }
+
+  private resolveFieldValidator(key: string): VldBase<unknown, any> | undefined {
+    try {
+      const validator = (this._config.shape as any)[key];
+      if (!validator || typeof validator.safeParse !== 'function') {
+        return undefined;
+      }
+      return validator;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private getFieldValidator(key: string, index?: number): VldBase<unknown, any> {
+    const cached = index === undefined ? undefined : this._validators[index];
+    const validator = cached || this.resolveFieldValidator(key);
+    if (!validator) {
+      throw new Error(`Invalid validator for field "${key}"`);
+    }
+    return validator;
+  }
+
+  private getValidatorType(key: string): string {
+    try {
+      const validator = (this._config.shape as any)[key];
+      return validator?.validatorType || VLD_VALIDATOR_TYPES.UNKNOWN;
+    } catch {
+      return VLD_VALIDATOR_TYPES.UNKNOWN;
+    }
+  }
+
+  private getSimpleFieldMode(validator: VldBase<unknown, any> | undefined, type: string): SimpleFieldMode {
+    if (!validator || (validator as any).isSimple !== true) {
+      return undefined;
+    }
+
+    switch (type) {
+      case VLD_VALIDATOR_TYPES.STRING:
+        return 'string';
+      case VLD_VALIDATOR_TYPES.NUMBER:
+        return 'number';
+      case VLD_VALIDATOR_TYPES.BOOLEAN:
+        return 'boolean';
+      case VLD_VALIDATOR_TYPES.BIGINT:
+        return 'bigint';
+      case VLD_VALIDATOR_TYPES.SYMBOL:
+        return 'symbol';
+      case VLD_VALIDATOR_TYPES.NULL:
+        return 'null';
+      case VLD_VALIDATOR_TYPES.UNDEFINED:
+      case VLD_VALIDATOR_TYPES.VOID:
+        return 'undefinedValue';
+      case VLD_VALIDATOR_TYPES.LITERAL:
+        return 'literal';
+      case VLD_VALIDATOR_TYPES.ANY:
+      case VLD_VALIDATOR_TYPES.UNKNOWN:
+        return 'passthrough';
+      default:
+        return undefined;
+    }
+  }
+
+  private getSimpleFieldError(mode: SimpleFieldMode, expected?: unknown, received?: unknown): string {
+    switch (mode) {
+      case 'string':
+        return getMessages().invalidString;
+      case 'number':
+        return getMessages().invalidNumber;
+      case 'boolean':
+        return getMessages().invalidBoolean;
+      case 'bigint':
+        return getMessages().invalidBigint;
+      case 'symbol':
+        return getMessages().invalidSymbol;
+      case 'null':
+        return `Expected null, received ${typeof received}`;
+      case 'undefinedValue':
+        return getMessages().expectedUndefined;
+      case 'literal':
+        return getMessages().literalExpected(JSON.stringify(expected), JSON.stringify(received));
+      case 'passthrough':
+        return getMessages().invalidObject;
+      default:
+        return getMessages().invalidObject;
+    }
+  }
+
+  private parseCheckedField(
+    validator: VldBase<unknown, any>,
+    type: string,
+    value: unknown
+  ): unknown {
+    if (type === VLD_VALIDATOR_TYPES.STRING && typeof value === 'string') {
+      const parseKnownString = (validator as any).parseKnownString;
+      if (typeof parseKnownString === 'function') {
+        return parseKnownString.call(validator, value);
+      }
+    }
+
+    if (type === VLD_VALIDATOR_TYPES.NUMBER && typeof value === 'number' && !isNaN(value)) {
+      const parseKnownNumber = (validator as any).parseKnownNumber;
+      if (typeof parseKnownNumber === 'function') {
+        return parseKnownNumber.call(validator, value);
+      }
+    }
+
+    if (type === VLD_VALIDATOR_TYPES.BOOLEAN && typeof value === 'boolean') {
+      const parseKnownBoolean = (validator as any).parseKnownBoolean;
+      if (typeof parseKnownBoolean === 'function') {
+        return parseKnownBoolean.call(validator, value);
+      }
+    }
+
+    if (type === VLD_VALIDATOR_TYPES.BIGINT && typeof value === 'bigint') {
+      const parseKnownBigInt = (validator as any).parseKnownBigInt;
+      if (typeof parseKnownBigInt === 'function') {
+        return parseKnownBigInt.call(validator, value);
+      }
+    }
+
+    if (type === VLD_VALIDATOR_TYPES.SYMBOL && typeof value === 'symbol') {
+      const parseKnownSymbol = (validator as any).parseKnownSymbol;
+      if (typeof parseKnownSymbol === 'function') {
+        return parseKnownSymbol.call(validator, value);
+      }
+    }
+
+    if (type === VLD_VALIDATOR_TYPES.FUNCTION && typeof value === 'function') {
+      const parseKnownFunction = (validator as any).parseKnownFunction;
+      if (typeof parseKnownFunction === 'function') {
+        return parseKnownFunction.call(validator, value);
+      }
+    }
+
+    if (
+      type === VLD_VALIDATOR_TYPES.FILE &&
+      typeof value === 'object' &&
+      value !== null &&
+      (
+        ('size' in value && 'type' in value) ||
+        (typeof File !== 'undefined' && value instanceof File)
+      )
+    ) {
+      const parseKnownFile = (validator as any).parseKnownFile;
+      if (typeof parseKnownFile === 'function') {
+        return parseKnownFile.call(validator, value);
+      }
+    }
+
+    if (type === VLD_VALIDATOR_TYPES.DATE && value instanceof Date) {
+      const parseKnownDate = (validator as any).parseKnownDate;
+      if (typeof parseKnownDate === 'function') {
+        return parseKnownDate.call(validator, value);
+      }
+    }
+
+    if (
+      type === VLD_VALIDATOR_TYPES.OBJECT &&
+      typeof value === 'object' &&
+      value !== null &&
+      !Array.isArray(value)
+    ) {
+      const parseKnownObject = (validator as any).parseKnownObject;
+      if (typeof parseKnownObject === 'function') {
+        return parseKnownObject.call(validator, value);
+      }
+    }
+
+    if (type === VLD_VALIDATOR_TYPES.ARRAY && Array.isArray(value)) {
+      const parseKnownArray = (validator as any).parseKnownArray;
+      if (typeof parseKnownArray === 'function') {
+        return parseKnownArray.call(validator, value);
+      }
+    }
+
+    if (type === VLD_VALIDATOR_TYPES.TUPLE && Array.isArray(value)) {
+      const parseKnownTuple = (validator as any).parseKnownTuple;
+      if (typeof parseKnownTuple === 'function') {
+        return parseKnownTuple.call(validator, value);
+      }
+    }
+
+    if (
+      type === VLD_VALIDATOR_TYPES.RECORD &&
+      typeof value === 'object' &&
+      value !== null &&
+      !Array.isArray(value)
+    ) {
+      const parseKnownRecord = (validator as any).parseKnownRecord;
+      if (typeof parseKnownRecord === 'function') {
+        return parseKnownRecord.call(validator, value);
+      }
+    }
+
+    if (type === VLD_VALIDATOR_TYPES.SET && value instanceof Set) {
+      const parseKnownSet = (validator as any).parseKnownSet;
+      if (typeof parseKnownSet === 'function') {
+        return parseKnownSet.call(validator, value);
+      }
+    }
+
+    if (type === VLD_VALIDATOR_TYPES.MAP && value instanceof Map) {
+      const parseKnownMap = (validator as any).parseKnownMap;
+      if (typeof parseKnownMap === 'function') {
+        return parseKnownMap.call(validator, value);
+      }
+    }
+
+    return validator.parse(value);
+  }
+
+  private parseSimpleObjectValue(
+    obj: Record<string, unknown>,
+    trustedKey?: string,
+    skipTrustedLiteralCheck = false
+  ): T {
+    if (
+      this._shapeKeys.length === 2 &&
+      this._simpleFieldModes[0] === 'string' &&
+      this._simpleFieldModes[1] === 'number'
+    ) {
+      const key0 = this._shapeKeys[0]!;
+      const value0 = obj[key0];
+      if (typeof value0 !== 'string') {
+        throw new Error(getMessages().objectField(key0, getMessages().invalidString));
+      }
+
+      const key1 = this._shapeKeys[1]!;
+      const value1 = obj[key1];
+      if (typeof value1 !== 'number' || isNaN(value1)) {
+        throw new Error(getMessages().objectField(key1, getMessages().invalidNumber));
+      }
+
+      const result: any = {};
+      result[key0] = value0;
+      result[key1] = value1;
+      return result as T;
+    }
+
+    if (
+      this._shapeKeys.length === 3 &&
+      this._simpleFieldModes[0] === 'literal' &&
+      this._simpleFieldModes[1] === 'string' &&
+      this._simpleFieldModes[2] === 'number'
+    ) {
+      const key0 = this._shapeKeys[0]!;
+      const value0 = obj[key0];
+      const literal0 = this._simpleFieldValues[0];
+      if (!(skipTrustedLiteralCheck && key0 === trustedKey) && value0 !== literal0) {
+        throw new Error(getMessages().objectField(
+          key0,
+          this.getSimpleFieldError('literal', literal0, value0)
+        ));
+      }
+
+      const key1 = this._shapeKeys[1]!;
+      const value1 = obj[key1];
+      if (typeof value1 !== 'string') {
+        throw new Error(getMessages().objectField(key1, getMessages().invalidString));
+      }
+
+      const key2 = this._shapeKeys[2]!;
+      const value2 = obj[key2];
+      if (typeof value2 !== 'number' || isNaN(value2)) {
+        throw new Error(getMessages().objectField(key2, getMessages().invalidNumber));
+      }
+
+      const result: any = {};
+      result[key0] = literal0;
+      result[key1] = value1;
+      result[key2] = value2;
+      return result as T;
+    }
+
+    const result: any = {};
+
+    for (let i = 0; i < this._shapeKeys.length; i++) {
+      const key = this._shapeKeys[i]!;
+      const fieldValue = obj[key];
+      const simpleMode = this._simpleFieldModes[i];
+
+      switch (simpleMode) {
+        case 'string':
+          if (typeof fieldValue !== 'string') {
+            throw new Error(getMessages().objectField(key, getMessages().invalidString));
+          }
+          result[key] = fieldValue;
+          break;
+        case 'number':
+          if (typeof fieldValue !== 'number' || isNaN(fieldValue)) {
+            throw new Error(getMessages().objectField(key, getMessages().invalidNumber));
+          }
+          result[key] = fieldValue;
+          break;
+        case 'boolean':
+          if (typeof fieldValue !== 'boolean') {
+            throw new Error(getMessages().objectField(key, getMessages().invalidBoolean));
+          }
+          result[key] = fieldValue;
+          break;
+        case 'bigint':
+          if (typeof fieldValue !== 'bigint') {
+            throw new Error(getMessages().objectField(key, getMessages().invalidBigint));
+          }
+          result[key] = fieldValue;
+          break;
+        case 'symbol':
+          if (typeof fieldValue !== 'symbol') {
+            throw new Error(getMessages().objectField(key, getMessages().invalidSymbol));
+          }
+          result[key] = fieldValue;
+          break;
+        case 'null':
+          if (fieldValue !== null) {
+            throw new Error(getMessages().objectField(key, this.getSimpleFieldError(simpleMode, undefined, fieldValue)));
+          }
+          result[key] = null;
+          break;
+        case 'undefinedValue':
+          if (fieldValue !== undefined) {
+            throw new Error(getMessages().objectField(key, getMessages().expectedUndefined));
+          }
+          result[key] = undefined;
+          break;
+        case 'literal':
+          if (skipTrustedLiteralCheck && key === trustedKey) {
+            result[key] = this._simpleFieldValues[i];
+            break;
+          }
+          if (fieldValue !== this._simpleFieldValues[i]) {
+            throw new Error(getMessages().objectField(
+              key,
+              this.getSimpleFieldError(simpleMode, this._simpleFieldValues[i], fieldValue)
+            ));
+          }
+          result[key] = this._simpleFieldValues[i];
+          break;
+        case 'passthrough':
+          result[key] = fieldValue;
+          break;
+        default:
+          throw new Error(getMessages().objectField(key, getMessages().invalidObject));
+      }
+    }
+
+    return result as T;
   }
 
   /**
@@ -79,70 +476,116 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
       throw new Error(this._config.errorMessage || getMessages().invalidObject);
     }
 
-    const obj = value as Record<string, unknown>;
+    return this.parseObjectValue(value as Record<string, unknown>);
+  }
+
+  /**
+   * Parse an object value that already passed the object type guard.
+   * @internal Used by discriminated unions after discriminator lookup.
+   */
+  parseKnownObject(value: Record<string, unknown>, trustedKey?: string): T {
+    return this.parseObjectValue(value, trustedKey);
+  }
+
+  /**
+   * Parse an object after an owning discriminated union has already matched
+   * the discriminator value to this exact object schema.
+   * @internal
+   */
+  parseTrustedKnownObject(value: Record<string, unknown>, trustedKey: string): T {
+    return this.parseObjectValue(value, trustedKey, true);
+  }
+
+  private parseObjectValue(
+    obj: Record<string, unknown>,
+    trustedKey?: string,
+    skipTrustedLiteralCheck = false
+  ): T {
+    if (this._canUseSimpleObjectFastPath) {
+      return this.parseSimpleObjectValue(obj, trustedKey, skipTrustedLiteralCheck);
+    }
+
     const result: any = {};
 
-    // Ultra-optimized field validation - use pre-computed validatorTypes in hot path
-    for (let i = 0; i < this._shapeKeys.length; i++) {
-      const key = this._shapeKeys[i];
-      const validator = this._config.shape[key];
-      const fieldValue = obj[key];
-      const type = this._validatorTypes[i]; // Use pre-computed type
+    // Validate fields directly on parse() to avoid safeParse result allocation
+    // in the successful hot path.
+    let currentKey = '';
+    try {
+      for (let i = 0; i < this._shapeKeys.length; i++) {
+        currentKey = this._shapeKeys[i]!;
+        if (
+          skipTrustedLiteralCheck &&
+          currentKey === trustedKey &&
+          this._simpleFieldModes[i] === 'literal'
+        ) {
+          result[currentKey] = this._simpleFieldValues[i];
+          continue;
+        }
 
-      switch (type) {
-        case VLD_VALIDATOR_TYPES.COERCE_STRING:
-        case VLD_VALIDATOR_TYPES.COERCE_NUMBER:
-        case VLD_VALIDATOR_TYPES.COERCE_BOOLEAN:
-        case VLD_VALIDATOR_TYPES.COERCE_DATE: {
-          const parseResult = validator.safeParse(fieldValue);
-          if (!parseResult.success) {
-            throw new Error(getMessages().objectField(key, parseResult.error.message));
+        const simpleMode = this._simpleFieldModes[i];
+        if (simpleMode !== undefined) {
+          const fieldValue = obj[currentKey];
+          switch (simpleMode) {
+            case 'string':
+              if (typeof fieldValue !== 'string') {
+                throw new Error(getMessages().invalidString);
+              }
+              result[currentKey] = fieldValue;
+              continue;
+            case 'number':
+              if (typeof fieldValue !== 'number' || isNaN(fieldValue)) {
+                throw new Error(getMessages().invalidNumber);
+              }
+              result[currentKey] = fieldValue;
+              continue;
+            case 'boolean':
+              if (typeof fieldValue !== 'boolean') {
+                throw new Error(getMessages().invalidBoolean);
+              }
+              result[currentKey] = fieldValue;
+              continue;
+            case 'bigint':
+              if (typeof fieldValue !== 'bigint') {
+                throw new Error(getMessages().invalidBigint);
+              }
+              result[currentKey] = fieldValue;
+              continue;
+            case 'symbol':
+              if (typeof fieldValue !== 'symbol') {
+                throw new Error(getMessages().invalidSymbol);
+              }
+              result[currentKey] = fieldValue;
+              continue;
+            case 'null':
+              if (fieldValue !== null) {
+                throw new Error(this.getSimpleFieldError(simpleMode, undefined, fieldValue));
+              }
+              result[currentKey] = null;
+              continue;
+            case 'undefinedValue':
+              if (fieldValue !== undefined) {
+                throw new Error(getMessages().expectedUndefined);
+              }
+              result[currentKey] = undefined;
+              continue;
+            case 'literal':
+              if (fieldValue !== this._simpleFieldValues[i]) {
+                throw new Error(this.getSimpleFieldError(simpleMode, this._simpleFieldValues[i], fieldValue));
+              }
+              result[currentKey] = this._simpleFieldValues[i];
+              continue;
+            case 'passthrough':
+              result[currentKey] = fieldValue;
+              continue;
           }
-          result[key] = parseResult.data;
-          break;
+          continue;
         }
-        case VLD_VALIDATOR_TYPES.STRING: {
-          const parseResult = validator.safeParse(fieldValue);
-          if (!parseResult.success) {
-            throw new Error(getMessages().objectField(key, parseResult.error.message));
-          }
-          result[key] = parseResult.data;
-          break;
-        }
-        case VLD_VALIDATOR_TYPES.NUMBER: {
-          const parseResult = validator.safeParse(fieldValue);
-          if (!parseResult.success) {
-            throw new Error(getMessages().objectField(key, parseResult.error.message));
-          }
-          result[key] = parseResult.data;
-          break;
-        }
-        case VLD_VALIDATOR_TYPES.BOOLEAN: {
-          const parseResult = validator.safeParse(fieldValue);
-          if (!parseResult.success) {
-            throw new Error(getMessages().objectField(key, parseResult.error.message));
-          }
-          result[key] = parseResult.data;
-          break;
-        }
-        case VLD_VALIDATOR_TYPES.DATE: {
-          const parseResult = validator.safeParse(fieldValue);
-          if (!parseResult.success) {
-            throw new Error(getMessages().objectField(key, parseResult.error.message));
-          }
-          result[key] = parseResult.data;
-          break;
-        }
-        default: {
-          const parseResult = validator.safeParse(fieldValue);
-          if (!parseResult.success) {
-            throw new Error(getMessages().objectField(key, parseResult.error.message));
-          }
-          result[key] = parseResult.data;
-          break;
-        }
+
+        const validator = this.getFieldValidator(currentKey, i);
+        result[currentKey] = this.parseCheckedField(validator, this._validatorTypes[i]!, obj[currentKey]);
       }
-
+    } catch (error) {
+      throw new Error(getMessages().objectField(currentKey, (error as Error).message));
     }
 
     // Handle strict/passthrough/catchall modes - optimized single Object.keys() call
@@ -154,8 +597,9 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
         const extraKeys: string[] = [];
 
         for (let i = 0; i < objKeys.length; i++) {
-          if (!this._shapeKeysSet.has(objKeys[i])) {
-            extraKeys.push(objKeys[i]);
+          const key = objKeys[i]!;
+          if (!this._shapeKeysSet.has(key)) {
+            extraKeys.push(key);
           }
         }
 
@@ -167,7 +611,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
       // Handle passthrough mode - optimized with comprehensive prototype pollution protection
       if (this._config.passthrough) {
         for (let i = 0; i < objKeys.length; i++) {
-          const key = objKeys[i];
+          const key = objKeys[i]!;
           // Skip dangerous keys to prevent prototype pollution
           if (!this._shapeKeysSet.has(key) && !isDangerousKey(key)) {
             result[key] = obj[key];
@@ -178,10 +622,14 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
       // Handle catchall - validate extra keys with catchall validator
       if (this._config.catchall) {
         for (let i = 0; i < objKeys.length; i++) {
-          const key = objKeys[i];
+          const key = objKeys[i]!;
           // Skip keys already in shape and dangerous keys
           if (!this._shapeKeysSet.has(key) && !isDangerousKey(key)) {
-            result[key] = this._config.catchall.parse(obj[key]);
+            try {
+              result[key] = this._config.catchall.parse(obj[key]);
+            } catch (error) {
+              throw new Error(getMessages().objectField(key, (error as Error).message));
+            }
           }
         }
       }
@@ -199,85 +647,89 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
     if (typeof value !== 'object' || value === null || Array.isArray(value)) {
       return {
         success: false,
-        error: new Error(this._config.errorMessage || getMessages().invalidObject)
+        error: this.createSafeParseError(this._config.errorMessage || getMessages().invalidObject)
       };
     }
 
     const obj = value as Record<string, unknown>;
+    if (this._canUseSimpleObjectFastPath) {
+      try {
+        return { success: true, data: this.parseSimpleObjectValue(obj) };
+      } catch (error) {
+        return { success: false, error: this.createSafeParseError((error as Error).message) };
+      }
+    }
+
+    if (this._canUseSafeParseFastPath) {
+      try {
+        return { success: true, data: this.parseObjectValue(obj) };
+      } catch (error) {
+        return { success: false, error: this.createSafeParseError((error as Error).message) };
+      }
+    }
+
     const result: any = {};
 
     // Ultra-optimized field validation - use pre-computed validatorTypes in hot path
     for (let i = 0; i < this._shapeKeys.length; i++) {
-      const key = this._shapeKeys[i];
-      const validator = this._config.shape[key];
+      const key = this._shapeKeys[i]!;
       const fieldValue = obj[key];
-      const type = this._validatorTypes[i]; // Use pre-computed type
+      const simpleMode = this._simpleFieldModes[i];
+      if (simpleMode !== undefined) {
+        if (
+          (simpleMode === 'string' && typeof fieldValue === 'string') ||
+          (simpleMode === 'number' && typeof fieldValue === 'number' && !isNaN(fieldValue)) ||
+          (simpleMode === 'boolean' && typeof fieldValue === 'boolean') ||
+          (simpleMode === 'bigint' && typeof fieldValue === 'bigint') ||
+          (simpleMode === 'symbol' && typeof fieldValue === 'symbol') ||
+          (simpleMode === 'null' && fieldValue === null) ||
+          (simpleMode === 'undefinedValue' && fieldValue === undefined) ||
+          (simpleMode === 'literal' && fieldValue === this._simpleFieldValues[i]) ||
+          simpleMode === 'passthrough'
+        ) {
+          result[key] = simpleMode === 'literal'
+            ? this._simpleFieldValues[i]
+            : simpleMode === 'null'
+              ? null
+              : fieldValue;
+          continue;
+        }
 
-      switch (type) {
-        case VLD_VALIDATOR_TYPES.COERCE_STRING:
-        case VLD_VALIDATOR_TYPES.COERCE_NUMBER:
-        case VLD_VALIDATOR_TYPES.COERCE_BOOLEAN:
-        case VLD_VALIDATOR_TYPES.COERCE_DATE: {
-          const parseResult = validator.safeParse(fieldValue);
+        return {
+          success: false,
+          error: this.createSafeParseError(getMessages().objectField(key, this.getSimpleFieldError(simpleMode, this._simpleFieldValues[i], fieldValue)))
+        };
+      }
+
+      let validator: VldBase<unknown, any>;
+      try {
+        validator = this.getFieldValidator(key, i);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return {
+          success: false,
+          error: this.createSafeParseError(getMessages().objectField(key, message))
+        };
+      }
+      try {
+        if (validator instanceof VldBase) {
+          result[key] = this.parseCheckedField(validator, this._validatorTypes[i]!, fieldValue);
+        } else {
+          const parseResult = (validator as any).safeParse(fieldValue);
           if (!parseResult.success) {
             return {
               success: false,
-              error: new Error(getMessages().objectField(key, parseResult.error.message))
+              error: this.createSafeParseError(getMessages().objectField(key, parseResult.error.message))
             };
           }
           result[key] = parseResult.data;
-          break;
         }
-        case VLD_VALIDATOR_TYPES.STRING: {
-          const parseResult = validator.safeParse(fieldValue);
-          if (!parseResult.success) {
-            return {
-              success: false,
-              error: new Error(getMessages().objectField(key, parseResult.error.message))
-            };
-          }
-          result[key] = parseResult.data;
-          break;
-        }
-        // Use safeParse for all validators to ensure correctness
-        case VLD_VALIDATOR_TYPES.NUMBER: {
-          const parseResult = validator.safeParse(fieldValue);
-          if (!parseResult.success) {
-            return { success: false, error: new Error(getMessages().objectField(key, parseResult.error.message)) };
-          }
-          result[key] = parseResult.data;
-          break;
-        }
-        case VLD_VALIDATOR_TYPES.BOOLEAN: {
-          const parseResult = validator.safeParse(fieldValue);
-          if (!parseResult.success) {
-            return { success: false, error: new Error(getMessages().objectField(key, parseResult.error.message)) };
-          }
-          result[key] = parseResult.data;
-          break;
-        }
-        case VLD_VALIDATOR_TYPES.DATE: {
-          const parseResult = validator.safeParse(fieldValue);
-          if (!parseResult.success) {
-            return {
-              success: false,
-              error: new Error(getMessages().objectField(key, parseResult.error.message))
-            };
-          }
-          result[key] = parseResult.data;
-          break;
-        }
-        default: {
-          const parseResult = validator.safeParse(fieldValue);
-          if (!parseResult.success) {
-            return {
-              success: false,
-              error: new Error(getMessages().objectField(key, parseResult.error.message))
-            };
-          }
-          result[key] = parseResult.data;
-          break;
-        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return {
+          success: false,
+          error: this.createSafeParseError(getMessages().objectField(key, message))
+        };
       }
     }
 
@@ -290,15 +742,16 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
         const extraKeys: string[] = [];
 
         for (let i = 0; i < objKeys.length; i++) {
-          if (!this._shapeKeysSet.has(objKeys[i])) {
-            extraKeys.push(objKeys[i]);
+          const key = objKeys[i]!;
+          if (!this._shapeKeysSet.has(key)) {
+            extraKeys.push(key);
           }
         }
 
         if (extraKeys.length > 0) {
           return {
             success: false,
-            error: new Error(getMessages().unexpectedKeys(extraKeys))
+            error: this.createSafeParseError(getMessages().unexpectedKeys(extraKeys))
           };
         }
       }
@@ -306,7 +759,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
       // Handle passthrough mode with comprehensive prototype pollution protection
       if (this._config.passthrough) {
         for (let i = 0; i < objKeys.length; i++) {
-          const key = objKeys[i];
+          const key = objKeys[i]!;
           // Skip dangerous keys to prevent prototype pollution
           if (!this._shapeKeysSet.has(key) && !isDangerousKey(key)) {
             result[key] = obj[key];
@@ -316,18 +769,31 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
 
       // Handle catchall - validate extra keys with catchall validator
       if (this._config.catchall) {
+        const catchallValidator = this._config.catchall;
         for (let i = 0; i < objKeys.length; i++) {
-          const key = objKeys[i];
+          const key = objKeys[i]!;
           // Skip keys already in shape and dangerous keys
           if (!this._shapeKeysSet.has(key) && !isDangerousKey(key)) {
-            const catchallResult = this._config.catchall.safeParse(obj[key]);
-            if (!catchallResult.success) {
+            try {
+              if (catchallValidator instanceof VldBase) {
+                result[key] = catchallValidator.parse(obj[key]);
+              } else {
+                const catchallResult = (catchallValidator as any).safeParse(obj[key]);
+                if (!catchallResult.success) {
+                  return {
+                    success: false,
+                    error: this.createSafeParseError(getMessages().objectField(key, catchallResult.error.message))
+                  };
+                }
+                result[key] = catchallResult.data;
+              }
+            } catch (error) {
+              const message = error instanceof Error ? error.message : String(error);
               return {
                 success: false,
-                error: new Error(getMessages().objectField(key, catchallResult.error.message))
+                error: this.createSafeParseError(getMessages().objectField(key, message))
               };
             }
-            result[key] = catchallResult.data;
           }
         }
       }

@@ -152,7 +152,7 @@ describe('record variants integration', () => {
       }
     });
 
-    expect(result.config.feature1).toEqual({ enabled: true, value: 100 });
-    expect(result.config.feature2).toBe(undefined);
+    expect(result.config['feature1']).toEqual({ enabled: true, value: 100 });
+    expect(result.config['feature2']).toBe(undefined);
   });
 });

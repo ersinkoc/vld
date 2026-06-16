@@ -46,6 +46,16 @@ describe('VldPromise Coverage Tests', () => {
       const result = await schema.parse(thenable);
       expect(result).toBe('hello');
     });
+
+    it('should use sync inner parse when async parse is unavailable', async () => {
+      const syncOnlySchema = {
+        parse: (value: unknown) => String(value),
+        safeParse: (value: unknown) => ({ success: true as const, data: String(value) })
+      };
+      const schema = v.promise(syncOnlySchema as any);
+
+      await expect(schema.parse(Promise.resolve(123))).resolves.toBe('123');
+    });
   });
 
   describe('safeParse()', () => {
@@ -134,6 +144,47 @@ describe('VldPromise Coverage Tests', () => {
       expect(result.success).toBe(false);
     });
 
+    it('should use sync inner safeParse when async safeParse is unavailable', async () => {
+      const syncOnlySchema = {
+        parse: (value: unknown) => String(value),
+        safeParse: (value: unknown) => ({ success: true as const, data: String(value) })
+      };
+      const schema = v.promise(syncOnlySchema as any);
+
+      await expect(schema.safeParse(Promise.resolve(123))).resolves.toEqual({
+        success: true,
+        data: '123'
+      });
+    });
+
+    it('should convert thrown non-Error inner safeParse failures into Error instances', async () => {
+      const throwingSchema = {
+        parse: (value: unknown) => value,
+        safeParse: () => {
+          throw 'string failure';
+        }
+      };
+      const schema = v.promise(throwingSchema as any);
+      const result = await schema.safeParse(Promise.resolve('test'));
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toBeInstanceOf(Error);
+        expect(result.error.message).toBe('string failure');
+      }
+    });
+
+    it('should preserve Error instances thrown while resolving promises', async () => {
+      const schema = v.promise(v.string());
+      const result = await schema.safeParse(Promise.reject(new Error('promise failed')));
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toBeInstanceOf(Error);
+        expect(result.error.message).toBe('promise failed');
+      }
+    });
+
     it('should return success for thenable (Promise-like object)', async () => {
       const schema = v.promise(v.string());
       const thenable = {
@@ -193,6 +244,30 @@ describe('VldPromise Coverage Tests', () => {
     it('should create VldPromise instance', () => {
       const schema = v.promise(v.string());
       expect(schema).toBeInstanceOf(Object);
+    });
+
+    it('should expose runtime type metadata and unwrap the inner schema', () => {
+      const inner = v.string();
+      const schema = v.promise(inner);
+
+      expect(schema.validatorType).toBe('promise');
+      expect(schema.unwrap()).toBe(inner);
+    });
+
+    it('should validate resolved values through async inner schemas', async () => {
+      const schema = v.promise(v.string().refine(async value => value.startsWith('v')));
+
+      await expect(schema.parseAsync(Promise.resolve('vld'))).resolves.toBe('vld');
+      await expect(schema.safeParseAsync(Promise.resolve('zod'))).resolves.toMatchObject({ success: false });
+    });
+
+    it('should support Standard Schema async validation', async () => {
+      const schema = v.promise(v.string());
+
+      await expect(schema['~standard'].validate(Promise.resolve('vld'))).resolves.toEqual({ value: 'vld' });
+      await expect(schema['~standard'].validate('vld')).resolves.toMatchObject({
+        issues: [{ message: 'Expected a Promise value' }]
+      });
     });
   });
 });

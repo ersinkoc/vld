@@ -7,6 +7,12 @@ import { v } from '../../src';
 
 describe('VldStringFormat Coverage Tests', () => {
   describe('parse() with invalid format', () => {
+    it('should throw on non-string values via parse', () => {
+      const schema = v.email();
+
+      expect(() => schema.parse(123)).toThrow('Invalid string');
+    });
+
     it('should throw on invalid email format via parse', () => {
       const schema = v.string().email();
 
@@ -109,6 +115,13 @@ describe('VldStringFormat Coverage Tests', () => {
       // since we only support md5/sha1/sha256/sha384/sha512
       // However, the line exists for safety
       expect(() => schema.parse('invalid-hash-value-long-enough-to-be-validated')).toThrow();
+    });
+
+    it('should reject unknown hash algorithms defensively', () => {
+      const schema = v.hash('unknown' as any);
+
+      expect(() => schema.parse('d41d8cd98f00b204e9800998ecf8427e')).toThrow('Invalid unknown hash');
+      expect(schema.safeParse('d41d8cd98f00b204e9800998ecf8427e').success).toBe(false);
     });
   });
 

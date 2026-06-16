@@ -1,6 +1,6 @@
 import { VldDate } from '../validators/date';
 import { ParseResult, VLD_VALIDATOR_TYPES } from '../validators/base';
-import { getMessages } from '../locales';
+import { getMessages } from '../locales/runtime';
 
 /**
  * Date coercion validator that attempts to convert values to dates
@@ -9,7 +9,7 @@ export class VldCoerceDate extends VldDate {
   /**
    * Create a new coerce date validator
    */
-  static create(): VldCoerceDate {
+  static override create(): VldCoerceDate {
     return new VldCoerceDate();
   }
 
@@ -20,24 +20,17 @@ export class VldCoerceDate extends VldDate {
   /**
    * Parse and coerce a value to date
    */
-  parse(value: unknown): Date {
+  override parse(value: unknown): Date {
     try {
-      // Handle string and number values
-      if (typeof value === 'string' || typeof value === 'number') {
-        const date = new Date(value);
-        if (isNaN(date.getTime())) {
-          throw new Error(getMessages().coercionFailed('date', value));
-        }
-        return super.parse(date);
+      if (value instanceof Date) {
+        return super.parse(value);
       }
-      
-      // Handle null and undefined
-      if (value === null || value === undefined) {
+
+      const date = new Date(value as any);
+      if (isNaN(date.getTime())) {
         throw new Error(getMessages().coercionFailed('date', value));
       }
-      
-      // Use parent validation for actual dates
-      return super.parse(value);
+      return super.parse(date);
     } catch (error) {
       if ((error as Error).message.includes('Cannot coerce')) {
         throw error;
@@ -49,7 +42,7 @@ export class VldCoerceDate extends VldDate {
   /**
    * Safely parse and coerce a value to date
    */
-  safeParse(value: unknown): ParseResult<Date> {
+  override safeParse(value: unknown): ParseResult<Date> {
     try {
       return { success: true, data: this.parse(value) };
     } catch (error) {

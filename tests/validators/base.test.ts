@@ -2,6 +2,7 @@ import { describe, it, expect } from '@jest/globals';
 import { VldString } from '../../src/validators/string';
 import { VldNumber } from '../../src/validators/number';
 import { VldObject } from '../../src/validators/object';
+import { v } from '../../src';
 
 describe('VldBase and Utility Validators', () => {
   describe('VldBase Methods', () => {
@@ -192,6 +193,24 @@ describe('VldBase and Utility Validators', () => {
       const nullResult = validator.safeParse(null);
       expect(nullResult.success).toBe(false);
     });
+
+    it('should keep simple optional primitive outputs unchanged', () => {
+      const token = Symbol('token');
+
+      expect(v.string().optional().parse('value')).toBe('value');
+      expect(v.number().optional().parse(42)).toBe(42);
+      expect(v.boolean().optional().parse(false)).toBe(false);
+      expect(v.bigint().optional().parse(10n)).toBe(10n);
+      expect(v.symbol().optional().parse(token)).toBe(token);
+    });
+
+    it('should keep constrained optional validators on the full validation path', () => {
+      const validator = v.string().min(3).optional();
+
+      expect(validator.safeParse('abcd').success).toBe(true);
+      expect(validator.safeParse('a').success).toBe(false);
+      expect(() => validator.parse('a')).toThrow();
+    });
   });
 
   describe('VldNullable', () => {
@@ -277,8 +296,8 @@ describe('VldBase and Utility Validators', () => {
         .transform((val) => val * 2)
         .refine((val) => val > 10);
       
-      expect(validator.parse(6)).toBe(12); // 6 * 2 = 12 > 10 ✓
-      expect(() => validator.parse(4)).toThrow(); // 4 * 2 = 8 < 10 ✗
+      expect(validator.parse(6)).toBe(12); // 6 * 2 = 12 > 10 PASS
+      expect(() => validator.parse(4)).toThrow(); // 4 * 2 = 8 < 10 FAIL
     });
 
     it('should chain nullable with catch', () => {

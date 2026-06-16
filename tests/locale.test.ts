@@ -1,6 +1,14 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
-import { v, setLocale, getLocale } from '../src/index';
-import { getMessages, getMessagesForLocale, type Locale } from '../src/locales/index';
+import { v, setLocale, setLocaleAsync, registerLocale, getLocale } from '../src/index';
+import {
+  getMessages,
+  getMessagesForLocale,
+  getSupportedLocales,
+  isLocaleLoaded,
+  isLocaleSupported,
+  type Locale,
+  type LocaleMessages
+} from '../src/locales/index';
 
 // Import all locale files to ensure they're covered
 import '../src/locales/en';
@@ -78,6 +86,42 @@ describe('Locale System Tests', () => {
     it('should fallback to English for invalid locale in getMessagesForLocale', () => {
       const messages = getMessagesForLocale('invalid' as Locale);
       expect(messages.invalidString).toBe('Invalid string');
+    });
+
+    it('should expose only bundled translated locales as supported', () => {
+      expect(getSupportedLocales()).toContain('en');
+      expect(getSupportedLocales()).toContain('tr');
+      expect(getSupportedLocales()).toContain('pt-BR');
+      expect(getSupportedLocales()).toContain('es-MX');
+      expect(isLocaleSupported('tr')).toBe(true);
+      expect(isLocaleSupported('is')).toBe(false);
+    });
+
+    it('should keep typed fallback locales available through English messages', () => {
+      setLocale('is');
+      expect(getLocale()).toBe('is');
+      expect(getMessages().invalidString).toBe('Invalid string');
+      expect(getMessagesForLocale('fr-CA').invalidString).toBe('Invalid string');
+    });
+
+    it('should support async locale switching from the eager locale entrypoint', async () => {
+      await setLocaleAsync('tr');
+      expect(getLocale()).toBe('tr');
+      expect(v.string().safeParse(123).success).toBe(false);
+      expect((v.string().safeParse(123) as { success: false; error: Error }).error.message).toBe('Geçersiz metin');
+    });
+
+    it('should report eager fallback locales as loaded and allow registered overrides', () => {
+      expect(isLocaleLoaded('is')).toBe(true);
+
+      const customMessages: LocaleMessages = {
+        ...getMessagesForLocale('en'),
+        invalidString: 'Custom invalid string'
+      };
+      registerLocale('is', customMessages);
+      setLocale('is');
+
+      expect(getMessages().invalidString).toBe('Custom invalid string');
     });
   });
 

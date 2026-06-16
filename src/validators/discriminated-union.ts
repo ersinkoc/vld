@@ -4,7 +4,7 @@
  * Provides O(1) lookup performance by using a discriminator key
  */
 
-import { VldBase } from './base';
+import { VldBase, VLD_VALIDATOR_TYPES } from './base';
 import { VldObject } from './object';
 import { VldLiteral } from './literal';
 import { VldEnum } from './enum';
@@ -30,16 +30,19 @@ function extractLiteralValues(schema: VldBase<unknown, any>): unknown[] {
 export class VldDiscriminatedUnion<K extends string, Options extends VldBase<any, any>[]>
   extends VldBase<unknown, Options[number] extends VldBase<any, infer T> ? T : never> {
 
-  private readonly _discriminatorMap: Map<unknown, VldBase<any, any>>;
+  private readonly _discriminatorMap: Map<unknown, VldObject<any>>;
+  private readonly _stringDiscriminatorMap: Record<string, VldObject<any>>;
+  private readonly _validValues: unknown[];
 
   constructor(
     private readonly _discriminator: K,
     private readonly _options: Options
   ) {
-    super();
+    super(VLD_VALIDATOR_TYPES.DISCRIMINATED_UNION);
 
     // Build discriminator map for O(1) lookup
     this._discriminatorMap = new Map();
+    this._stringDiscriminatorMap = Object.create(null) as Record<string, VldObject<any>>;
 
     for (const option of _options) {
       if (!(option instanceof VldObject)) {
@@ -58,8 +61,13 @@ export class VldDiscriminatedUnion<K extends string, Options extends VldBase<any
           throw new Error(`Duplicate discriminator value "${String(value)}" found in discriminated union`);
         }
         this._discriminatorMap.set(value, option);
+        if (typeof value === 'string') {
+          this._stringDiscriminatorMap[value] = option;
+        }
       }
     }
+
+    this._validValues = Array.from(this._discriminatorMap.keys());
   }
 
   static create<K extends string, Options extends VldBase<any, any>[]>(
@@ -70,11 +78,27 @@ export class VldDiscriminatedUnion<K extends string, Options extends VldBase<any
   }
 
   parse(value: unknown): Options[number] extends VldBase<any, infer T> ? T : never {
-    const result = this.safeParse(value);
-    if (!result.success) {
-      throw result.error;
+    if (typeof value !== 'object' || value === null) {
+      throw new Error(`Expected object, received ${value === null ? 'null' : typeof value}`);
     }
-    return result.data;
+
+    const discriminatorValue = (value as Record<string, unknown>)[this._discriminator];
+    const matchedSchema = typeof discriminatorValue === 'string'
+      ? this._stringDiscriminatorMap[discriminatorValue]
+      : this._discriminatorMap.get(discriminatorValue);
+
+    if (!matchedSchema) {
+      throw new Error(
+        `Invalid discriminator value for "${this._discriminator}". ` +
+        `Expected one of: ${JSON.stringify(this._validValues)}, ` +
+        `received: ${JSON.stringify(discriminatorValue)}`
+      );
+    }
+
+    return matchedSchema.parseTrustedKnownObject(
+      value as Record<string, unknown>,
+      this._discriminator
+    ) as Options[number] extends VldBase<any, infer T> ? T : never;
   }
 
   safeParse(value: unknown): ParseResult<Options[number] extends VldBase<any, infer T> ? T : never> {
@@ -92,22 +116,35 @@ export class VldDiscriminatedUnion<K extends string, Options extends VldBase<any
     const discriminatorValue = (value as Record<string, unknown>)[this._discriminator];
 
     // Look up matching schema
-    const matchedSchema = this._discriminatorMap.get(discriminatorValue);
+    const matchedSchema = typeof discriminatorValue === 'string'
+      ? this._stringDiscriminatorMap[discriminatorValue]
+      : this._discriminatorMap.get(discriminatorValue);
 
     if (!matchedSchema) {
-      const validValues = Array.from(this._discriminatorMap.keys());
       return {
         success: false,
         error: new Error(
           `Invalid discriminator value for "${this._discriminator}". ` +
-          `Expected one of: ${JSON.stringify(validValues)}, ` +
+          `Expected one of: ${JSON.stringify(this._validValues)}, ` +
           `received: ${JSON.stringify(discriminatorValue)}`
         )
       };
     }
 
-    // Validate against matched schema
-    return matchedSchema.safeParse(value) as ParseResult<Options[number] extends VldBase<any, infer T> ? T : never>;
+    try {
+      return {
+        success: true,
+        data: matchedSchema.parseTrustedKnownObject(
+          value as Record<string, unknown>,
+          this._discriminator
+        ) as Options[number] extends VldBase<any, infer T> ? T : never
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error as Error
+      };
+    }
   }
 
   /**

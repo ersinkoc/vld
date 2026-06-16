@@ -66,10 +66,10 @@ export const validateCommand: CliCommand = {
     }
   ],
   action: async (args, options) => {
-    const schemaPath = args.schema as string;
-    const dataArg = args.data as string;
-    const quiet = options.quiet as boolean;
-    const json = options.json as boolean;
+    const schemaPath = args['schema'] as string;
+    const dataArg = args['data'] as string;
+    const quiet = options['quiet'] as boolean;
+    const json = options['json'] as boolean;
     const noColor = options['no-color'] as boolean;
 
     // Load schema
@@ -150,13 +150,13 @@ export const validateCommand: CliCommand = {
     } else {
       if (result.success) {
         if (!quiet) {
-          console.log(pigment.green('✓ Validation passed'));
+          console.log(pigment.green('Validation passed'));
           console.log('');
           console.log(pigment.dim('Data:'));
           console.log(JSON.stringify(result.data, null, 2));
         }
       } else {
-        console.error(pigment.red('✗ Validation failed'));
+        console.error(pigment.red('Validation failed'));
         console.error('');
 
         // Check if it's a VldError with issues

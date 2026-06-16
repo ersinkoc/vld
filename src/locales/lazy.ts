@@ -18,15 +18,19 @@
  */
 
 import type { Locale, LocaleMessages } from './types';
-import { en } from './en'; // English is always bundled as fallback
+import {
+  getLocale,
+  getMessages,
+  getMessagesForLocale,
+  isLocaleLoaded,
+  registerLocale,
+  setLocale as setRuntimeLocale
+} from './runtime';
 
 // ============================================
 // State
 // ============================================
 
-let currentLocale: Locale = 'en';
-let currentMessages: LocaleMessages = en;
-const loadedLocales = new Map<Locale, LocaleMessages>([['en', en]]);
 
 // ============================================
 // Dynamic Import Registry
@@ -91,16 +95,14 @@ const localeLoaders: Partial<Record<Locale, LocaleLoader>> = {
  */
 export async function setLocaleAsync(locale: Locale): Promise<void> {
   // If already loaded, just switch
-  if (loadedLocales.has(locale)) {
-    currentLocale = locale;
-    currentMessages = loadedLocales.get(locale)!;
+  if (isLocaleLoaded(locale)) {
+    setRuntimeLocale(locale);
     return;
   }
 
   // If English, it's already bundled
   if (locale === 'en') {
-    currentLocale = 'en';
-    currentMessages = en;
+    setRuntimeLocale('en');
     return;
   }
 
@@ -113,9 +115,8 @@ export async function setLocaleAsync(locale: Locale): Promise<void> {
 
   try {
     const messages = await loader();
-    loadedLocales.set(locale, messages);
-    currentLocale = locale;
-    currentMessages = messages;
+    registerLocale(locale, messages);
+    setRuntimeLocale(locale);
   } catch (error) {
     console.warn(`Failed to load locale "${locale}". Falling back to English.`, error);
   }
@@ -137,9 +138,8 @@ export async function setLocaleAsync(locale: Locale): Promise<void> {
  * ```
  */
 export function setLocale(locale: Locale): void {
-  if (loadedLocales.has(locale)) {
-    currentLocale = locale;
-    currentMessages = loadedLocales.get(locale)!;
+  if (isLocaleLoaded(locale)) {
+    setRuntimeLocale(locale);
     return;
   }
 
@@ -163,44 +163,6 @@ export function setLocale(locale: Locale): void {
  * registerLocale('tr', tr);
  * ```
  */
-export function registerLocale(locale: Locale, messages: LocaleMessages): void {
-  loadedLocales.set(locale, messages);
-}
-
-/**
- * Get the current locale code
- */
-export function getLocale(): Locale {
-  return currentLocale;
-}
-
-/**
- * Get messages for the current locale
- * This is used internally by validators to get error messages.
- */
-export function getMessages(): LocaleMessages {
-  return currentMessages;
-}
-
-/**
- * Get messages for a specific locale
- * Returns English fallback if locale is not loaded.
- *
- * @param locale - The locale to get messages for
- */
-export function getMessagesForLocale(locale: Locale): LocaleMessages {
-  return loadedLocales.get(locale) || en;
-}
-
-/**
- * Check if a locale is loaded and available for synchronous use
- *
- * @param locale - The locale to check
- */
-export function isLocaleLoaded(locale: Locale): boolean {
-  return loadedLocales.has(locale);
-}
-
 /**
  * Check if a locale is supported (can be lazy loaded)
  *
@@ -232,12 +194,12 @@ export function getSupportedLocales(): Locale[] {
 export async function preloadLocales(locales: Locale[]): Promise<void> {
   await Promise.all(
     locales.map(async (locale) => {
-      if (!loadedLocales.has(locale) && locale !== 'en') {
+      if (!isLocaleLoaded(locale) && locale !== 'en') {
         const loader = localeLoaders[locale];
         if (loader) {
           try {
             const messages = await loader();
-            loadedLocales.set(locale, messages);
+            registerLocale(locale, messages);
           } catch {
             // Silently ignore preload failures
           }
@@ -252,3 +214,10 @@ export async function preloadLocales(locales: Locale[]): Promise<void> {
 // ============================================
 
 export type { Locale, LocaleMessages } from './types';
+export {
+  getLocale,
+  getMessages,
+  getMessagesForLocale,
+  isLocaleLoaded,
+  registerLocale
+};

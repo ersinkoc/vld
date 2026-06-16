@@ -42,6 +42,19 @@ describe('Error Formatting Tests', () => {
       expect(error.issues).toHaveLength(2);
       expect(error.formattedErrors).toHaveLength(2);
     });
+
+    it('should work in runtimes without Error.captureStackTrace', () => {
+      const originalCaptureStackTrace = Error.captureStackTrace;
+      Error.captureStackTrace = undefined as unknown as typeof Error.captureStackTrace;
+
+      try {
+        const error = new VldError([{ code: 'custom', path: [], message: 'No stack helper' }]);
+        expect(error.message).toBe('No stack helper');
+        expect(error.name).toBe('VldError');
+      } finally {
+        Error.captureStackTrace = originalCaptureStackTrace;
+      }
+    });
   });
 
   describe('treeifyError', () => {
@@ -68,8 +81,8 @@ describe('Error Formatting Tests', () => {
       const tree = treeifyError(error);
 
       expect(tree.errors).toEqual(['Unrecognized key: "extraKey"']);
-      expect(tree.properties?.username?.errors).toEqual(['Invalid input: expected string, received number']);
-      expect(tree.properties?.favoriteNumbers?.items?.[1]?.errors).toEqual(['Invalid input: expected number, received string']);
+      expect(tree.properties?.['username']?.errors).toEqual(['Invalid input: expected string, received number']);
+      expect(tree.properties?.['favoriteNumbers']?.items?.[1]?.errors).toEqual(['Invalid input: expected number, received string']);
     });
 
     it('should handle nested object paths', () => {
@@ -84,7 +97,40 @@ describe('Error Formatting Tests', () => {
       const error = new VldError(issues);
       const tree = treeifyError(error);
 
-      expect(tree.properties?.user?.properties?.profile?.properties?.name?.errors).toEqual(['Name is required']);
+      expect(tree.properties?.['user']?.properties?.['profile']?.properties?.['name']?.errors).toEqual(['Name is required']);
+    });
+
+    it('should reuse existing array item nodes for sibling nested errors', () => {
+      const issues: VldIssue[] = [
+        {
+          code: 'invalid_type',
+          path: ['items', 0, 'name'],
+          message: 'Invalid name'
+        },
+        {
+          code: 'invalid_type',
+          path: ['items', 0, 'age'],
+          message: 'Invalid age'
+        }
+      ];
+
+      const tree = treeifyError(new VldError(issues));
+      const item = tree.properties?.['items']?.items?.[0];
+
+      expect(item?.properties?.['name']?.errors).toEqual(['Invalid name']);
+      expect(item?.properties?.['age']?.errors).toEqual(['Invalid age']);
+    });
+
+    it('should ignore unsupported defensive path segment types', () => {
+      const tree = treeifyError(new VldError([
+        {
+          code: 'custom',
+          path: [true as unknown as string],
+          message: 'Ignored defensive path segment'
+        }
+      ]));
+
+      expect(tree).toEqual({ errors: [] });
     });
   });
 
@@ -133,6 +179,27 @@ describe('Error Formatting Tests', () => {
       expect(pretty).toContain('✖ Invalid theme value');
       expect(pretty).toContain('→ at users[0].profile.settings.theme');
     });
+
+    it('should format colored numeric paths and details', () => {
+      const error = new VldError([
+        {
+          code: 'invalid_type',
+          path: ['items', 0],
+          message: 'Invalid item',
+          expected: 'string',
+          received: 'number'
+        }
+      ]);
+
+      const pretty = prettifyError(error, { colored: true, includeDetails: true });
+
+      expect(pretty).toContain('Invalid item');
+      expect(pretty).toContain('[0]');
+      expect(pretty).toContain('expected: ');
+      expect(pretty).toContain('string');
+      expect(pretty).toContain('received: ');
+      expect(pretty).toContain('number');
+    });
   });
 
   describe('flattenError', () => {
@@ -159,8 +226,8 @@ describe('Error Formatting Tests', () => {
       const flattened = flattenError(error);
 
       expect(flattened.formErrors).toEqual(['Unrecognized key: "extraKey"']);
-      expect(flattened.fieldErrors.username).toEqual(['Invalid username']);
-      expect(flattened.fieldErrors.email).toEqual(['Invalid email']);
+      expect(flattened.fieldErrors['username']).toEqual(['Invalid username']);
+      expect(flattened.fieldErrors['email']).toEqual(['Invalid email']);
     });
 
     it('should handle nested field paths', () => {
@@ -180,7 +247,7 @@ describe('Error Formatting Tests', () => {
       const error = new VldError(issues);
       const flattened = flattenError(error);
 
-      expect(flattened.fieldErrors.user).toEqual(['Name is required', 'Email is invalid']);
+      expect(flattened.fieldErrors['user']).toEqual(['Name is required', 'Email is invalid']);
     });
   });
 
@@ -228,7 +295,7 @@ describe('Error Formatting Tests', () => {
       const error = new VldError(issues);
       const tree = treeifyError(error);
 
-      expect(tree.properties?.items?.items?.[0]?.errors).toEqual(['Invalid item']);
+      expect(tree.properties?.['items']?.items?.[0]?.errors).toEqual(['Invalid item']);
     });
 
     it('should handle deep nested array paths', () => {
@@ -243,7 +310,7 @@ describe('Error Formatting Tests', () => {
       const error = new VldError(issues);
       const tree = treeifyError(error);
 
-      expect(tree.properties?.items?.items?.[0]?.items?.[1]?.items?.[2]?.errors).toEqual(['Deep nested error']);
+      expect(tree.properties?.['items']?.items?.[0]?.items?.[1]?.items?.[2]?.errors).toEqual(['Deep nested error']);
     });
 
     it('should handle mixed path types', () => {
@@ -307,21 +374,31 @@ describe('Error Formatting Tests', () => {
         inclusive: true
       };
 
-      const error = new VldError([issue]);
+      const error = new VldError([issue, {
+        code: 'custom',
+        path: [],
+        message: 'Plain issue'
+      }]);
       const json = error.toJSON();
 
       expect(json.name).toBe('VldError');
       expect(json.code).toBe('VLD_VALIDATION_ERROR');
-      expect(json.issues).toHaveLength(1);
-      expect(json.issues[0].code).toBe('invalid_type');
-      expect(json.issues[0].path).toEqual(['username']);
-      expect(json.issues[0].expected).toBe('string');
-      expect(json.issues[0].received).toBe('number');
-      expect(json.issues[0].keys).toEqual(['extraKey']);
-      expect(json.issues[0].minimum).toBe(5);
-      expect(json.issues[0].maximum).toBe(10);
-      expect(json.issues[0].exact).toBe(8);
-      expect(json.issues[0].inclusive).toBe(true);
+      expect(json.issues).toHaveLength(2);
+      const serializedIssue = json.issues[0]!;
+      expect(serializedIssue.code).toBe('invalid_type');
+      expect(serializedIssue.path).toEqual(['username']);
+      expect(serializedIssue.expected).toBe('string');
+      expect(serializedIssue.received).toBe('number');
+      expect(serializedIssue.keys).toEqual(['extraKey']);
+      expect(serializedIssue.minimum).toBe(5);
+      expect(serializedIssue.maximum).toBe(10);
+      expect(serializedIssue.exact).toBe(8);
+      expect(serializedIssue.inclusive).toBe(true);
+      expect(json.issues[1]).toEqual({
+        code: 'custom',
+        path: [],
+        message: 'Plain issue'
+      });
     });
 
     it('should create VldError from JSON representation', () => {
@@ -335,7 +412,17 @@ describe('Error Formatting Tests', () => {
             path: ['email'],
             message: 'Invalid email',
             expected: 'email',
-            received: 'text'
+            received: 'text',
+            keys: ['extraKey'],
+            minimum: 5,
+            maximum: 10,
+            exact: 8,
+            inclusive: false
+          },
+          {
+            code: 'custom',
+            path: [],
+            message: 'Plain issue'
           }
         ]
       };
@@ -343,9 +430,20 @@ describe('Error Formatting Tests', () => {
       const error = VldError.fromJSON(json);
 
       expect(error).toBeInstanceOf(VldError);
-      expect(error.issues).toHaveLength(1);
-      expect(error.issues[0].code).toBe('invalid_type');
-      expect(error.issues[0].path).toEqual(['email']);
+      expect(error.issues).toHaveLength(2);
+      const restoredIssue = error.issues[0]!;
+      expect(restoredIssue.code).toBe('invalid_type');
+      expect(restoredIssue.path).toEqual(['email']);
+      expect(restoredIssue.keys).toEqual(['extraKey']);
+      expect(restoredIssue.minimum).toBe(5);
+      expect(restoredIssue.maximum).toBe(10);
+      expect(restoredIssue.exact).toBe(8);
+      expect(restoredIssue.inclusive).toBe(false);
+      expect(error.issues[1]).toEqual({
+        code: 'custom',
+        path: [],
+        message: 'Plain issue'
+      });
     });
 
     it('should check if value is VldError', () => {

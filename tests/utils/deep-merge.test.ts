@@ -111,6 +111,20 @@ describe('Deep Merge Utilities', () => {
       expect(result.hasOwnProperty('inherited')).toBe(false);
     });
 
+    it('should keep the redundant own-property guard active', () => {
+      const originalHasOwnProperty = Object.prototype.hasOwnProperty;
+      Object.prototype.hasOwnProperty = function patchedHasOwnProperty() {
+        return false;
+      };
+
+      try {
+        const result = deepMerge({ existing: true }, { own: true } as any);
+        expect(result).toEqual({ existing: true });
+      } finally {
+        Object.prototype.hasOwnProperty = originalHasOwnProperty;
+      }
+    });
+
     it('should handle deeply nested objects', () => {
       const target = {
         level1: {
@@ -238,13 +252,13 @@ describe('Deep Merge Utilities', () => {
 
     it('should handle circular references', () => {
       const obj: any = { a: 1 };
-      obj.circular = obj; // Create circular reference
+      obj['circular'] = obj; // Create circular reference
       
       // deepFreeze should handle this without infinite recursion
       const frozen = deepFreeze(obj);
       
       expect(Object.isFrozen(frozen)).toBe(true);
-      expect(frozen.circular).toBe(frozen);
+      expect(frozen['circular']).toBe(frozen);
     });
   });
 

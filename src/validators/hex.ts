@@ -1,6 +1,6 @@
-import { VldBase, ParseResult } from './base';
+import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
 import { VldError, createIssue } from '../errors';
-import { getMessages } from '../locales';
+import { getMessages } from '../locales/runtime';
 
 /**
  * Hexadecimal string validator
@@ -12,7 +12,7 @@ export class VldHex extends VldBase<string, string> {
   private readonly lowercase: boolean;
   
   constructor(lowercase = false) {
-    super();
+    super(VLD_VALIDATOR_TYPES.HEX);
     this.lowercase = lowercase;
   }
   

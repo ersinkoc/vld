@@ -104,6 +104,26 @@ describe('v.custom()', () => {
     });
   });
 
+  describe('async support', () => {
+    it('should fall back to sync parse for parseAsync and safeParseAsync', async () => {
+      const schema = v.custom<number>({
+        parse: (value: unknown) => {
+          if (typeof value === 'string') return value.length;
+          throw new Error('Expected string');
+        }
+      });
+
+      await expect(schema.parseAsync('vld')).resolves.toBe(3);
+      await expect(schema.safeParseAsync('vld')).resolves.toEqual({ success: true, data: 3 });
+
+      const result = await schema.safeParseAsync(123);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.message).toBe('Expected string');
+      }
+    });
+  });
+
   describe('method chaining', () => {
     it('should work with optional', () => {
       const schema = v.custom({
@@ -220,15 +240,15 @@ describe('v.custom()', () => {
 
           const obj = value as Record<string, unknown>;
 
-          if (typeof obj.name !== 'string') {
+          if (typeof obj['name'] !== 'string') {
             throw new Error('name must be a string');
           }
 
-          if (typeof obj.age !== 'number') {
+          if (typeof obj['age'] !== 'number') {
             throw new Error('age must be a number');
           }
 
-          return { name: obj.name, age: obj.age };
+          return { name: obj['name'], age: obj['age'] };
         }
       });
 

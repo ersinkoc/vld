@@ -1,5 +1,5 @@
-import { VldBase, ParseResult } from './base';
-import { getMessages } from '../locales';
+import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
+import { getMessages } from '../locales/runtime';
 
 /**
  * Configuration for string boolean validation
@@ -24,10 +24,23 @@ const DEFAULT_FALSY = ['false', '0', 'no', 'off', 'n', 'disabled'] as const;
  * Supports string representations like "true", "yes", "on", "1", etc.
  */
 export class VldStringBool extends VldBase<unknown, boolean> {
+  private readonly truthyValues: readonly string[];
+  private readonly falsyValues: readonly string[];
+  private readonly normalizedTruthySet: ReadonlySet<string>;
+  private readonly normalizedFalsySet: ReadonlySet<string>;
+  private readonly validValuesText: string;
+
   private constructor(
     private readonly options: StringBoolOptions
   ) {
-    super();
+    super(VLD_VALIDATOR_TYPES.STRING_BOOL);
+    this.truthyValues = options.truthy ?? DEFAULT_TRUTHY;
+    this.falsyValues = options.falsy ?? DEFAULT_FALSY;
+    const normalizedTruthy = this.normalizeValues(this.truthyValues);
+    const normalizedFalsy = this.normalizeValues(this.falsyValues);
+    this.normalizedTruthySet = new Set(normalizedTruthy);
+    this.normalizedFalsySet = new Set(normalizedFalsy);
+    this.validValuesText = [...normalizedTruthy, ...normalizedFalsy].join(', ');
   }
 
   /**
@@ -44,18 +57,11 @@ export class VldStringBool extends VldBase<unknown, boolean> {
     return this.options.caseSensitive ? value : value.toLowerCase();
   }
 
-  /**
-   * Get the effective truthy values (custom or default)
-   */
-  private getTruthyValues(): readonly string[] {
-    return this.options.truthy ?? DEFAULT_TRUTHY;
-  }
-
-  /**
-   * Get the effective falsy values (custom or default)
-   */
-  private getFalsyValues(): readonly string[] {
-    return this.options.falsy ?? DEFAULT_FALSY;
+  private normalizeValues(values: readonly string[]): readonly string[] {
+    if (this.options.caseSensitive) {
+      return values;
+    }
+    return values.map(value => value.toLowerCase());
   }
 
   /**
@@ -74,33 +80,21 @@ export class VldStringBool extends VldBase<unknown, boolean> {
     }
 
     const normalized = this.normalizeValue(value);
-    const truthyValues = this.getTruthyValues();
-    const falsyValues = this.getFalsyValues();
-
-    // Normalize the value sets for comparison
-    const normalizedTruthy = this.options.caseSensitive
-      ? truthyValues
-      : truthyValues.map(v => v.toLowerCase());
-
-    const normalizedFalsy = this.options.caseSensitive
-      ? falsyValues
-      : falsyValues.map(v => v.toLowerCase());
 
     // Check if value is in truthy set
-    if (normalizedTruthy.includes(normalized)) {
+    if (this.normalizedTruthySet.has(normalized)) {
       return true;
     }
 
     // Check if value is in falsy set
-    if (normalizedFalsy.includes(normalized)) {
+    if (this.normalizedFalsySet.has(normalized)) {
       return false;
     }
 
     // Value is not recognized
-    const allValidValues = [...normalizedTruthy, ...normalizedFalsy];
     throw new Error(
       getMessages().stringBoolExpected(
-        this.options.caseSensitive ? allValidValues.join(', ') : allValidValues.join(', '),
+        this.validValuesText,
         value
       )
     );

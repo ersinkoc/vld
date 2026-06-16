@@ -3,8 +3,13 @@
  * Part of Zod 4 API parity implementation
  */
 
-import { VldBase } from './base';
+import { VldBase, VLD_VALIDATOR_TYPES } from './base';
 import type { ParseResult } from './base';
+import { VldError } from '../errors-core';
+
+function createNanError(message: string): VldError {
+  return new VldError([{ code: 'invalid_number', path: [], message }]);
+}
 
 /**
  * NaN validator - validates that a value is NaN
@@ -12,7 +17,7 @@ import type { ParseResult } from './base';
  */
 export class VldNan extends VldBase<unknown, number> {
   private constructor() {
-    super();
+    super(VLD_VALIDATOR_TYPES.NAN);
   }
 
   static create(): VldNan {
@@ -30,7 +35,7 @@ export class VldNan extends VldBase<unknown, number> {
     try {
       return { success: true, data: this.parse(value) };
     } catch (error) {
-      return { success: false, error: error as Error };
+      return { success: false, error: createNanError((error as Error).message) };
     }
   }
 }

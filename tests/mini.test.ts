@@ -68,7 +68,46 @@ import {
 
   // Class exports
   VldBase,
+  VldRefine,
+  VldTransform,
+  VldDefault,
+  VldCatch,
+  VldOptional,
+  VldNullable,
+  VldNullish,
+  VldPipe,
+  VldReadonly,
+  VldBrand,
+  VldPreprocess,
+  VldSuperRefine,
   VldString,
+  VldNumber,
+  VldBoolean,
+  VldDate,
+  VldBigInt,
+  VldSymbol,
+  VldStringBool,
+  VldArray,
+  VldObject,
+  VldTuple,
+  VldRecord,
+  VldSet,
+  VldMap,
+  VldUnion,
+  VldIntersection,
+  VldLiteral,
+  VldEnum,
+  VldAny,
+  VldUnknown,
+  VldVoid,
+  VldNever,
+  VldNull,
+  VldUndefined,
+  VldNan,
+  VldLazy,
+  VldDiscriminatedUnion,
+  VldXor,
+  VldJson,
 } from '../src/mini';
 
 describe('Mini API', () => {
@@ -438,6 +477,54 @@ describe('Mini API', () => {
       expect(VldString).toBeDefined();
       const schema = VldString.create();
       expect(schema.parse('hello')).toBe('hello');
+    });
+
+    test('all Mini validator class re-exports are available for advanced usage', () => {
+      const validatorClasses = [
+        VldRefine,
+        VldTransform,
+        VldDefault,
+        VldCatch,
+        VldOptional,
+        VldNullable,
+        VldNullish,
+        VldPipe,
+        VldReadonly,
+        VldBrand,
+        VldPreprocess,
+        VldSuperRefine,
+        VldNumber,
+        VldBoolean,
+        VldDate,
+        VldBigInt,
+        VldSymbol,
+        VldStringBool,
+        VldArray,
+        VldObject,
+        VldTuple,
+        VldRecord,
+        VldSet,
+        VldMap,
+        VldUnion,
+        VldIntersection,
+        VldLiteral,
+        VldEnum,
+        VldAny,
+        VldUnknown,
+        VldVoid,
+        VldNever,
+        VldNull,
+        VldUndefined,
+        VldNan,
+        VldLazy,
+        VldDiscriminatedUnion,
+        VldXor,
+        VldJson,
+      ];
+
+      for (const validatorClass of validatorClasses) {
+        expect(typeof validatorClass).toBe('function');
+      }
     });
   });
 });

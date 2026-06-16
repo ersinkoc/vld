@@ -1,6 +1,6 @@
 import { VldNumber } from '../validators/number';
 import { ParseResult, VLD_VALIDATOR_TYPES } from '../validators/base';
-import { getMessages } from '../locales';
+import { getMessages } from '../locales/runtime';
 
 /**
  * Number coercion validator that attempts to convert values to numbers
@@ -13,75 +13,75 @@ export class VldCoerceNumber extends VldNumber {
   /**
    * Create a new coerce number validator
    */
-  static create(): VldCoerceNumber {
+  static override create(): VldCoerceNumber {
     return new VldCoerceNumber();
   }
   
   // Override all chain methods to return VldCoerceNumber instances
-  min(value: number, message?: string): VldCoerceNumber {
+  override min(value: number, message?: string): VldCoerceNumber {
     return new VldCoerceNumber({
       checks: [...this.config.checks, (v: number) => v >= value],
       errorMessage: message || getMessages().numberMin(value)
     });
   }
   
-  max(value: number, message?: string): VldCoerceNumber {
+  override max(value: number, message?: string): VldCoerceNumber {
     return new VldCoerceNumber({
       checks: [...this.config.checks, (v: number) => v <= value],
       errorMessage: message || getMessages().numberMax(value)
     });
   }
   
-  int(message?: string): VldCoerceNumber {
+  override int(message?: string): VldCoerceNumber {
     return new VldCoerceNumber({
       checks: [...this.config.checks, (v: number) => Number.isInteger(v)],
       errorMessage: message || getMessages().numberInt
     });
   }
   
-  positive(message?: string): VldCoerceNumber {
+  override positive(message?: string): VldCoerceNumber {
     return new VldCoerceNumber({
       checks: [...this.config.checks, (v: number) => v > 0],
       errorMessage: message || getMessages().numberPositive
     });
   }
   
-  negative(message?: string): VldCoerceNumber {
+  override negative(message?: string): VldCoerceNumber {
     return new VldCoerceNumber({
       checks: [...this.config.checks, (v: number) => v < 0],
       errorMessage: message || getMessages().numberNegative
     });
   }
   
-  nonnegative(message?: string): VldCoerceNumber {
+  override nonnegative(message?: string): VldCoerceNumber {
     return new VldCoerceNumber({
       checks: [...this.config.checks, (v: number) => v >= 0],
       errorMessage: message || getMessages().numberNonnegative
     });
   }
   
-  nonpositive(message?: string): VldCoerceNumber {
+  override nonpositive(message?: string): VldCoerceNumber {
     return new VldCoerceNumber({
       checks: [...this.config.checks, (v: number) => v <= 0],
       errorMessage: message || getMessages().numberNonpositive
     });
   }
   
-  finite(message?: string): VldCoerceNumber {
+  override finite(message?: string): VldCoerceNumber {
     return new VldCoerceNumber({
       checks: [...this.config.checks, (v: number) => Number.isFinite(v)],
       errorMessage: message || getMessages().numberFinite
     });
   }
   
-  safe(message?: string): VldCoerceNumber {
+  override safe(message?: string): VldCoerceNumber {
     return new VldCoerceNumber({
       checks: [...this.config.checks, (v: number) => Number.isSafeInteger(v)],
       errorMessage: message || getMessages().numberSafe
     });
   }
   
-  multipleOf(value: number, message?: string): VldCoerceNumber {
+  override multipleOf(value: number, message?: string): VldCoerceNumber {
     return new VldCoerceNumber({
       checks: [...this.config.checks, (v: number) => {
         // BUG-004 FIX: Use epsilon comparison for floating point precision (consistent with VldNumber)
@@ -92,18 +92,18 @@ export class VldCoerceNumber extends VldNumber {
     });
   }
   
-  step(value: number, message?: string): VldCoerceNumber {
+  override step(value: number, message?: string): VldCoerceNumber {
     return this.multipleOf(value, message);
   }
   
-  between(min: number, max: number, message?: string): VldCoerceNumber {
+  override between(min: number, max: number, message?: string): VldCoerceNumber {
     return new VldCoerceNumber({
       checks: [...this.config.checks, (v: number) => v >= min && v <= max],
       errorMessage: message || `Number must be between ${min} and ${max}`
     });
   }
   
-  even(message?: string): VldCoerceNumber {
+  override even(message?: string): VldCoerceNumber {
     // BUG-NEW-007 FIX: Add integer check before even/odd validation
     return new VldCoerceNumber({
       checks: [...this.config.checks, (v: number) => {
@@ -116,7 +116,7 @@ export class VldCoerceNumber extends VldNumber {
     });
   }
   
-  odd(message?: string): VldCoerceNumber {
+  override odd(message?: string): VldCoerceNumber {
     // BUG-NEW-007 FIX: Add integer check before even/odd validation
     return new VldCoerceNumber({
       checks: [...this.config.checks, (v: number) => {
@@ -132,34 +132,30 @@ export class VldCoerceNumber extends VldNumber {
   /**
    * Parse and coerce a value to number
    */
-  parse(value: unknown): number {
+  override parse(value: unknown): number {
     // If it's already a valid number, use parent validation directly
     if (typeof value === 'number' && !isNaN(value)) {
+      if (this.config.checks.length === 0) {
+        return value;
+      }
       return super.parse(value);
     }
     
     let coerced: number;
-    
-    if (typeof value === 'string') {
-      const trimmed = value.trim();
-      if (trimmed === '') {
-        throw new Error(getMessages().coercionFailed('number', value));
-      }
-      coerced = Number(trimmed);
-      if (isNaN(coerced)) {
-        throw new Error(getMessages().coercionFailed('number', value));
-      }
-    } else if (typeof value === 'boolean') {
-      coerced = value ? 1 : 0;
-    } else if (value === null || value === undefined) {
-      throw new Error(getMessages().coercionFailed('number', value));
-    } else {
+    try {
       coerced = Number(value);
-      if (isNaN(coerced)) {
-        throw new Error(getMessages().coercionFailed('number', value));
-      }
+    } catch {
+      throw new Error(getMessages().coercionFailed('number', value));
+    }
+
+    if (isNaN(coerced)) {
+      throw new Error(getMessages().coercionFailed('number', value));
     }
     
+    if (this.config.checks.length === 0) {
+      return coerced;
+    }
+
     // Use parent validation with coerced value
     return super.parse(coerced);
   }
@@ -167,7 +163,7 @@ export class VldCoerceNumber extends VldNumber {
   /**
    * Safely parse and coerce a value to number
    */
-  safeParse(value: unknown): ParseResult<number> {
+  override safeParse(value: unknown): ParseResult<number> {
     try {
       return { success: true, data: this.parse(value) };
     } catch (error) {

@@ -86,9 +86,11 @@ describe('VldHex', () => {
     });
 
     it('should test constructor default parameter branch', () => {
+      const defaultValidator = new VldHex();
       const standardValidator = VldHex.create(false); // Explicit false
       const lowercaseValidator = VldHex.create(true); // Explicit true
       
+      expect(defaultValidator.parse('DEADBEEF')).toBe('DEADBEEF');
       expect(standardValidator.parse('DEADBEEF')).toBe('DEADBEEF');
       expect(lowercaseValidator.parse('DEADBEEF')).toBe('deadbeef');
     });

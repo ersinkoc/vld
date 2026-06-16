@@ -31,7 +31,7 @@ export function deepMerge<T extends Record<string, any>>(
   const sourceKeys = Object.keys(source);
 
   for (let i = 0; i < sourceKeys.length; i++) {
-    const key = sourceKeys[i];
+    const key = sourceKeys[i]!;
 
     // Skip dangerous keys that could lead to prototype pollution
     if (isDangerousKey(key)) {

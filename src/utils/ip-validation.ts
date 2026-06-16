@@ -15,7 +15,9 @@ export function isValidIPv6(ip: string): boolean {
   }
 
   // Allow zone IDs (interface identifiers) by splitting them out
-  const [ipPart, zoneId] = ip.split('%');
+  const ipParts = ip.split('%');
+  const ipPart = ipParts[0]!;
+  const zoneId = ipParts[1];
   const ipToValidate = zoneId ? ipPart : ip;
 
   // Special handling for IPv4-mapped IPv6 addresses

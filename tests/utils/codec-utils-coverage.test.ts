@@ -59,9 +59,44 @@ describe('Codec Utils Coverage Tests', () => {
       expect(() => safeAtob('abc===')).toThrow('Invalid base64 format');
     });
 
+    it('should keep the defensive invalid-padding guard active', () => {
+      const originalTest = RegExp.prototype.test;
+      RegExp.prototype.test = function patchedTest(this: RegExp, value: string): boolean {
+        if (this.source === '^[A-Za-z0-9+/]*={0,2}$') {
+          return true;
+        }
+        if (this.source === '^={1,2}$') {
+          return false;
+        }
+        return originalTest.call(this, value);
+      };
+
+      try {
+        expect(() => safeAtob('abc===')).toThrow('Invalid base64 padding');
+      } finally {
+        RegExp.prototype.test = originalTest;
+      }
+    });
+
     it('should throw on base64 padding not at end', () => {
       // Padding in the middle is invalid
       expect(() => safeAtob('a=bc')).toThrow('Invalid base64 format');
+    });
+
+    it('should keep the defensive padding-position guard active', () => {
+      const originalTest = RegExp.prototype.test;
+      RegExp.prototype.test = function patchedTest(this: RegExp, value: string): boolean {
+        if (this.source === '^[A-Za-z0-9+/]*={0,2}$' || this.source === '^={1,2}$') {
+          return true;
+        }
+        return originalTest.call(this, value);
+      };
+
+      try {
+        expect(() => safeAtob('a=bc')).toThrow('Base64 padding must be at the end');
+      } finally {
+        RegExp.prototype.test = originalTest;
+      }
     });
 
     it('should throw on invalid base64 characters', () => {
@@ -88,6 +123,83 @@ describe('Codec Utils Coverage Tests', () => {
     it('should throw on extremely large base64 input', () => {
       const largeBase64 = 'A'.repeat(10000001);
       expect(() => safeAtob(largeBase64)).toThrow('Base64 input is too large');
+    });
+
+    it('should wrap native atob decode failures', () => {
+      const originalAtob = global.atob;
+      (global as any).atob = () => {
+        throw new Error('native failure');
+      };
+
+      try {
+        expect(() => safeAtob('SGVsbG8=')).toThrow('Failed to decode base64 data');
+      } finally {
+        (global as any).atob = originalAtob;
+      }
+    });
+
+    it('should reject oversized decoded data in the Node fallback', () => {
+      const originalAtob = global.atob;
+      const originalBuffer = globalThis.Buffer;
+      const originalProcess = globalThis.process;
+      delete (global as any).atob;
+      (globalThis as any).Buffer = {
+        from: () => ({
+          length: 5000001,
+          toString: () => 'oversized'
+        })
+      };
+      (globalThis as any).process = { versions: { node: '20.0.0' } };
+
+      try {
+        expect(() => safeAtob('SGVsbG8=')).toThrow('Failed to decode base64 data in Node.js environment');
+      } finally {
+        (global as any).atob = originalAtob;
+        (globalThis as any).Buffer = originalBuffer;
+        (globalThis as any).process = originalProcess;
+      }
+    });
+
+    it('should normalize invalid base64 errors in the Node fallback', () => {
+      const originalAtob = global.atob;
+      const originalBuffer = globalThis.Buffer;
+      const originalProcess = globalThis.process;
+      delete (global as any).atob;
+      (globalThis as any).Buffer = {
+        from: () => {
+          throw new Error('Invalid base64 payload');
+        }
+      };
+      (globalThis as any).process = { versions: { node: '20.0.0' } };
+
+      try {
+        expect(() => safeAtob('SGVsbG8=')).toThrow('Invalid base64 format');
+      } finally {
+        (global as any).atob = originalAtob;
+        (globalThis as any).Buffer = originalBuffer;
+        (globalThis as any).process = originalProcess;
+      }
+    });
+
+    it('should wrap generic Node fallback decode failures', () => {
+      const originalAtob = global.atob;
+      const originalBuffer = globalThis.Buffer;
+      const originalProcess = globalThis.process;
+      delete (global as any).atob;
+      (globalThis as any).Buffer = {
+        from: () => {
+          throw new Error('decode failure');
+        }
+      };
+      (globalThis as any).process = { versions: { node: '20.0.0' } };
+
+      try {
+        expect(() => safeAtob('SGVsbG8=')).toThrow('Failed to decode base64 data in Node.js environment');
+      } finally {
+        (global as any).atob = originalAtob;
+        (globalThis as any).Buffer = originalBuffer;
+        (globalThis as any).process = originalProcess;
+      }
     });
   });
 });

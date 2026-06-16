@@ -1,13 +1,20 @@
-import { VldBase, ParseResult } from './base';
-import { getMessages } from '../locales';
+import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
+import { getMessages } from '../locales/runtime';
+import { VldError } from '../errors-core';
+
+type SimpleItemMode = 'string' | 'number' | 'boolean' | undefined;
+
+function createArrayError(message: string): VldError {
+  return new VldError([{ code: 'invalid_array', path: [], message }]);
+}
 
 /**
  * Configuration for array validator
  */
 interface ArrayValidatorConfig<T> {
   readonly itemValidator: VldBase<unknown, T>;
-  readonly minLength?: number;
-  readonly maxLength?: number;
+  readonly minLength?: number | undefined;
+  readonly maxLength?: number | undefined;
   readonly exactLength?: number;
   readonly unique?: boolean;
   readonly errorMessage?: string;
@@ -18,13 +25,32 @@ interface ArrayValidatorConfig<T> {
  */
 export class VldArray<T> extends VldBase<unknown[], T[]> {
   private readonly config: ArrayValidatorConfig<T>;
+  private readonly _simpleItemMode: SimpleItemMode;
   
   /**
    * Private constructor to enforce immutability
    */
   private constructor(config: ArrayValidatorConfig<T>) {
-    super();
+    super(VLD_VALIDATOR_TYPES.ARRAY);
     this.config = config;
+    this._simpleItemMode = this.getSimpleItemMode(config.itemValidator);
+  }
+
+  private getSimpleItemMode(itemValidator: VldBase<unknown, T>): SimpleItemMode {
+    if ((itemValidator as any).isSimple !== true) {
+      return undefined;
+    }
+
+    switch (itemValidator.validatorType) {
+      case VLD_VALIDATOR_TYPES.STRING:
+        return 'string';
+      case VLD_VALIDATOR_TYPES.NUMBER:
+        return 'number';
+      case VLD_VALIDATOR_TYPES.BOOLEAN:
+        return 'boolean';
+      default:
+        return undefined;
+    }
   }
   
   /**
@@ -41,7 +67,19 @@ export class VldArray<T> extends VldBase<unknown[], T[]> {
     if (!Array.isArray(value)) {
       throw new Error(this.config.errorMessage || getMessages().invalidArray);
     }
-    
+
+    return this.parseArrayValue(value);
+  }
+
+  /**
+   * Parse a value that has already passed the array type guard.
+   * @internal Used by object validators to avoid duplicate hot-path checks.
+   */
+  parseKnownArray(value: unknown[]): T[] {
+    return this.parseArrayValue(value);
+  }
+
+  private parseArrayValue(value: unknown[]): T[] {
     // Validate length constraints
     if (this.config.exactLength !== undefined && value.length !== this.config.exactLength) {
       throw new Error(this.config.errorMessage || getMessages().arrayLength(this.config.exactLength));
@@ -55,16 +93,50 @@ export class VldArray<T> extends VldBase<unknown[], T[]> {
       throw new Error(this.config.errorMessage || getMessages().arrayMax(this.config.maxLength));
     }
     
-    // Validate each item with optimized loop and safeParse
-    const result: T[] = [];
     const length = value.length;
-    
-    for (let i = 0; i < length; i++) {
-      const parseResult = this.config.itemValidator.safeParse(value[i]);
-      if (!parseResult.success) {
-        throw new Error(getMessages().arrayItem(i, parseResult.error.message));
+    const result = new Array<T>(length);
+    const simpleItemMode = this._simpleItemMode;
+
+    if (simpleItemMode !== undefined) {
+      for (let i = 0; i < length; i++) {
+        const item = value[i];
+        switch (simpleItemMode) {
+          case 'string':
+            if (typeof item !== 'string') {
+              throw new Error(getMessages().arrayItem(i, getMessages().invalidString));
+            }
+            result[i] = item as T;
+            break;
+          case 'number':
+            if (typeof item !== 'number' || isNaN(item)) {
+              throw new Error(getMessages().arrayItem(i, getMessages().invalidNumber));
+            }
+            result[i] = item as T;
+            break;
+          case 'boolean':
+            if (typeof item !== 'boolean') {
+              throw new Error(getMessages().arrayItem(i, getMessages().invalidBoolean));
+            }
+            result[i] = item as T;
+            break;
+        }
       }
-      result[i] = parseResult.data; // Direct assignment is faster than push
+
+      if (this.config.unique) {
+        this.checkUnique(result);
+      }
+
+      return result;
+    }
+
+    // Validate each item without allocating a ParseResult object per element.
+    for (let i = 0; i < length; i++) {
+      try {
+        result[i] = this.config.itemValidator.parse(value[i]);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(getMessages().arrayItem(i, message));
+      }
     }
     
     // Check uniqueness if required - optimized with Map-based approach
@@ -82,7 +154,7 @@ export class VldArray<T> extends VldBase<unknown[], T[]> {
     try {
       return { success: true, data: this.parse(value) };
     } catch (error) {
-      return { success: false, error: error as Error };
+      return { success: false, error: createArrayError((error as Error).message) };
     }
   }
 
@@ -173,7 +245,7 @@ export class VldArray<T> extends VldBase<unknown[], T[]> {
 
     try {
       return sortedStringify(obj);
-    } catch (error) {
+    } catch {
       // Fallback to safe representation if stringify fails
       return String(obj);
     }

@@ -4,7 +4,7 @@
  */
 
 const Benchmark = require('benchmark');
-const { v } = require('../dist');
+const { v } = require('@oxog/vld');
 const z = require('zod');
 
 // Console colors for better output
@@ -34,14 +34,14 @@ function formatOps(ops) {
  * Run a benchmark suite
  */
 function runSuite(name, tests) {
-  console.log(`\n${colors.bright}${colors.blue}━━━ ${name} ━━━${colors.reset}\n`);
+  console.log(`\n${colors.bright}${colors.blue}=== ${name} ===${colors.reset}\n`);
   
   const suite = new Benchmark.Suite(name, {
     onCycle: (event) => {
       const bench = event.target;
       const ops = formatOps(bench.hz);
       const rme = bench.stats.rme.toFixed(2);
-      console.log(`  ${colors.cyan}${bench.name.padEnd(30)}${colors.reset} ${colors.green}${ops.padStart(10)} ops/sec${colors.reset} ${colors.yellow}(±${rme}%)${colors.reset}`);
+      console.log(`  ${colors.cyan}${bench.name.padEnd(30)}${colors.reset} ${colors.green}${ops.padStart(10)} ops/sec${colors.reset} ${colors.yellow}(+-${rme}%)${colors.reset}`);
     },
     onComplete: function() {
       const fastest = this.filter('fastest')[0];
@@ -440,4 +440,4 @@ runSuite('Tuple Validation', {
   }
 });
 
-console.log(`\n${colors.bright}${colors.green}✓ All benchmarks completed${colors.reset}\n`);
+console.log(`\n${colors.bright}${colors.green}PASS All benchmarks completed${colors.reset}\n`);

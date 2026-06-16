@@ -3,7 +3,7 @@
  * Simple performance comparison without external dependencies
  */
 
-const { v } = require('../dist');
+const { v } = require('@oxog/vld');
 const z = require('zod');
 
 // Console colors
@@ -55,9 +55,9 @@ function compare(testName, vldFn, zodFn, iterations = 100000) {
   return { vldResult, zodResult, ratio: parseFloat(ratio) };
 }
 
-console.log(`${colors.bright}${colors.blue}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
+console.log(`${colors.bright}${colors.blue}===================================================================${colors.reset}`);
 console.log(`${colors.bright}                    VLD vs Zod Performance Benchmark${colors.reset}`);
-console.log(`${colors.bright}${colors.blue}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
+console.log(`${colors.bright}${colors.blue}===================================================================${colors.reset}`);
 
 const results = [];
 
@@ -247,9 +247,9 @@ results.push(compare(
 ));
 
 // Summary
-console.log(`\n${colors.bright}${colors.blue}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
+console.log(`\n${colors.bright}${colors.blue}===================================================================${colors.reset}`);
 console.log(`${colors.bright}                           SUMMARY${colors.reset}`);
-console.log(`${colors.bright}${colors.blue}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}\n`);
+console.log(`${colors.bright}${colors.blue}===================================================================${colors.reset}\n`);
 
 const vldWins = results.filter(r => r.ratio > 1).length;
 const zodWins = results.filter(r => r.ratio < 1).length;
@@ -260,11 +260,11 @@ console.log(`  ${colors.yellow}Zod won: ${zodWins}/${results.length} tests${colo
 console.log(`  ${colors.magenta}Average performance ratio: ${avgRatio.toFixed(2)}x${colors.reset}`);
 
 if (vldWins > zodWins) {
-  console.log(`\n  ${colors.bright}${colors.green}✅ VLD is faster overall!${colors.reset}`);
+  console.log(`\n  ${colors.bright}${colors.green}PASS VLD is faster overall!${colors.reset}`);
 } else if (zodWins > vldWins) {
-  console.log(`\n  ${colors.bright}${colors.yellow}⚠️ Zod is faster overall${colors.reset}`);
+  console.log(`\n  ${colors.bright}${colors.yellow}WARN Zod is faster overall${colors.reset}`);
 } else {
-  console.log(`\n  ${colors.bright}${colors.cyan}📊 Performance is comparable${colors.reset}`);
+  console.log(`\n  ${colors.bright}${colors.cyan}SUMMARY Performance is comparable${colors.reset}`);
 }
 
-console.log(`\n${colors.bright}✨ Benchmark completed${colors.reset}\n`);
+console.log(`\n${colors.bright}DONE Benchmark completed${colors.reset}\n`);

@@ -1,5 +1,6 @@
 import { VldBase, ParseResult } from './base';
-import { getMessages } from '../locales';
+import { getMessages } from '../locales/runtime';
+import { VldError } from '../errors-core';
 
 /**
  * Validator that never succeeds
@@ -25,7 +26,7 @@ export class VldNever extends VldBase<never, never> {
   safeParse(_value: unknown): ParseResult<never> {
     return { 
       success: false, 
-      error: new Error(getMessages().neverType) 
+      error: new VldError([{ code: 'invalid_type', path: [], message: getMessages().neverType }])
     };
   }
 }

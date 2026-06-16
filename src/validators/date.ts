@@ -1,14 +1,26 @@
 import { VldBase, ParseResult, VLD_VALIDATOR_TYPES, ValidatorType } from './base';
-import { getMessages } from '../locales';
+import { getMessages } from '../locales/runtime';
+import { VldError } from '../errors-core';
 
 /**
  * Type for date validation check functions
  */
 type DateCheckFn = (value: Date) => boolean;
 
+function createDateError(message: string): VldError {
+  return new VldError([{ code: 'invalid_date', path: [], message }]);
+}
+
 interface DateCheck {
   fn: DateCheckFn;
   message: string;
+}
+
+interface DateJSONSchemaHints {
+  readonly formatMinimum?: string;
+  readonly formatMaximum?: string;
+  readonly formatExclusiveMinimum?: string;
+  readonly formatExclusiveMaximum?: string;
 }
 
 /**
@@ -16,8 +28,9 @@ interface DateCheck {
  */
 interface DateValidatorConfig {
   readonly checks: ReadonlyArray<DateCheck>;
-  readonly errorMessage?: string;
+  readonly errorMessage: string | undefined;
   readonly validatorType?: ValidatorType;
+  readonly jsonSchema: DateJSONSchemaHints | undefined;
 }
 
 /**
@@ -25,6 +38,8 @@ interface DateValidatorConfig {
  */
 export class VldDate extends VldBase<Date, Date> {
   private readonly config: DateValidatorConfig;
+  private readonly _checks: ReadonlyArray<DateCheck>;
+  private readonly _isSimple: boolean;
 
   /**
    * Protected constructor to allow extension while maintaining immutability
@@ -33,8 +48,15 @@ export class VldDate extends VldBase<Date, Date> {
     super(config?.validatorType || VLD_VALIDATOR_TYPES.DATE);
     this.config = {
       checks: config?.checks || [],
-      errorMessage: config?.errorMessage
+      errorMessage: config?.errorMessage,
+      jsonSchema: config?.jsonSchema
     };
+    this._checks = this.config.checks;
+    this._isSimple = this._checks.length === 0;
+  }
+
+  get jsonSchema(): DateJSONSchemaHints | undefined {
+    return this.config.jsonSchema;
   }
 
   /**
@@ -63,8 +85,28 @@ export class VldDate extends VldBase<Date, Date> {
       throw new Error(this.config.errorMessage || getMessages().invalidDate);
     }
 
+    return this.parseValidDate(date);
+  }
+
+  /**
+   * Parse a Date instance that has already passed the Date validity check.
+   * @internal Used by object validators to avoid duplicate hot-path checks.
+   */
+  parseKnownDate(value: Date): Date {
+    if (isNaN(value.getTime())) {
+      throw new Error(this.config.errorMessage || getMessages().invalidDate);
+    }
+
+    return this.parseValidDate(value);
+  }
+
+  private parseValidDate(date: Date): Date {
+    if (this._isSimple) {
+      return date;
+    }
+
     // Apply all checks
-    for (const check of this.config.checks) {
+    for (const check of this._checks) {
       if (!check.fn(date)) {
         throw new Error(check.message);
       }
@@ -77,10 +119,18 @@ export class VldDate extends VldBase<Date, Date> {
    * Safely parse and validate a date value
    */
   safeParse(value: unknown): ParseResult<Date> {
+    if (value instanceof Date) {
+      try {
+        return { success: true, data: this.parseKnownDate(value) };
+      } catch (error) {
+        return { success: false, error: createDateError((error as Error).message) };
+      }
+    }
+
     try {
       return { success: true, data: this.parse(value) };
     } catch (error) {
-      return { success: false, error: error as Error };
+      return { success: false, error: createDateError((error as Error).message) };
     }
   }
 
@@ -101,7 +151,8 @@ export class VldDate extends VldBase<Date, Date> {
       checks: [...this.config.checks, {
         fn: (v: Date) => v >= minDate,
         message: message || getMessages().dateMin(minDate)
-      }]
+      }],
+      jsonSchema: { ...this.config.jsonSchema, formatMinimum: minDate.toISOString() }
     });
   }
 
@@ -122,7 +173,8 @@ export class VldDate extends VldBase<Date, Date> {
       checks: [...this.config.checks, {
         fn: (v: Date) => v <= maxDate,
         message: message || getMessages().dateMax(maxDate)
-      }]
+      }],
+      jsonSchema: { ...this.config.jsonSchema, formatMaximum: maxDate.toISOString() }
     });
   }
 
@@ -151,7 +203,12 @@ export class VldDate extends VldBase<Date, Date> {
       checks: [...this.config.checks, {
         fn: (v: Date) => v >= minDate && v <= maxDate,
         message: message || `Date must be between ${minDate.toISOString()} and ${maxDate.toISOString()}`
-      }]
+      }],
+      jsonSchema: {
+        ...this.config.jsonSchema,
+        formatMinimum: minDate.toISOString(),
+        formatMaximum: maxDate.toISOString()
+      }
     });
   }
 
@@ -166,7 +223,8 @@ export class VldDate extends VldBase<Date, Date> {
       checks: [...this.config.checks, {
         fn: (v: Date) => v < referenceDate,
         message: message || 'Date must be in the past'
-      }]
+      }],
+      jsonSchema: { ...this.config.jsonSchema, formatExclusiveMaximum: referenceDate.toISOString() }
     });
   }
 
@@ -181,7 +239,8 @@ export class VldDate extends VldBase<Date, Date> {
       checks: [...this.config.checks, {
         fn: (v: Date) => v > referenceDate,
         message: message || 'Date must be in the future'
-      }]
+      }],
+      jsonSchema: { ...this.config.jsonSchema, formatExclusiveMinimum: referenceDate.toISOString() }
     });
   }
 
@@ -252,7 +311,8 @@ export class VldDate extends VldBase<Date, Date> {
       checks: [...this.config.checks, {
         fn: (v: Date) => v.getTime() > compareDate.getTime(),
         message: message || `Date must be greater than ${compareDate.toISOString()}`
-      }]
+      }],
+      jsonSchema: { ...this.config.jsonSchema, formatExclusiveMinimum: compareDate.toISOString() }
     });
   }
 
@@ -267,7 +327,8 @@ export class VldDate extends VldBase<Date, Date> {
       checks: [...this.config.checks, {
         fn: (v: Date) => v.getTime() < compareDate.getTime(),
         message: message || `Date must be less than ${compareDate.toISOString()}`
-      }]
+      }],
+      jsonSchema: { ...this.config.jsonSchema, formatExclusiveMaximum: compareDate.toISOString() }
     });
   }
 }

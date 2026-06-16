@@ -70,6 +70,10 @@ describe('IP Validation Coverage Tests', () => {
       expect(isValidIPv6('::ffff:999.0.2.1')).toBe(false);
     });
 
+    it('should reject IPv4-mapped addresses without IPv6 compression', () => {
+      expect(isValidIPv6('2001:192.0.2.1')).toBe(false);
+    });
+
     it('should accept IPv6 with zone ID', () => {
       expect(isValidIPv6('fe80::1%eth0')).toBe(true);
     });
@@ -80,6 +84,29 @@ describe('IP Validation Coverage Tests', () => {
 
     it('should accept 7 groups with compression', () => {
       expect(isValidIPv6('1:2:3:4:5:6::7')).toBe(true);
+    });
+
+    it('should reject compressed IPv6 with too many explicit groups', () => {
+      expect(isValidIPv6('1:2:3:4:5:6:7:8::')).toBe(false);
+    });
+
+    it('should keep the defensive per-group hex guard active', () => {
+      const originalTest = RegExp.prototype.test;
+      RegExp.prototype.test = function patchedTest(this: RegExp, value: string): boolean {
+        if (this.source === '^[0-9a-fA-F:]+$') {
+          return true;
+        }
+        if (this.source === '^[0-9a-fA-F]+$' && value === 'gggg') {
+          return false;
+        }
+        return originalTest.call(this, value);
+      };
+
+      try {
+        expect(isValidIPv6('gggg:1:2:3:4:5:6:7')).toBe(false);
+      } finally {
+        RegExp.prototype.test = originalTest;
+      }
     });
   });
 });

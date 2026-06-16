@@ -190,6 +190,13 @@ describe('v.templateLiteral()', () => {
       // Literal in template just becomes a pattern, doesn't validate value
     });
 
+    it('should fall back to the generic pattern for undefined literal metadata', () => {
+      const schema = v.templateLiteral('literal-', v.literal(undefined));
+
+      expect(schema.parse('literal-anything')).toBe('literal-anything');
+      expect(schema.safeParse('literal-').success).toBe(false);
+    });
+
     it('should work with complex validator chains', () => {
       const schema = v.templateLiteral('user-', v.string().min(1), '-', v.number());
 
@@ -215,6 +222,19 @@ describe('v.templateLiteral()', () => {
 
       expect(schema.parse('int-42')).toBe('int-42');
       expect(schema.parse('int--10')).toBe('int--10');
+    });
+
+    it('should use runtime validatorType metadata instead of constructor names', () => {
+      const emailSchema = v.templateLiteral('email:', v.email());
+      const coerceNumberSchema = v.templateLiteral('n=', v.coerce.number());
+      const coerceBooleanSchema = v.templateLiteral('flag=', v.coerce.boolean());
+      const coerceBigIntSchema = v.templateLiteral('big=', v.coerce.bigint());
+
+      expect(emailSchema.parse('email:dev@example.com')).toBe('email:dev@example.com');
+      expect(coerceNumberSchema.parse('n=-42.5')).toBe('n=-42.5');
+      expect(coerceBooleanSchema.parse('flag=true')).toBe('flag=true');
+      expect(coerceBigIntSchema.parse('big=-42')).toBe('big=-42');
+      expect(coerceBooleanSchema.safeParse('flag=yes').success).toBe(false);
     });
   });
 

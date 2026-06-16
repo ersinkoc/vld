@@ -2,7 +2,7 @@
  * Tests for v.function() - function validation
  */
 
-import { v } from '../../src';
+import { v, getMessages, registerLocale, setLocale } from '../../src';
 
 describe('v.function()', () => {
   describe('basic function validation', () => {
@@ -38,6 +38,18 @@ describe('v.function()', () => {
       expect(() => schema.parse(undefined)).toThrow();
       expect(() => schema.parse({})).toThrow();
       expect(() => schema.parse([])).toThrow();
+    });
+
+    it('should use the built-in fallback when a locale omits invalidFunction', () => {
+      const messages = { ...getMessages(), invalidFunction: undefined } as unknown as ReturnType<typeof getMessages>;
+      registerLocale('zz' as any, messages);
+      setLocale('zz' as any);
+
+      try {
+        expect(() => v.function().parse('not a function')).toThrow('Expected a function');
+      } finally {
+        setLocale('en');
+      }
     });
   });
 

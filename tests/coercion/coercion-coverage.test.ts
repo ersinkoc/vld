@@ -1,4 +1,7 @@
 import { v } from '../../src/index';
+import { VldCoerceBoolean } from '../../src/coercion/boolean';
+import { VldCoerceDate } from '../../src/coercion/date';
+import { VldCoerceNumber } from '../../src/coercion/number';
 
 describe('Coercion Validators - 100% Coverage', () => {
   describe('VldCoerceNumber - All methods', () => {
@@ -107,6 +110,41 @@ describe('Coercion Validators - 100% Coverage', () => {
     it('should handle NaN coercion', () => {
       expect(() => validator.parse(NaN)).toThrow();
     });
+
+    it('should create validators through the static factory', () => {
+      const schema = VldCoerceNumber.create();
+
+      expect(schema.parse(123)).toBe(123);
+      expect(schema.parse('123')).toBe(123);
+    });
+
+    it('should validate existing numbers through configured checks', () => {
+      const schema = validator.min(10);
+
+      expect(schema.parse(12)).toBe(12);
+      expect(() => schema.parse(8)).toThrow();
+    });
+
+    it('should safely parse coerced numbers and return validation errors', () => {
+      expect(validator.safeParse('42')).toEqual({ success: true, data: 42 });
+
+      const result = validator.safeParse(Symbol('number'));
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.message).toBe('Cannot coerce undefined to number');
+      }
+    });
+
+    it('should wrap native Number conversion failures as coercion errors', () => {
+      expect(() => validator.parse(Symbol('number'))).toThrow('Cannot coerce undefined to number');
+    });
+
+    it('should match Number coercion for empty and nullable values', () => {
+      expect(validator.parse('')).toBe(0);
+      expect(validator.parse('   ')).toBe(0);
+      expect(validator.parse(null)).toBe(0);
+      expect(() => validator.parse(undefined)).toThrow();
+    });
   });
   
   describe('VldCoerceBigInt - All methods', () => {
@@ -173,25 +211,43 @@ describe('Coercion Validators - 100% Coverage', () => {
 
     it('should handle edge case string values', () => {
       expect(validator.parse('TRUE')).toBe(true);
-      expect(validator.parse('FALSE')).toBe(false);
+      expect(validator.parse('FALSE')).toBe(true);
       expect(validator.parse('Yes')).toBe(true);
-      expect(validator.parse('No')).toBe(false);
+      expect(validator.parse('No')).toBe(true);
       expect(validator.parse('ON')).toBe(true);
-      expect(validator.parse('OFF')).toBe(false);
+      expect(validator.parse('OFF')).toBe(true);
+      expect(validator.parse('')).toBe(false);
     });
 
-    it('should throw for unsupported types like arrays', () => {
-      // Line 51: throw for arrays/objects
-      expect(() => validator.parse([1, 2, 3])).toThrow('Cannot coerce');
+    it('should coerce arrays using JavaScript Boolean semantics', () => {
+      expect(validator.parse([1, 2, 3])).toBe(true);
+      expect(validator.parse([])).toBe(true);
     });
 
-    it('should throw for plain objects', () => {
-      expect(() => validator.parse({ key: 'value' })).toThrow('Cannot coerce');
+    it('should coerce plain objects using JavaScript Boolean semantics', () => {
+      expect(validator.parse({ key: 'value' })).toBe(true);
     });
 
     it('should handle actual boolean values', () => {
       expect(validator.parse(true)).toBe(true);
       expect(validator.parse(false)).toBe(false);
+    });
+
+    it('should create validators through the static factory', () => {
+      const schema = VldCoerceBoolean.create();
+
+      expect(schema.parse('value')).toBe(true);
+      expect(schema.parse('')).toBe(false);
+    });
+
+    it('should return errors when a custom parse implementation throws', () => {
+      const schema = v.coerce.boolean();
+      const error = new Error('custom boolean coercion failure');
+      schema.parse = () => {
+        throw error;
+      };
+
+      expect(schema.safeParse('value')).toEqual({ success: false, error });
     });
   });
   
@@ -205,7 +261,7 @@ describe('Coercion Validators - 100% Coverage', () => {
     });
 
     it('should handle null value', () => {
-      expect(() => validator.parse(null)).toThrow('Cannot coerce');
+      expect(validator.parse(null).toISOString()).toBe('1970-01-01T00:00:00.000Z');
     });
 
     it('should handle undefined value', () => {
@@ -215,6 +271,31 @@ describe('Coercion Validators - 100% Coverage', () => {
     it('should handle valid Date objects', () => {
       const date = new Date('2024-01-15');
       expect(validator.parse(date)).toBeInstanceOf(Date);
+    });
+
+    it('should handle boolean and array values using Date semantics', () => {
+      expect(validator.parse(false).toISOString()).toBe('1970-01-01T00:00:00.000Z');
+      expect(validator.parse(true).toISOString()).toBe('1970-01-01T00:00:00.001Z');
+      expect(validator.parse([1, 2]).toISOString()).toBe('2001-01-01T22:00:00.000Z');
+    });
+
+    it('should create validators through the static factory', () => {
+      const schema = VldCoerceDate.create();
+
+      expect(schema.parse('2024-01-15')).toBeInstanceOf(Date);
+    });
+
+    it('should wrap native Date constructor failures as coercion errors', () => {
+      expect(() => validator.parse(Symbol('date'))).toThrow('Cannot coerce undefined to date');
+    });
+
+    it('should return safeParse errors for values that cannot be coerced', () => {
+      const result = validator.safeParse(Symbol('date'));
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.message).toBe('Cannot coerce undefined to date');
+      }
     });
   });
   
@@ -231,9 +312,9 @@ describe('Coercion Validators - 100% Coverage', () => {
 
     it('should handle safeParse', () => {
       const result = validator.safeParse(null);
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error).toBeInstanceOf(Error);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data).toBe('null');
       }
     });
 
@@ -267,9 +348,8 @@ describe('Coercion Validators - 100% Coverage', () => {
       expect(validator.parse(error)).toContain('Error');
     });
 
-    it('should throw for Symbol', () => {
-      // Symbols cause explicit error
-      expect(() => validator.parse(Symbol('test'))).toThrow('Cannot coerce');
+    it('should coerce Symbol to string', () => {
+      expect(validator.parse(Symbol('test'))).toBe('Symbol(test)');
     });
 
     it('should handle plain objects', () => {
@@ -290,6 +370,16 @@ describe('Coercion Validators - 100% Coverage', () => {
       // Arrays are joined with commas - need many elements to exceed 1M chars
       const largeArray = new Array(500001).fill('xx');
       expect(() => validator.parse(largeArray)).toThrow('Cannot coerce');
+    });
+
+    it('should return safeParse errors when coerced values exceed max length', () => {
+      const largeArray = new Array(500001).fill('xx');
+      const result = validator.safeParse(largeArray);
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.message).toContain('Cannot coerce');
+      }
     });
   });
 

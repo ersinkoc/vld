@@ -1,13 +1,18 @@
-import { VldBase, ParseResult } from './base';
-import { getMessages } from '../locales';
+import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
+import { getMessages } from '../locales/runtime';
+import { VldError } from '../errors-core';
 
 /**
  * File validation check types
  */
 type FileCheck =
-  | { type: 'min'; value: number; message?: string }
-  | { type: 'max'; value: number; message?: string }
-  | { type: 'mime'; value: string[]; message?: string };
+  | { type: 'min'; value: number; message: string | undefined }
+  | { type: 'max'; value: number; message: string | undefined }
+  | { type: 'mime'; value: string[]; message: string | undefined };
+
+function createFileError(message: string): VldError {
+  return new VldError([{ code: 'invalid_type', path: [], message }]);
+}
 
 /**
  * File representation for validation
@@ -24,7 +29,7 @@ export class VldFile extends VldBase<unknown, VldFileValue> {
   private constructor(
     private readonly checks: readonly FileCheck[] = []
   ) {
-    super();
+    super(VLD_VALIDATOR_TYPES.FILE);
   }
 
   /**
@@ -34,33 +39,38 @@ export class VldFile extends VldBase<unknown, VldFileValue> {
     return new VldFile();
   }
 
+  private isFileLike(value: unknown): value is VldFileValue {
+    if (typeof value !== 'object' || value === null) {
+      return false;
+    }
+
+    if (typeof File !== 'undefined' && value instanceof File) {
+      return true;
+    }
+
+    return 'size' in value && 'type' in value;
+  }
+
   /**
    * Parse and validate a file value
    */
   parse(value: unknown): VldFileValue {
-    // Check if File API is supported
-    const FileSupported = typeof File !== 'undefined';
+    if (this.isFileLike(value)) {
+      return this.parseKnownFile(value);
+    }
 
-    if (!FileSupported) {
+    if (typeof File === 'undefined') {
       throw new Error(getMessages().fileNotSupported || 'File API not supported in this environment');
     }
 
-    // Check if value is a File object
-    if (!(value instanceof File)) {
-      // Allow plain object with size and type for Node.js compatibility
-      if (
-        typeof value === 'object' &&
-        value !== null &&
-        'size' in value &&
-        'type' in value
-      ) {
-        const fileObj = value as { size: number; type: string; name?: string };
-        return this.runChecks(fileObj);
-      }
+    throw new Error(getMessages().invalidFile || 'Expected a File object');
+  }
 
-      throw new Error(getMessages().invalidFile || 'Expected a File object');
-    }
-
+  /**
+   * Parse a value that has already passed the file-like type guard.
+   * @internal Used by object validators to avoid duplicate hot-path checks.
+   */
+  parseKnownFile(value: VldFileValue): VldFileValue {
     return this.runChecks(value);
   }
 
@@ -111,7 +121,7 @@ export class VldFile extends VldBase<unknown, VldFileValue> {
     try {
       return { success: true, data: this.parse(value) };
     } catch (error) {
-      return { success: false, error: error as Error };
+      return { success: false, error: createFileError((error as Error).message) };
     }
   }
 

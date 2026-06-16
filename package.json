@@ -1,6 +1,6 @@
 {
   "name": "@oxog/vld",
-  "version": "2.0.4",
+  "version": "2.1.0",
   "description": "Ultra-fast TypeScript-first schema validation with zero dependencies, 27+ language support, plugin system, and CLI tools",
   "type": "module",
   "main": "./dist/cjs/index.cjs",
@@ -8,6 +8,9 @@
   "types": "./dist/index.d.ts",
   "bin": {
     "vld": "./dist/cli/bin.js"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "exports": {
     ".": {
@@ -27,75 +30,153 @@
     },
     "./validators": {
       "types": "./dist/validators/index.d.ts",
-      "import": "./dist/validators/index.js"
+      "import": "./dist/validators/index.js",
+      "require": "./dist/cjs/validators/index.cjs"
     },
     "./validators/*": {
       "types": "./dist/validators/*.d.ts",
-      "import": "./dist/validators/*.js"
+      "import": "./dist/validators/*.js",
+      "require": "./dist/cjs/validators/*.cjs"
     },
     "./coercion": {
       "types": "./dist/coercion/index.d.ts",
-      "import": "./dist/coercion/index.js"
+      "import": "./dist/coercion/index.js",
+      "require": "./dist/cjs/coercion/index.cjs"
     },
     "./codecs": {
       "types": "./dist/codecs/index.d.ts",
-      "import": "./dist/codecs/index.js"
+      "import": "./dist/codecs/index.js",
+      "require": "./dist/cjs/codecs/index.cjs"
     },
     "./locales": {
       "types": "./dist/locales/index.d.ts",
       "import": "./dist/locales/index.js",
       "require": "./dist/cjs/locales/index.cjs"
     },
+    "./v3": {
+      "types": "./dist/v3/index.d.ts",
+      "import": "./dist/v3/index.js",
+      "require": "./dist/cjs/v3/index.cjs"
+    },
+    "./v4": {
+      "types": "./dist/v4/index.d.ts",
+      "import": "./dist/v4/index.js",
+      "require": "./dist/cjs/v4/index.cjs"
+    },
+    "./v4-mini": {
+      "types": "./dist/v4-mini/index.d.ts",
+      "import": "./dist/v4-mini/index.js",
+      "require": "./dist/cjs/v4-mini/index.cjs"
+    },
+    "./v4/mini": {
+      "types": "./dist/v4/mini/index.d.ts",
+      "import": "./dist/v4/mini/index.js",
+      "require": "./dist/cjs/v4/mini/index.cjs"
+    },
+    "./v4/core": {
+      "types": "./dist/v4/core/index.d.ts",
+      "import": "./dist/v4/core/index.js",
+      "require": "./dist/cjs/v4/core/index.cjs"
+    },
+    "./v4/locales": {
+      "types": "./dist/v4/locales/index.d.ts",
+      "import": "./dist/v4/locales/index.js",
+      "require": "./dist/cjs/v4/locales/index.cjs"
+    },
+    "./v4/locales/types": null,
+    "./v4/locales/runtime": null,
+    "./v4/locales/*": {
+      "types": "./dist/locales/*.d.ts",
+      "import": "./dist/locales/*.js",
+      "require": "./dist/cjs/locales/*.cjs"
+    },
     "./locales/lazy": {
       "types": "./dist/locales/lazy.d.ts",
       "import": "./dist/locales/lazy.js",
       "require": "./dist/cjs/locales/lazy.cjs"
     },
+    "./locales/types": null,
+    "./locales/runtime": null,
+    "./locales/backup-en": null,
     "./locales/*": {
       "types": "./dist/locales/*.d.ts",
-      "import": "./dist/locales/*.js"
+      "import": "./dist/locales/*.js",
+      "require": "./dist/cjs/locales/*.cjs"
     },
     "./result": {
       "types": "./dist/compat/result.d.ts",
-      "import": "./dist/compat/result.js"
+      "import": "./dist/compat/result.js",
+      "require": "./dist/cjs/compat/result.cjs"
     },
     "./kernel": {
       "types": "./dist/kernel.d.ts",
-      "import": "./dist/kernel.js"
+      "import": "./dist/kernel.js",
+      "require": "./dist/cjs/kernel.cjs"
+    },
+    "./registry": {
+      "types": "./dist/registry.d.ts",
+      "import": "./dist/registry.js",
+      "require": "./dist/cjs/registry.cjs"
     },
     "./pigment": {
       "types": "./dist/pigment.d.ts",
-      "import": "./dist/pigment.js"
+      "import": "./dist/pigment.js",
+      "require": "./dist/cjs/pigment.cjs"
     },
     "./cli": {
       "types": "./dist/cli/index.d.ts",
-      "import": "./dist/cli/index.js"
+      "import": "./dist/cli/index.js",
+      "require": "./dist/cjs/cli/index.cjs"
     },
     "./plugins": {
       "types": "./dist/plugins/index.d.ts",
-      "import": "./dist/plugins/index.js"
+      "import": "./dist/plugins/index.js",
+      "require": "./dist/cjs/plugins/index.cjs"
     },
     "./package.json": "./package.json"
   },
   "sideEffects": false,
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
-    "build": "npm run build:clean && npm run build:esm && npm run build:cjs && npm run build:types && npm run build:fix",
+    "build": "npm run build:clean && npm run build:bundle && npm run build:types && npm run build:fix",
     "build:clean": "node -e \"require('fs').rmSync('./dist', { recursive: true, force: true })\"",
-    "build:esm": "rollup -c rollup.config.mjs",
-    "build:cjs": "echo 'CJS built by rollup'",
+    "build:bundle": "rollup -c rollup.config.mjs",
+    "build:esm": "npm run build:bundle",
+    "build:cjs": "npm run build:bundle",
     "build:types": "tsc -p tsconfig.build.json",
     "build:fix": "node scripts/fix-imports.cjs",
     "build:legacy": "tsc && node scripts/fix-imports.cjs",
+    "verify:exports": "node scripts/verify-exports.cjs",
+    "verify:ascii": "node scripts/verify-ascii.cjs",
+    "verify:bundle": "node scripts/verify-bundle.cjs",
+    "verify:docs": "node scripts/verify-docs.cjs",
+    "verify:drop-in": "node scripts/verify-drop-in-app.cjs",
+    "verify:install": "node scripts/verify-install.cjs",
+    "verify:package": "node scripts/verify-package.cjs",
+    "verify:security": "npm audit --audit-level=low",
+    "verify:types": "node scripts/verify-types.cjs",
+    "verify:zod": "node scripts/verify-zod-parity.cjs",
     "test": "jest --coverage",
     "test:types": "tsc --noEmit",
-    "benchmark": "node benchmarks/quick-bench.cjs",
-    "benchmark:full": "node benchmarks/performance.cjs",
-    "benchmark:memory": "node --expose-gc benchmarks/memory.cjs",
-    "benchmark:startup": "node benchmarks/startup.cjs",
-    "benchmark:all": "npm run benchmark && npm run benchmark:memory && npm run benchmark:startup",
+    "benchmark": "npm run build && node benchmarks/quick-bench.cjs",
+    "benchmark:stable": "npm run build && node benchmarks/stable-bench.cjs",
+    "benchmark:guard": "npm run build && npm run benchmark:guard:built",
+    "benchmark:guard:built": "node benchmarks/performance-guard.cjs",
+    "benchmark:startup:guard": "node benchmarks/startup-guard.cjs",
+    "benchmark:memory:guard": "node benchmarks/memory-guard.cjs",
+    "benchmark:truth": "npm run build && node benchmarks/performance.cjs",
+    "benchmark:full": "npm run build && node benchmarks/performance.cjs",
+    "benchmark:memory": "npm run build && node --expose-gc benchmarks/memory.cjs",
+    "benchmark:startup": "npm run build && node benchmarks/startup.cjs",
+    "benchmark:all": "npm run build && node benchmarks/quick-bench.cjs && node --expose-gc benchmarks/memory.cjs && node benchmarks/startup.cjs",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
-    "prepublishOnly": "npm run build && npm test"
+    "prepack": "npm run build",
+    "release:check": "npm run lint && npm run test:types && npm test -- --runInBand && npm run build && npm run verify:ascii && npm run verify:docs && npm run verify:exports && npm run verify:bundle && npm run verify:types && npm run verify:package && npm run verify:install && npm run verify:security && npm run verify:zod && npm run verify:drop-in && npm run benchmark:guard:built && npm run benchmark:startup:guard && npm run benchmark:memory:guard",
+    "prepublishOnly": "npm run release:check"
   },
   "keywords": [
     "validation",
@@ -135,20 +216,24 @@
   "devDependencies": {
     "@rollup/plugin-terser": "^1.0.0",
     "@rollup/plugin-typescript": "^12.1.4",
-    "@types/jest": "^29.5.14",
-    "@types/node": "^20.10.5",
-    "@typescript-eslint/eslint-plugin": "^8.59.2",
-    "@typescript-eslint/parser": "^8.59.2",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^20.19.43",
+    "@typescript-eslint/eslint-plugin": "^8.61.0",
+    "@typescript-eslint/parser": "^8.61.0",
     "benchmark": "^2.1.4",
     "eslint": "^8.56.0",
     "fast-glob": "^3.3.3",
-    "jest": "^29.7.0",
-    "jest-junit": "^16.0.0",
-    "prettier": "^3.1.1",
-    "rollup": "^4.60.3",
-    "ts-jest": "^29.4.1",
+    "jest": "^30.4.2",
+    "jest-junit": "^17.0.0",
+    "prettier": "^3.8.4",
+    "rollup": "^4.62.0",
+    "ts-jest": "^29.4.11",
     "tslib": "^2.8.1",
     "typescript": "^5.3.3",
-    "zod": "^4.0.17"
+    "zod": "^4.4.3"
+  },
+  "overrides": {
+    "@babel/core": "^7.29.7",
+    "js-yaml": "^4.2.0"
   }
 }

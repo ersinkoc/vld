@@ -78,10 +78,19 @@ function parseArgs(args: string[], options: CliOption[] = []): {
   let i = 0;
   while (i < args.length) {
     const arg = args[i];
+    if (arg === undefined) {
+      i++;
+      continue;
+    }
 
     if (arg.startsWith('--')) {
       // Long option
       const [name, value] = arg.slice(2).split('=');
+      if (name === undefined || name === '') {
+        i++;
+        continue;
+      }
+
       const option = options.find((o) => o.name === name);
 
       if (option) {
@@ -89,9 +98,12 @@ function parseArgs(args: string[], options: CliOption[] = []): {
           result.options[name] = value !== 'false';
         } else if (value !== undefined) {
           result.options[name] = option.type === 'number' ? Number(value) : value;
-        } else if (i + 1 < args.length && !args[i + 1].startsWith('-')) {
+        } else if (i + 1 < args.length && args[i + 1] !== undefined && !args[i + 1]!.startsWith('-')) {
           i++;
-          result.options[name] = option.type === 'number' ? Number(args[i]) : args[i];
+          const nextArg = args[i];
+          if (nextArg !== undefined) {
+            result.options[name] = option.type === 'number' ? Number(nextArg) : nextArg;
+          }
         } else {
           result.options[name] = true;
         }
@@ -104,10 +116,15 @@ function parseArgs(args: string[], options: CliOption[] = []): {
       if (option) {
         if (option.type === 'boolean') {
           result.options[option.name] = true;
-        } else if (i + 1 < args.length && !args[i + 1].startsWith('-')) {
+        } else if (i + 1 < args.length && args[i + 1] !== undefined && !args[i + 1]!.startsWith('-')) {
           i++;
+          const nextArg = args[i];
+          if (nextArg === undefined) {
+            i++;
+            continue;
+          }
           result.options[option.name] =
-            option.type === 'number' ? Number(args[i]) : args[i];
+            option.type === 'number' ? Number(nextArg) : nextArg;
         }
       }
     } else {
@@ -146,7 +163,7 @@ export function createCli(name: string, version: string, description: string): C
     help(): string {
       const lines: string[] = [];
 
-      lines.push(pigment.bold(`${name} v${version}`));
+      lines.push(pigment.bold(`${this.name} v${this.version}`));
       lines.push(pigment.dim(description));
       lines.push('');
       lines.push(pigment.bold('Usage:'));
@@ -155,7 +172,7 @@ export function createCli(name: string, version: string, description: string): C
       lines.push(pigment.bold('Commands:'));
 
       const uniqueCommands = new Map<string, CliCommand>();
-      for (const [_cmdName, cmd] of commands) {
+      for (const [, cmd] of commands) {
         if (!uniqueCommands.has(cmd.name)) {
           uniqueCommands.set(cmd.name, cmd);
         }
@@ -184,12 +201,17 @@ export function createCli(name: string, version: string, description: string): C
 
       // Handle version
       if (args.includes('--version') || args.includes('-v')) {
-        console.log(`${name} v${version}`);
+        console.log(`${this.name} v${this.version}`);
         return;
       }
 
       // Get command
       const cmdName = args[0];
+      if (cmdName === undefined) {
+        console.log(this.help());
+        return;
+      }
+
       const cmd = commands.get(cmdName);
 
       if (!cmd) {
@@ -208,6 +230,10 @@ export function createCli(name: string, version: string, description: string): C
       if (cmd.arguments) {
         for (let i = 0; i < cmd.arguments.length; i++) {
           const arg = cmd.arguments[i];
+          if (arg === undefined) {
+            continue;
+          }
+
           if (i < parsed.positional.length) {
             positionalArgs[arg.name] = parsed.positional[i];
           } else if (arg.default !== undefined) {

@@ -291,6 +291,120 @@ describe('VldString - Comprehensive Tests', () => {
     });
   });
 
+  describe('Compiled safeParse branches', () => {
+    it('should expose the simple known-string fast path', () => {
+      const schema = VldString.create();
+
+      expect(schema.isSimple).toBe(true);
+      expect(schema.parseKnownString('already checked')).toBe('already checked');
+      expect((schema as any)._getCompiledValidator()('compiled')).toEqual({
+        success: true,
+        value: 'compiled'
+      });
+    });
+
+    it('should handle transform-only safeParse paths for one, two, three, and many transforms', () => {
+      expect(VldString.create().trim().safeParse('  ok  ')).toEqual({
+        success: true,
+        data: 'ok'
+      });
+      expect(VldString.create().trim().toLowerCase().safeParse('  OK  ')).toEqual({
+        success: true,
+        data: 'ok'
+      });
+      expect(VldString.create().trim().toLowerCase().toUpperCase().safeParse('  ok  ')).toEqual({
+        success: true,
+        data: 'OK'
+      });
+      expect(
+        VldString.create().trim().toLowerCase().toUpperCase().trim().safeParse('  ok  ')
+      ).toEqual({
+        success: true,
+        data: 'OK'
+      });
+    });
+
+    it('should handle check-only safeParse paths for one, two, three, and many checks', () => {
+      expect(VldString.create().min(2).safeParse('ok').success).toBe(true);
+      expect(VldString.create().min(2).max(5).safeParse('ok').success).toBe(true);
+      expect(VldString.create().min(2).max(5).regex(/^[a-z]+$/).safeParse('ok').success).toBe(true);
+      expect(
+        VldString.create().min(2).max(5).regex(/^[a-z]+$/).includes('o').safeParse('ok').success
+      ).toBe(true);
+
+      expect(VldString.create().min(3).safeParse('no').success).toBe(false);
+      expect(VldString.create().min(2).max(3).safeParse('toolong').success).toBe(false);
+      expect(VldString.create().min(2).max(5).regex(/^[a-z]+$/).safeParse('NO').success).toBe(false);
+      expect(
+        VldString.create().min(2).max(5).regex(/^[a-z]+$/).includes('z').safeParse('ok').success
+      ).toBe(false);
+    });
+
+    it('should handle combined transform and check safeParse paths', () => {
+      const schema = VldString.create().trim().toLowerCase().min(2).regex(/^[a-z]+$/);
+
+      expect(schema.safeParse('  OK  ')).toEqual({
+        success: true,
+        data: 'ok'
+      });
+      expect(schema.safeParse('  O1  ').success).toBe(false);
+    });
+
+    it('should handle parseKnownString transform paths for three and many transforms', () => {
+      expect(
+        VldString.create().trim().toLowerCase().toUpperCase().parseKnownString('  ok  ')
+      ).toBe('OK');
+      expect(
+        VldString.create().trim().toLowerCase().toUpperCase().trim().parseKnownString('  ok  ')
+      ).toBe('OK');
+    });
+
+    it('should handle parseKnownString default check paths', () => {
+      const schema = VldString.create().min(2).max(5).regex(/^[a-z]+$/).includes('o');
+
+      expect(schema.parseKnownString('ok')).toBe('ok');
+      expect(() => schema.parseKnownString('ozone!')).toThrow('String must include "o"');
+    });
+
+    it('should use default messages for parseKnownString check failures', () => {
+      const manyChecks = new (VldString as any)({
+        checks: [
+          (value: string) => value.length >= 2,
+          (value: string) => value.length <= 5,
+          (value: string) => /^[a-z]+$/.test(value),
+          (value: string) => value.includes('z')
+        ],
+        transforms: []
+      }) as VldString;
+      const threeChecks = new (VldString as any)({
+        checks: [
+          (value: string) => value.length >= 2,
+          (value: string) => value.length <= 5,
+          (value: string) => /^[a-z]+$/.test(value)
+        ],
+        transforms: []
+      }) as VldString;
+
+      expect(() => manyChecks.parseKnownString('ok')).toThrow('Invalid string');
+      expect(() => threeChecks.parseKnownString('NO')).toThrow('Invalid string');
+    });
+
+    it('should convert thrown transform errors into safeParse failures', () => {
+      const schema = new (VldString as any)({
+        checks: [],
+        transforms: [() => {
+          throw new Error('transform exploded');
+        }]
+      }) as VldString;
+
+      const result = schema.safeParse('value');
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.message).toBe('transform exploded');
+      }
+    });
+  });
+
   describe('Immutability', () => {
     it('should not mutate validator on chaining', () => {
       const base = VldString.create();

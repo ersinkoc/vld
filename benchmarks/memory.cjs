@@ -3,7 +3,7 @@
  * Measures memory consumption and efficiency
  */
 
-const { v } = require('../dist');
+const { v } = require('@oxog/vld');
 const z = require('zod');
 
 // Utility to format bytes
@@ -55,41 +55,41 @@ function printComparison(vldResult, zodResult) {
   const speedRatio = (vldResult.opsPerSecond / zodResult.opsPerSecond).toFixed(2);
   const memoryRatio = (zodResult.heapUsed / vldResult.heapUsed).toFixed(2);
   
-  console.log('\n📊 Results:');
-  console.log('┌─────────────────┬──────────────────┬──────────────────┐');
-  console.log('│ Metric          │ VLD              │ Zod              │');
-  console.log('├─────────────────┼──────────────────┼──────────────────┤');
-  console.log(`│ Heap Used       │ ${formatBytes(vldResult.heapUsed).padEnd(16)} │ ${formatBytes(zodResult.heapUsed).padEnd(16)} │`);
-  console.log(`│ Memory/Op       │ ${formatBytes(vldResult.memoryPerOp).padEnd(16)} │ ${formatBytes(zodResult.memoryPerOp).padEnd(16)} │`);
-  console.log(`│ Time (ms)       │ ${vldResult.time.toFixed(2).padEnd(16)} │ ${zodResult.time.toFixed(2).padEnd(16)} │`);
-  console.log(`│ Ops/Second      │ ${vldResult.opsPerSecond.toFixed(0).padEnd(16)} │ ${zodResult.opsPerSecond.toFixed(0).padEnd(16)} │`);
-  console.log('└─────────────────┴──────────────────┴──────────────────┘');
+  console.log('\nSUMMARY Results:');
+  console.log('+-----------------+------------------+------------------+');
+  console.log('| Metric          | VLD              | Zod              |');
+  console.log('+-----------------+------------------+------------------+');
+  console.log(`| Heap Used       | ${formatBytes(vldResult.heapUsed).padEnd(16)} | ${formatBytes(zodResult.heapUsed).padEnd(16)} |`);
+  console.log(`| Memory/Op       | ${formatBytes(vldResult.memoryPerOp).padEnd(16)} | ${formatBytes(zodResult.memoryPerOp).padEnd(16)} |`);
+  console.log(`| Time (ms)       | ${vldResult.time.toFixed(2).padEnd(16)} | ${zodResult.time.toFixed(2).padEnd(16)} |`);
+  console.log(`| Ops/Second      | ${vldResult.opsPerSecond.toFixed(0).padEnd(16)} | ${zodResult.opsPerSecond.toFixed(0).padEnd(16)} |`);
+  console.log('+-----------------+------------------+------------------+');
   
-  console.log('\n📈 Performance Summary:');
+  console.log('\nSUMMARY Performance Summary:');
   if (speedRatio > 1) {
-    console.log(`  ✅ VLD is ${speedRatio}x faster`);
+    console.log(`  PASS VLD is ${speedRatio}x faster`);
   } else {
-    console.log(`  ⚠️  Zod is ${(1/speedRatio).toFixed(2)}x faster`);
+    console.log(`  WARN  Zod is ${(1/speedRatio).toFixed(2)}x faster`);
   }
   
   if (memoryRatio > 1) {
-    console.log(`  ✅ VLD uses ${memoryRatio}x less memory`);
+    console.log(`  PASS VLD uses ${memoryRatio}x less memory`);
   } else {
-    console.log(`  ⚠️  Zod uses ${(1/memoryRatio).toFixed(2)}x less memory`);
+    console.log(`  WARN  Zod uses ${(1/memoryRatio).toFixed(2)}x less memory`);
   }
 }
 
-console.log('🚀 VLD Memory Usage Benchmarks\n');
+console.log('VLD Memory Usage Benchmarks\n');
 console.log('Note: Run with --expose-gc flag for accurate memory measurements');
-console.log('Example: node --expose-gc benchmarks/memory.js\n');
+console.log('Example: node --expose-gc benchmarks/memory.cjs\n');
 
 // ============================================
 // TEST 1: Simple String Validation
 // ============================================
 
-console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+console.log('========================================');
 console.log('Test 1: Simple String Validation');
-console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+console.log('========================================');
 
 const vldString = v.string().email();
 const zodString = z.string().email();
@@ -108,9 +108,9 @@ printComparison(vldStringResult, zodStringResult);
 // TEST 2: Complex Object Validation
 // ============================================
 
-console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+console.log('\n========================================');
 console.log('Test 2: Complex Object Validation');
-console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+console.log('========================================');
 
 const vldObject = v.object({
   id: v.string().uuid(),
@@ -165,9 +165,9 @@ printComparison(vldObjectResult, zodObjectResult);
 // TEST 3: Large Array Validation
 // ============================================
 
-console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+console.log('\n========================================');
 console.log('Test 3: Large Array Validation');
-console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+console.log('========================================');
 
 const vldArray = v.array(v.number().positive());
 const zodArray = z.array(z.number().positive());
@@ -188,9 +188,9 @@ printComparison(vldArrayResult, zodArrayResult);
 // TEST 4: Union Type Validation
 // ============================================
 
-console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+console.log('\n========================================');
 console.log('Test 4: Union Type Validation');
-console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+console.log('========================================');
 
 const vldUnion = v.union(
   v.string(),
@@ -228,9 +228,9 @@ printComparison(vldUnionResult, zodUnionResult);
 // TEST 5: Schema Creation Memory
 // ============================================
 
-console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+console.log('\n========================================');
 console.log('Test 5: Schema Creation Memory');
-console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+console.log('========================================');
 
 const vldSchemaResult = measureMemory('VLD Schema Creation', () => {
   return v.object({
@@ -258,9 +258,9 @@ printComparison(vldSchemaResult, zodSchemaResult);
 // OVERALL SUMMARY
 // ============================================
 
-console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-console.log('📊 Overall Memory Usage Summary');
-console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+console.log('\n========================================');
+console.log('SUMMARY Overall Memory Usage Summary');
+console.log('========================================');
 
 const totalVldMemory = vldStringResult.heapUsed + vldObjectResult.heapUsed + 
                        vldArrayResult.heapUsed + vldUnionResult.heapUsed + 
@@ -276,9 +276,9 @@ console.log(`  Zod: ${formatBytes(totalZodMemory)}`);
 
 const overallRatio = (totalZodMemory / totalVldMemory).toFixed(2);
 if (overallRatio > 1) {
-  console.log(`\n✅ VLD uses ${overallRatio}x less memory overall`);
+  console.log(`\nPASS VLD uses ${overallRatio}x less memory overall`);
 } else {
-  console.log(`\n⚠️  Zod uses ${(1/overallRatio).toFixed(2)}x less memory overall`);
+  console.log(`\nWARN  Zod uses ${(1/overallRatio).toFixed(2)}x less memory overall`);
 }
 
-console.log('\n✨ Benchmark completed\n');
+console.log('\nDONE Benchmark completed\n');

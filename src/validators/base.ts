@@ -1,9 +1,64 @@
+import { globalRegistry } from '../registry';
+import type { SchemaRegistry } from '../registry';
+
 /**
  * Base result type for validation
  */
 export type ParseResult<T> =
   | { readonly success: true; readonly data: T }
   | { readonly success: false; readonly error: Error };
+
+export interface StandardTypedV1<Input = unknown, Output = Input> {
+  readonly '~standard': StandardTypedV1Props<Input, Output>;
+}
+
+export interface StandardTypedV1Props<Input = unknown, Output = Input> {
+  readonly version: 1;
+  readonly vendor: string;
+  readonly types?: StandardTypedV1Types<Input, Output> | undefined;
+}
+
+export interface StandardTypedV1Types<Input = unknown, Output = Input> {
+  readonly input: Input;
+  readonly output: Output;
+}
+
+export interface StandardSchemaV1<Input = unknown, Output = Input> extends StandardTypedV1<Input, Output> {
+  readonly '~standard': StandardSchemaV1Props<Input, Output>;
+}
+
+export interface StandardSchemaV1Props<Input = unknown, Output = Input> extends StandardTypedV1Props<Input, Output> {
+  readonly validate: (
+    value: unknown,
+    options?: StandardSchemaV1Options | undefined
+  ) => StandardSchemaV1Result<Output> | Promise<StandardSchemaV1Result<Output>>;
+}
+
+export interface StandardSchemaV1Options {
+  readonly libraryOptions?: Record<string, unknown> | undefined;
+}
+
+export type StandardSchemaV1Result<Output> =
+  | StandardSchemaV1SuccessResult<Output>
+  | StandardSchemaV1FailureResult;
+
+export interface StandardSchemaV1SuccessResult<Output> {
+  readonly value: Output;
+  readonly issues?: undefined;
+}
+
+export interface StandardSchemaV1FailureResult {
+  readonly issues: ReadonlyArray<StandardSchemaV1Issue>;
+}
+
+export interface StandardSchemaV1Issue {
+  readonly message: string;
+  readonly path?: ReadonlyArray<PropertyKey | StandardSchemaV1PathSegment> | undefined;
+}
+
+export interface StandardSchemaV1PathSegment {
+  readonly key: PropertyKey;
+}
 
 /**
  * Validator type constants for O(1) dispatch
@@ -12,6 +67,8 @@ export type ParseResult<T> =
 export const VLD_VALIDATOR_TYPES = {
   // Primitives
   STRING: 'string',
+  STRING_FORMAT: 'stringFormat',
+  STRING_BOOL: 'stringBool',
   NUMBER: 'number',
   BOOLEAN: 'boolean',
   DATE: 'date',
@@ -24,6 +81,9 @@ export const VLD_VALIDATOR_TYPES = {
   NEVER: 'never',
   SYMBOL: 'symbol',
   NAN: 'nan',
+  HEX: 'hex',
+  BASE64: 'base64',
+  UINT8_ARRAY: 'uint8Array',
 
   // Coercion
   COERCE_STRING: 'coerceString',
@@ -57,6 +117,7 @@ export const VLD_VALIDATOR_TYPES = {
   FILE: 'file',
   JSON: 'json',
   TEMPLATE_LITERAL: 'templateLiteral',
+  PROMISE: 'promise',
 
   // Wrapper/Modifier validators
   OPTIONAL: 'optional',
@@ -73,6 +134,7 @@ export const VLD_VALIDATOR_TYPES = {
   BRAND: 'brand',
   READONLY: 'readonly',
   META: 'meta',
+  PREFAULT: 'prefault',
   PREFault: 'prefault',
 
   // Codec
@@ -87,6 +149,71 @@ export type ValidatorType = typeof VLD_VALIDATOR_TYPES[keyof typeof VLD_VALIDATO
 export interface SuperRefineContext {
   addIssue(issue: { message: string; code?: string }): void;
   path: (string | number)[];
+}
+
+export type ErrorMap = (issue: { code?: string; input?: unknown; path?: (string | number)[] }) => string | undefined;
+export type ErrorParam = string | { error?: string | ErrorMap; message?: string };
+
+export function resolveErrorMessage(error: ErrorParam | undefined, fallback: string): string {
+  if (typeof error === 'string') {
+    return error;
+  }
+  if (typeof error?.error === 'string') {
+    return error.error;
+  }
+  if (typeof error?.error === 'function') {
+    return error.error({}) || fallback;
+  }
+  if (typeof error?.message === 'string') {
+    return error.message;
+  }
+  return fallback;
+}
+
+function isPromiseLike<T = unknown>(value: unknown): value is PromiseLike<T> {
+  return value !== null &&
+    (typeof value === 'object' || typeof value === 'function') &&
+    typeof (value as { then?: unknown }).then === 'function';
+}
+
+type SimpleWrappedMode = 'string' | 'number' | 'boolean' | 'bigint' | 'symbol' | undefined;
+
+function getSimpleWrappedMode(baseValidator: VldBase<unknown, unknown>): SimpleWrappedMode {
+  if ((baseValidator as { isSimple?: boolean }).isSimple !== true) {
+    return undefined;
+  }
+
+  switch (baseValidator.validatorType) {
+    case VLD_VALIDATOR_TYPES.STRING:
+      return 'string';
+    case VLD_VALIDATOR_TYPES.NUMBER:
+      return 'number';
+    case VLD_VALIDATOR_TYPES.BOOLEAN:
+      return 'boolean';
+    case VLD_VALIDATOR_TYPES.BIGINT:
+      return 'bigint';
+    case VLD_VALIDATOR_TYPES.SYMBOL:
+      return 'symbol';
+    default:
+      return undefined;
+  }
+}
+
+function parseSimpleWrappedValue<TOutput>(mode: SimpleWrappedMode, value: unknown): TOutput | undefined {
+  switch (mode) {
+    case 'string':
+      return typeof value === 'string' ? value as TOutput : undefined;
+    case 'number':
+      return typeof value === 'number' && !isNaN(value) ? value as TOutput : undefined;
+    case 'boolean':
+      return typeof value === 'boolean' ? value as TOutput : undefined;
+    case 'bigint':
+      return typeof value === 'bigint' ? value as TOutput : undefined;
+    case 'symbol':
+      return typeof value === 'symbol' ? value as TOutput : undefined;
+    default:
+      return undefined;
+  }
 }
 
 /**
@@ -108,6 +235,21 @@ export abstract class VldBase<TInput, TOutput = TInput> {
     this.validatorType = validatorType;
   }
 
+  get '~standard'(): StandardSchemaV1Props<unknown, TOutput> {
+    return {
+      version: 1,
+      vendor: 'vld',
+      validate: (value: unknown): StandardSchemaV1Result<TOutput> => {
+        const result = this.safeParse(value);
+        if (result.success) {
+          return { value: result.data };
+        }
+        return { issues: [{ message: result.error.message }] };
+      },
+      types: undefined as unknown as StandardTypedV1Types<unknown, TOutput>
+    };
+  }
+
   /**
    * Parse and validate a value, throwing an error if invalid
    * @param value The value to validate
@@ -122,6 +264,18 @@ export abstract class VldBase<TInput, TOutput = TInput> {
    * @returns A result object with either success and data, or failure and error
    */
   abstract safeParse(value: unknown): ParseResult<TOutput>;
+
+  async parseAsync(value: unknown): Promise<TOutput> {
+    return this.parse(value);
+  }
+
+  async safeParseAsync(value: unknown): Promise<ParseResult<TOutput>> {
+    try {
+      return { success: true, data: await this.parseAsync(value) };
+    } catch (error) {
+      return { success: false, error: error as Error };
+    }
+  }
   
   /**
    * Check if a value is valid according to this validator
@@ -165,11 +319,11 @@ export abstract class VldBase<TInput, TOutput = TInput> {
     message?: string
   ): VldRefine<TInput, TOutput, TRefined>;
   refine(
-    predicate: (value: TOutput) => boolean,
+    predicate: (value: TOutput) => boolean | Promise<boolean>,
     message?: string
   ): VldRefine<TInput, TOutput, TOutput>;
   refine(
-    predicate: (value: TOutput) => boolean,
+    predicate: (value: TOutput) => boolean | Promise<boolean>,
     message?: string
   ): VldRefine<TInput, TOutput, TOutput> {
     return new VldRefine(this, predicate, message);
@@ -192,7 +346,7 @@ export abstract class VldBase<TInput, TOutput = TInput> {
    * @returns A new transformed validator
    */
   transform<TTransformed>(
-    transformer: (value: TOutput) => TTransformed
+    transformer: (value: TOutput) => TTransformed | Promise<TTransformed>
   ): VldTransform<TInput, TOutput, TTransformed> {
     return new VldTransform(this, transformer);
   }
@@ -310,11 +464,11 @@ export abstract class VldBase<TInput, TOutput = TInput> {
     message?: string
   ): VldRefine<TInput, TOutput, TRefined>;
   check(
-    predicate: (value: TOutput) => boolean,
+    predicate: (value: TOutput) => boolean | Promise<boolean>,
     message?: string
   ): VldRefine<TInput, TOutput, TOutput>;
   check(
-    predicate: (value: TOutput) => boolean,
+    predicate: (value: TOutput) => boolean | Promise<boolean>,
     message?: string
   ): VldRefine<TInput, TOutput, TOutput> {
     return new VldRefine(this, predicate, message);
@@ -340,9 +494,24 @@ export abstract class VldBase<TInput, TOutput = TInput> {
    */
   meta(data?: Partial<SchemaMetadata>): SchemaMetadata | undefined | VldMeta<TInput, TOutput> {
     if (data === undefined) {
-      return undefined;
+      return globalRegistry.get(this as unknown as VldBase<unknown, unknown>);
     }
-    return new VldMeta(this, data);
+    const schema = new VldMeta(this, data);
+    globalRegistry.add(schema as unknown as VldBase<unknown, unknown>, data);
+    return schema;
+  }
+
+  /**
+   * Register this schema in a metadata registry and return the same instance.
+   * This mirrors Zod 4's registry convenience API without changing validator
+   * immutability.
+   */
+  register<TMetadata extends Record<string, unknown>>(
+    targetRegistry: SchemaRegistry<TMetadata>,
+    metadata: TMetadata
+  ): this {
+    targetRegistry.add(this, metadata);
+    return this;
   }
 
   /**
@@ -352,7 +521,7 @@ export abstract class VldBase<TInput, TOutput = TInput> {
    * @returns A new validator with the description
    */
   describe(description: string): VldMeta<TInput, TOutput> {
-    return new VldMeta(this, { description });
+    return this.meta({ description }) as VldMeta<TInput, TOutput>;
   }
 }
 
@@ -379,7 +548,7 @@ export class VldMeta<TInput, TOutput> extends VldBase<TInput, TOutput> {
     private readonly baseValidator: VldBase<TInput, TOutput>,
     private readonly metadata: Partial<SchemaMetadata>
   ) {
-    super();
+    super(VLD_VALIDATOR_TYPES.META);
   }
 
   parse(value: unknown): TOutput {
@@ -394,7 +563,23 @@ export class VldMeta<TInput, TOutput> extends VldBase<TInput, TOutput> {
    * Get the metadata
    */
   getMeta(): Readonly<Partial<SchemaMetadata>> {
-    return this.metadata;
+    return { ...this.metadata };
+  }
+
+  override meta(): SchemaMetadata | undefined;
+  override meta(data: Partial<SchemaMetadata>): VldMeta<TInput, TOutput>;
+  override meta(data?: Partial<SchemaMetadata>): SchemaMetadata | undefined | VldMeta<TInput, TOutput> {
+    if (data === undefined) {
+      return { ...this.metadata, ...globalRegistry.get(this as unknown as VldBase<unknown, unknown>) };
+    }
+
+    const schema = new VldMeta(this.baseValidator, { ...this.metadata, ...data });
+    globalRegistry.add(schema as unknown as VldBase<unknown, unknown>, schema.getMeta() as SchemaMetadata);
+    return schema;
+  }
+
+  override describe(description: string): VldMeta<TInput, TOutput> {
+    return this.meta({ description });
   }
 }
 
@@ -403,7 +588,7 @@ export class VldMeta<TInput, TOutput> extends VldBase<TInput, TOutput> {
  */
 export class VldReadonly<TInput, TOutput> extends VldBase<TInput, Readonly<TOutput>> {
   constructor(private readonly baseValidator: VldBase<TInput, TOutput>) {
-    super();
+    super(VLD_VALIDATOR_TYPES.READONLY);
   }
 
   parse(value: unknown): Readonly<TOutput> {
@@ -430,7 +615,7 @@ export class VldBrand<TInput, TOutput, TBrand extends string> extends VldBase<
   constructor(
     private readonly baseValidator: VldBase<TInput, TOutput>
   ) {
-    super();
+    super(VLD_VALIDATOR_TYPES.BRAND);
   }
 
   parse(value: unknown): TOutput & { readonly __brand: TBrand } {
@@ -457,16 +642,21 @@ export class VldBrand<TInput, TOutput, TBrand extends string> extends VldBase<
 export class VldRefine<TInput, TBase, TOutput extends TBase = TBase> extends VldBase<TInput, TOutput> {
   constructor(
     private readonly baseValidator: VldBase<TInput, TBase>,
-    private readonly predicate: (value: TBase) => boolean,
+    private readonly predicate: (value: TBase) => boolean | Promise<boolean>,
     private readonly customMessage?: string
   ) {
-    super();
+    super(VLD_VALIDATOR_TYPES.REFINE);
   }
   
   parse(value: unknown): TOutput {
     const baseResult = this.baseValidator.parse(value);
-    
-    if (!this.predicate(baseResult)) {
+
+    const passed = this.predicate(baseResult);
+    if (isPromiseLike(passed)) {
+      throw new Error('Use parseAsync for async refinements');
+    }
+
+    if (!passed) {
       throw new Error(this.customMessage || 'Refinement check failed');
     }
     
@@ -480,6 +670,14 @@ export class VldRefine<TInput, TBase, TOutput extends TBase = TBase> extends Vld
       return { success: false, error: error as Error };
     }
   }
+
+  override async parseAsync(value: unknown): Promise<TOutput> {
+    const baseResult = await this.baseValidator.parseAsync(value);
+    if (!await this.predicate(baseResult)) {
+      throw new Error(this.customMessage || 'Refinement check failed');
+    }
+    return baseResult as TOutput;
+  }
 }
 
 /**
@@ -488,16 +686,20 @@ export class VldRefine<TInput, TBase, TOutput extends TBase = TBase> extends Vld
 export class VldTransform<TInput, TBase, TOutput> extends VldBase<TInput, TOutput> {
   constructor(
     private readonly baseValidator: VldBase<TInput, TBase>,
-    private readonly transformer: (value: TBase) => TOutput
+    private readonly transformer: (value: TBase) => TOutput | Promise<TOutput>
   ) {
-    super();
+    super(VLD_VALIDATOR_TYPES.TRANSFORM);
   }
   
   parse(value: unknown): TOutput {
     const baseResult = this.baseValidator.parse(value);
     
     try {
-      return this.transformer(baseResult);
+      const transformed = this.transformer(baseResult);
+      if (isPromiseLike(transformed)) {
+        throw new Error('Use parseAsync for async transforms');
+      }
+      return transformed;
     } catch (error) {
       throw new Error(`Transform failed: ${(error as Error).message}`);
     }
@@ -508,6 +710,15 @@ export class VldTransform<TInput, TBase, TOutput> extends VldBase<TInput, TOutpu
       return { success: true, data: this.parse(value) };
     } catch (error) {
       return { success: false, error: error as Error };
+    }
+  }
+
+  override async parseAsync(value: unknown): Promise<TOutput> {
+    const baseResult = await this.baseValidator.parseAsync(value);
+    try {
+      return await this.transformer(baseResult);
+    } catch (error) {
+      throw new Error(`Transform failed: ${(error as Error).message}`);
     }
   }
 }
@@ -522,7 +733,7 @@ export class VldDefault<TInput, TOutput> extends VldBase<TInput | undefined, TOu
     private readonly baseValidator: VldBase<TInput, TOutput>,
     private readonly defaultValue: TOutput
   ) {
-    super();
+    super(VLD_VALIDATOR_TYPES.DEFAULT);
   }
 
   parse(value: unknown): TOutput {
@@ -557,7 +768,7 @@ export class VldPrefault<TInput, TOutput> extends VldBase<TInput | undefined, TO
     private readonly baseValidator: VldBase<TInput, TOutput>,
     private readonly defaultValue: TOutput
   ) {
-    super();
+    super(VLD_VALIDATOR_TYPES.PREFAULT);
   }
 
   parse(value: unknown): TOutput {
@@ -588,11 +799,14 @@ export class VldPrefault<TInput, TOutput> extends VldBase<TInput | undefined, TO
  * BUG-NPM-003 FIX: Validate fallback value at construction time
  */
 export class VldCatch<TInput, TOutput> extends VldBase<TInput, TOutput> {
+  private readonly simpleMode: SimpleWrappedMode;
+
   constructor(
     private readonly baseValidator: VldBase<TInput, TOutput>,
     private readonly fallbackValue: TOutput
   ) {
-    super();
+    super(VLD_VALIDATOR_TYPES.CATCH);
+    this.simpleMode = getSimpleWrappedMode(baseValidator as unknown as VldBase<unknown, unknown>);
     // BUG-NPM-003 FIX: Validate the fallback value to ensure type safety
     const validation = baseValidator.safeParse(fallbackValue);
     if (!validation.success) {
@@ -601,6 +815,14 @@ export class VldCatch<TInput, TOutput> extends VldBase<TInput, TOutput> {
   }
   
   parse(value: unknown): TOutput {
+    const simpleValue = parseSimpleWrappedValue<TOutput>(this.simpleMode, value);
+    if (simpleValue !== undefined) {
+      return simpleValue;
+    }
+    if (this.simpleMode !== undefined) {
+      return this.fallbackValue;
+    }
+
     try {
       return this.baseValidator.parse(value);
     } catch {
@@ -609,6 +831,14 @@ export class VldCatch<TInput, TOutput> extends VldBase<TInput, TOutput> {
   }
   
   safeParse(value: unknown): ParseResult<TOutput> {
+    const simpleValue = parseSimpleWrappedValue<TOutput>(this.simpleMode, value);
+    if (simpleValue !== undefined) {
+      return { success: true, data: simpleValue };
+    }
+    if (this.simpleMode !== undefined) {
+      return { success: true, data: this.fallbackValue };
+    }
+
     const result = this.baseValidator.safeParse(value);
     if (result.success) {
       return result;
@@ -621,8 +851,15 @@ export class VldCatch<TInput, TOutput> extends VldBase<TInput, TOutput> {
  * Optional validator - allows undefined
  */
 export class VldOptional<TInput, TOutput> extends VldBase<TInput | undefined, TOutput | undefined> {
+  private readonly simpleMode: SimpleWrappedMode;
+
   constructor(private readonly baseValidator: VldBase<TInput, TOutput>) {
-    super();
+    super(VLD_VALIDATOR_TYPES.OPTIONAL);
+    this.simpleMode = getSimpleWrappedMode(baseValidator as unknown as VldBase<unknown, unknown>);
+  }
+
+  private parseSimpleValue(value: unknown): TOutput | undefined {
+    return parseSimpleWrappedValue(this.simpleMode, value);
   }
 
   static create<TInput, TOutput>(baseValidator: VldBase<TInput, TOutput>): VldOptional<TInput, TOutput> {
@@ -633,12 +870,20 @@ export class VldOptional<TInput, TOutput> extends VldBase<TInput | undefined, TO
     if (value === undefined) {
       return undefined;
     }
+    const simpleValue = this.parseSimpleValue(value);
+    if (simpleValue !== undefined) {
+      return simpleValue;
+    }
     return this.baseValidator.parse(value);
   }
 
   safeParse(value: unknown): ParseResult<TOutput | undefined> {
     if (value === undefined) {
       return { success: true, data: undefined };
+    }
+    const simpleValue = this.parseSimpleValue(value);
+    if (simpleValue !== undefined) {
+      return { success: true, data: simpleValue };
     }
     return this.baseValidator.safeParse(value);
   }
@@ -655,8 +900,11 @@ export class VldOptional<TInput, TOutput> extends VldBase<TInput | undefined, TO
  * Zod 4 API parity
  */
 export class VldExactOptional<TInput, TOutput> extends VldBase<TInput | undefined, TOutput | undefined> {
+  private readonly simpleMode: SimpleWrappedMode;
+
   constructor(private readonly baseValidator: VldBase<TInput, TOutput>) {
-    super();
+    super(VLD_VALIDATOR_TYPES.EXACT_OPTIONAL);
+    this.simpleMode = getSimpleWrappedMode(baseValidator as unknown as VldBase<unknown, unknown>);
   }
 
   static create<TInput, TOutput>(baseValidator: VldBase<TInput, TOutput>): VldExactOptional<TInput, TOutput> {
@@ -667,6 +915,10 @@ export class VldExactOptional<TInput, TOutput> extends VldBase<TInput | undefine
     if (value === undefined) {
       return undefined;
     }
+    const simpleValue = parseSimpleWrappedValue<TOutput>(this.simpleMode, value);
+    if (simpleValue !== undefined) {
+      return simpleValue;
+    }
     return this.baseValidator.parse(value);
   }
 
@@ -675,6 +927,10 @@ export class VldExactOptional<TInput, TOutput> extends VldBase<TInput | undefine
     // but we still validate through the base validator
     if (value === undefined) {
       return { success: true, data: undefined };
+    }
+    const simpleValue = parseSimpleWrappedValue<TOutput>(this.simpleMode, value);
+    if (simpleValue !== undefined) {
+      return { success: true, data: simpleValue };
     }
     return this.baseValidator.safeParse(value);
   }
@@ -688,8 +944,11 @@ export class VldExactOptional<TInput, TOutput> extends VldBase<TInput | undefine
  * Nullable validator - allows null
  */
 export class VldNullable<TInput, TOutput> extends VldBase<TInput | null, TOutput | null> {
+  private readonly simpleMode: SimpleWrappedMode;
+
   constructor(private readonly baseValidator: VldBase<TInput, TOutput>) {
-    super();
+    super(VLD_VALIDATOR_TYPES.NULLABLE);
+    this.simpleMode = getSimpleWrappedMode(baseValidator as unknown as VldBase<unknown, unknown>);
   }
 
   static create<TInput, TOutput>(baseValidator: VldBase<TInput, TOutput>): VldNullable<TInput, TOutput> {
@@ -700,12 +959,20 @@ export class VldNullable<TInput, TOutput> extends VldBase<TInput | null, TOutput
     if (value === null) {
       return null;
     }
+    const simpleValue = parseSimpleWrappedValue<TOutput>(this.simpleMode, value);
+    if (simpleValue !== undefined) {
+      return simpleValue;
+    }
     return this.baseValidator.parse(value);
   }
 
   safeParse(value: unknown): ParseResult<TOutput | null> {
     if (value === null) {
       return { success: true, data: null };
+    }
+    const simpleValue = parseSimpleWrappedValue<TOutput>(this.simpleMode, value);
+    if (simpleValue !== undefined) {
+      return { success: true, data: simpleValue };
     }
     return this.baseValidator.safeParse(value);
   }
@@ -719,8 +986,11 @@ export class VldNullable<TInput, TOutput> extends VldBase<TInput | null, TOutput
  * Nullish validator - allows null or undefined
  */
 export class VldNullish<TInput, TOutput> extends VldBase<TInput | null | undefined, TOutput | null | undefined> {
+  private readonly simpleMode: SimpleWrappedMode;
+
   constructor(private readonly baseValidator: VldBase<TInput, TOutput>) {
-    super();
+    super(VLD_VALIDATOR_TYPES.NULLISH);
+    this.simpleMode = getSimpleWrappedMode(baseValidator as unknown as VldBase<unknown, unknown>);
   }
 
   static create<TInput, TOutput>(baseValidator: VldBase<TInput, TOutput>): VldNullish<TInput, TOutput> {
@@ -731,12 +1001,20 @@ export class VldNullish<TInput, TOutput> extends VldBase<TInput | null | undefin
     if (value === null || value === undefined) {
       return value as null | undefined;
     }
+    const simpleValue = parseSimpleWrappedValue<TOutput>(this.simpleMode, value);
+    if (simpleValue !== undefined) {
+      return simpleValue;
+    }
     return this.baseValidator.parse(value);
   }
 
   safeParse(value: unknown): ParseResult<TOutput | null | undefined> {
     if (value === null || value === undefined) {
       return { success: true, data: value as null | undefined };
+    }
+    const simpleValue = parseSimpleWrappedValue<TOutput>(this.simpleMode, value);
+    if (simpleValue !== undefined) {
+      return { success: true, data: simpleValue };
     }
     return this.baseValidator.safeParse(value);
   }
@@ -754,7 +1032,7 @@ export class VldPipe<TInput, TIntermediate, TOutput> extends VldBase<TInput, TOu
     private readonly first: VldBase<TInput, TIntermediate>,
     private readonly second: VldBase<TIntermediate, TOutput>
   ) {
-    super();
+    super(VLD_VALIDATOR_TYPES.PIPE);
   }
 
   parse(value: unknown): TOutput {
@@ -779,7 +1057,7 @@ export class VldSuperRefine<TInput, TOutput> extends VldBase<TInput, TOutput> {
     private readonly _inner: VldBase<TInput, TOutput>,
     private readonly _refinement: (value: TOutput, ctx: SuperRefineContext) => void | Promise<void>
   ) {
-    super();
+    super(VLD_VALIDATOR_TYPES.SUPER_REFINE);
   }
 
   parse(value: unknown): TOutput {
@@ -827,6 +1105,32 @@ export class VldSuperRefine<TInput, TOutput> extends VldBase<TInput, TOutput> {
 
     return result;
   }
+
+  override async parseAsync(value: unknown): Promise<TOutput> {
+    const result = await this._inner.parseAsync(value);
+
+    const issues: { message: string; code?: string }[] = [];
+    const ctx: SuperRefineContext = {
+      addIssue: (issue) => issues.push(issue),
+      path: []
+    };
+
+    await this._refinement(result, ctx);
+
+    if (issues.length > 0) {
+      throw new Error(issues.map(i => i.message).join('; '));
+    }
+
+    return result;
+  }
+
+  override async safeParseAsync(value: unknown): Promise<ParseResult<TOutput>> {
+    try {
+      return { success: true, data: await this.parseAsync(value) };
+    } catch (error) {
+      return { success: false, error: error as Error };
+    }
+  }
 }
 
 /**
@@ -837,7 +1141,7 @@ export class VldPreprocess<TInput, TOutput> extends VldBase<unknown, TOutput> {
     private readonly _preprocessor: (input: unknown) => unknown,
     private readonly _schema: VldBase<TInput, TOutput>
   ) {
-    super();
+    super(VLD_VALIDATOR_TYPES.PREPROCESS);
   }
 
   static create<TInput, TOutput>(

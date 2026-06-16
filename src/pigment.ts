@@ -14,12 +14,12 @@ declare const window: any;
  */
 export function supportsColor(): boolean {
   // Check for NO_COLOR environment variable
-  if (typeof process !== 'undefined' && process.env?.NO_COLOR) {
+  if (typeof process !== 'undefined' && process.env?.['NO_COLOR']) {
     return false;
   }
 
   // Check for FORCE_COLOR environment variable
-  if (typeof process !== 'undefined' && process.env?.FORCE_COLOR) {
+  if (typeof process !== 'undefined' && process.env?.['FORCE_COLOR']) {
     return true;
   }
 
@@ -93,6 +93,13 @@ const ANSI = {
   bgBrightCyan: '\x1b[106m',
   bgBrightWhite: '\x1b[107m'
 } as const;
+
+/* eslint-disable no-control-regex */
+const ANSI_ESCAPE_PATTERN = new RegExp(
+  '[\\u001b\\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]',
+  'g'
+);
+/* eslint-enable no-control-regex */
 
 /**
  * Create a color function
@@ -171,10 +178,7 @@ export const pigment = {
 
   // Strip ANSI codes from string
   strip: (text: string): string =>
-    text.replace(
-      /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g,
-      ''
-    ),
+    text.replace(ANSI_ESCAPE_PATTERN, ''),
 
   // Get raw ANSI codes
   codes: ANSI

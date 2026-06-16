@@ -1,5 +1,5 @@
-import { VldBase, ParseResult } from './base';
-import { getMessages } from '../locales';
+import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
+import { getMessages } from '../locales/runtime';
 
 /**
  * Immutable JSON validator that validates and parses JSON strings
@@ -9,7 +9,7 @@ export class VldJson<T = unknown> extends VldBase<unknown, T> {
   private constructor(
     private readonly schema?: VldBase<unknown, T>
   ) {
-    super();
+    super(VLD_VALIDATOR_TYPES.JSON);
   }
 
   /**
@@ -29,7 +29,7 @@ export class VldJson<T = unknown> extends VldBase<unknown, T> {
     if (typeof value === 'string') {
       try {
         parsed = JSON.parse(value);
-      } catch (e) {
+      } catch {
         throw new Error(getMessages().invalidJson);
       }
     } else {

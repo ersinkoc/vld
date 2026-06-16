@@ -4,6 +4,7 @@
  */
 
 import { v } from '../../src';
+import { VldNumber } from '../../src/validators/number';
 
 describe('VldNumber Coverage Tests', () => {
   describe('uint32()', () => {
@@ -133,6 +134,87 @@ describe('VldNumber Coverage Tests', () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.message).toContain('Must be more than 10');
+      }
+    });
+  });
+
+  describe('generic check execution paths', () => {
+    it('should preserve custom messages for positive fast-path parse failures', () => {
+      const positive = v.number().positive('Need positive');
+      const positiveInt = v.number().positive('Need positive integer').int('Need positive integer');
+
+      expect(() => positive.parse(0)).toThrow('Need positive');
+      expect(() => positive.parseKnownNumber(0)).toThrow('Need positive');
+      expect(() => positiveInt.parse(1.5)).toThrow('Need positive integer');
+      expect(() => positiveInt.parseKnownNumber(1.5)).toThrow('Need positive integer');
+    });
+
+    it('should fall back to locale messages for internal fast-path failures without custom messages', () => {
+      const positive = new (VldNumber as any)({
+        checks: [(value: number) => value > 0],
+        jsonSchema: { exclusiveMinimum: 0 }
+      }) as VldNumber;
+      const positiveInt = new (VldNumber as any)({
+        checks: [(value: number) => value > 0, (value: number) => Number.isInteger(value)],
+        jsonSchema: { exclusiveMinimum: 0, type: 'integer' }
+      }) as VldNumber;
+
+      expect(() => positive.parse(0)).toThrow('Invalid number');
+      expect(() => positive.parseKnownNumber(0)).toThrow('Invalid number');
+      expect(() => positiveInt.parse(1.5)).toThrow('Invalid number');
+      expect(() => positiveInt.parseKnownNumber(1.5)).toThrow('Invalid number');
+    });
+
+    it('should use default messages for parseKnownNumber check failures', () => {
+      expect(() => v.number().min(2).parseKnownNumber(1)).toThrow('Number must be at least 2');
+      expect(() => v.number().min(0).max(10).int().parseKnownNumber(1.5)).toThrow('Number must be an integer');
+    });
+
+    it('should fall back to locale messages for internal generic check failures without custom messages', () => {
+      const oneCheck = new (VldNumber as any)({
+        checks: [(value: number) => value > 0]
+      }) as VldNumber;
+      const manyChecks = new (VldNumber as any)({
+        checks: [
+          (value: number) => value >= 0,
+          (value: number) => value <= 10,
+          (value: number) => Number.isInteger(value),
+          (value: number) => value % 2 === 0
+        ]
+      }) as VldNumber;
+
+      expect(() => oneCheck.parseKnownNumber(0)).toThrow('Invalid number');
+      expect(() => manyChecks.parseKnownNumber(3)).toThrow('Invalid number');
+    });
+
+    it('should preserve custom messages in the many-check failure path', () => {
+      const schema = v.number()
+        .min(0, 'Composite number failure')
+        .max(10, 'Composite number failure')
+        .int('Composite number failure')
+        .multipleOf(2, 'Composite number failure');
+
+      expect(() => schema.parseKnownNumber(3)).toThrow('Composite number failure');
+    });
+
+    it('should apply positive checks through the multi-check path', () => {
+      const schema = v.number().positive().max(10);
+
+      expect(schema.parseKnownNumber(5)).toBe(5);
+      expect(schema.safeParse(0).success).toBe(false);
+      expect(schema.safeParse(11).success).toBe(false);
+    });
+
+    it('should convert thrown check failures into safeParse errors', () => {
+      const schema = v.number().min(0);
+      (schema as any)._checks = [() => {
+        throw new Error('check exploded');
+      }];
+
+      const result = schema.safeParse(1);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.message).toBe('check exploded');
       }
     });
   });

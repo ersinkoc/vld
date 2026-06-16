@@ -4,6 +4,7 @@
  */
 
 import { v } from '../../src';
+import { resolveErrorMessage, VldExactOptional } from '../../src/validators/base';
 
 describe('Base Validators Coverage Tests', () => {
   describe('VldReadonly', () => {
@@ -206,6 +207,20 @@ describe('Base Validators Coverage Tests', () => {
       const unwrapped = (schema as any).unwrap();
       expect(unwrapped.safeParse('test').success).toBe(true);
     });
+
+    it('should support static creation and primitive fast paths', () => {
+      const stringSchema = VldExactOptional.create(v.string());
+      const bigintSchema = VldExactOptional.create(v.bigint());
+      const symbolSchema = VldExactOptional.create(v.symbol());
+      const token = Symbol('token');
+
+      expect(stringSchema.safeParse(undefined)).toEqual({ success: true, data: undefined });
+      expect(stringSchema.safeParse('test')).toEqual({ success: true, data: 'test' });
+      expect(bigintSchema.safeParse('nope').success).toBe(false);
+      expect(symbolSchema.safeParse('nope').success).toBe(false);
+      expect(bigintSchema.safeParse(1n)).toEqual({ success: true, data: 1n });
+      expect(symbolSchema.safeParse(token)).toEqual({ success: true, data: token });
+    });
   });
 
   describe('meta() and describe()', () => {
@@ -234,6 +249,68 @@ describe('Base Validators Coverage Tests', () => {
       const schema = v.string();
       const result = (schema as any).meta();
       expect(result).toBeUndefined();
+    });
+
+    it('should merge metadata and support describe on metadata validators', () => {
+      const schema = v.string()
+        .meta({ title: 'Name' })
+        .describe('Display name')
+        .meta({ examples: ['Ada'] });
+
+      expect(schema.parse('Ada')).toBe('Ada');
+      expect((schema as any).getMeta()).toEqual({
+        title: 'Name',
+        description: 'Display name',
+        examples: ['Ada']
+      });
+      expect((schema as any).meta()).toEqual({
+        title: 'Name',
+        description: 'Display name',
+        examples: ['Ada']
+      });
+    });
+  });
+
+  describe('shared wrapper edge paths', () => {
+    it('should resolve function-based error maps with fallback support', () => {
+      expect(resolveErrorMessage({ error: () => 'mapped' }, 'fallback')).toBe('mapped');
+      expect(resolveErrorMessage({ error: () => undefined }, 'fallback')).toBe('fallback');
+    });
+
+    it('should route check() through the refine implementation', () => {
+      const schema = v.string().check(value => value.startsWith('ok'), 'Must start with ok');
+
+      expect(schema.parse('ok-value')).toBe('ok-value');
+      expect(schema.safeParse('bad-value').success).toBe(false);
+    });
+
+    it('should reject async refinements from synchronous parse paths', async () => {
+      const schema = v.string().refine(async () => true);
+
+      expect(() => schema.parse('value')).toThrow('Use parseAsync for async refinements');
+      expect(schema.safeParse('value').success).toBe(false);
+      await expect(schema.parseAsync('value')).resolves.toBe('value');
+    });
+
+    it('should reject async transforms from synchronous parse paths', async () => {
+      const schema = v.string().transform(async value => value.toUpperCase());
+      const rejectingSchema = v.string().transform(async () => {
+        throw new Error('async transform failed');
+      });
+
+      expect(() => schema.parse('value')).toThrow('Transform failed');
+      expect(() => schema.parse('value')).toThrow('Use parseAsync for async transforms');
+      expect(schema.safeParse('value').success).toBe(false);
+      await expect(schema.parseAsync('value')).resolves.toBe('VALUE');
+      await expect(rejectingSchema.parseAsync('value')).rejects.toThrow('Transform failed: async transform failed');
+    });
+
+    it('should keep brand safeParse success and failure paths intact', () => {
+      const schema = v.string().brand<'UserId'>();
+
+      expect(schema.parse('usr_1')).toBe('usr_1');
+      expect(schema.safeParse('usr_1')).toEqual({ success: true, data: 'usr_1' });
+      expect(schema.safeParse(123).success).toBe(false);
     });
   });
 });

@@ -126,9 +126,45 @@ describe('Lazy Locale System', () => {
       expect(getLocale()).toBe('de');
     });
 
+    test('loads German through the dynamic locale loader', async () => {
+      const originalHas = Map.prototype.has;
+      Map.prototype.has = function patchedHas(this: Map<unknown, unknown>, key: unknown): boolean {
+        if (key === 'de') {
+          return false;
+        }
+        return originalHas.call(this, key);
+      };
+
+      try {
+        await setLocaleAsync('de');
+        expect(getLocale()).toBe('de');
+        expect(getMessages()).toEqual(de);
+      } finally {
+        Map.prototype.has = originalHas;
+      }
+    });
+
     test('returns immediately for English', async () => {
       await setLocaleAsync('en');
       expect(getLocale()).toBe('en');
+    });
+
+    test('keeps the explicit English fallback branch available', async () => {
+      const originalHas = Map.prototype.has;
+      Map.prototype.has = function patchedHas(this: Map<unknown, unknown>, key: unknown): boolean {
+        if (key === 'en') {
+          return false;
+        }
+        return originalHas.call(this, key);
+      };
+
+      try {
+        await setLocaleAsync('en');
+        expect(getLocale()).toBe('en');
+        expect(getMessages()).toEqual(en);
+      } finally {
+        Map.prototype.has = originalHas;
+      }
     });
 
     test('loads various locales', async () => {
@@ -147,6 +183,37 @@ describe('Lazy Locale System', () => {
       await setLocaleAsync('xyz' as Locale);
       expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('not available'));
       consoleSpy.mockRestore();
+    });
+
+    test('warns and falls back when a dynamic locale load fails', async () => {
+      const originalHas = Map.prototype.has;
+      const originalSet = Map.prototype.set;
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      Map.prototype.has = function patchedHas(this: Map<unknown, unknown>, key: unknown): boolean {
+        if (key === 'tr') {
+          return false;
+        }
+        return originalHas.call(this, key);
+      };
+      Map.prototype.set = function patchedSet(this: Map<unknown, unknown>, key: unknown, value: unknown): Map<unknown, unknown> {
+        if (key === 'tr') {
+          throw new Error('simulated locale cache failure');
+        }
+        return originalSet.call(this, key, value);
+      };
+
+      try {
+        await setLocaleAsync('tr');
+        expect(consoleSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Failed to load locale "tr"'),
+          expect.any(Error)
+        );
+      } finally {
+        Map.prototype.has = originalHas;
+        Map.prototype.set = originalSet;
+        consoleSpy.mockRestore();
+      }
     });
 
     test('loads pt-BR locale', async () => {

@@ -1,14 +1,14 @@
-import { VldBase, ParseResult } from './base';
+import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
 import { VldError, createIssue } from '../errors';
-import { getMessages } from '../locales';
+import { getMessages } from '../locales/runtime';
 
 /**
  * Configuration for Uint8Array validator
  * BUG-NEW-010 FIX: Use config object pattern for immutability
  */
 interface Uint8ArrayValidatorConfig {
-  readonly minLength?: number;
-  readonly maxLength?: number;
+  readonly minLength?: number | undefined;
+  readonly maxLength?: number | undefined;
   readonly exactLength?: number;
 }
 
@@ -23,7 +23,7 @@ export class VldUint8Array extends VldBase<Uint8Array, Uint8Array> {
    * Protected constructor to maintain immutability
    */
   protected constructor(config?: Uint8ArrayValidatorConfig) {
-    super();
+    super(VLD_VALIDATOR_TYPES.UINT8_ARRAY);
     this.config = config || {};
   }
 

@@ -1,8 +1,8 @@
 # VLD - Fast & Lightweight TypeScript Validation Library
 
-[![NPM Version](https://img.shields.io/npm/v/@oxog/vld.svg)](https://www.npmjs.com/package/@oxog/vld) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/) [![Zero Dependencies](https://img.shields.io/badge/Dependencies-0-green.svg)](package.json) [![Test Coverage](https://img.shields.io/badge/Coverage-98.34%25-brightgreen.svg)](package.json)
+[![NPM Version](https://img.shields.io/npm/v/@oxog/vld.svg)](https://www.npmjs.com/package/@oxog/vld) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/) [![Zero Dependencies](https://img.shields.io/badge/Dependencies-0-green.svg)](package.json) [![Test Coverage](https://img.shields.io/badge/Coverage-100%25-brightgreen.svg)](package.json)
 
-VLD is a blazing-fast, type-safe validation library for TypeScript and JavaScript with **full Zod feature parity**. Built with performance in mind, it provides a simple and intuitive API while maintaining excellent type inference and 27+ language internationalization support.
+VLD is a blazing-fast, type-safe validation library for TypeScript and JavaScript with **Zod-compatible root and subpath APIs**. Built with performance in mind, it provides a simple and intuitive API while maintaining excellent type inference and 27+ language internationalization support.
 
 ## Table of Contents
 
@@ -34,8 +34,9 @@ VLD is a blazing-fast, type-safe validation library for TypeScript and JavaScrip
 - **Composable**: Chain validations for complex schemas
 - **Advanced Error Formatting**: Tree, pretty, and flatten error utilities
 - **Multi-language**: Built-in support for 27+ languages
-- **98.34% Test Coverage**: Rigorously tested with 1914 passing tests
-- **Industry Leading Performance**: 1.98x faster than Zod on average
+- **100% Statement / Branch / Line Coverage**: Rigorously tested with 2160 passing tests
+- **Release-Gated Performance**: CI guards require VLD to stay faster than the latest stable Zod across runtime, startup, and memory benchmarks
+- **Drop-in App Verification**: A real TypeScript fixture is compiled and run once with `zod` and once with built VLD, then normalized runtime output is compared
 
 ### Advanced Zod-Compatible Features
 - **Type Coercion**: `v.coerce.string()`, `v.coerce.number()`, `v.coerce.boolean()`, etc.
@@ -149,14 +150,18 @@ await setLocaleAsync('tr'); // Loads Turkish on demand
 
 VLD is designed for speed and efficiency with recent optimizations delivering exceptional performance:
 
-### Speed Benchmarks (v1.5.0)
-- **3.25x faster** for email validation
-- **3.23x faster** for number validation
-- **3.16x faster** for optional validation
-- **2.73x faster** for safeParse operations
-- **2.08x faster** for enum validation
-- **2.03x faster** for simple string validation
-- **1.98x faster** overall average performance
+### Release-Gated Speed Benchmarks (v2.1.0 vs Zod 4.4.3)
+- Runtime guard: VLD must stay at least 1.2x faster on every guarded hot path and keep at least a 3x average ratio
+- Startup guard: VLD must keep at least 1.1x faster import, 1.25x faster total startup, and 1.25x faster warm parse ratios than Zod
+- Memory guard: VLD must keep at least 2x lower total retained heap, 1.5x higher aggregate throughput, and no guarded case below 1.1x speed
+
+### Recent Local Benchmark Snapshot
+- **52.92x faster** for nullish validation
+- **46.58x faster** for catch validation
+- **27.62x faster** for number validation
+- **14.88x faster** for bigint validation
+- **10.71x faster** for nullable validation
+- **Over 10x faster** average guarded runtime ratio in recent release checks
 
 ### Optimizations
 - **110x improvement** in union type validation
@@ -167,10 +172,10 @@ VLD is designed for speed and efficiency with recent optimizations delivering ex
 - **Pre-computed keys** with Set for O(1) lookups
 
 ### Memory Efficiency
-- **98% less memory** for validator creation
-- **51% less memory** for data parsing
-- **86% less memory** for error handling
-- **78% less memory** overall average
+- **18.13x less memory** for schema creation
+- **6.20x less memory** for union validation
+- **2.81x less memory** for simple string validation
+- **4.85x less memory** overall
 
 ### A Note on Real-World Benchmarking
 
@@ -527,7 +532,8 @@ v.function()
 ### Type Inference
 
 ```typescript
-import { v, Infer } from '@oxog/vld';
+import { v } from '@oxog/vld';
+import type { Infer } from '@oxog/vld';
 
 const schema = v.object({
   name: v.string(),
@@ -542,8 +548,8 @@ type User = Infer<typeof schema>;
 ### Error Formatting Types
 
 ```typescript
-import {
-  VldError,           // Main error class
+import { VldError } from '@oxog/vld';
+import type {
   VldIssue,           // Individual validation issue
   VldErrorTree,       // Nested error structure
   VldFlattenedError   // Flattened error structure
@@ -1095,8 +1101,8 @@ VLD is designed as a compelling alternative to Zod, offering full feature parity
 
 | Feature                 | VLD                                | Zod                                  |
 | ----------------------- | ---------------------------------- | ------------------------------------ |
-| **Performance**         | **~1.98x faster** (average)        | Baseline                             |
-| **Memory Usage**        | **~78% less** overall              | Baseline                             |
+| **Performance**         | **Release-gated faster runtime, startup, and memory paths** | Baseline                             |
+| **Memory Usage**        | **~4.85x less** overall            | Baseline                             |
 | **Internationalization**| **Built-in (27+ languages)**       | Requires third-party library         |
 | **Dependencies**        | **Zero**                           | `zod-i18n` for locales               |
 | **Bundle Size**         | Smaller                            | Larger                               |
@@ -1104,7 +1110,7 @@ VLD is designed as a compelling alternative to Zod, offering full feature parity
 | **Plugin System**       | **Built-in**                       | Not available                        |
 | **Result Pattern**      | **Built-in**                       | Not available                        |
 | **CLI Tools**           | **Built-in**                       | Not available                        |
-| **Codecs**              | Built-in, bidirectional            | Via external `zod-codecs`            |
+| **Codecs**              | Built-in, bidirectional            | Built-in                             |
 | **Type Inference**      | Excellent                          | Excellent                            |
 
 ### Seamless Migration from Zod
@@ -1119,32 +1125,90 @@ import { v } from '@oxog/vld';
 const schema = v.string().email();
 ```
 
+### Drop-in Package Subpaths
+
+VLD also exposes Zod-compatible package subpaths so applications that import Zod 4 entry points can migrate by changing the package name:
+
+```typescript
+// Before
+import { z } from 'zod';
+import * as core from 'zod/v4/core';
+import * as mini from 'zod/v4-mini';
+import * as locales from 'zod/v4/locales';
+
+// After
+import { z } from '@oxog/vld';
+import * as core from '@oxog/vld/v4/core';
+import * as mini from '@oxog/vld/v4-mini';
+import * as locales from '@oxog/vld/v4/locales';
+```
+
+Release checks enforce zero missing exports and zero `typeof` mismatches for `zod/v4`, `zod/v4-mini`, `zod/v4/mini`, `zod/v4/core`, and `zod/v4/locales` against the installed latest Zod.
+
+### Real App Drop-in Verification
+
+`npm run verify:drop-in` creates two temporary TypeScript applications from the same fixture:
+
+- One imports and runs against real `zod`.
+- One imports and runs against the locally built `@oxog/vld` package.
+- The fixture exercises root APIs, `v4`, `v4-mini`, `v4/core`, `v4/locales`, parsing, error formatting, JSON Schema output, mini helpers, and core factories.
+- The normalized runtime outputs must match exactly.
+
 ## Benchmarks
 
 ### Performance Results
 
-| Test Case | VLD Performance | Improvement |
-|-----------|----------------|-------------|
-| Simple String | 73.0M ops/sec | **2.03x faster** |
-| Email Validation | 21.8M ops/sec | **3.25x faster** |
-| Number Validation | 36.3M ops/sec | **3.23x faster** |
-| Simple Object | 7.1M ops/sec | **1.02x faster** |
-| Complex Object | 1.9M ops/sec | **1.34x faster** |
-| Array Validation | 7.5M ops/sec | **1.35x faster** |
-| Union Types | 7.1M ops/sec | **1.29x faster** |
-| Optional Values | 36.1M ops/sec | **3.16x faster** |
-| SafeParse | 60.0M ops/sec | **2.73x faster** |
-| Type Coercion | 20.4M ops/sec | **1.01x faster** |
-| Enum Validation | 60.3M ops/sec | **2.08x faster** |
-| Discriminated Union | 3.6M ops/sec | Zod 1.27x faster |
+Median of 11 samples per case against Zod 4.4.3, the latest stable release at the time of measurement. The release gate also runs focused runtime, startup, memory, package, install, security, Zod parity, and real drop-in app checks before publishing.
 
-**VLD won 11/12 tests | Average: 1.98x faster than Zod**
+| Test Case | VLD Median Performance | Improvement |
+|-----------|----------------|-------------|
+| Simple String | 719.2M ops/sec | **3.40x faster** |
+| Email Validation | 22.1M ops/sec | **2.87x faster** |
+| Top-level Email Format | 22.8M ops/sec | **3.66x faster** |
+| StringBool Validation | 32.7M ops/sec | **3.44x faster** |
+| Number Validation | 226.2M ops/sec | **27.62x faster** |
+| Simple Object | 37.7M ops/sec | **1.40x faster** |
+| Complex Object | 2.3M ops/sec | **1.02x faster** |
+| Array Validation | 39.8M ops/sec | **6.74x faster** |
+| Union Types | 38.1M ops/sec | **4.10x faster** |
+| Optional Values | 236.9M ops/sec | **7.57x faster** |
+| Nullable Values | 224.7M ops/sec | **10.71x faster** |
+| Nullish Values | 228.4M ops/sec | **52.92x faster** |
+| Default Values | 207.8M ops/sec | **9.71x faster** |
+| Catch Values | 232.1M ops/sec | **46.58x faster** |
+| SafeParse | 162.0M ops/sec | **1.80x faster** |
+| Type Coercion | 204.5M ops/sec | **8.72x faster** |
+| Enum Validation | 180.3M ops/sec | **1.32x faster** |
+| Discriminated Union | 19.2M ops/sec | **1.79x faster** |
+| Tuple Validation | 50.0M ops/sec | **7.99x faster** |
+| Record Validation | 10.7M ops/sec | **5.63x faster** |
+| Set Validation | 18.9M ops/sec | **1.84x faster** |
+| Map Validation | 14.8M ops/sec | **2.37x faster** |
+| BigInt Validation | 164.8M ops/sec | **14.88x faster** |
+| Date Validation | 227.2M ops/sec | **2.57x faster** |
+| Symbol Validation | 230.0M ops/sec | **1.01x faster** |
+| Any Validation | 232.5M ops/sec | **1.01x faster** |
+| Unknown Validation | 234.9M ops/sec | **1.04x faster** |
+| Function Validation | 233.6M ops/sec | **3.52x faster** |
+| Template Literal Validation | 39.3M ops/sec | **1.15x faster** |
+| Promise Async Validation | 6.3M ops/sec | **1.38x faster** |
+
+**VLD won 30/30 snapshot tests. Release checks additionally enforce runtime, startup, memory, Zod subpath parity, and real drop-in app guard thresholds against Zod.**
 
 ### Run Benchmarks
 
 ```bash
 # Quick performance comparison
 npm run benchmark
+
+# Median-based stable comparison
+npm run benchmark:stable
+
+# Fast CI-friendly performance regression guard
+npm run benchmark:guard
+
+# Full release gate: lint, source and published types, tests, exports, package and install checks, security audit, Zod parity, real drop-in app verification, and performance guards
+npm run release:check
 
 # Memory usage comparison
 npm run benchmark:memory

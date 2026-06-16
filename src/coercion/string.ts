@@ -1,6 +1,6 @@
 import { VldString } from '../validators/string';
 import { ParseResult, VLD_VALIDATOR_TYPES } from '../validators/base';
-import { getMessages } from '../locales';
+import { getMessages } from '../locales/runtime';
 import { isValidIPv6 } from '../utils/ip-validation';
 
 // BUG-NEW-001 FIX: IPv6 validation moved to shared utility (src/utils/ip-validation.ts)
@@ -18,12 +18,12 @@ export class VldCoerceString extends VldString {
   /**
    * Create a new coerce string validator
    */
-  static create(): VldCoerceString {
+  static override create(): VldCoerceString {
     return new VldCoerceString();
   }
   
   // Override all chain methods to return VldCoerceString instances
-  min(length: number, message?: string): VldCoerceString {
+  override min(length: number, message?: string): VldCoerceString {
     return new VldCoerceString({
       checks: [...this.config.checks, (v: string) => v.length >= length],
       transforms: this.config.transforms,
@@ -31,7 +31,7 @@ export class VldCoerceString extends VldString {
     });
   }
   
-  max(length: number, message?: string): VldCoerceString {
+  override max(length: number, message?: string): VldCoerceString {
     return new VldCoerceString({
       checks: [...this.config.checks, (v: string) => v.length <= length],
       transforms: this.config.transforms,
@@ -39,7 +39,7 @@ export class VldCoerceString extends VldString {
     });
   }
   
-  length(length: number, message?: string): VldCoerceString {
+  override length(length: number, message?: string): VldCoerceString {
     return new VldCoerceString({
       checks: [...this.config.checks, (v: string) => v.length === length],
       transforms: this.config.transforms,
@@ -47,7 +47,7 @@ export class VldCoerceString extends VldString {
     });
   }
   
-  email(message?: string): VldCoerceString {
+  override email(message?: string): VldCoerceString {
     // BUG-007 FIX: Use simpler, ReDoS-safe regex (consistent with VldString)
     const FAST_EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return new VldCoerceString({
@@ -57,7 +57,7 @@ export class VldCoerceString extends VldString {
     });
   }
   
-  url(message?: string): VldCoerceString {
+  override url(message?: string): VldCoerceString {
     return new VldCoerceString({
       checks: [...this.config.checks, (v: string) => /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)$/.test(v)],
       transforms: this.config.transforms,
@@ -65,7 +65,7 @@ export class VldCoerceString extends VldString {
     });
   }
   
-  uuid(message?: string): VldCoerceString {
+  override uuid(message?: string): VldCoerceString {
     return new VldCoerceString({
       checks: [...this.config.checks, (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v)],
       transforms: this.config.transforms,
@@ -73,7 +73,7 @@ export class VldCoerceString extends VldString {
     });
   }
   
-  regex(pattern: RegExp, message?: string): VldCoerceString {
+  override regex(pattern: RegExp, message?: string): VldCoerceString {
     return new VldCoerceString({
       checks: [...this.config.checks, (v: string) => pattern.test(v)],
       transforms: this.config.transforms,
@@ -81,7 +81,7 @@ export class VldCoerceString extends VldString {
     });
   }
   
-  trim(): VldCoerceString {
+  override trim(): VldCoerceString {
     return new VldCoerceString({
       checks: this.config.checks,
       transforms: [...this.config.transforms, (v: string) => v.trim()],
@@ -89,7 +89,7 @@ export class VldCoerceString extends VldString {
     });
   }
   
-  toLowerCase(): VldCoerceString {
+  override toLowerCase(): VldCoerceString {
     return new VldCoerceString({
       checks: this.config.checks,
       transforms: [...this.config.transforms, (v: string) => v.toLowerCase()],
@@ -97,7 +97,7 @@ export class VldCoerceString extends VldString {
     });
   }
   
-  toUpperCase(): VldCoerceString {
+  override toUpperCase(): VldCoerceString {
     return new VldCoerceString({
       checks: this.config.checks,
       transforms: [...this.config.transforms, (v: string) => v.toUpperCase()],
@@ -105,7 +105,7 @@ export class VldCoerceString extends VldString {
     });
   }
   
-  startsWith(str: string, message?: string): VldCoerceString {
+  override startsWith(str: string, message?: string): VldCoerceString {
     return new VldCoerceString({
       checks: [...this.config.checks, (v: string) => v.startsWith(str)],
       transforms: this.config.transforms,
@@ -113,7 +113,7 @@ export class VldCoerceString extends VldString {
     });
   }
   
-  endsWith(str: string, message?: string): VldCoerceString {
+  override endsWith(str: string, message?: string): VldCoerceString {
     return new VldCoerceString({
       checks: [...this.config.checks, (v: string) => v.endsWith(str)],
       transforms: this.config.transforms,
@@ -121,7 +121,7 @@ export class VldCoerceString extends VldString {
     });
   }
   
-  includes(str: string, message?: string): VldCoerceString {
+  override includes(str: string, message?: string): VldCoerceString {
     return new VldCoerceString({
       checks: [...this.config.checks, (v: string) => v.includes(str)],
       transforms: this.config.transforms,
@@ -129,7 +129,7 @@ export class VldCoerceString extends VldString {
     });
   }
   
-  ip(message?: string): VldCoerceString {
+  override ip(message?: string): VldCoerceString {
     const ipv4 = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
     return new VldCoerceString({
       checks: [...this.config.checks, (v: string) => {
@@ -142,7 +142,7 @@ export class VldCoerceString extends VldString {
     });
   }
   
-  ipv4(message?: string): VldCoerceString {
+  override ipv4(message?: string): VldCoerceString {
     return new VldCoerceString({
       checks: [...this.config.checks, (v: string) => /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(v)],
       transforms: this.config.transforms,
@@ -150,7 +150,7 @@ export class VldCoerceString extends VldString {
     });
   }
   
-  ipv6(message?: string): VldCoerceString {
+  override ipv6(message?: string): VldCoerceString {
     return new VldCoerceString({
       checks: [...this.config.checks, (v: string) => {
         // Use safe IPv6 validation to prevent ReDoS attacks
@@ -161,7 +161,7 @@ export class VldCoerceString extends VldString {
     });
   }
   
-  nonempty(message?: string): VldCoerceString {
+  override nonempty(message?: string): VldCoerceString {
     return new VldCoerceString({
       checks: [...this.config.checks, (v: string) => v.length > 0],
       transforms: this.config.transforms,
@@ -172,7 +172,7 @@ export class VldCoerceString extends VldString {
   /**
    * Parse and coerce a value to string
    */
-  parse(value: unknown): string {
+  override parse(value: unknown): string {
     // If it's already a string, apply security controls first
     if (typeof value === 'string') {
       // Enforce length limits to prevent DoS
@@ -189,11 +189,6 @@ export class VldCoerceString extends VldString {
       return super.parse(sanitized);
     }
 
-    // Handle null and undefined explicitly
-    if (value === null || value === undefined) {
-      throw new Error(getMessages().coercionFailed('string', value));
-    }
-
     // Safe type coercion with security measures
     let coerced: string;
 
@@ -207,8 +202,8 @@ export class VldCoerceString extends VldString {
       // BigInt: safe conversion
       coerced = value.toString();
     } else if (typeof value === 'symbol') {
-      // Symbols: explicit error to prevent potential issues
-      throw new Error(getMessages().coercionFailed('string', value));
+      // Symbols: String() matches Zod coercion semantics without throwing.
+      coerced = String(value);
     } else if (typeof value === 'object') {
       // Objects: only allow specific safe object types
       if (value instanceof Date) {
@@ -250,7 +245,7 @@ export class VldCoerceString extends VldString {
   /**
    * Safely parse and coerce a value to string
    */
-  safeParse(value: unknown): ParseResult<string> {
+  override safeParse(value: unknown): ParseResult<string> {
     try {
       return { success: true, data: this.parse(value) };
     } catch (error) {

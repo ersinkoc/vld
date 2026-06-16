@@ -1,6 +1,6 @@
-import { VldBase, ParseResult } from './base';
+import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
 import { VldError, createIssue } from '../errors';
-import { getMessages } from '../locales';
+import { getMessages } from '../locales/runtime';
 
 /**
  * Base64 string validator
@@ -13,7 +13,7 @@ export class VldBase64 extends VldBase<string, string> {
   private readonly urlSafe: boolean;
   
   constructor(urlSafe = false) {
-    super();
+    super(VLD_VALIDATOR_TYPES.BASE64);
     this.urlSafe = urlSafe;
   }
   

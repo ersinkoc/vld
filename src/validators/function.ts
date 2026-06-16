@@ -1,13 +1,20 @@
-import { VldBase, ParseResult } from './base';
-import { getMessages } from '../locales';
+import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
+import { getMessages } from '../locales/runtime';
+import { VldError } from '../errors-core';
+
+type AnyFunction = (...args: any[]) => any;
+
+function createFunctionError(message: string): VldError {
+  return new VldError([{ code: 'invalid_type', path: [], message }]);
+}
 
 /**
  * Immutable function validator
  * Validates that a value is a function
  */
-export class VldFunction extends VldBase<unknown, Function> {
+export class VldFunction extends VldBase<unknown, AnyFunction> {
   private constructor() {
-    super();
+    super(VLD_VALIDATOR_TYPES.FUNCTION);
   }
 
   /**
@@ -20,24 +27,32 @@ export class VldFunction extends VldBase<unknown, Function> {
   /**
    * Parse and validate a function value
    */
-  parse(value: unknown): Function {
+  parse(value: unknown): AnyFunction {
     if (typeof value !== 'function') {
       throw new Error(
         getMessages().invalidFunction || 'Expected a function'
       );
     }
 
-    return value as Function;
+    return value as AnyFunction;
+  }
+
+  /**
+   * Parse a value that has already passed the function type guard.
+   * @internal Used by object validators to avoid duplicate hot-path checks.
+   */
+  parseKnownFunction(value: AnyFunction): AnyFunction {
+    return value;
   }
 
   /**
    * Safely parse and validate a function value
    */
-  safeParse(value: unknown): ParseResult<Function> {
+  safeParse(value: unknown): ParseResult<AnyFunction> {
     try {
       return { success: true, data: this.parse(value) };
     } catch (error) {
-      return { success: false, error: error as Error };
+      return { success: false, error: createFunctionError((error as Error).message) };
     }
   }
 }

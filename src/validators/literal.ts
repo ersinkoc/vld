@@ -1,5 +1,10 @@
-import { VldBase, ParseResult } from './base';
-import { getMessages } from '../locales';
+import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
+import { getMessages } from '../locales/runtime';
+import { VldError } from '../errors-core';
+
+function createLiteralError(message: string): VldError {
+  return new VldError([{ code: 'invalid_literal', path: [], message }]);
+}
 
 /**
  * Immutable literal validator for exact value matching
@@ -12,7 +17,7 @@ export class VldLiteral<T extends string | number | boolean | null | undefined> 
     private readonly _literal: T,
     private readonly errorMessage?: string
   ) {
-    super();
+    super(VLD_VALIDATOR_TYPES.LITERAL);
   }
 
   /**
@@ -20,6 +25,10 @@ export class VldLiteral<T extends string | number | boolean | null | undefined> 
    */
   get literal(): T {
     return this._literal;
+  }
+
+  get isSimple(): boolean {
+    return true;
   }
   
   /**
@@ -51,7 +60,7 @@ export class VldLiteral<T extends string | number | boolean | null | undefined> 
     }
     return {
       success: false,
-      error: new Error(
+      error: createLiteralError(
         this.errorMessage ||
         getMessages().literalExpected(JSON.stringify(this._literal), JSON.stringify(value))
       )

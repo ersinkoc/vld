@@ -4,8 +4,8 @@
  * Provides convenient validators for common string formats
  */
 
-import { VldBase } from './base';
-import { VldString } from './string';
+import { VldBase, VLD_VALIDATOR_TYPES } from './base';
+import { getMessages } from '../locales/runtime';
 import type { ParseResult } from './base';
 
 /**
@@ -19,7 +19,7 @@ const REGEXES = {
   uuidv7: /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
   hostname: /^(?=.{1,253}$)(?:(?!-)[a-zA-Z0-9-]{1,63}(?<!-)\.)+[a-zA-Z]{2,63}$/,
   emoji: /^(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F)(?:\u200D(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F))*$/u,
-  base64: /^(?:[A-Za-z0-9+\/]{4})*(?:[A-Za-z0-9+\/]{2}==|[A-Za-z0-9+\/]{3}=)?$/,
+  base64: /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/,
   base64url: /^[A-Za-z0-9_-]*$/,
   hex: /^[0-9a-fA-F]*$/,
   jwt: /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*$/,
@@ -45,18 +45,19 @@ const REGEXES = {
   xid: /^[A-HJKMNP-TV-Z0-9]{20}$/, // ksort's XID format
   guid: /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/i, // Alias for UUID
   httpUrl: /^https?:\/\/[^\s/$.?#].[^\s]*$/, // HTTP/HTTPS URL
+  ksuid: /^[0-9A-Za-z]{27}$/,
 } as const;
 
 /**
  * Generic string format validator
  */
-class VldStringFormat extends VldBase<unknown, string> {
+export class VldStringFormat extends VldBase<unknown, string> {
   public constructor(
     public readonly _format: string,
     public readonly _validator: (val: string) => boolean,
     public readonly _errorMessage?: string
   ) {
-    super();
+    super(VLD_VALIDATOR_TYPES.STRING_FORMAT);
   }
 
   static create(
@@ -68,24 +69,28 @@ class VldStringFormat extends VldBase<unknown, string> {
   }
 
   parse(value: unknown): string {
-    const result = VldString.create().parse(value);
+    if (typeof value !== 'string') {
+      throw new Error(getMessages().invalidString);
+    }
 
-    if (!this._validator(result)) {
+    if (!this._validator(value)) {
       throw new Error(
         this._errorMessage || `Invalid ${this._format} format`
       );
     }
 
-    return result;
+    return value;
   }
 
   safeParse(value: unknown): ParseResult<string> {
-    const stringResult = VldString.create().safeParse(value);
-    if (!stringResult.success) {
-      return stringResult;
+    if (typeof value !== 'string') {
+      return {
+        success: false,
+        error: new Error(getMessages().invalidString)
+      };
     }
 
-    if (!this._validator(stringResult.data)) {
+    if (!this._validator(value)) {
       return {
         success: false,
         error: new Error(
@@ -94,7 +99,7 @@ class VldStringFormat extends VldBase<unknown, string> {
       };
     }
 
-    return { success: true, data: stringResult.data };
+    return { success: true, data: value };
   }
 }
 
@@ -111,6 +116,12 @@ export const uuid = (options?: { version?: 'v4' | 'v6' | 'v7' }): VldStringForma
 
 export const uuidv4 = (): VldStringFormat =>
   VldStringFormat.create('uuid', (val) => REGEXES.uuidv4.test(val));
+
+export const uuidv6 = (): VldStringFormat =>
+  VldStringFormat.create('uuid', (val) => REGEXES.uuidv6.test(val));
+
+export const uuidv7 = (): VldStringFormat =>
+  VldStringFormat.create('uuid', (val) => REGEXES.uuidv7.test(val));
 
 export const hostname = (): VldStringFormat =>
   VldStringFormat.create('hostname', (val) => REGEXES.hostname.test(val));
@@ -168,6 +179,9 @@ export const guid = (): VldStringFormat =>
 
 export const httpUrl = (): VldStringFormat =>
   VldStringFormat.create('httpUrl', (val) => REGEXES.httpUrl.test(val));
+
+export const ksuid = (): VldStringFormat =>
+  VldStringFormat.create('ksuid', (val) => REGEXES.ksuid.test(val));
 
 export const hash = (algorithm: 'md5' | 'sha1' | 'sha256' | 'sha384' | 'sha512'): VldStringFormat =>
   VldStringFormat.create('hash', (val) => (REGEXES as any)[algorithm]?.test(val) ?? false, `Invalid ${algorithm} hash`);

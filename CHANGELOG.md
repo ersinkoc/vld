@@ -5,6 +5,38 @@ All notable changes to VLD will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-06-16
+
+### Added
+
+- Added first-class Zod drop-in package subpaths:
+  - `@oxog/vld/v3`
+  - `@oxog/vld/v4`
+  - `@oxog/vld/v4-mini`
+  - `@oxog/vld/v4/mini`
+  - `@oxog/vld/v4/core`
+  - `@oxog/vld/v4/locales`
+  - `@oxog/vld/v4/locales/*`
+- Added Zod-style mini aliases and helpers for `v4-mini` and `v4/mini`, including `ZodMini*` class aliases, `pick`, `omit`, `partial`, `required`, `extend`, `safeExtend`, `merge`, `catchall`, `minimum`, `maximum`, and `_default`.
+- Added Zod-style `v4/locales` named locale functions.
+- Added `v4/core` compatibility exports for the full Zod core export-name/type surface, plus common Zod core factory calling conventions.
+- Added `verify:drop-in`, a real TypeScript fixture app that compiles and runs once with `zod` and once with built VLD, then compares normalized runtime output.
+- Added release guards for Zod latest parity, package exports, published types, install smoke tests, package budgets, bundle budgets, drop-in fixture behavior, runtime performance, startup, and memory.
+
+### Changed
+
+- Strengthened `release:check` to include `verify:drop-in`.
+- Updated package metadata and budgets for the broader drop-in compatibility surface.
+- Kept validator `safeParse` failures aligned with public `VldError` formatting helpers across primitive, collection, scalar, and special validators.
+
+### Verified
+
+- Tested against npm latest `zod@4.4.3`.
+- 82 test suites and 2160 tests passing.
+- 100% statement, branch, and line coverage.
+- Zod subpath export parity has zero missing exports and zero type mismatches for `zod/v4`, `zod/v4-mini`, `zod/v4/mini`, `zod/v4/core`, and `zod/v4/locales`.
+- Latest release gate snapshot: runtime guard average 11.81x faster than Zod, startup total 1.50x faster, and 4.77x less retained heap.
+
 ## [2.0.3] - 2026-05-08
 
 ### 🐛 Bug Fixes
