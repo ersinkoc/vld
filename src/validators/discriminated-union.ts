@@ -15,7 +15,7 @@ import type { ParseResult } from './base';
  */
 function extractLiteralValues(schema: VldBase<unknown, any>): unknown[] {
   if (schema instanceof VldLiteral) {
-    return [schema.literal];
+    return [...schema.values];
   }
   if (schema instanceof VldEnum) {
     return [...schema.values];
@@ -27,7 +27,7 @@ function extractLiteralValues(schema: VldBase<unknown, any>): unknown[] {
  * Discriminated union validator - validates union based on discriminator key
  * Much faster than regular union when you have a discriminator field
  */
-export class VldDiscriminatedUnion<K extends string, Options extends VldBase<any, any>[]>
+export class VldDiscriminatedUnion<K extends string, Options extends readonly VldBase<any, any>[]>
   extends VldBase<unknown, Options[number] extends VldBase<any, infer T> ? T : never> {
 
   private readonly _discriminatorMap: Map<unknown, VldObject<any>>;
@@ -70,7 +70,7 @@ export class VldDiscriminatedUnion<K extends string, Options extends VldBase<any
     this._validValues = Array.from(this._discriminatorMap.keys());
   }
 
-  static create<K extends string, Options extends VldBase<any, any>[]>(
+  static create<K extends string, Options extends readonly VldBase<any, any>[]>(
     discriminator: K,
     options: Options
   ): VldDiscriminatedUnion<K, Options> {

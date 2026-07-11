@@ -19,6 +19,8 @@ export type VldErrorCode =
   | 'invalid_object'
   | 'unrecognized_keys'
   | 'invalid_union'
+  | 'invalid_key'
+  | 'invalid_element'
   | 'invalid_literal'
   | 'invalid_enum'
   | 'custom';

@@ -4,13 +4,14 @@
  */
 
 import { VldBase, VLD_VALIDATOR_TYPES, type SchemaMetadata } from '../validators/base';
-import { globalRegistry } from '../registry';
+import { globalRegistry, type SchemaRegistry } from '../registry';
 import { VldAny } from '../validators/any';
 import { VldArray } from '../validators/array';
 import { VldBoolean } from '../validators/boolean';
 import { VldEnum } from '../validators/enum';
 import { VldIntersection } from '../validators/intersection';
 import { VldLiteral } from '../validators/literal';
+import { VldNever } from '../validators/never';
 import { VldNull } from '../validators/null';
 import { VldNumber } from '../validators/number';
 import { VldObject } from '../validators/object';
@@ -89,6 +90,15 @@ export interface ToJSONSchemaOptions {
     | (string & {});
   includeMetadata?: boolean;
   includeExamples?: boolean;
+  /** Match Zod's default throw/any behavior, or opt into VLD extensions. */
+  unrepresentable?: 'throw' | 'any' | 'vld';
+  /** Select the input or output side of codecs and pipes. */
+  io?: 'input' | 'output';
+}
+
+export interface FromJSONSchemaOptions {
+  defaultTarget?: 'draft-2020-12' | 'draft-7' | 'draft-4' | 'openapi-3.0';
+  registry?: SchemaRegistry<Record<string, unknown>>;
 }
 
 /**
@@ -106,7 +116,7 @@ export function toJSONSchema<T>(
     schemaToJSONSchema(schema as VldBase<unknown, unknown>, normalizedOptions),
     normalizedOptions
   );
-  const target = normalizedOptions.target || 'draft-07';
+  const target = normalizedOptions.target || 'draft-2020-12';
   if (target === 'draft-04') {
     result.$schema ??= 'http://json-schema.org/draft-04/schema#';
   } else if (target === 'draft-07') {
@@ -124,8 +134,27 @@ export function toJSONSchema<T>(
  * @param json The JSON Schema definition
  * @returns A VLD schema
  */
-export function fromJSONSchema(json: JSONSchemaDefinition): VldBase<unknown, unknown> {
-  return jsonSchemaToVLD(json) as VldBase<unknown, unknown>;
+export function fromJSONSchema(
+  json: JSONSchemaDefinition | boolean,
+  options: FromJSONSchemaOptions = {}
+): VldBase<unknown, unknown> {
+  if (typeof json === 'boolean') {
+    return (json ? VldAny.create() : VldNever.create()) as unknown as VldBase<unknown, unknown>;
+  }
+
+  let normalized: JSONSchemaDefinition;
+  try {
+    normalized = JSON.parse(JSON.stringify(json)) as JSONSchemaDefinition;
+  } catch {
+    throw new Error('fromJSONSchema input is not valid JSON (possibly cyclic); use $defs/$ref for recursive schemas');
+  }
+
+  const schema = jsonSchemaToVLD(normalized) as VldBase<unknown, unknown>;
+  const metadata = schema.meta();
+  if (options.registry && metadata) {
+    options.registry.add(schema, metadata);
+  }
+  return schema;
 }
 
 function normalizeOptions(options: ToJSONSchemaOptions): ToJSONSchemaOptions {
@@ -143,7 +172,7 @@ function normalizeForTarget(
   definition: JSONSchemaDefinition,
   options: ToJSONSchemaOptions
 ): JSONSchemaDefinition {
-  const target = options.target || 'draft-07';
+  const target = options.target || 'draft-2020-12';
   const result: JSONSchemaDefinition = { ...definition };
 
   if (Array.isArray(result.items)) {
@@ -221,7 +250,7 @@ function normalizeOpenAPI30(definition: JSONSchemaDefinition): void {
  * Internal function to convert VLD schema to JSON Schema
  */
 function schemaToJSONSchema(schema: AnyVldSchema, options: ToJSONSchemaOptions): JSONSchemaDefinition {
-  const target = options.target || 'draft-07';
+  const target = options.target || 'draft-2020-12';
   const schemaAny = schema as any;
   const validatorType = schema.validatorType;
 
@@ -239,11 +268,11 @@ function schemaToJSONSchema(schema: AnyVldSchema, options: ToJSONSchemaOptions):
   }
 
   if (schema.constructor.name === 'VldBigInt' || validatorType === VLD_VALIDATOR_TYPES.BIGINT) {
-    return withMetadata(schema, buildBigIntSchema(schema), options);
+    return unrepresentable(schema, options, 'BigInt', () => buildBigIntSchema(schema));
   }
 
   if (schema.constructor.name === 'VldDate' || validatorType === VLD_VALIDATOR_TYPES.DATE) {
-    return withMetadata(schema, buildDateSchema(schema), options);
+    return unrepresentable(schema, options, 'Date', () => buildDateSchema(schema));
   }
 
   if (schema.constructor.name === 'VldArray' || validatorType === VLD_VALIDATOR_TYPES.ARRAY) {
@@ -269,11 +298,11 @@ function schemaToJSONSchema(schema: AnyVldSchema, options: ToJSONSchemaOptions):
   }
 
   if (schema.constructor.name === 'VldSet' || validatorType === VLD_VALIDATOR_TYPES.SET) {
-    return withMetadata(schema, buildSetSchema(schema, options), options);
+    return unrepresentable(schema, options, 'Set', () => buildSetSchema(schema, options));
   }
 
   if (schema.constructor.name === 'VldMap' || validatorType === VLD_VALIDATOR_TYPES.MAP) {
-    return withMetadata(schema, buildMapSchema(schema, options), options);
+    return unrepresentable(schema, options, 'Map', () => buildMapSchema(schema, options));
   }
 
   if (schema.constructor.name === 'VldRecord' || validatorType === VLD_VALIDATOR_TYPES.RECORD) {
@@ -329,15 +358,19 @@ function schemaToJSONSchema(schema: AnyVldSchema, options: ToJSONSchemaOptions):
   }
 
   if (schema.constructor.name === 'VldUndefined') {
-    return withMetadata(schema, { not: {} }, options); // Undefined can't be represented in JSON Schema
+    return unrepresentable(schema, options, 'Undefined', () => ({ not: {} }));
   }
 
   if (schema.constructor.name === 'VldNan') {
-    return withMetadata(schema, { type: 'number', not: {} }, options); // NaN is a number type constraint
+    return unrepresentable(schema, options, 'NaN', () => ({ type: 'number', not: {} }));
   }
 
   if (schema.constructor.name === 'VldVoid') {
-    return withMetadata(schema, { not: {} }, options); // Void/undefined can't be represented
+    return unrepresentable(schema, options, 'Void', () => ({ not: {} }));
+  }
+
+  if (schema.constructor.name === 'VldSymbol') {
+    return unrepresentable(schema, options, 'Symbol', () => ({}));
   }
 
   // Handle branded types - unwrap and continue
@@ -352,7 +385,7 @@ function schemaToJSONSchema(schema: AnyVldSchema, options: ToJSONSchemaOptions):
 
   // Handle transform types
   if (schema.constructor.name === 'VldTransform') {
-    return schemaToJSONSchema((schema as any)._inner, options);
+    return unrepresentable(schema, options, 'Transform', () => schemaToJSONSchema(unwrapInner(schemaAny), options));
   }
 
   // Handle meta types - unwrap metadata
@@ -368,7 +401,8 @@ function schemaToJSONSchema(schema: AnyVldSchema, options: ToJSONSchemaOptions):
 
   // Handle pipe types
   if (schema.constructor.name === 'VldPipe') {
-    return withMetadata(schema, schemaToJSONSchema(schemaAny._next || schemaAny.second, options), options);
+    const side = options.io === 'input' ? schemaAny.first : schemaAny._next || schemaAny.second;
+    return withMetadata(schema, schemaToJSONSchema(side, options), options);
   }
 
   // Handle default/catch types
@@ -378,7 +412,16 @@ function schemaToJSONSchema(schema: AnyVldSchema, options: ToJSONSchemaOptions):
 
   // Handle preprocess types
   if (schema.constructor.name === 'VldPreprocess') {
-    return withMetadata(schema, schemaToJSONSchema(schemaAny._schema, options), options);
+    return unrepresentable(schema, options, 'Preprocess', () => schemaToJSONSchema(schemaAny._schema, options));
+  }
+
+  if (schema.constructor.name === 'VldCodec') {
+    const side = options.io === 'input' ? schemaAny.inputValidator : schemaAny.outputValidator;
+    return withMetadata(schema, schemaToJSONSchema(side, options), options);
+  }
+
+  if (schema.constructor.name === 'VldCustom') {
+    return unrepresentable(schema, options, 'Custom', () => ({}));
   }
 
   // Handle string format validators
@@ -389,6 +432,21 @@ function schemaToJSONSchema(schema: AnyVldSchema, options: ToJSONSchemaOptions):
 
   // Fallback for unknown types
   return withMetadata(schema, {}, options);
+}
+
+function unrepresentable(
+  schema: AnyVldSchema,
+  options: ToJSONSchemaOptions,
+  typeName: string,
+  vldExtension: () => JSONSchemaDefinition
+): JSONSchemaDefinition {
+  if (options.unrepresentable === 'any') {
+    return withMetadata(schema, {}, options);
+  }
+  if (options.unrepresentable === 'vld') {
+    return withMetadata(schema, vldExtension(), options);
+  }
+  throw new Error(`${typeName} cannot be represented in JSON Schema`);
 }
 
 function unwrapInner(schema: any): AnyVldSchema {
@@ -601,10 +659,10 @@ function buildObjectSchema(schema: any, options: ToJSONSchemaOptions): JSONSchem
   // Handle passthrough mode
   if (schema._passthrough || schema._loose || schema.config?.passthrough) {
     result.additionalProperties = true;
-  } else if (schema._strict || schema.config?.strict) {
-    result.additionalProperties = false;
   } else if (schema.config?.catchall) {
     result.additionalProperties = schemaToJSONSchema(schema.config.catchall, options);
+  } else {
+    result.additionalProperties = false;
   }
 
   return result;

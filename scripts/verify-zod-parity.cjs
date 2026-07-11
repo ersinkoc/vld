@@ -238,6 +238,100 @@ function verifyNamespaceBehavior(vld) {
   }
 }
 
+function runLatestBehaviorSuite(z) {
+  const recordInput = { visible: 1 };
+  Object.defineProperty(recordInput, 'hidden', { value: 2, enumerable: false });
+
+  const mapDefault = z.map(z.string(), z.number()).default(new Map());
+  const setDefault = z.set(z.string()).default(new Set());
+  const union = z.union([z.string(), z.number()]);
+  const tuple = z.tuple([z.string(), z.number()]);
+  const discriminated = z.discriminatedUnion('kind', [
+    z.object({ kind: z.literal(['a', 'alpha']), value: z.string() }),
+    z.object({ kind: z.literal('b'), value: z.number() }),
+  ]);
+  const stringToDate = z.codec(z.string(), z.date(), {
+    decode: (value) => new Date(value),
+    encode: (value) => value.toISOString(),
+  });
+  const nestedCodec = z.object({
+    createdAt: stringToDate,
+    history: z.tuple([stringToDate], stringToDate),
+  });
+  const firstDate = new Date('2026-01-01T00:00:00.000Z');
+  const secondDate = new Date('2026-02-01T00:00:00.000Z');
+
+  return {
+    unionArrayFactory: union.safeParse(1).success,
+    tupleArrayFactory: tuple.safeParse(['x', 1]).success,
+    enumArrayFactory: z.enum(['a', 'b']).safeParse('b').success,
+    literalArrayFactory: z.literal(['a', 'b']).safeParse('b').success,
+    emptyObjectFactory: z.object().safeParse({}).success,
+    discriminatedUnionArrayFactory: discriminated.safeParse({ kind: 'alpha', value: 'ok' }).success,
+    xorArrayFactory: z.xor([z.string(), z.number()]).safeParse(1).success,
+    emptyXorFailsAtParse: !z.xor([]).safeParse('x').success,
+    transformedRecordKeys: z.record(z.string().transform((key) => key.toUpperCase()), z.number()).parse({ foo: 1 }),
+    recordSkipsNonEnumerable: z.record(z.string(), z.number()).parse(recordInput),
+    mapDefaultCloned: mapDefault.parse(undefined) !== mapDefault.parse(undefined),
+    setDefaultCloned: setDefault.parse(undefined) !== setDefault.parse(undefined),
+    absentCatch: z.object({ fruit: z.string().catch('apple') }).parse({}),
+    absentPreprocess: z.object({ fruit: z.preprocess((value) => value ?? 'apple', z.string()) }).parse({}),
+    directPrefault: z.string().trim().prefault(' value ').parse(undefined),
+    schemaCompositionMethods: ['array', 'or', 'and', 'nonoptional', 'overwrite', 'toJSONSchema', 'with']
+      .every((key) => typeof z.string()[key] === 'function'),
+    objectModeMethods: ['loose', 'strip'].every((key) => typeof z.object({})[key] === 'function'),
+    tupleRest: z.tuple([z.string()], z.number()).parse(['x', 1, 2]),
+    nestedCodecEncode: nestedCodec.encode({ createdAt: firstDate, history: [firstDate, secondDate] }),
+    booleanJSONSchema: [z.fromJSONSchema(true).safeParse('x').success, z.fromJSONSchema(false).safeParse('x').success],
+    schemaDirectionMethods: [
+      'decode',
+      'decodeAsync',
+      'safeDecode',
+      'safeDecodeAsync',
+      'encode',
+      'encodeAsync',
+      'safeEncode',
+      'safeEncodeAsync',
+    ].every((key) => typeof z.string()[key] === 'function'),
+  };
+}
+
+function verifyLatestBehaviorParity(zod, vld) {
+  try {
+    const expected = runLatestBehaviorSuite(zod.z);
+    const actual = runLatestBehaviorSuite(vld.z);
+    if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+      errors.push(
+        `Latest Zod behavior suite mismatch. Expected ${JSON.stringify(expected)}, received ${JSON.stringify(actual)}`
+      );
+    }
+  } catch (error) {
+    errors.push(`Latest Zod behavior suite failed: ${error.message}`);
+  }
+}
+
+function verifySharedModuleConfig() {
+  const script = `
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const cjs = require(${JSON.stringify(packageJson.name)});
+const esm = await import(${JSON.stringify(packageJson.name)});
+cjs.config({ jitless: true, compatibilityProbe: 'shared' });
+const observed = esm.config();
+if (observed.jitless !== true || observed.compatibilityProbe !== 'shared') process.exit(1);
+`;
+  try {
+    execFileSync(process.execPath, ['--input-type=module', '-e', script], {
+      cwd: rootDir,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  } catch (error) {
+    const stderr = error.stderr ? error.stderr.toString().trim() : '';
+    errors.push(`CJS/ESM global config sharing failed${stderr ? `: ${stderr}` : ''}`);
+  }
+}
+
 const installedZodPackage = readInstalledZodPackage();
 const latestZodVersion = readLatestZodVersion();
 const zod = installedZodPackage ? require('zod') : null;
@@ -274,6 +368,8 @@ if (zod && vld) {
 
   verifyNamespaceParity(zod, vld);
   verifyNamespaceBehavior(vld);
+  verifyLatestBehaviorParity(zod, vld);
+  verifySharedModuleConfig();
 
   if (errors.length === 0) {
     console.log(

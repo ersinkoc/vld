@@ -90,7 +90,7 @@ export class VldCodec<TInput, TOutput> extends VldBase<TInput, TOutput> {
   /**
    * Encode a value from output back to input format
    */
-  encode(value: unknown): TInput {
+  override encode(value: unknown): TInput {
     const result = this.safeEncode(value);
     if (!result.success) {
       throw result.error;
@@ -101,7 +101,7 @@ export class VldCodec<TInput, TOutput> extends VldBase<TInput, TOutput> {
   /**
    * Safely encode a value from output back to input format
    */
-  safeEncode(value: unknown): ParseResult<TInput> {
+  override safeEncode(value: unknown): ParseResult<TInput> {
     // First validate the output
     const outputResult = this.outputValidator.safeParse(value);
     if (!outputResult.success) {
@@ -177,7 +177,7 @@ export class VldCodec<TInput, TOutput> extends VldBase<TInput, TOutput> {
   /**
    * Async version of encode
    */
-  async encodeAsync(value: unknown): Promise<TInput> {
+  override async encodeAsync(value: unknown): Promise<TInput> {
     const result = await this.safeEncodeAsync(value);
     if (!result.success) {
       throw result.error;
@@ -188,7 +188,7 @@ export class VldCodec<TInput, TOutput> extends VldBase<TInput, TOutput> {
   /**
    * Async version of safeEncode
    */
-  async safeEncodeAsync(value: unknown): Promise<ParseResult<TInput>> {
+  override async safeEncodeAsync(value: unknown): Promise<ParseResult<TInput>> {
     // First validate the output
     const outputResult = this.outputValidator.safeParse(value);
     if (!outputResult.success) {

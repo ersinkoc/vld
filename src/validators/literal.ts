@@ -6,15 +6,22 @@ function createLiteralError(message: string): VldError {
   return new VldError([{ code: 'invalid_literal', path: [], message }]);
 }
 
+function stringifyLiteral(value: unknown): string {
+  const serialized = JSON.stringify(value, (_key, item) => typeof item === 'bigint' ? item.toString() : item);
+  return serialized === undefined ? String(value) : serialized;
+}
+
 /**
  * Immutable literal validator for exact value matching
  */
-export class VldLiteral<T extends string | number | boolean | null | undefined> extends VldBase<T, T> {
+export type LiteralValue = string | number | bigint | boolean | null | undefined;
+
+export class VldLiteral<T extends LiteralValue> extends VldBase<T, T> {
   /**
    * Private constructor to enforce immutability
    */
   private constructor(
-    private readonly _literal: T,
+    private readonly _values: readonly T[],
     private readonly errorMessage?: string
   ) {
     super(VLD_VALIDATOR_TYPES.LITERAL);
@@ -24,45 +31,58 @@ export class VldLiteral<T extends string | number | boolean | null | undefined> 
    * Get the literal value
    */
   get literal(): T {
-    return this._literal;
+    return this._values[0]!;
+  }
+
+  get values(): readonly T[] {
+    return this._values;
   }
 
   get isSimple(): boolean {
-    return true;
+    return this._values.length === 1;
+  }
+
+  private get expectedDisplay(): string {
+    const expected = this._values.length === 1 ? this._values[0] : this._values;
+    return stringifyLiteral(expected);
   }
   
   /**
    * Create a new literal validator
    */
-  static create<T extends string | number | boolean | null | undefined>(literal: T): VldLiteral<T> {
-    return new VldLiteral(literal);
+  static create<T extends LiteralValue>(literal: T | readonly T[]): VldLiteral<T> {
+    const values = Array.isArray(literal) ? literal : [literal];
+    if (values.length === 0) {
+      throw new Error('Cannot create literal schema with no valid values');
+    }
+    return new VldLiteral(values as readonly T[]);
   }
   
   /**
    * Parse and validate a literal value
    */
   parse(value: unknown): T {
-    if (value !== this._literal) {
+    if (!this._values.includes(value as T)) {
       throw new Error(
         this.errorMessage ||
-        getMessages().literalExpected(JSON.stringify(this._literal), JSON.stringify(value))
+        getMessages().literalExpected(this.expectedDisplay, stringifyLiteral(value))
       );
     }
-    return this._literal;
+    return value as T;
   }
 
   /**
    * Safely parse and validate a literal value
    */
   safeParse(value: unknown): ParseResult<T> {
-    if (value === this._literal) {
-      return { success: true, data: this._literal };
+    if (this._values.includes(value as T)) {
+      return { success: true, data: value as T };
     }
     return {
       success: false,
       error: createLiteralError(
         this.errorMessage ||
-        getMessages().literalExpected(JSON.stringify(this._literal), JSON.stringify(value))
+        getMessages().literalExpected(this.expectedDisplay, stringifyLiteral(value))
       )
     };
   }

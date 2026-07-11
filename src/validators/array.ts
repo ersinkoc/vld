@@ -59,6 +59,14 @@ export class VldArray<T> extends VldBase<unknown[], T[]> {
   static create<T>(itemValidator: VldBase<unknown, T>): VldArray<T> {
     return new VldArray({ itemValidator });
   }
+
+  get element(): VldBase<unknown, T> {
+    return this.config.itemValidator;
+  }
+
+  unwrap(): VldBase<unknown, T> {
+    return this.config.itemValidator;
+  }
   
   /**
    * Parse and validate an array value
@@ -155,6 +163,58 @@ export class VldArray<T> extends VldBase<unknown[], T[]> {
       return { success: true, data: this.parse(value) };
     } catch (error) {
       return { success: false, error: createArrayError((error as Error).message) };
+    }
+  }
+
+  override encode(value: T[]): unknown[] {
+    this.validateEncodedArray(value);
+    const result = new Array<unknown>(value.length);
+    for (let i = 0; i < value.length; i++) {
+      result[i] = this.config.itemValidator.encode(value[i]!);
+    }
+    return result;
+  }
+
+  override safeEncode(value: T[]): ParseResult<unknown[]> {
+    try {
+      return { success: true, data: this.encode(value) };
+    } catch (error) {
+      return { success: false, error: createArrayError((error as Error).message) };
+    }
+  }
+
+  override async encodeAsync(value: T[]): Promise<unknown[]> {
+    this.validateEncodedArray(value);
+    const result = new Array<unknown>(value.length);
+    for (let i = 0; i < value.length; i++) {
+      result[i] = await this.config.itemValidator.encodeAsync(value[i]!);
+    }
+    return result;
+  }
+
+  override async safeEncodeAsync(value: T[]): Promise<ParseResult<unknown[]>> {
+    try {
+      return { success: true, data: await this.encodeAsync(value) };
+    } catch (error) {
+      return { success: false, error: createArrayError((error as Error).message) };
+    }
+  }
+
+  private validateEncodedArray(value: T[]): void {
+    if (!Array.isArray(value)) {
+      throw new Error(this.config.errorMessage || getMessages().invalidArray);
+    }
+    if (this.config.exactLength !== undefined && value.length !== this.config.exactLength) {
+      throw new Error(this.config.errorMessage!);
+    }
+    if (this.config.minLength !== undefined && value.length < this.config.minLength) {
+      throw new Error(this.config.errorMessage!);
+    }
+    if (this.config.maxLength !== undefined && value.length > this.config.maxLength) {
+      throw new Error(this.config.errorMessage!);
+    }
+    if (this.config.unique) {
+      this.checkUnique(value);
     }
   }
 

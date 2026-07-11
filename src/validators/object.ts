@@ -20,7 +20,7 @@ type SimpleFieldMode =
  * Configuration for object validator
  */
 interface ObjectValidatorConfig<T extends Record<string, any>> {
-  readonly shape: { readonly [K in keyof T]: VldBase<unknown, T[K]> };
+  readonly shape: { readonly [K in keyof T]: VldBase<any, T[K]> };
   readonly strict?: boolean;
   readonly passthrough?: boolean;
   readonly catchall?: VldBase<unknown, any>;
@@ -461,7 +461,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
    * Create a new object validator
    */
   static create<T extends Record<string, any>>(
-    shape: { [K in keyof T]: VldBase<unknown, T[K]> }
+    shape: { [K in keyof T]: VldBase<any, T[K]> }
   ): VldObject<T> {
     return new VldObject({ shape });
   }
@@ -802,6 +802,94 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
     return { success: true, data: result as T };
   }
 
+  override encode(value: T): unknown {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+      throw new Error(this._config.errorMessage || getMessages().invalidObject);
+    }
+    return this.encodeObjectSync(value as Record<string, unknown>);
+  }
+
+  override safeEncode(value: T): ParseResult<unknown> {
+    try {
+      return { success: true, data: this.encode(value) };
+    } catch (error) {
+      return { success: false, error: this.createSafeParseError((error as Error).message) };
+    }
+  }
+
+  override async encodeAsync(value: T): Promise<unknown> {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+      throw new Error(this._config.errorMessage || getMessages().invalidObject);
+    }
+    return this.encodeObjectAsync(value as Record<string, unknown>);
+  }
+
+  override async safeEncodeAsync(value: T): Promise<ParseResult<unknown>> {
+    try {
+      return { success: true, data: await this.encodeAsync(value) };
+    } catch (error) {
+      return { success: false, error: this.createSafeParseError((error as Error).message) };
+    }
+  }
+
+  private encodeObjectSync(obj: Record<string, unknown>): Record<string, unknown> {
+    const result: Record<string, unknown> = {};
+    for (let i = 0; i < this._shapeKeys.length; i++) {
+      const key = this._shapeKeys[i]!;
+      const encoded = this.getFieldValidator(key, i).encode(obj[key]);
+      if (encoded !== undefined || Object.prototype.hasOwnProperty.call(obj, key)) {
+        result[key] = encoded;
+      }
+    }
+    this.encodeExtraKeysSync(obj, result);
+    return result;
+  }
+
+  private async encodeObjectAsync(obj: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const result: Record<string, unknown> = {};
+    for (let i = 0; i < this._shapeKeys.length; i++) {
+      const key = this._shapeKeys[i]!;
+      const encoded = await this.getFieldValidator(key, i).encodeAsync(obj[key]);
+      if (encoded !== undefined || Object.prototype.hasOwnProperty.call(obj, key)) {
+        result[key] = encoded;
+      }
+    }
+
+    const extraKeys = this.getEncodedExtraKeys(obj);
+    for (const key of extraKeys) {
+      if (isDangerousKey(key)) {
+        continue;
+      }
+      if (this._config.catchall) {
+        result[key] = await this._config.catchall.encodeAsync(obj[key]);
+      } else if (this._config.passthrough) {
+        result[key] = obj[key];
+      }
+    }
+    return result;
+  }
+
+  private getEncodedExtraKeys(obj: Record<string, unknown>): string[] {
+    const extraKeys = Object.keys(obj).filter(key => !this._shapeKeysSet.has(key));
+    if (this._config.strict && extraKeys.length > 0) {
+      throw new Error(getMessages().unexpectedKeys(extraKeys));
+    }
+    return extraKeys;
+  }
+
+  private encodeExtraKeysSync(obj: Record<string, unknown>, result: Record<string, unknown>): void {
+    for (const key of this.getEncodedExtraKeys(obj)) {
+      if (isDangerousKey(key)) {
+        continue;
+      }
+      if (this._config.catchall) {
+        result[key] = this._config.catchall.encode(obj[key]);
+      } else if (this._config.passthrough) {
+        result[key] = obj[key];
+      }
+    }
+  }
+
   /**
    * Create a new validator in strict mode (no extra keys allowed)
    */
@@ -823,6 +911,20 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
       strict: false,
       passthrough: true
     });
+  }
+
+  loose(): VldObject<T> {
+    return this.passthrough();
+  }
+
+  strip(): VldObject<T> {
+    const config: ObjectValidatorConfig<T> = {
+      ...this._config,
+      strict: false,
+      passthrough: false
+    };
+    delete (config as { catchall?: VldBase<unknown, any> }).catchall;
+    return new VldObject(config);
   }
 
   /**

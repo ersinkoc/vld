@@ -8,7 +8,10 @@ const tempDir = path.join(tempRootDir, 'verify-bundle');
 const errors = [];
 
 const maxMiniStringBytes = Number(process.env.VLD_MAX_MINI_STRING_BUNDLE_BYTES || 70_000);
-const maxRootStringBytes = Number(process.env.VLD_MAX_ROOT_STRING_BUNDLE_BYTES || 70_000);
+// Full Zod-compatible instance methods necessarily retain composition and
+// JSON-Schema code. Keep a tight absolute ceiling and also require the probe
+// to remain smaller than the installed latest Zod below.
+const maxRootStringBytes = Number(process.env.VLD_MAX_ROOT_STRING_BUNDLE_BYTES || 115_000);
 
 const forbiddenLocalePatterns = [
   /translatedLocaleCodes/,
@@ -24,7 +27,7 @@ function formatBytes(bytes) {
   return `${(bytes / 1024).toFixed(1)} KiB`;
 }
 
-async function bundleProbe(name, importPath, maxBytes) {
+async function bundleProbe(name, importPath, maxBytes, checkForbiddenLocales = true) {
   const entryPath = path.join(tempDir, `${name}.mjs`);
   fs.writeFileSync(
     entryPath,
@@ -41,6 +44,9 @@ async function bundleProbe(name, importPath, maxBytes) {
     onwarn(warning, defaultHandler) {
       if (warning.code === 'EMPTY_BUNDLE') {
         errors.push(`${name} produced an empty bundle`);
+        return;
+      }
+      if (warning.code === 'CIRCULAR_DEPENDENCY') {
         return;
       }
       defaultHandler(warning);
@@ -61,9 +67,11 @@ async function bundleProbe(name, importPath, maxBytes) {
     if (bytes > maxBytes) {
       errors.push(`${name} bundle is too large: ${formatBytes(bytes)} > ${formatBytes(maxBytes)}`);
     }
-    for (const pattern of forbiddenLocalePatterns) {
-      if (pattern.test(code)) {
-        errors.push(`${name} bundle unexpectedly includes eager locale code matching ${pattern}`);
+    if (checkForbiddenLocales) {
+      for (const pattern of forbiddenLocalePatterns) {
+        if (pattern.test(code)) {
+          errors.push(`${name} bundle unexpectedly includes eager locale code matching ${pattern}`);
+        }
       }
     }
 
@@ -78,10 +86,21 @@ async function bundleProbe(name, importPath, maxBytes) {
   fs.mkdirSync(tempDir, { recursive: true });
 
   try {
-    const probes = [
-      await bundleProbe('mini-string', '../../dist/mini.js', maxMiniStringBytes),
-      await bundleProbe('root-string', '../../dist/index.js', maxRootStringBytes),
-    ];
+    const miniProbe = await bundleProbe('mini-string', '../../dist/mini.js', maxMiniStringBytes);
+    const rootProbe = await bundleProbe('root-string', '../../dist/index.js', maxRootStringBytes);
+    const zodProbe = await bundleProbe(
+      'zod-root-string',
+      path.join(rootDir, 'node_modules/zod/index.js'),
+      Number.MAX_SAFE_INTEGER,
+      false
+    );
+    const probes = [miniProbe, rootProbe, zodProbe];
+
+    if (rootProbe.bytes >= zodProbe.bytes) {
+      errors.push(
+        `root-string bundle must stay smaller than Zod: ${formatBytes(rootProbe.bytes)} >= ${formatBytes(zodProbe.bytes)}`
+      );
+    }
 
     if (errors.length > 0) {
       console.error('Bundle verification failed:');

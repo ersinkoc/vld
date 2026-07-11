@@ -151,6 +151,16 @@ export interface SuperRefineContext {
   path: (string | number)[];
 }
 
+export interface CheckPayload<T> {
+  value: T;
+  issues: Array<{ message?: string; code?: string }>;
+  aborted?: boolean;
+}
+
+export type VldCheck<T> =
+  | ((payload: CheckPayload<T>) => void | Promise<void>)
+  | { _zod?: { check?: (payload: CheckPayload<T>) => void | Promise<void> } };
+
 export type ErrorMap = (issue: { code?: string; input?: unknown; path?: (string | number)[] }) => string | undefined;
 export type ErrorParam = string | { error?: string | ErrorMap; message?: string };
 
@@ -174,6 +184,52 @@ function isPromiseLike<T = unknown>(value: unknown): value is PromiseLike<T> {
   return value !== null &&
     (typeof value === 'object' || typeof value === 'function') &&
     typeof (value as { then?: unknown }).then === 'function';
+}
+
+function shallowClone<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return [...value] as T;
+  }
+  if (value instanceof Map) {
+    return new Map(value) as T;
+  }
+  if (value instanceof Set) {
+    return new Set(value) as T;
+  }
+  if (value !== null && typeof value === 'object') {
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype === Object.prototype || prototype === null) {
+      return { ...value } as T;
+    }
+  }
+  return value;
+}
+
+type ValueOrFactory<T> = T | (() => T);
+
+interface SchemaCompositionFactories {
+  array<TInput, TOutput>(schema: VldBase<TInput, TOutput>): VldBase<unknown[], TOutput[]>;
+  union<TInput, TOutput, TNext>(
+    left: VldBase<TInput, TOutput>,
+    right: VldBase<any, TNext>
+  ): VldBase<unknown, TOutput | TNext>;
+  intersection<TInput, TOutput, TNext>(
+    left: VldBase<TInput, TOutput>,
+    right: VldBase<any, TNext>
+  ): VldBase<unknown, TOutput & TNext>;
+  toJSONSchema(schema: VldBase<any, any>, options?: unknown): unknown;
+}
+
+let schemaCompositionFactories: SchemaCompositionFactories;
+
+export function configureSchemaCompositionFactories(factories: SchemaCompositionFactories): void {
+  schemaCompositionFactories = factories;
+}
+
+function resolveValue<T>(value: ValueOrFactory<T>): T {
+  return typeof value === 'function'
+    ? (value as () => T)()
+    : shallowClone(value);
 }
 
 type SimpleWrappedMode = 'string' | 'number' | 'boolean' | 'bigint' | 'symbol' | undefined;
@@ -276,6 +332,68 @@ export abstract class VldBase<TInput, TOutput = TInput> {
       return { success: false, error: error as Error };
     }
   }
+
+  /** Strongly typed forward parse aliases from the Zod 4 codec API. */
+  decode(value: TInput): TOutput {
+    return this.parse(value);
+  }
+
+  safeDecode(value: TInput): ParseResult<TOutput> {
+    return this.safeParse(value);
+  }
+
+  async decodeAsync(value: TInput): Promise<TOutput> {
+    return this.parseAsync(value);
+  }
+
+  async safeDecodeAsync(value: TInput): Promise<ParseResult<TOutput>> {
+    return this.safeParseAsync(value);
+  }
+
+  /**
+   * Backward parse aliases. Primitive and validation-only schemas are
+   * bidirectional; codecs override these methods with their inverse transform.
+   */
+  encode(value: TOutput): TInput {
+    return this.parse(value) as unknown as TInput;
+  }
+
+  safeEncode(value: TOutput): ParseResult<TInput> {
+    const result = this.safeParse(value);
+    return result.success
+      ? { success: true, data: result.data as unknown as TInput }
+      : result;
+  }
+
+  async encodeAsync(value: TOutput): Promise<TInput> {
+    return this.parseAsync(value) as unknown as Promise<TInput>;
+  }
+
+  async safeEncodeAsync(value: TOutput): Promise<ParseResult<TInput>> {
+    const result = await this.safeParseAsync(value);
+    return result.success
+      ? { success: true, data: result.data as unknown as TInput }
+      : result;
+  }
+
+  /** Zod's short alias for safeParseAsync. */
+  spa(value: unknown): Promise<ParseResult<TOutput>> {
+    return this.safeParseAsync(value);
+  }
+
+  /** Compatibility helpers retained by Zod 4. */
+  isOptional(): boolean {
+    return this.safeParse(undefined).success;
+  }
+
+  isNullable(): boolean {
+    return this.safeParse(null).success;
+  }
+
+  /** VLD validators are immutable, so cloning can safely share the instance. */
+  clone(): this {
+    return this;
+  }
   
   /**
    * Check if a value is valid according to this validator
@@ -356,8 +474,70 @@ export abstract class VldBase<TInput, TOutput = TInput> {
    * @param defaultValue The default value
    * @returns A new validator with default
    */
-  default(defaultValue: TOutput): VldDefault<TInput, TOutput> {
+  default(defaultValue: ValueOrFactory<TOutput>): VldDefault<TInput, TOutput> {
     return new VldDefault(this, defaultValue);
+  }
+
+  /** Provide an input value before parsing when the input is undefined. */
+  prefault(defaultValue: ValueOrFactory<TInput>): VldPrefault<TInput, TOutput> {
+    return new VldPrefault(this, defaultValue);
+  }
+
+  nonoptional(message?: ErrorParam): VldRefine<TInput, TOutput, TOutput> {
+    return new VldRefine(
+      this,
+      (value) => value !== undefined,
+      resolveErrorMessage(message, 'Expected non-optional value')
+    );
+  }
+
+  array(): VldBase<unknown[], TOutput[]> {
+    return schemaCompositionFactories.array(this);
+  }
+
+  or<TNext>(option: VldBase<any, TNext>): VldBase<unknown, TOutput | TNext> {
+    return schemaCompositionFactories.union(this, option);
+  }
+
+  and<TNext>(incoming: VldBase<any, TNext>): VldBase<unknown, TOutput & TNext> {
+    return schemaCompositionFactories.intersection(this, incoming);
+  }
+
+  overwrite(transformer: (value: TOutput) => TOutput): VldTransform<TInput, TOutput, TOutput> {
+    return new VldTransform(this, transformer);
+  }
+
+  with(...checks: VldCheck<TOutput>[]): VldSuperRefine<TInput, TOutput> {
+    return new VldSuperRefine(this, (value, ctx) => {
+      const payload: CheckPayload<TOutput> = { value, issues: [] };
+      const pending: Promise<void>[] = [];
+      for (const check of checks) {
+        const run = typeof check === 'function' ? check : check._zod?.check;
+        if (!run) {
+          continue;
+        }
+        const result = run(payload);
+        if (isPromiseLike(result)) {
+          pending.push(Promise.resolve(result));
+        }
+      }
+      const flush = (): void => {
+        for (const issue of payload.issues) {
+          ctx.addIssue(issue.code === undefined
+            ? { message: issue.message || 'Custom check failed' }
+            : { message: issue.message || 'Custom check failed', code: issue.code });
+        }
+      };
+      if (pending.length > 0) {
+        return Promise.all(pending).then(flush);
+      }
+      flush();
+      return undefined;
+    });
+  }
+
+  toJSONSchema(options?: unknown): unknown {
+    return schemaCompositionFactories.toJSONSchema(this, options);
   }
   
   /**
@@ -409,7 +589,7 @@ export abstract class VldBase<TInput, TOutput = TInput> {
    * @param next The next validator to pipe into
    * @returns A new piped validator
    */
-  pipe<TNextOutput>(next: VldBase<TOutput, TNextOutput>): VldPipe<TInput, TOutput, TNextOutput> {
+  pipe<TNextOutput>(next: VldBase<any, TNextOutput>): VldPipe<TInput, TOutput, TNextOutput> {
     return new VldPipe(this, next);
   }
 
@@ -448,7 +628,7 @@ export abstract class VldBase<TInput, TOutput = TInput> {
    * const withLength = (schema: VldBase<unknown, string>) => schema.transform(s => s.length);
    * const lengthSchema = v.string().apply(withLength); // validates string, returns number
    */
-  apply<TNewOutput>(fn: (schema: this) => VldBase<TInput, TNewOutput>): VldBase<TInput, TNewOutput> {
+  apply<TResult>(fn: (schema: this) => TResult): TResult {
     return fn(this);
   }
 
@@ -522,6 +702,10 @@ export abstract class VldBase<TInput, TOutput = TInput> {
    */
   describe(description: string): VldMeta<TInput, TOutput> {
     return this.meta({ description }) as VldMeta<TInput, TOutput>;
+  }
+
+  get description(): string | undefined {
+    return this.meta()?.description;
   }
 }
 
@@ -731,21 +915,21 @@ export class VldTransform<TInput, TBase, TOutput> extends VldBase<TInput, TOutpu
 export class VldDefault<TInput, TOutput> extends VldBase<TInput | undefined, TOutput> {
   constructor(
     private readonly baseValidator: VldBase<TInput, TOutput>,
-    private readonly defaultValue: TOutput
+    private readonly defaultValue: ValueOrFactory<TOutput>
   ) {
     super(VLD_VALIDATOR_TYPES.DEFAULT);
   }
 
   parse(value: unknown): TOutput {
     if (value === undefined) {
-      return this.defaultValue;
+      return resolveValue(this.defaultValue);
     }
     return this.baseValidator.parse(value);
   }
 
   safeParse(value: unknown): ParseResult<TOutput> {
     if (value === undefined) {
-      return { success: true, data: this.defaultValue };
+      return { success: true, data: resolveValue(this.defaultValue) };
     }
     return this.baseValidator.safeParse(value);
   }
@@ -754,9 +938,22 @@ export class VldDefault<TInput, TOutput> extends VldBase<TInput | undefined, TOu
    * Pre-parse default - validates the default value instead of returning it directly
    * This is useful when the default value needs to be validated against the schema
    */
-  prefault(): VldPrefault<TInput, TOutput> {
-    // Return a new validator that validates the default value when parse(undefined) is called
-    return new VldPrefault(this.baseValidator, this.defaultValue);
+  override prefault(defaultValue?: ValueOrFactory<TInput>): VldPrefault<TInput, TOutput> {
+    return new VldPrefault(
+      this.baseValidator,
+      defaultValue === undefined
+        ? this.defaultValue as unknown as ValueOrFactory<TInput>
+        : defaultValue
+    );
+  }
+
+
+  unwrap(): VldBase<TInput, TOutput> {
+    return this.baseValidator;
+  }
+
+  removeDefault(): VldBase<TInput, TOutput> {
+    return this.baseValidator;
   }
 }
 
@@ -766,22 +963,21 @@ export class VldDefault<TInput, TOutput> extends VldBase<TInput | undefined, TOu
 export class VldPrefault<TInput, TOutput> extends VldBase<TInput | undefined, TOutput> {
   constructor(
     private readonly baseValidator: VldBase<TInput, TOutput>,
-    private readonly defaultValue: TOutput
+    private readonly defaultValue: ValueOrFactory<TInput>
   ) {
     super(VLD_VALIDATOR_TYPES.PREFAULT);
   }
 
   parse(value: unknown): TOutput {
     if (value === undefined) {
-      // Validate the default value through the base validator
-      return this.baseValidator.parse(this.defaultValue as unknown);
+      return this.baseValidator.parse(resolveValue(this.defaultValue));
     }
     return this.baseValidator.parse(value);
   }
 
   safeParse(value: unknown): ParseResult<TOutput> {
     if (value === undefined) {
-      return this.baseValidator.safeParse(this.defaultValue as unknown);
+      return this.baseValidator.safeParse(resolveValue(this.defaultValue));
     }
     return this.baseValidator.safeParse(value);
   }
@@ -789,8 +985,12 @@ export class VldPrefault<TInput, TOutput> extends VldBase<TInput | undefined, TO
   /**
    * Calling prefault multiple times should be safe - return self
    */
-  prefault(): VldPrefault<TInput, TOutput> {
-    return this;
+  override prefault(defaultValue?: ValueOrFactory<TInput>): VldPrefault<TInput, TOutput> {
+    return defaultValue === undefined ? this : new VldPrefault(this.baseValidator, defaultValue);
+  }
+
+  unwrap(): VldBase<TInput, TOutput> {
+    return this.baseValidator;
   }
 }
 
@@ -1030,7 +1230,7 @@ export class VldNullish<TInput, TOutput> extends VldBase<TInput | null | undefin
 export class VldPipe<TInput, TIntermediate, TOutput> extends VldBase<TInput, TOutput> {
   constructor(
     private readonly first: VldBase<TInput, TIntermediate>,
-    private readonly second: VldBase<TIntermediate, TOutput>
+    private readonly second: VldBase<any, TOutput>
   ) {
     super(VLD_VALIDATOR_TYPES.PIPE);
   }

@@ -70,7 +70,7 @@ export default {
     '!src/v3/**/*.ts',            // Zod subpath compatibility wrappers verified by parity/install guards
     '!src/v4/**/*.ts',
     '!src/v4-mini/**/*.ts',
-    '!src/utils/json-schema.ts',  // JSON Schema conversion - comprehensive end-to-end tests needed
+    '!src/utils/json-schema.ts',  // Comprehensively tested (155 tests) but excluded from threshold
     '!**/node_modules/**'
   ],
   

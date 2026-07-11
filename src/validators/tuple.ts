@@ -14,6 +14,17 @@ type SimpleTupleItemMode =
   | 'passthrough'
   | undefined;
 
+type FixedTupleOutput<T extends readonly VldBase<any, any>[]> = {
+  -readonly [K in keyof T]: ReturnType<T[K]['parse']>;
+};
+
+type TupleOutput<
+  T extends readonly VldBase<any, any>[],
+  TRest extends VldBase<any, any> | null
+> = TRest extends VldBase<any, any>
+  ? [...FixedTupleOutput<T>, ...ReturnType<TRest['parse']>[]]
+  : FixedTupleOutput<T>;
+
 function createTupleError(message: string): VldError {
   return new VldError([{ code: 'invalid_array', path: [], message }]);
 }
@@ -21,9 +32,12 @@ function createTupleError(message: string): VldError {
 /**
  * Immutable tuple validator for fixed-length arrays
  */
-export class VldTuple<T extends readonly VldBase<any, any>[]> extends VldBase<
+export class VldTuple<
+  T extends readonly VldBase<any, any>[],
+  TRest extends VldBase<any, any> | null = null
+> extends VldBase<
   unknown,
-  { [K in keyof T]: T[K] extends VldBase<any, infer U> ? U : never }
+  TupleOutput<T, TRest>
 > {
   /**
    * Private constructor to enforce immutability
@@ -35,7 +49,8 @@ export class VldTuple<T extends readonly VldBase<any, any>[]> extends VldBase<
 
   private constructor(
     private readonly validators: T,
-    private readonly errorMessage?: string
+    private readonly errorMessage?: string,
+    private readonly restValidator: TRest = null as TRest
   ) {
     super(VLD_VALIDATOR_TYPES.TUPLE);
     this._length = validators.length;
@@ -107,14 +122,18 @@ export class VldTuple<T extends readonly VldBase<any, any>[]> extends VldBase<
   /**
    * Create a new tuple validator
    */
-  static create<T extends readonly VldBase<any, any>[]>(...validators: T): VldTuple<T> {
-    return new VldTuple(validators);
+  static create<T extends readonly VldBase<any, any>[]>(...validators: T): VldTuple<T, null> {
+    return new VldTuple<T, null>(validators);
+  }
+
+  rest<TSchema extends VldBase<any, any>>(validator: TSchema): VldTuple<T, TSchema> {
+    return new VldTuple<T, TSchema>(this.validators, this.errorMessage, validator);
   }
   
   /**
    * Parse and validate a tuple value
    */
-  parse(value: unknown): { [K in keyof T]: T[K] extends VldBase<any, infer U> ? U : never } {
+  parse(value: unknown): TupleOutput<T, TRest> {
     if (!Array.isArray(value)) {
       throw new Error(this.errorMessage || getMessages().invalidTuple);
     }
@@ -126,15 +145,18 @@ export class VldTuple<T extends readonly VldBase<any, any>[]> extends VldBase<
    * Parse a value that has already passed the tuple array type guard.
    * @internal Used by object validators to avoid duplicate hot-path checks.
    */
-  parseKnownTuple(value: unknown[]): { [K in keyof T]: T[K] extends VldBase<any, infer U> ? U : never } {
-    if (value.length !== this._length) {
+  parseKnownTuple(value: unknown[]): TupleOutput<T, TRest> {
+    if (
+      (this.restValidator === null && value.length !== this._length) ||
+      (this.restValidator !== null && value.length < this._length)
+    ) {
       throw new Error(
         this.errorMessage ||
         getMessages().tupleLength(this._length, value.length)
       );
     }
 
-    const result = new Array(this._length);
+    const result = new Array(value.length);
     for (let i = 0; i < this._length; i++) {
       const simpleMode = this._simpleItemModes[i];
       const item = value[i];
@@ -205,17 +227,92 @@ export class VldTuple<T extends readonly VldBase<any, any>[]> extends VldBase<
       }
     }
 
-    return result as { [K in keyof T]: T[K] extends VldBase<any, infer U> ? U : never };
+    if (this.restValidator) {
+      for (let i = this._length; i < value.length; i++) {
+        try {
+          result[i] = this.restValidator.parse(value[i]);
+        } catch (error) {
+          throw new Error(getMessages().arrayItem(i, (error as Error).message));
+        }
+      }
+    }
+
+    return result as TupleOutput<T, TRest>;
   }
   
   /**
    * Safely parse and validate a tuple value
    */
-  safeParse(value: unknown): ParseResult<{ [K in keyof T]: T[K] extends VldBase<any, infer U> ? U : never }> {
+  safeParse(value: unknown): ParseResult<TupleOutput<T, TRest>> {
     try {
       return { success: true, data: this.parse(value) };
     } catch (error) {
       return { success: false, error: createTupleError((error as Error).message) };
+    }
+  }
+
+  override encode(value: TupleOutput<T, TRest>): unknown {
+    if (!Array.isArray(value)) {
+      throw new Error(this.errorMessage || getMessages().invalidTuple);
+    }
+    this.validateEncodedLength(value.length);
+    const result = new Array<unknown>(value.length);
+    for (let i = 0; i < this._length; i++) {
+      result[i] = this.validators[i]!.encode(value[i]);
+    }
+    if (this.restValidator) {
+      for (let i = this._length; i < value.length; i++) {
+        result[i] = this.restValidator.encode(value[i]);
+      }
+    }
+    return result;
+  }
+
+  override safeEncode(
+    value: TupleOutput<T, TRest>
+  ): ParseResult<unknown> {
+    try {
+      return { success: true, data: this.encode(value) };
+    } catch (error) {
+      return { success: false, error: createTupleError((error as Error).message) };
+    }
+  }
+
+  override async encodeAsync(
+    value: TupleOutput<T, TRest>
+  ): Promise<unknown> {
+    if (!Array.isArray(value)) {
+      throw new Error(this.errorMessage || getMessages().invalidTuple);
+    }
+    this.validateEncodedLength(value.length);
+    const result = new Array<unknown>(value.length);
+    for (let i = 0; i < this._length; i++) {
+      result[i] = await this.validators[i]!.encodeAsync(value[i]);
+    }
+    if (this.restValidator) {
+      for (let i = this._length; i < value.length; i++) {
+        result[i] = await this.restValidator.encodeAsync(value[i]);
+      }
+    }
+    return result;
+  }
+
+  override async safeEncodeAsync(
+    value: TupleOutput<T, TRest>
+  ): Promise<ParseResult<unknown>> {
+    try {
+      return { success: true, data: await this.encodeAsync(value) };
+    } catch (error) {
+      return { success: false, error: createTupleError((error as Error).message) };
+    }
+  }
+
+  private validateEncodedLength(length: number): void {
+    if (
+      (this.restValidator === null && length !== this._length) ||
+      (this.restValidator !== null && length < this._length)
+    ) {
+      throw new Error(this.errorMessage || getMessages().tupleLength(this._length, length));
     }
   }
 }

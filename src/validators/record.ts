@@ -23,12 +23,13 @@ function createRecordError(message: string): VldError {
  * Immutable record validator for key-value pairs
  * BUG-NEW-018 FIX: Uses comprehensive dangerous key protection
  */
-export class VldRecord<T> extends VldBase<unknown, Record<string, T>> {
+export class VldRecord<T, K extends PropertyKey = string> extends VldBase<unknown, Record<K, T>> {
   /**
    * Private constructor to enforce immutability
    */
   protected constructor(
     protected readonly valueValidator: VldBase<unknown, T>,
+    private readonly keyValidator?: VldBase<unknown, K>,
     private readonly errorMessage?: string
   ) {
     super(VLD_VALIDATOR_TYPES.RECORD);
@@ -42,12 +43,19 @@ export class VldRecord<T> extends VldBase<unknown, Record<string, T>> {
   get valueSchema(): VldBase<unknown, T> {
     return this.valueValidator;
   }
+
+  get keySchema(): VldBase<unknown, K> | undefined {
+    return this.keyValidator;
+  }
   
   /**
    * Create a new record validator
    */
-  static create<T>(valueValidator: VldBase<unknown, T>): VldRecord<T> {
-    return new VldRecord(valueValidator);
+  static create<T, K extends PropertyKey = string>(
+    valueValidator: VldBase<unknown, T>,
+    keyValidator?: VldBase<unknown, K>
+  ): VldRecord<T, K> {
+    return new VldRecord(valueValidator, keyValidator);
   }
 
   private getSimpleValueMode(valueValidator: VldBase<unknown, T>): SimpleRecordValueMode {
@@ -108,7 +116,7 @@ export class VldRecord<T> extends VldBase<unknown, Record<string, T>> {
    * Parse and validate a record value
    * BUG-NEW-018 FIX: Use comprehensive dangerous key protection
    */
-  parse(value: unknown): Record<string, T> {
+  parse(value: unknown): Record<K, T> {
     if (typeof value !== 'object' || value === null || Array.isArray(value)) {
       throw new Error(this.errorMessage || getMessages().invalidRecord);
     }
@@ -120,7 +128,11 @@ export class VldRecord<T> extends VldBase<unknown, Record<string, T>> {
    * Parse a value that has already passed the record object type guard.
    * @internal Used by object validators to avoid duplicate hot-path checks.
    */
-  parseKnownRecord(obj: Record<string, unknown>): Record<string, T> {
+  parseKnownRecord(obj: Record<string, unknown>): Record<K, T> {
+    if (this.keyValidator !== undefined) {
+      return this.parseKeyedRecord(obj);
+    }
+
     const result: Record<string, T> = {};
     const keys = Object.keys(obj);
     const simpleMode = this._simpleValueMode;
@@ -198,16 +210,60 @@ export class VldRecord<T> extends VldBase<unknown, Record<string, T>> {
       }
     }
 
+    return result as Record<K, T>;
+  }
+
+  private parseKeyedRecord(obj: Record<string, unknown>): Record<K, T> {
+    const result = {} as Record<K, T>;
+    const keys = Reflect.ownKeys(obj);
+
+    for (const rawKey of keys) {
+      if (!Object.prototype.propertyIsEnumerable.call(obj, rawKey)) {
+        continue;
+      }
+      if (typeof rawKey === 'string' && isDangerousKey(rawKey)) {
+        continue;
+      }
+
+      const parsedKey = this.keyValidator!.safeParse(rawKey);
+      if (!parsedKey.success) {
+        throw new VldError([{
+          code: 'invalid_key',
+          path: [String(rawKey)],
+          message: parsedKey.error.message
+        }]);
+      }
+      if (typeof parsedKey.data !== 'string' && typeof parsedKey.data !== 'number' && typeof parsedKey.data !== 'symbol') {
+        throw new VldError([{
+          code: 'invalid_key',
+          path: [String(rawKey)],
+          message: 'Record key transform must return a property key'
+        }]);
+      }
+      if (typeof parsedKey.data === 'string' && isDangerousKey(parsedKey.data)) {
+        continue;
+      }
+
+      try {
+        result[parsedKey.data] = this.valueValidator.parse(obj[rawKey as keyof typeof obj]);
+      } catch (error) {
+        throw new Error(getMessages().objectField(String(rawKey), (error as Error).message));
+      }
+    }
+
     return result;
   }
   
   /**
    * Safely parse and validate a record value
    */
-  safeParse(value: unknown): ParseResult<Record<string, T>> {
+  safeParse(value: unknown): ParseResult<Record<K, T>> {
     try {
       return { success: true, data: this.parse(value) };
     } catch (error) {
+      if (error instanceof VldError) {
+        return { success: false, error };
+      }
       return { success: false, error: createRecordError((error as Error).message) };
     }
   }
@@ -216,9 +272,9 @@ export class VldRecord<T> extends VldBase<unknown, Record<string, T>> {
    * Create a partial record variant (all keys optional)
    * Similar to v.object().partial() but for records
    */
-  partial(): VldRecord<T | undefined> {
+  partial(): VldRecord<T | undefined, K> {
     const optionalValidator = this.valueValidator.optional();
-    return new VldRecord(optionalValidator);
+    return new VldRecord(optionalValidator, this.keyValidator);
   }
 
   /**
@@ -226,10 +282,10 @@ export class VldRecord<T> extends VldBase<unknown, Record<string, T>> {
    * Similar to v.object().passthrough() but for records
    * Note: Records already allow any keys, so this mainly affects error handling
    */
-  loose(): VldBase<unknown, Record<string, T>> {
+  loose(): VldBase<unknown, Record<K, T>> {
     // For records, "loose" means we don't throw errors for validation failures
     // We return a modified version that catches validation errors
-    return new VldLooseRecord(this.valueValidator);
+    return new VldLooseRecord(this.valueValidator, this.keyValidator);
   }
 }
 
@@ -237,8 +293,11 @@ export class VldRecord<T> extends VldBase<unknown, Record<string, T>> {
  * Loose record variant that allows validation failures
  * Used internally by .loose() method
  */
-class VldLooseRecord<T> extends VldBase<unknown, Record<string, T>> {
-  constructor(private readonly valueValidator: VldBase<unknown, T>) {
+class VldLooseRecord<T, K extends PropertyKey = string> extends VldBase<unknown, Record<K, T>> {
+  constructor(
+    private readonly valueValidator: VldBase<unknown, T>,
+    private readonly keyValidator?: VldBase<unknown, K>
+  ) {
     super(VLD_VALIDATOR_TYPES.RECORD);
   }
 
@@ -246,31 +305,46 @@ class VldLooseRecord<T> extends VldBase<unknown, Record<string, T>> {
     return this.valueValidator;
   }
 
-  parse(value: unknown): Record<string, T> {
+  parse(value: unknown): Record<K, T> {
     if (typeof value !== 'object' || value === null || Array.isArray(value)) {
       throw new Error(getMessages().invalidRecord);
     }
 
-    const result: Record<string, T> = {} as Record<string, T>;
+    const result = {} as Record<K, T>;
     const obj = value as Record<string, unknown>;
 
-    for (const [key, val] of Object.entries(obj)) {
+    for (const key of Reflect.ownKeys(obj)) {
+      if (!Object.prototype.propertyIsEnumerable.call(obj, key)) {
+        continue;
+      }
       // Skip dangerous keys
-      if (isDangerousKey(key)) {
+      if (typeof key === 'string' && isDangerousKey(key)) {
+        continue;
+      }
+
+      const parsedKey = this.keyValidator?.safeParse(key);
+      if (parsedKey && !parsedKey.success) {
+        continue;
+      }
+      const outputKey = parsedKey?.data ?? key;
+      if (typeof outputKey !== 'string' && typeof outputKey !== 'number' && typeof outputKey !== 'symbol') {
+        continue;
+      }
+      if (typeof outputKey === 'string' && isDangerousKey(outputKey)) {
         continue;
       }
 
       // For loose records, skip invalid values instead of throwing
-      const parseResult = this.valueValidator.safeParse(val);
+      const parseResult = this.valueValidator.safeParse(obj[key as keyof typeof obj]);
       if (parseResult.success) {
-        result[key] = parseResult.data;
+        result[outputKey as K] = parseResult.data;
       }
     }
 
     return result;
   }
 
-  safeParse(value: unknown): ParseResult<Record<string, T>> {
+  safeParse(value: unknown): ParseResult<Record<K, T>> {
     try {
       return { success: true, data: this.parse(value) };
     } catch (error) {
@@ -281,15 +355,15 @@ class VldLooseRecord<T> extends VldBase<unknown, Record<string, T>> {
   /**
    * Create a partial variant (all keys optional)
    */
-  partial(): VldLooseRecord<T | undefined> {
+  partial(): VldLooseRecord<T | undefined, K> {
     const optionalValidator = this.valueValidator.optional();
-    return new VldLooseRecord(optionalValidator);
+    return new VldLooseRecord(optionalValidator, this.keyValidator);
   }
 
   /**
    * Return self (already loose)
    */
-  loose(): VldLooseRecord<T> {
+  loose(): VldLooseRecord<T, K> {
     return this;
   }
 }

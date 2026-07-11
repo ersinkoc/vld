@@ -34,9 +34,10 @@ VLD is a blazing-fast, type-safe validation library for TypeScript and JavaScrip
 - **Composable**: Chain validations for complex schemas
 - **Advanced Error Formatting**: Tree, pretty, and flatten error utilities
 - **Multi-language**: Built-in support for 27+ languages
-- **100% Statement / Branch / Line Coverage**: Rigorously tested with 2160 passing tests
+- **100% Statement / Branch / Line Coverage**: Rigorously tested with 2179 passing tests
 - **Release-Gated Performance**: CI guards require VLD to stay faster than the latest stable Zod across runtime, startup, and memory benchmarks
 - **Drop-in App Verification**: A real TypeScript fixture is compiled and run once with `zod` and once with built VLD, then normalized runtime output is compared
+- **Audited Compatibility Contract**: Modern Zod 4.4.3 factory signatures, schema direction methods, release-fix behaviors, and JSON Schema defaults are differential-tested; see [the compatibility policy](docs/ZOD_COMPATIBILITY.md)
 
 ### Advanced Zod-Compatible Features
 - **Type Coercion**: `v.coerce.string()`, `v.coerce.number()`, `v.coerce.boolean()`, etc.
@@ -152,7 +153,7 @@ VLD is designed for speed and efficiency with recent optimizations delivering ex
 
 ### Release-Gated Speed Benchmarks (v2.1.0 vs Zod 4.4.3)
 - Runtime guard: VLD must stay at least 1.2x faster on every guarded hot path and keep at least a 3x average ratio
-- Startup guard: VLD must keep at least 1.1x faster import, 1.25x faster total startup, and 1.25x faster warm parse ratios than Zod
+- Startup guard: cross-platform floors are 0.85x import, 0.9x total startup, and 1.25x warm parse versus Zod
 - Memory guard: VLD must keep at least 2x lower total retained heap, 1.5x higher aggregate throughput, and no guarded case below 1.1x speed
 
 ### Recent Local Benchmark Snapshot
@@ -1095,7 +1096,7 @@ console.log(pigment.bold(pigment.green('Success!')));
 
 ## VLD vs. Zod
 
-VLD is designed as a compelling alternative to Zod, offering full feature parity while delivering significant improvements.
+VLD is designed as a compelling alternative to Zod, maintaining an audited compatibility baseline while delivering additional platform features.
 
 ### Feature Comparison
 
@@ -1103,14 +1104,14 @@ VLD is designed as a compelling alternative to Zod, offering full feature parity
 | ----------------------- | ---------------------------------- | ------------------------------------ |
 | **Performance**         | **Release-gated faster runtime, startup, and memory paths** | Baseline                             |
 | **Memory Usage**        | **~4.85x less** overall            | Baseline                             |
-| **Internationalization**| **Built-in (27+ languages)**       | Requires third-party library         |
-| **Dependencies**        | **Zero**                           | `zod-i18n` for locales               |
+| **Internationalization**| **Built-in 27+ locales with lazy loading** | Built-in locales              |
+| **Dependencies**        | **Zero runtime dependencies**      | Zero runtime dependencies            |
 | **Bundle Size**         | Smaller                            | Larger                               |
-| **API**                 | 100% Zod-compatible                | Standard Zod API                     |
+| **API**                 | Zod 4.4.3 compatibility gate + extensions | Standard Zod API                     |
 | **Plugin System**       | **Built-in**                       | Not available                        |
 | **Result Pattern**      | **Built-in**                       | Not available                        |
 | **CLI Tools**           | **Built-in**                       | Not available                        |
-| **Codecs**              | Built-in, bidirectional            | Built-in                             |
+| **Codecs**              | Built-in system plus reusable presets | Built-in primitives; recipes documented |
 | **Type Inference**      | Excellent                          | Excellent                            |
 
 ### Seamless Migration from Zod

@@ -5,6 +5,26 @@ All notable changes to VLD will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Added current Zod array-based factory signatures, two-schema records, multi-value literals, empty objects, and per-schema encode/decode methods.
+- Added transformed record keys, structured `invalid_key` issues, direct prefaults, and shallow-cloned collection defaults.
+- Added a Zod 4.4.3 differential behavior suite to the release gate and a maintained compatibility policy.
+- Added schema-instance composition methods, tuple rest schemas, nested object/array/tuple codec encoding, current string format methods, and boolean `fromJSONSchema()` support.
+
+### Changed
+
+- JSON Schema now defaults to Draft 2020-12 and Zod-compatible handling of unrepresentable types; VLD extensions remain available through `{ unrepresentable: "vld" }`.
+- npm provenance is enforced for published packages.
+
+### Verified
+
+- 84 test suites and 2179 tests passing with 100% statement, branch, and line coverage.
+- Runtime guard average 11.61x faster, startup total 1.36x faster, and 4.76x less retained heap than Zod 4.4.3 in the current guard run.
+- Root string tree-shaken probe is 109.7 KiB versus Zod's 119.6 KiB; VLD mini remains 61.7 KiB.
+
 ## [2.1.0] - 2026-06-16
 
 ### Added

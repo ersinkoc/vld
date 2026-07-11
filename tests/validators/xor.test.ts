@@ -173,9 +173,10 @@ describe('VldXor', () => {
     });
   });
 
-  describe('minimum options validation', () => {
-    it('should require at least 2 options', () => {
-      expect(() => v.xor(v.string())).toThrow();
+  describe('small option lists', () => {
+    it('should match Zod 4.4.3 for zero and one options', () => {
+      expect(v.xor([]).safeParse('x').success).toBe(false);
+      expect(v.xor([v.string()]).safeParse('x').success).toBe(true);
     });
   });
 

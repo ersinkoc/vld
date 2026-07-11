@@ -15,7 +15,7 @@
  */
 
 // Import base class
-import { VldBase, resolveErrorMessage, type ErrorParam, type ParseResult, type SchemaMetadata, type SuperRefineContext } from './validators/base';
+import { VldBase, configureSchemaCompositionFactories, resolveErrorMessage, type ErrorParam, type ParseResult, type SchemaMetadata, type SuperRefineContext } from './validators/base';
 import type { Infer, Input, Output } from './validators';
 import { globalRegistry } from './registry';
 
@@ -28,7 +28,7 @@ import { VldStringBool } from './validators/string-bool';
 import { VldArray } from './validators/array';
 import { VldObject } from './validators/object';
 import { VldUnion } from './validators/union';
-import { VldLiteral } from './validators/literal';
+import { VldLiteral, type LiteralValue } from './validators/literal';
 import { VldBigInt } from './validators/bigint';
 import { VldSymbol } from './validators/symbol';
 import { VldTuple } from './validators/tuple';
@@ -89,7 +89,7 @@ import {
   prettifyError as prettifyErrorFn,
   treeifyError as treeifyErrorFn
 } from './errors';
-import { toJSONSchema as toJSONSchemaFn } from './utils/json-schema';
+import { fromJSONSchema as fromJSONSchemaFn, toJSONSchema as toJSONSchemaFn } from './utils/json-schema';
 
 // Import string format validators
 import * as stringFormats from './validators/string-formats';
@@ -98,30 +98,32 @@ type NativeEnumLike = Record<string, string | number>;
 type Constructor<T = unknown> = abstract new (...args: any[]) => T;
 type RefinementMessage = string | { error?: string; message?: string };
 type GlobalConfig = { customError?: unknown; errorMap?: unknown; locale?: unknown; [key: string]: unknown };
+type SharedGlobalState = { config: GlobalConfig; errorMap?: unknown };
 
-let globalConfig: GlobalConfig = {};
-let globalErrorMap: unknown;
+const GLOBAL_STATE_KEY = Symbol.for('@oxog/vld/global-state');
+const globalStateHost = globalThis as unknown as Record<symbol, SharedGlobalState | undefined>;
+const sharedGlobalState = globalStateHost[GLOBAL_STATE_KEY] ??= { config: {} };
 
 function configure(config?: GlobalConfig): GlobalConfig {
   if (config === undefined) {
-    return { ...globalConfig };
+    return { ...sharedGlobalState.config };
   }
-  globalConfig = { ...globalConfig, ...config };
+  sharedGlobalState.config = { ...sharedGlobalState.config, ...config };
   if ('customError' in config) {
-    globalErrorMap = config.customError;
+    sharedGlobalState.errorMap = config.customError;
   } else if ('errorMap' in config) {
-    globalErrorMap = config.errorMap;
+    sharedGlobalState.errorMap = config.errorMap;
   }
-  return { ...globalConfig };
+  return { ...sharedGlobalState.config };
 }
 
 function setGlobalErrorMap(errorMap: unknown): void {
-  globalErrorMap = errorMap;
-  globalConfig = { ...globalConfig, errorMap };
+  sharedGlobalState.errorMap = errorMap;
+  sharedGlobalState.config = { ...sharedGlobalState.config, errorMap };
 }
 
 function getGlobalErrorMap(): unknown {
-  return globalErrorMap;
+  return sharedGlobalState.errorMap;
 }
 
 function enumValuesFromNativeEnum(enumObject: NativeEnumLike): [string | number, ...(string | number)[]] {
@@ -157,10 +159,6 @@ function addFormattedIssue(root: FormattedError, path: (string | number)[], mess
     current = current[key] as FormattedError;
   }
   current._errors.push(message);
-}
-
-function isCodec(schema: VldBase<unknown, unknown>): schema is VldCodec<unknown, unknown> {
-  return schema instanceof VldCodec;
 }
 
 function messageFromRefinementParam(param: RefinementMessage | undefined): string | undefined {
@@ -509,6 +507,149 @@ export {
   jwtPayload
 } from './codecs';
 
+type AnySchema = VldBase<any, any>;
+type EnumValue = string | number;
+type ShapeSchema = { parse(value: unknown): any };
+type SchemaOutput<T extends ShapeSchema> = ReturnType<T['parse']>;
+type ObjectOutput<T extends Record<string, ShapeSchema>> = {
+  [K in keyof T as undefined extends SchemaOutput<T[K]> ? never : K]: SchemaOutput<T[K]>;
+} & {
+  [K in keyof T as undefined extends SchemaOutput<T[K]> ? K : never]?: SchemaOutput<T[K]>;
+};
+
+function objectFactory<const T extends Record<string, ShapeSchema> = Record<never, never>>(
+  shape?: T
+): VldObject<ObjectOutput<T>> {
+  return VldObject.create((shape || {}) as any) as VldObject<ObjectOutput<T>>;
+}
+
+function strictObjectFactory<const T extends Record<string, ShapeSchema>>(
+  shape: T
+): VldObject<ObjectOutput<T>> {
+  return objectFactory(shape).strict();
+}
+
+function looseObjectFactory<const T extends Record<string, ShapeSchema>>(
+  shape: T
+): VldObject<ObjectOutput<T>> {
+  return objectFactory(shape).passthrough();
+}
+
+function tupleFactory<const T extends readonly AnySchema[], TRest extends AnySchema>(
+  items: T,
+  rest: TRest,
+  params?: unknown
+): VldTuple<T, TRest>;
+function tupleFactory<const T extends readonly AnySchema[]>(items: T, params?: string | Record<string, unknown>): VldTuple<T>;
+function tupleFactory<const T extends readonly AnySchema[]>(...items: T): VldTuple<T>;
+function tupleFactory(...args: unknown[]): any {
+  const items = Array.isArray(args[0]) ? args[0] : args.filter((item): item is AnySchema => item instanceof VldBase);
+  const tuple = VldTuple.create(...items);
+  return Array.isArray(args[0]) && args[1] instanceof VldBase ? tuple.rest(args[1]) : tuple;
+}
+
+function unionFactory<const T extends readonly AnySchema[]>(options: T, params?: unknown): VldUnion<T>;
+function unionFactory<const T extends readonly AnySchema[]>(...options: T): VldUnion<T>;
+function unionFactory(...args: unknown[]): VldUnion<readonly AnySchema[]> {
+  const options = Array.isArray(args[0]) ? args[0] : args.filter((item): item is AnySchema => item instanceof VldBase);
+  return VldUnion.create(...options);
+}
+
+function xorFactory<const T extends readonly AnySchema[]>(options: T, params?: unknown): VldXor<T>;
+function xorFactory<const T extends readonly AnySchema[]>(...options: T): VldXor<T>;
+function xorFactory(...args: unknown[]): VldXor<readonly AnySchema[]> {
+  const options = Array.isArray(args[0]) ? args[0] : args.filter((item): item is AnySchema => item instanceof VldBase);
+  return VldXor.create(options);
+}
+
+function discriminatedUnionFactory<K extends string, const T extends readonly AnySchema[]>(
+  discriminator: K,
+  options: T,
+  params?: unknown
+): VldDiscriminatedUnion<K, T>;
+function discriminatedUnionFactory<K extends string, const T extends readonly AnySchema[]>(
+  discriminator: K,
+  ...options: T
+): VldDiscriminatedUnion<K, T>;
+function discriminatedUnionFactory(
+  discriminator: string,
+  ...args: unknown[]
+): VldDiscriminatedUnion<string, readonly AnySchema[]> {
+  const options = Array.isArray(args[0]) ? args[0] : args.filter((item): item is AnySchema => item instanceof VldBase);
+  return VldDiscriminatedUnion.create(discriminator, options);
+}
+
+function recordFactory<V>(value: VldBase<unknown, V>): VldRecord<V>;
+function recordFactory<K extends PropertyKey, V>(
+  key: VldBase<unknown, K>,
+  value: VldBase<unknown, V>,
+  params?: unknown
+): VldRecord<V, K>;
+function recordFactory<K extends PropertyKey, V>(
+  first: VldBase<unknown, K | V>,
+  second?: VldBase<unknown, V>
+): any {
+  return second === undefined
+    ? VldRecord.create(first)
+    : VldRecord.create(second, first as VldBase<unknown, K>);
+}
+
+function partialRecordFactory<V>(value: VldBase<unknown, V>): VldRecord<V | undefined>;
+function partialRecordFactory<K extends PropertyKey, V>(
+  key: VldBase<unknown, K>,
+  value: VldBase<unknown, V>,
+  params?: unknown
+): VldRecord<V | undefined, K>;
+function partialRecordFactory<K extends PropertyKey, V>(
+  first: VldBase<unknown, K | V>,
+  second?: VldBase<unknown, V>
+): VldRecord<V | undefined, K> | VldRecord<K | V | undefined> {
+  return second === undefined
+    ? VldRecord.create(first).partial()
+    : VldRecord.create(second, first as VldBase<unknown, K>).partial();
+}
+
+function looseRecordFactory<V>(value: VldBase<unknown, V>): VldBase<unknown, Record<string, V>>;
+function looseRecordFactory<K extends PropertyKey, V>(
+  key: VldBase<unknown, K>,
+  value: VldBase<unknown, V>,
+  params?: unknown
+): VldBase<unknown, Record<K, V>>;
+function looseRecordFactory<K extends PropertyKey, V>(
+  first: VldBase<unknown, K | V>,
+  second?: VldBase<unknown, V>
+): VldBase<unknown, Record<K, V>> | VldBase<unknown, Record<string, K | V>> {
+  return second === undefined
+    ? VldRecord.create(first).loose()
+    : VldRecord.create(second, first as VldBase<unknown, K>).loose();
+}
+
+function literalFactory<const T extends readonly LiteralValue[]>(values: T, params?: unknown): VldLiteral<T[number]>;
+function literalFactory<const T extends LiteralValue>(value: T, params?: unknown): VldLiteral<T>;
+function literalFactory(value: LiteralValue | readonly LiteralValue[]): VldLiteral<LiteralValue> {
+  return VldLiteral.create(value);
+}
+
+function enumFactoryCompat<const T extends readonly [EnumValue, ...EnumValue[]]>(values: T, params?: unknown): VldEnum<T>;
+function enumFactoryCompat<const T extends readonly [EnumValue, ...EnumValue[]]>(...values: T): VldEnum<T>;
+function enumFactoryCompat<T extends NativeEnumLike>(entries: T, params?: unknown): VldEnum<any>;
+function enumFactoryCompat(...args: unknown[]): VldEnum<any> {
+  const first = args[0];
+  const values = Array.isArray(first)
+    ? first
+    : first !== null && typeof first === 'object'
+      ? enumValuesFromNativeEnum(first as NativeEnumLike)
+      : args.filter((item): item is EnumValue => typeof item === 'string' || typeof item === 'number');
+  return VldEnum.create(values as [EnumValue, ...EnumValue[]]);
+}
+
+configureSchemaCompositionFactories({
+  array: schema => VldArray.create(schema),
+  union: (left, right) => VldUnion.create(left, right) as any,
+  intersection: (left, right) => VldIntersection.create(left, right) as any,
+  toJSONSchema: (schema, options) => toJSONSchemaFn(schema, options as any)
+});
+
 /**
  * Main API object with factory methods for all validators
  */
@@ -532,36 +673,27 @@ export const v = {
   
   // Complex validators
   array: <T>(item: VldBase<unknown, T>) => VldArray.create(item),
-  object: <T extends Record<string, any>>(shape: { [K in keyof T]: VldBase<unknown, T[K]> }) =>
-    VldObject.create(shape),
-  strictObject: <T extends Record<string, any>>(shape: { [K in keyof T]: VldBase<unknown, T[K]> }) =>
-    VldObject.create(shape).strict(),
-  looseObject: <T extends Record<string, any>>(shape: { [K in keyof T]: VldBase<unknown, T[K]> }) =>
-    VldObject.create(shape).passthrough(),
-  tuple: <T extends readonly VldBase<any, any>[]>(...items: T) => VldTuple.create(...items),
-  record: <T>(value: VldBase<unknown, T>) => VldRecord.create(value),
-  partialRecord: <T>(value: VldBase<unknown, T>) => VldRecord.create(value).partial(),
-  looseRecord: <T>(value: VldBase<unknown, T>) => VldRecord.create(value).loose(),
+  object: objectFactory,
+  strictObject: strictObjectFactory,
+  looseObject: looseObjectFactory,
+  tuple: tupleFactory,
+  record: recordFactory,
+  partialRecord: partialRecordFactory,
+  looseRecord: looseRecordFactory,
   set: <T>(item: VldBase<unknown, T>) => VldSet.create(item),
   map: <K, V>(key: VldBase<unknown, K>, value: VldBase<unknown, V>) => VldMap.create(key, value),
   
   // Union and intersection
-  union: <T extends readonly VldBase<any, any>[]>(...validators: T) =>
-    VldUnion.create(...validators),
+  union: unionFactory,
   intersection: <A, B>(first: VldBase<unknown, A>, second: VldBase<unknown, B>) =>
     VldIntersection.create(first, second),
-  discriminatedUnion: <K extends string, T extends readonly VldBase<any, any>[]>(
-    discriminator: K,
-    ...options: T
-  ) => VldDiscriminatedUnion.create(discriminator, [...options] as any),
-  xor: <T extends readonly VldBase<any, any>[]>(...options: T) =>
-    VldXor.create([...options] as any),
+  discriminatedUnion: discriminatedUnionFactory,
+  xor: xorFactory,
   keyof: <T extends Record<string, any>>(schema: VldObject<T>) => schema.keyof(),
   
   // Literal and enum
-  literal: <T extends string | number | boolean | null | undefined>(value: T) => 
-    VldLiteral.create(value),
-  enum: <T extends readonly [string | number, ...(string | number)[]]>(...values: T) => VldEnum.create(values as any),
+  literal: literalFactory,
+  enum: enumFactoryCompat,
   nativeEnum: <T extends NativeEnumLike>(enumObject: T) => VldEnum.create(enumValuesFromNativeEnum(enumObject) as any),
   
   // Special validators
@@ -587,12 +719,12 @@ export const v = {
   nonoptional: <T>(validator: VldBase<unknown, T | undefined>, message?: RefinementMessage) =>
     validator.refine((value): value is Exclude<T, undefined> => value !== undefined, messageFromRefinementParam(message)),
   catch: <T>(validator: VldBase<unknown, T>, fallbackValue: T) => validator.catch(fallbackValue),
-  prefault: <T>(validator: VldBase<unknown, T>, defaultValue: T | (() => T)) =>
-    validator.default(typeof defaultValue === 'function' ? (defaultValue as () => T)() : defaultValue).prefault(),
+  prefault: <TInput, TOutput>(validator: VldBase<TInput, TOutput>, defaultValue: TInput | (() => TInput)) =>
+    validator.prefault(defaultValue),
   readonly: <T>(validator: VldBase<unknown, T>) => validator.readonly(),
   pipe: <TInput, TIntermediate, TOutput>(
     first: VldBase<TInput, TIntermediate>,
-    second: VldBase<TIntermediate, TOutput>
+    second: VldBase<any, TOutput>
   ) => first.pipe(second),
   clone: <T extends VldBase<any, any>>(schema: T) => cloneSchema(schema),
   describe: <TInput, TOutput>(
@@ -788,22 +920,14 @@ export const v = {
   safeDecode: <T>(schema: VldBase<unknown, T>, value: unknown): ParseResult<T> => schema.safeParse(value),
   decodeAsync: <T>(schema: VldBase<unknown, T>, value: unknown): Promise<T> => schema.parseAsync(value),
   safeDecodeAsync: <T>(schema: VldBase<unknown, T>, value: unknown): Promise<ParseResult<T>> => schema.safeParseAsync(value),
-  encode: <TInput, TOutput>(schema: VldBase<TInput, TOutput>, value: unknown): TInput | TOutput =>
-    isCodec(schema as unknown as VldBase<unknown, unknown>)
-      ? (schema as unknown as VldCodec<TInput, TOutput>).encode(value)
-      : schema.parse(value) as TOutput,
-  safeEncode: <TInput, TOutput>(schema: VldBase<TInput, TOutput>, value: unknown): ParseResult<TInput | TOutput> =>
-    isCodec(schema as unknown as VldBase<unknown, unknown>)
-      ? (schema as unknown as VldCodec<TInput, TOutput>).safeEncode(value) as ParseResult<TInput>
-      : schema.safeParse(value) as ParseResult<TOutput>,
-  encodeAsync: async <TInput, TOutput>(schema: VldBase<TInput, TOutput>, value: unknown): Promise<TInput | TOutput> =>
-    isCodec(schema as unknown as VldBase<unknown, unknown>)
-      ? (schema as unknown as VldCodec<TInput, TOutput>).encodeAsync(value)
-      : schema.parseAsync(value),
-  safeEncodeAsync: async <TInput, TOutput>(schema: VldBase<TInput, TOutput>, value: unknown): Promise<ParseResult<TInput | TOutput>> =>
-    isCodec(schema as unknown as VldBase<unknown, unknown>)
-      ? (schema as unknown as VldCodec<TInput, TOutput>).safeEncodeAsync(value) as Promise<ParseResult<TInput>>
-      : schema.safeParseAsync(value) as Promise<ParseResult<TOutput>>,
+  encode: <TInput, TOutput>(schema: VldBase<TInput, TOutput>, value: TOutput): TInput =>
+    schema.encode(value),
+  safeEncode: <TInput, TOutput>(schema: VldBase<TInput, TOutput>, value: TOutput): ParseResult<TInput> =>
+    schema.safeEncode(value),
+  encodeAsync: <TInput, TOutput>(schema: VldBase<TInput, TOutput>, value: TOutput): Promise<TInput> =>
+    schema.encodeAsync(value),
+  safeEncodeAsync: <TInput, TOutput>(schema: VldBase<TInput, TOutput>, value: TOutput): Promise<ParseResult<TInput>> =>
+    schema.safeEncodeAsync(value),
   formatError: (error: Error): FormattedError => {
     const formatted: FormattedError = { _errors: [] };
     if (error instanceof VldErrorClass) {
@@ -818,7 +942,8 @@ export const v = {
   treeifyError: treeifyErrorFn,
   prettifyError: prettifyErrorFn,
   flattenError: flattenErrorFn,
-  toJSONSchema: toJSONSchemaFn
+  toJSONSchema: toJSONSchemaFn,
+  fromJSONSchema: fromJSONSchemaFn
 };
 
 // eslint-disable-next-line @typescript-eslint/no-namespace

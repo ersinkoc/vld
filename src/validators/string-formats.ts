@@ -36,6 +36,7 @@ const REGEXES = {
   isoDate: /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/,
   isoTime: /^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?$/,
   isoDateTime: /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?Z?$/,
+  isoDuration: /^-?P(?!$)(?:\d+(?:\.\d+)?Y)?(?:\d+(?:\.\d+)?M)?(?:\d+(?:\.\d+)?W)?(?:\d+(?:\.\d+)?D)?(?:T(?=\d)(?:\d+(?:\.\d+)?H)?(?:\d+(?:\.\d+)?M)?(?:\d+(?:\.\d+)?S)?)?$/,
   md5: /^[a-f0-9]{32}$/i,
   sha1: /^[a-f0-9]{40}$/i,
   sha256: /^[a-f0-9]{64}$/i,
@@ -194,11 +195,7 @@ export const iso = {
   time: () => VldStringFormat.create('time', (val) => REGEXES.isoTime.test(val)),
   dateTime: (_options?: { offset?: boolean }) =>
     VldStringFormat.create('datetime', (val) => REGEXES.isoDateTime.test(val)),
-  duration: () => VldStringFormat.create(
-    'duration',
-    (val) =>
-      /^-?P(?!$)(?:\d+(?:\.\d+)?Y)?(?:\d+(?:\.\d+)?M)?(?:\d+(?:\.\d+)?W)?(?:\d+(?:\.\d+)?D)?(?:T(?=\d)(?:\d+(?:\.\d+)?H)?(?:\d+(?:\.\d+)?M)?(?:\d+(?:\.\d+)?S)?)?$/.test(val)
-  ),
+  duration: () => VldStringFormat.create('duration', (val) => REGEXES.isoDuration.test(val)),
 };
 
 /**

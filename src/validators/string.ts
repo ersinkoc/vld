@@ -19,6 +19,27 @@ const REGEX_PATTERNS = {
   ipv4: /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/,
   // Simplified IPv6 regex to prevent ReDoS - splits into multiple checks for performance
   ipv6Basic: /^[0-9a-fA-F:]+$/,
+  uuidv4: /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+  uuidv6: /^[0-9a-f]{8}-[0-9a-f]{4}-6[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+  uuidv7: /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+  emoji: /^(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F)(?:\u200D(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F))*$/u,
+  base64: /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/,
+  base64url: /^[A-Za-z0-9_-]*$/,
+  jwt: /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*$/,
+  nanoid: /^[A-Za-z0-9_-]{21}$/,
+  cuid: /^c[^\s-]{8,}$/i,
+  cuid2: /^[0-9a-z]+$/,
+  ulid: /^[0-9A-HJKMNP-TV-Z]{26}$/,
+  cidrv4: /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\/(?:3[0-2]|[12]?[0-9])$/,
+  cidrv6: /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\/(?:12[0-8]|1[01][0-9]|[1-9]?[0-9])$|^::(?:[0-9a-fA-F]{1,4}:){0,6}[0-9a-fA-F]{1,4}\/(?:12[0-8]|1[01][0-9]|[1-9]?[0-9])$|^(?:[0-9a-fA-F]{1,4}:){1,7}:\/(?:12[0-8]|1[01][0-9]|[1-9]?[0-9])$/,
+  e164: /^\+[1-9]\d{1,14}$/,
+  xid: /^[A-HJKMNP-TV-Z0-9]{20}$/,
+  guid: /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/i,
+  ksuid: /^[0-9A-Za-z]{27}$/,
+  isoDate: /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/,
+  isoTime: /^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?$/,
+  isoDateTime: /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?Z?$/,
+  isoDuration: /^-?P(?!$)(?:\d+(?:\.\d+)?Y)?(?:\d+(?:\.\d+)?M)?(?:\d+(?:\.\d+)?W)?(?:\d+(?:\.\d+)?D)?(?:T(?=\d)(?:\d+(?:\.\d+)?H)?(?:\d+(?:\.\d+)?M)?(?:\d+(?:\.\d+)?S)?)?$/,
 };
 
 // BUG-NEW-001 FIX: IPv6 validation moved to shared utility (src/utils/ip-validation.ts)
@@ -364,6 +385,37 @@ export class VldString extends VldBase<string, string> {
       jsonSchema: { ...this.config.jsonSchema, format: 'uuid' }
     });
   }
+
+  private format(pattern: RegExp, format: string, message?: ErrorParam): VldString {
+    return new VldString({
+      checks: [...this.config.checks, (value: string) => pattern.test(value)],
+      transforms: this.config.transforms,
+      errorMessage: resolveErrorMessage(message, `Invalid ${format}`),
+      jsonSchema: { ...this.config.jsonSchema, format, pattern: pattern.source }
+    });
+  }
+
+  uuidv4(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.uuidv4, 'uuid', message); }
+  uuidv6(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.uuidv6, 'uuid', message); }
+  uuidv7(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.uuidv7, 'uuid', message); }
+  emoji(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.emoji, 'emoji', message); }
+  base64(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.base64, 'base64', message); }
+  base64url(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.base64url, 'base64url', message); }
+  jwt(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.jwt, 'jwt', message); }
+  nanoid(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.nanoid, 'nanoid', message); }
+  cuid(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.cuid, 'cuid', message); }
+  cuid2(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.cuid2, 'cuid2', message); }
+  ulid(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.ulid, 'ulid', message); }
+  cidrv4(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.cidrv4, 'cidrv4', message); }
+  cidrv6(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.cidrv6, 'cidrv6', message); }
+  e164(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.e164, 'e164', message); }
+  xid(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.xid, 'xid', message); }
+  guid(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.guid, 'guid', message); }
+  ksuid(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.ksuid, 'ksuid', message); }
+  date(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.isoDate, 'date', message); }
+  time(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.isoTime, 'time', message); }
+  datetime(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.isoDateTime, 'datetime', message); }
+  duration(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.isoDuration, 'duration', message); }
   
   /**
    * Create a new validator with regex pattern matching
@@ -400,6 +452,10 @@ export class VldString extends VldBase<string, string> {
       jsonSchema: this.config.jsonSchema
     });
   }
+
+  lowercase(): VldString {
+    return this.toLowerCase();
+  }
   
   /**
    * Create a new validator that converts to uppercase
@@ -408,6 +464,33 @@ export class VldString extends VldBase<string, string> {
     return new VldString({
       checks: this.config.checks,
       transforms: [...this.config.transforms, (v: string) => v.toUpperCase()],
+      errorMessage: this.config.errorMessage,
+      jsonSchema: this.config.jsonSchema
+    });
+  }
+
+  uppercase(): VldString {
+    return this.toUpperCase();
+  }
+
+  normalize(form?: 'NFC' | 'NFD' | 'NFKC' | 'NFKD'): VldString {
+    return new VldString({
+      checks: this.config.checks,
+      transforms: [...this.config.transforms, (value: string) => value.normalize(form)],
+      errorMessage: this.config.errorMessage,
+      jsonSchema: this.config.jsonSchema
+    });
+  }
+
+  slugify(): VldString {
+    return new VldString({
+      checks: this.config.checks,
+      transforms: [...this.config.transforms, (value: string) => value
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/[\s_-]+/g, '-')
+        .replace(/^-+|-+$/g, '')],
       errorMessage: this.config.errorMessage,
       jsonSchema: this.config.jsonSchema
     });

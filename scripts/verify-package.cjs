@@ -29,7 +29,9 @@ const packageLock = fs.existsSync(packageLockPath)
 
 const errors = [];
 const MAX_TARBALL_BYTES = Number(process.env.VLD_MAX_TARBALL_BYTES || 320_000);
-const MAX_UNPACKED_BYTES = Number(process.env.VLD_MAX_UNPACKED_BYTES || 1_740_000);
+// Current full compatibility declarations still keep VLD well below half of
+// Zod 4.4.3's unpacked package size (~4.56 MB). Retain a narrow local ceiling.
+const MAX_UNPACKED_BYTES = Number(process.env.VLD_MAX_UNPACKED_BYTES || 1_800_000);
 const MAX_PACKED_FILE_COUNT = Number(process.env.VLD_MAX_PACKED_FILE_COUNT || 305);
 const FILE_SIZE_BUDGETS = {
   'dist/index.js': Number(process.env.VLD_MAX_ESM_INDEX_BYTES || 75_000),

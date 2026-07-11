@@ -11,17 +11,14 @@ import type { ParseResult } from './base';
  * XOR validator - ensures exactly one option matches
  * Unlike regular union which allows multiple matches, XOR requires exactly one
  */
-export class VldXor<Options extends VldBase<any, any>[]> extends VldBase<unknown, Options[number] extends VldBase<any, infer T> ? T : never> {
+export class VldXor<Options extends readonly VldBase<any, any>[]> extends VldBase<unknown, Options[number] extends VldBase<any, infer T> ? T : never> {
   constructor(private readonly _options: Options) {
     super(VLD_VALIDATOR_TYPES.XOR);
   }
 
-  static create<Options extends VldBase<any, any>[]>(
+  static create<Options extends readonly VldBase<any, any>[]>(
     options: Options
   ): VldXor<Options> {
-    if (options.length < 2) {
-      throw new Error('XOR requires at least 2 options');
-    }
     return new VldXor(options);
   }
 

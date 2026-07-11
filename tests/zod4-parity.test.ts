@@ -629,7 +629,7 @@ describe('Zod 4 parity additions', () => {
       map: v.map(v.string(), v.number().nonnegative())
     });
 
-    const json = toJSONSchema(schema);
+    const json = toJSONSchema(schema, { target: 'draft-07', unrepresentable: 'vld' });
 
     expect(json.properties?.['count']).toMatchObject({
       type: 'integer',
@@ -699,6 +699,16 @@ describe('Zod 4 parity additions', () => {
       type: 'number',
       minimum: 0,
       exclusiveMinimum: true
+    });
+  });
+
+  it('matches Zod defaults for JSON Schema output and unrepresentable values', () => {
+    const json = toJSONSchema(v.object({ name: v.string() }));
+    expect(json.$schema).toBe('https://json-schema.org/draft/2020-12/schema');
+    expect(json.additionalProperties).toBe(false);
+    expect(() => toJSONSchema(v.bigint())).toThrow('cannot be represented');
+    expect(toJSONSchema(v.bigint(), { unrepresentable: 'any' })).toEqual({
+      $schema: 'https://json-schema.org/draft/2020-12/schema'
     });
   });
 
