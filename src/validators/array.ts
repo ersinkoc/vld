@@ -1,11 +1,19 @@
 import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
 import { getMessages } from '../locales/runtime';
-import { VldError } from '../errors-core';
+import { VldError, getTypeName, createInvalidTypeIssue } from '../errors-core';
 
 type SimpleItemMode = 'string' | 'number' | 'boolean' | undefined;
 
 function createArrayError(message: string): VldError {
   return new VldError([{ code: 'invalid_array', path: [], message }]);
+}
+
+function createArrayTooSmallError(minimum: number, message: string): VldError {
+  return new VldError([{ code: 'too_small', path: [], origin: 'array', minimum, inclusive: true, message }]);
+}
+
+function createArrayTooBigError(maximum: number, message: string): VldError {
+  return new VldError([{ code: 'too_big', path: [], origin: 'array', maximum, inclusive: true, message }]);
 }
 
 /**
@@ -73,7 +81,8 @@ export class VldArray<T> extends VldBase<unknown[], T[]> {
    */
   parse(value: unknown): T[] {
     if (!Array.isArray(value)) {
-      throw new Error(this.config.errorMessage || getMessages().invalidArray);
+      const message = this.config.errorMessage || getMessages().invalidArray;
+      throw new VldError([createInvalidTypeIssue('array', getTypeName(value), message)]);
     }
 
     return this.parseArrayValue(value);
@@ -90,15 +99,15 @@ export class VldArray<T> extends VldBase<unknown[], T[]> {
   private parseArrayValue(value: unknown[]): T[] {
     // Validate length constraints
     if (this.config.exactLength !== undefined && value.length !== this.config.exactLength) {
-      throw new Error(this.config.errorMessage || getMessages().arrayLength(this.config.exactLength));
+      throw createArrayTooSmallError(this.config.exactLength, this.config.errorMessage || getMessages().arrayLength(this.config.exactLength));
     }
     
     if (this.config.minLength !== undefined && value.length < this.config.minLength) {
-      throw new Error(this.config.errorMessage || getMessages().arrayMin(this.config.minLength));
+      throw createArrayTooSmallError(this.config.minLength, this.config.errorMessage || getMessages().arrayMin(this.config.minLength));
     }
     
     if (this.config.maxLength !== undefined && value.length > this.config.maxLength) {
-      throw new Error(this.config.errorMessage || getMessages().arrayMax(this.config.maxLength));
+      throw createArrayTooBigError(this.config.maxLength, this.config.errorMessage || getMessages().arrayMax(this.config.maxLength));
     }
     
     const length = value.length;
@@ -162,6 +171,9 @@ export class VldArray<T> extends VldBase<unknown[], T[]> {
     try {
       return { success: true, data: this.parse(value) };
     } catch (error) {
+      if (error instanceof VldError) {
+        return { success: false, error };
+      }
       return { success: false, error: createArrayError((error as Error).message) };
     }
   }

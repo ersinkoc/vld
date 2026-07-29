@@ -1,5 +1,5 @@
 /**
- * Full coverage test for src/index.ts — exercises every exported symbol,
+ * Full coverage test for src/index.ts - exercises every exported symbol,
  * factory method, and re-export alias to achieve 100% function coverage.
  *
  * The only file below 100% function coverage is src/index.ts at 76.45%.
@@ -94,7 +94,7 @@ import {
   positive, negative, nonnegative, nonpositive, multipleOf
 } from '../src/index';
 
-describe('src/index.ts — Full Function Coverage', () => {
+describe('src/index.ts - Full Function Coverage', () => {
   // ========================================================
   // Section 1: v.* factory methods
   // ========================================================
@@ -369,7 +369,7 @@ describe('src/index.ts — Full Function Coverage', () => {
       expect(v.uuid().parse('550e8400-e29b-41d4-a716-446655440000')).toBeTruthy();
       expect(v.uuidv4().parse('550e8400-e29b-41d4-a716-446655440000')).toBeTruthy();
       expect(v.hostname().parse('example.com')).toBe('example.com');
-      expect(v.emoji().parse('😀')).toBe('😀');
+      expect(v.emoji().parse('\u{1F600}')).toBe('\u{1F600}');
       expect(v.base64().parse('SGVsbG8=')).toBe('SGVsbG8=');
       expect(v.base64url().parse('SGVsbG8')).toBe('SGVsbG8');
       expect(v.hex().parse('abcdef')).toBe('abcdef');
@@ -447,8 +447,8 @@ describe('src/index.ts — Full Function Coverage', () => {
       expect(v.minSize(3).parse('abc')).toBe('abc');
       expect(v.maxSize(5).parse('abc')).toBe('abc');
       expect(v.size(3).parse('abc')).toBe('abc');
-      expect(v.normalize().parse('cafe\u0301')).toBe('café');
-      expect(v.normalize('NFC').parse('cafe\u0301')).toBe('café');
+      expect(v.normalize().parse('cafe\u0301')).toBe('caf\u00e9');
+      expect(v.normalize('NFC').parse('cafe\u0301')).toBe('caf\u00e9');
       expect(v.slugify().parse('Hello World!')).toBe('hello-world');
     });
 
@@ -587,7 +587,7 @@ describe('src/index.ts — Full Function Coverage', () => {
   // ========================================================
   describe('standalone top-level function exports', () => {
     it('should exercise map (the VldBase overload)', () => {
-      // VldBase overload — creates a VldMap
+      // VldBase overload - creates a VldMap
       const result1 = map(v.string(), v.number());
       expect(result1.parse(new Map([['a', 1]]))).toEqual(new Map([['a', 1]]));
     });

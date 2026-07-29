@@ -1,3 +1,4 @@
+import * as zod from 'zod';
 import { VldBase, VldError, v } from '../src';
 
 describe('latest Zod 4.4.3 compatibility', () => {
@@ -156,5 +157,28 @@ describe('latest Zod 4.4.3 compatibility', () => {
     expect(schema.isNullable()).toBe(false);
     expect(schema.nullable().isNullable()).toBe(true);
     expect(schema.clone()).toBe(schema);
+  });
+
+  test('tracks nested regex and ISO namespaces, not only root exports', () => {
+    expect(Object.keys(zod.regexes).filter(key => !(key in v.regexes))).toEqual([]);
+    expect(Object.keys(zod.iso).filter(key => !(key in v.iso))).toEqual([]);
+
+    for (const version of ['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8'] as const) {
+      const value = `550e8400-e29b-${version.slice(1)}1d4-a716-446655440000`;
+      expect(v.uuid({ version }).safeParse(value).success).toBe(zod.uuid({ version }).safeParse(value).success);
+    }
+
+    expect(v.url().parse('http://localhost')).toBe(zod.url().parse('http://localhost'));
+    expect(v.url().parse('mailto:test@example.com')).toBe(zod.url().parse('mailto:test@example.com'));
+    expect(v.url({ protocol: /^https$/ }).safeParse('http://example.com').success).toBe(false);
+    expect(v.url({ hostname: /^example\.com$/ }).safeParse('https://example.com').success).toBe(true);
+    expect(v.url({ normalize: true }).parse('HTTP://ExAmPle.com:80/./a/../b?X=1#f oo'))
+      .toBe(zod.url({ normalize: true }).parse('HTTP://ExAmPle.com:80/./a/../b?X=1#f oo'));
+
+    expect(v.iso.datetime().safeParse('2026-01-01T12:30:00').success).toBe(false);
+    expect(v.iso.datetime({ local: true }).safeParse('2026-01-01T12:30:00').success).toBe(true);
+    expect(v.iso.datetime({ offset: true }).safeParse('2026-01-01T12:30:00+03:00').success).toBe(true);
+    expect(v.iso.time({ precision: 0 }).safeParse('12:30:00').success).toBe(true);
+    expect(v.iso.time({ precision: 0 }).safeParse('12:30').success).toBe(false);
   });
 });

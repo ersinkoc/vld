@@ -1,6 +1,6 @@
 {
   "name": "@oxog/vld",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Ultra-fast TypeScript-first schema validation with zero dependencies, 27+ language support, plugin system, and CLI tools",
   "type": "module",
   "main": "./dist/cjs/index.cjs",
@@ -156,9 +156,10 @@
     "verify:drop-in": "node scripts/verify-drop-in-app.cjs",
     "verify:install": "node scripts/verify-install.cjs",
     "verify:package": "node scripts/verify-package.cjs",
-    "verify:security": "npm audit --audit-level=low",
+    "verify:security": "node scripts/verify-security.cjs",
     "verify:types": "node scripts/verify-types.cjs",
-    "verify:zod": "node scripts/verify-zod-parity.cjs",
+    "verify:zod": "node scripts/verify-zod-parity.cjs --tag latest",
+    "verify:zod:canary": "node scripts/verify-zod-parity.cjs --tag canary",
     "test": "jest --coverage",
     "test:types": "tsc --noEmit",
     "benchmark": "npm run build && node benchmarks/quick-bench.cjs",
@@ -234,6 +235,7 @@
   },
   "overrides": {
     "@babel/core": "^7.29.7",
-    "js-yaml": "^4.2.0"
+    "brace-expansion": "^2.0.2",
+    "js-yaml": "^4.2.1"
   }
 }

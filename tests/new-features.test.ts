@@ -768,9 +768,9 @@ describe('New Advanced Features Tests', () => {
     it('should not apply default for null or other falsy values', () => {
       const schema = v.string().default('default');
       
-      expect(() => schema.parse(null)).toThrow('Invalid string');
+      expect(() => schema.parse(null)).toThrow('expected string');
       expect(schema.parse('')).toBe(''); // Empty string should validate as string
-      expect(() => schema.parse(0)).toThrow('Invalid string');
+      expect(() => schema.parse(0)).toThrow('expected string');
     });
   });
 

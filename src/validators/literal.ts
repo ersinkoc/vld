@@ -1,10 +1,6 @@
 import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
 import { getMessages } from '../locales/runtime';
-import { VldError } from '../errors-core';
-
-function createLiteralError(message: string): VldError {
-  return new VldError([{ code: 'invalid_literal', path: [], message }]);
-}
+import { VldError, type VldIssue } from '../errors-core';
 
 function stringifyLiteral(value: unknown): string {
   const serialized = JSON.stringify(value, (_key, item) => typeof item === 'bigint' ? item.toString() : item);
@@ -63,12 +59,20 @@ export class VldLiteral<T extends LiteralValue> extends VldBase<T, T> {
    */
   parse(value: unknown): T {
     if (!this._values.includes(value as T)) {
-      throw new Error(
-        this.errorMessage ||
-        getMessages().literalExpected(this.expectedDisplay, stringifyLiteral(value))
-      );
+      throw this._createLiteralError(value);
     }
     return value as T;
+  }
+
+  private _createLiteralError(value: unknown): VldError {
+    const issue: VldIssue = {
+      code: 'invalid_value',
+      path: [],
+      values: [...this._values],
+      message: this.errorMessage ||
+        getMessages().literalExpected(this.expectedDisplay, stringifyLiteral(value))
+    };
+    return new VldError([issue]);
   }
 
   /**
@@ -80,10 +84,7 @@ export class VldLiteral<T extends LiteralValue> extends VldBase<T, T> {
     }
     return {
       success: false,
-      error: createLiteralError(
-        this.errorMessage ||
-        getMessages().literalExpected(this.expectedDisplay, stringifyLiteral(value))
-      )
+      error: this._createLiteralError(value)
     };
   }
 }

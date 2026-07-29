@@ -92,9 +92,9 @@ describe('String Format Validators', () => {
       expect(emojiValidator.safeParse('❤️').success).toBe(true);
     });
 
-    it('should reject non-emoji strings', () => {
+    it('should reject text while matching Zod emoji-component behavior', () => {
       expect(emojiValidator.safeParse('hello').success).toBe(false);
-      expect(emojiValidator.safeParse('123').success).toBe(false);
+      expect(emojiValidator.safeParse('123').success).toBe(true);
     });
   });
 
@@ -320,8 +320,10 @@ describe('String Format Validators', () => {
         expect(isoDuration.safeParse('PT5M30S').success).toBe(true);
         expect(isoDuration.safeParse('P1W').success).toBe(true);
         expect(isoDuration.safeParse('P1Y2M3DT4H5M6S').success).toBe(true);
-        expect(isoDuration.safeParse('P1.5Y').success).toBe(true);
-        expect(isoDuration.safeParse('-P1Y').success).toBe(true);
+        expect(isoDuration.safeParse('P1.5Y').success).toBe(false);
+        expect(isoDuration.safeParse('-P1Y').success).toBe(false);
+        expect(v.regexes.extendedDuration.test('P1.5Y')).toBe(true);
+        expect(v.regexes.extendedDuration.test('-P1Y')).toBe(true);
         expect(isoDuration.safeParse('PT0S').success).toBe(true);
       });
 

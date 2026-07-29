@@ -1,6 +1,6 @@
 import { VldBase, ParseResult, VLD_VALIDATOR_TYPES, ValidatorType, type ErrorParam, resolveErrorMessage } from './base';
 import { getMessages } from '../locales/runtime';
-import { VldError } from '../errors-core';
+import { VldError, getTypeName, createInvalidTypeIssue, type VldIssue } from '../errors-core';
 
 /**
  * Type for number validation check functions
@@ -8,8 +8,14 @@ import { VldError } from '../errors-core';
 type NumberCheck = (value: number) => boolean;
 type NumberFastCheckMode = 'none' | 'positive' | 'positive-int' | undefined;
 
-function createNumberError(message: string): VldError {
-  return new VldError([{ code: 'invalid_number', path: [], message }]);
+/**
+ * Metadata for a single number constraint, enabling Zod 4-compatible issues.
+ */
+interface NumberCheckMeta {
+  readonly kind: 'min' | 'max' | 'int' | 'gt' | 'lt' | 'multiple_of' | 'finite' | 'safe' | 'other';
+  readonly value?: number;
+  readonly inclusive?: boolean;
+  readonly message: string | undefined;
 }
 
 interface NumberJSONSchemaHints {
@@ -29,6 +35,7 @@ interface NumberValidatorConfig {
   readonly errorMessage: string | undefined;
   readonly validatorType?: ValidatorType;
   readonly jsonSchema: NumberJSONSchemaHints | undefined;
+  readonly checkMetas: ReadonlyArray<NumberCheckMeta> | undefined;
 }
 
 /**
@@ -39,6 +46,7 @@ export class VldNumber extends VldBase<number, number> {
   private readonly _checks: ReadonlyArray<NumberCheck>;
   private readonly _isSimple: boolean;
   private readonly _fastCheckMode: NumberFastCheckMode;
+  private readonly _checkMetas: ReadonlyArray<NumberCheckMeta> | undefined;
 
   /**
    * Protected constructor to allow extension while maintaining immutability
@@ -48,11 +56,13 @@ export class VldNumber extends VldBase<number, number> {
     this.config = {
       checks: config?.checks || [],
       errorMessage: config?.errorMessage,
-      jsonSchema: config?.jsonSchema
+      jsonSchema: config?.jsonSchema,
+      checkMetas: config?.checkMetas
     };
     this._checks = this.config.checks;
     this._isSimple = this._checks.length === 0;
     this._fastCheckMode = this.detectFastCheckMode();
+    this._checkMetas = this.config.checkMetas;
   }
 
   private detectFastCheckMode(): NumberFastCheckMode {
@@ -102,10 +112,12 @@ export class VldNumber extends VldBase<number, number> {
   
   /**
    * Parse and validate a number value
+   * Zod 4 behavior: Infinity and NaN are rejected by default (they are not valid numbers).
    */
   parse(value: unknown): number {
-    if (typeof value !== 'number' || isNaN(value)) {
-      throw new Error(this.config.errorMessage || getMessages().invalidNumber);
+    // Zod 4 rejects Infinity, -Infinity, and NaN for z.number()
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      throw new VldError([createInvalidTypeIssue('number', getTypeName(value), this.config.errorMessage)]);
     }
 
     switch (this._fastCheckMode) {
@@ -113,13 +125,45 @@ export class VldNumber extends VldBase<number, number> {
         return value;
       case 'positive':
         if (value > 0) return value;
-        throw new Error(this.config.errorMessage || getMessages().invalidNumber);
+        throw new VldError([this._createCheckIssue('gt', 0, this.config.errorMessage)]);
       case 'positive-int':
         if (value > 0 && Number.isInteger(value)) return value;
-        throw new Error(this.config.errorMessage || getMessages().invalidNumber);
+        throw new VldError([this._createCheckIssue('int', undefined, this.config.errorMessage)]);
     }
 
     return this.parseKnownNumber(value);
+  }
+
+  /**
+   * Build the Zod 4-compatible VldIssue for a failed number check.
+   */
+  private _createCheckIssue(kind: string, value: number | undefined, message: string | undefined): VldIssue {
+    switch (kind) {
+      case 'min':
+        return { code: 'too_small', path: [], origin: 'number', minimum: value!, inclusive: true, message: message || `Too small: expected number to be >=${value}` };
+      case 'max':
+        return { code: 'too_big', path: [], origin: 'number', maximum: value!, inclusive: true, message: message || `Too big: expected number to be <=${value}` };
+      case 'gt':
+        return { code: 'too_small', path: [], origin: 'number', minimum: value!, inclusive: false, message: message || `Too small: expected number to be >${value}` };
+      case 'lt':
+        return { code: 'too_big', path: [], origin: 'number', maximum: value!, inclusive: false, message: message || `Too big: expected number to be <${value}` };
+      case 'int':
+        return { code: 'invalid_type', path: [], expected: 'int', received: 'number', message: message || 'Invalid input: expected int, received number' };
+      default:
+        return { code: 'custom', path: [], message: message || 'Invalid number' };
+    }
+  }
+
+  /**
+   * Run all checks against a known number and return the index of the first failing check, or -1.
+   */
+  private _findFailingCheck(value: number): NumberCheckMeta | null {
+    const checks = this._checks;
+    const metas = this._checkMetas;
+    for (let i = 0; i < checks.length; i++) {
+      if (!checks[i]!(value)) return metas?.[i] ?? { kind: 'other', message: this.config.errorMessage };
+    }
+    return null;
   }
 
   /**
@@ -132,75 +176,39 @@ export class VldNumber extends VldBase<number, number> {
         return value;
       case 'positive':
         if (value > 0) return value;
-        throw new Error(this.config.errorMessage || getMessages().invalidNumber);
+        throw new VldError([this._createCheckIssue('gt', 0, this.config.errorMessage)]);
       case 'positive-int':
         if (value > 0 && Number.isInteger(value)) return value;
-        throw new Error(this.config.errorMessage || getMessages().invalidNumber);
+        throw new VldError([this._createCheckIssue('int', undefined, this.config.errorMessage)]);
     }
 
-    const checks = this._checks;
-    switch (checks.length) {
-      case 1:
-        if (checks[0]!(value)) return value;
-        break;
-      case 2:
-        if (checks[0]!(value) && checks[1]!(value)) return value;
-        break;
-      case 3:
-        if (checks[0]!(value) && checks[1]!(value) && checks[2]!(value)) return value;
-        break;
-      default:
-        for (let i = 0; i < checks.length; i++) {
-          if (!checks[i]!(value)) {
-            throw new Error(this.config.errorMessage || getMessages().invalidNumber);
-          }
-        }
-        return value;
+    const failedMeta = this._findFailingCheck(value);
+    if (failedMeta) {
+      throw new VldError([this._createCheckIssue(failedMeta.kind, failedMeta.value, failedMeta.message)]);
     }
-
-    throw new Error(this.config.errorMessage || getMessages().invalidNumber);
+    return value;
   }
 
-  private passesChecks(value: number): boolean {
-    switch (this._fastCheckMode) {
-      case 'none':
-        return true;
-      case 'positive':
-        return value > 0;
-      case 'positive-int':
-        return value > 0 && Number.isInteger(value);
-    }
-
-    const checks = this._checks;
-    switch (checks.length) {
-      case 1:
-        return checks[0]!(value);
-      case 2:
-        return checks[0]!(value) && checks[1]!(value);
-      case 3:
-        return checks[0]!(value) && checks[1]!(value) && checks[2]!(value);
-      default:
-        for (let i = 0; i < checks.length; i++) {
-          if (!checks[i]!(value)) {
-            return false;
-          }
-        }
-        return true;
-      }
-    }
-  
   /**
    * Safely parse and validate a number value
    */
   safeParse(value: unknown): ParseResult<number> {
-    try {
-      if (typeof value !== 'number' || isNaN(value) || !this.passesChecks(value)) {
-        return { success: false, error: createNumberError(this.config.errorMessage || getMessages().invalidNumber) };
-      }
-      return { success: true, data: value };
-    } catch (error) {
-      return { success: false, error: createNumberError((error as Error).message) };
+    // Zod 4 rejects Infinity, -Infinity, and NaN for z.number()
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      return { success: false, error: new VldError([createInvalidTypeIssue('number', getTypeName(value), this.config.errorMessage)]) };
     }
+
+    try {
+      const failedMeta = this._findFailingCheck(value);
+      if (failedMeta) {
+        return { success: false, error: new VldError([this._createCheckIssue(failedMeta.kind, failedMeta.value, failedMeta.message)]) };
+      }
+    } catch (error) {
+      if (error instanceof VldError) return { success: false, error };
+      return { success: false, error: new VldError([{ code: 'custom', path: [], message: (error as Error).message }]) };
+    }
+
+    return { success: true, data: value };
   }
   
   /**
@@ -210,7 +218,8 @@ export class VldNumber extends VldBase<number, number> {
     return new VldNumber({
       checks: [...this.config.checks, (v: number) => v >= value],
       errorMessage: resolveErrorMessage(message, getMessages().numberMin(value)),
-      jsonSchema: { ...this.config.jsonSchema, minimum: value }
+      jsonSchema: { ...this.config.jsonSchema, minimum: value },
+      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'min', value, inclusive: true, message: resolveErrorMessage(message, getMessages().numberMin(value)) }]
     });
   }
   
@@ -221,7 +230,8 @@ export class VldNumber extends VldBase<number, number> {
     return new VldNumber({
       checks: [...this.config.checks, (v: number) => v <= value],
       errorMessage: resolveErrorMessage(message, getMessages().numberMax(value)),
-      jsonSchema: { ...this.config.jsonSchema, maximum: value }
+      jsonSchema: { ...this.config.jsonSchema, maximum: value },
+      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'max', value, inclusive: true, message: resolveErrorMessage(message, getMessages().numberMax(value)) }]
     });
   }
   
@@ -232,7 +242,8 @@ export class VldNumber extends VldBase<number, number> {
     return new VldNumber({
       checks: [...this.config.checks, (v: number) => Number.isInteger(v)],
       errorMessage: resolveErrorMessage(message, getMessages().numberInt),
-      jsonSchema: { ...this.config.jsonSchema, type: 'integer' }
+      jsonSchema: { ...this.config.jsonSchema, type: 'integer' },
+      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'int', message: resolveErrorMessage(message, getMessages().numberInt) }]
     });
   }
   
@@ -243,7 +254,8 @@ export class VldNumber extends VldBase<number, number> {
     return new VldNumber({
       checks: [...this.config.checks, (v: number) => v > 0],
       errorMessage: resolveErrorMessage(message, getMessages().numberPositive),
-      jsonSchema: { ...this.config.jsonSchema, exclusiveMinimum: 0 }
+      jsonSchema: { ...this.config.jsonSchema, exclusiveMinimum: 0 },
+      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'gt', value: 0, inclusive: false, message: resolveErrorMessage(message, getMessages().numberPositive) }]
     });
   }
   
@@ -254,7 +266,8 @@ export class VldNumber extends VldBase<number, number> {
     return new VldNumber({
       checks: [...this.config.checks, (v: number) => v < 0],
       errorMessage: resolveErrorMessage(message, getMessages().numberNegative),
-      jsonSchema: { ...this.config.jsonSchema, exclusiveMaximum: 0 }
+      jsonSchema: { ...this.config.jsonSchema, exclusiveMaximum: 0 },
+      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'lt', value: 0, inclusive: false, message: resolveErrorMessage(message, getMessages().numberNegative) }]
     });
   }
   
@@ -265,7 +278,8 @@ export class VldNumber extends VldBase<number, number> {
     return new VldNumber({
       checks: [...this.config.checks, (v: number) => v >= 0],
       errorMessage: resolveErrorMessage(message, getMessages().numberNonnegative),
-      jsonSchema: { ...this.config.jsonSchema, minimum: 0 }
+      jsonSchema: { ...this.config.jsonSchema, minimum: 0 },
+      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'min', value: 0, inclusive: true, message: resolveErrorMessage(message, getMessages().numberNonnegative) }]
     });
   }
   
@@ -276,7 +290,8 @@ export class VldNumber extends VldBase<number, number> {
     return new VldNumber({
       checks: [...this.config.checks, (v: number) => v <= 0],
       errorMessage: resolveErrorMessage(message, getMessages().numberNonpositive),
-      jsonSchema: { ...this.config.jsonSchema, maximum: 0 }
+      jsonSchema: { ...this.config.jsonSchema, maximum: 0 },
+      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'max', value: 0, inclusive: true, message: resolveErrorMessage(message, getMessages().numberNonpositive) }]
     });
   }
   
@@ -379,7 +394,8 @@ export class VldNumber extends VldBase<number, number> {
     return new VldNumber({
       checks: [...this.config.checks, (v: number) => v > value],
       errorMessage: resolveErrorMessage(message, `Number must be greater than ${value}`),
-      jsonSchema: { ...this.config.jsonSchema, exclusiveMinimum: value }
+      jsonSchema: { ...this.config.jsonSchema, exclusiveMinimum: value },
+      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'gt', value, inclusive: false, message: resolveErrorMessage(message, `Number must be greater than ${value}`) }]
     });
   }
 
@@ -391,7 +407,8 @@ export class VldNumber extends VldBase<number, number> {
     return new VldNumber({
       checks: [...this.config.checks, (v: number) => v < value],
       errorMessage: resolveErrorMessage(message, `Number must be less than ${value}`),
-      jsonSchema: { ...this.config.jsonSchema, exclusiveMaximum: value }
+      jsonSchema: { ...this.config.jsonSchema, exclusiveMaximum: value },
+      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'lt', value, inclusive: false, message: resolveErrorMessage(message, `Number must be less than ${value}`) }]
     });
   }
 

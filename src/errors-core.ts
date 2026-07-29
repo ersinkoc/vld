@@ -7,12 +7,14 @@ export type VldErrorCode =
   | 'invalid_url'
   | 'invalid_uuid'
   | 'invalid_regex'
+  | 'invalid_format'
   | 'invalid_number'
   | 'too_small'
   | 'too_big'
   | 'not_integer'
   | 'not_finite'
   | 'not_safe'
+  | 'not_multiple_of'
   | 'invalid_boolean'
   | 'invalid_date'
   | 'invalid_array'
@@ -22,6 +24,7 @@ export type VldErrorCode =
   | 'invalid_key'
   | 'invalid_element'
   | 'invalid_literal'
+  | 'invalid_value'
   | 'invalid_enum'
   | 'custom';
 
@@ -36,6 +39,45 @@ export interface VldIssue {
   maximum?: number;
   exact?: number;
   inclusive?: boolean;
+  origin?: string;
+  format?: string;
+  values?: unknown[];
+  pattern?: string;
+}
+
+/**
+ * Map a JavaScript value to Zod 4's type name for `invalid_type` issues.
+ * Produces strings like 'string', 'number', 'boolean', 'undefined', 'null',
+ * 'array', 'bigint', 'symbol', 'date', 'map', 'set', 'function', 'nan',
+ * 'Infinity', '-Infinity', 'object'.
+ */
+export function getTypeName(value: unknown): string {
+  if (value === null) return 'null';
+  if (value === undefined) return 'undefined';
+  if (Array.isArray(value)) return 'array';
+  if (typeof value === 'number') {
+    if (Number.isNaN(value)) return 'nan';
+    if (value === Infinity) return 'Infinity';
+    if (value === -Infinity) return '-Infinity';
+    return 'number';
+  }
+  if (value instanceof Date) return 'date';
+  if (value instanceof Map) return 'map';
+  if (value instanceof Set) return 'set';
+  return typeof value;
+}
+
+/**
+ * Build a Zod 4-compatible `invalid_type` issue.
+ */
+export function createInvalidTypeIssue(expected: string, received: string, message?: string): VldIssue {
+  return {
+    code: 'invalid_type',
+    path: [],
+    expected,
+    received,
+    message: message ?? `Invalid input: expected ${expected}, received ${received}`,
+  };
 }
 
 export interface VldErrorJSON {
@@ -53,6 +95,10 @@ export interface VldErrorJSON {
     maximum?: number;
     exact?: number;
     inclusive?: boolean;
+    origin?: string;
+    format?: string;
+    values?: unknown[];
+    pattern?: string;
   }>;
 }
 
@@ -72,6 +118,10 @@ function serializeIssue(issue: VldIssue): VldIssueJSON {
   if (issue.maximum !== undefined) result.maximum = issue.maximum;
   if (issue.exact !== undefined) result.exact = issue.exact;
   if (issue.inclusive !== undefined) result.inclusive = issue.inclusive;
+  if (issue.origin !== undefined) result.origin = issue.origin;
+  if (issue.format !== undefined) result.format = issue.format;
+  if (issue.values !== undefined) result.values = issue.values;
+  if (issue.pattern !== undefined) result.pattern = issue.pattern;
 
   return result;
 }
@@ -90,6 +140,10 @@ function deserializeIssue(issue: VldIssueJSON): VldIssue {
   if (issue.maximum !== undefined) result.maximum = issue.maximum;
   if (issue.exact !== undefined) result.exact = issue.exact;
   if (issue.inclusive !== undefined) result.inclusive = issue.inclusive;
+  if (issue.origin !== undefined) result.origin = issue.origin;
+  if (issue.format !== undefined) result.format = issue.format;
+  if (issue.values !== undefined) result.values = issue.values;
+  if (issue.pattern !== undefined) result.pattern = issue.pattern;
 
   return result;
 }

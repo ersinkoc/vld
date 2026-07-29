@@ -1,0 +1,63 @@
+name: Zod parity watch
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/zod-parity.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/verify-zod-parity.cjs'
+      - 'src/**'
+      - 'tests/**'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/zod-parity.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/verify-zod-parity.cjs'
+      - 'src/**'
+      - 'tests/**'
+  schedule:
+    - cron: '17 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zod-parity-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  stable:
+    name: Stable contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+      - run: npm run verify:zod
+      - run: npm test -- --runInBand --coverage=false tests/zod-latest-compat.test.ts tests/zod-behavior-parity.test.ts
+
+  canary:
+    name: Canary early warning
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Install the current Zod canary without changing the lockfile
+        run: npm install --no-save --package-lock=false --ignore-scripts zod@canary
+      - run: npm run build
+      - run: npm run verify:zod:canary

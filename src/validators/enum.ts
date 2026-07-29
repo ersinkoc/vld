@@ -1,5 +1,6 @@
 import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
 import { getMessages } from '../locales/runtime';
+import { VldError, type VldIssue } from '../errors-core';
 
 /**
  * Immutable enum validator for string and number enum values
@@ -20,11 +21,15 @@ export class VldEnum<T extends readonly [EnumValue, ...EnumValue[]]> extends Vld
     this._valueSet = _values.length > 6 ? new Set(_values) : undefined;
   }
 
-  private createError(value: unknown): Error {
-    return new Error(
-      this.errorMessage ||
-      getMessages().enumExpected([...this._values], JSON.stringify(value))
-    );
+  private createError(value: unknown): VldError {
+    const issue: VldIssue = {
+      code: 'invalid_value',
+      path: [],
+      values: [...this._values],
+      message: this.errorMessage ||
+        getMessages().enumExpected([...this._values], JSON.stringify(value))
+    };
+    return new VldError([issue]);
   }
 
   /**

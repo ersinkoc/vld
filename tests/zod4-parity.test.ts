@@ -159,7 +159,7 @@ describe('Zod 4 parity additions', () => {
     expect(() => instanceOf(class {}, undefined).parse({})).toThrow('Expected instance of provided constructor');
     expect(property('id', string()).safeParse({ id: 'usr_1' }).success).toBe(true);
     expect(() => property('id', string()).parse({})).toThrow('Expected object with property "id"');
-    expect(() => property('id', string()).parse({ id: 1 })).toThrow('Invalid string');
+    expect(() => property('id', string()).parse({ id: 1 })).toThrow('expected string, received number');
     expect(() => property('id', string(), 'Missing id').parse({})).toThrow('Missing id');
     expect(() => property('id', string(), { error: 'Bad id' }).parse({ id: 1 })).toThrow('Bad id');
     expect(keyofSchema(object({ id: string(), name: string() })).parse('id')).toBe('id');

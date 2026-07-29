@@ -23,6 +23,13 @@ function execFileCompat(command, args, options) {
 const rootDir = path.resolve(__dirname, '..');
 const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
 const errors = [];
+const tagArgumentIndex = process.argv.indexOf('--tag');
+const requestedTag = tagArgumentIndex >= 0 ? process.argv[tagArgumentIndex + 1] : undefined;
+const zodDistTag = requestedTag || process.env.VLD_ZOD_PARITY_TAG || 'latest';
+
+if (!/^[a-z0-9._-]+$/i.test(zodDistTag)) {
+  errors.push(`Invalid Zod dist-tag: ${zodDistTag}`);
+}
 
 function readInstalledZodPackage() {
   try {
@@ -40,14 +47,14 @@ function readLatestZodVersion() {
   }
 
   try {
-    return execFileCompat('npm', ['view', 'zod', 'version'], {
+    return execFileCompat('npm', ['view', `zod@${zodDistTag}`, 'version'], {
       cwd: rootDir,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
     }).trim();
   } catch (error) {
     const stderr = error.stderr ? error.stderr.toString().trim() : '';
-    errors.push(`Unable to read latest zod version from npm registry${stderr ? `: ${stderr}` : ''}`);
+    errors.push(`Unable to read zod@${zodDistTag} version from npm registry${stderr ? `: ${stderr}` : ''}`);
     return null;
   }
 }
@@ -197,6 +204,32 @@ function verifyNamespaceParity(zod, vld) {
   }
 }
 
+function verifyNestedNamespaceParity(zod, vld) {
+  for (const namespace of ['coerce', 'iso', 'regexes']) {
+    const zodNamespace = zod[namespace];
+    const vldNamespace = vld.z?.[namespace];
+    if (!zodNamespace || !vldNamespace) {
+      errors.push(`VLD z namespace is missing ${namespace}`);
+      continue;
+    }
+
+    const missing = Object.keys(zodNamespace)
+      .filter((key) => !Object.prototype.hasOwnProperty.call(vldNamespace, key))
+      .sort();
+    if (missing.length > 0) {
+      errors.push(`VLD z.${namespace} is missing ${missing.length} Zod entries: ${missing.join(', ')}`);
+    }
+
+    const typeMismatches = Object.keys(zodNamespace)
+      .filter((key) => Object.prototype.hasOwnProperty.call(vldNamespace, key))
+      .filter((key) => typeof vldNamespace[key] !== typeof zodNamespace[key])
+      .sort();
+    if (typeMismatches.length > 0) {
+      errors.push(`VLD z.${namespace} has ${typeMismatches.length} type mismatches: ${typeMismatches.join(', ')}`);
+    }
+  }
+}
+
 function verifyNamespaceBehavior(vld) {
   try {
     const schema = vld.z.object({ id: vld.z.string().min(2) });
@@ -337,14 +370,14 @@ const latestZodVersion = readLatestZodVersion();
 const zod = installedZodPackage ? require('zod') : null;
 const vld = requireBuiltVld();
 
-if (installedZodPackage && latestZodVersion && compareVersions(installedZodPackage.version, latestZodVersion) < 0) {
+if (installedZodPackage && latestZodVersion && installedZodPackage.version !== latestZodVersion) {
   errors.push(
-    `Installed zod ${installedZodPackage.version} is behind npm latest ${latestZodVersion}. ` +
-      'Update devDependencies and package-lock.json before releasing.'
+    `Installed zod ${installedZodPackage.version} does not match npm ${zodDistTag} ${latestZodVersion}. ` +
+      `Install zod@${zodDistTag} before running this parity lane.`
   );
 }
 
-if (installedZodPackage && packageJson.devDependencies?.zod) {
+if (zodDistTag === 'latest' && installedZodPackage && packageJson.devDependencies?.zod) {
   const declared = packageJson.devDependencies.zod.replace(/^[^\d]*/, '');
   if (declared && compareVersions(declared, installedZodPackage.version) < 0) {
     errors.push(
@@ -367,6 +400,7 @@ if (zod && vld) {
   }
 
   verifyNamespaceParity(zod, vld);
+  verifyNestedNamespaceParity(zod, vld);
   verifyNamespaceBehavior(vld);
   verifyLatestBehaviorParity(zod, vld);
   verifySharedModuleConfig();
@@ -374,7 +408,7 @@ if (zod && vld) {
   if (errors.length === 0) {
     console.log(
       `Zod parity verification passed: installed zod ${installedZodPackage.version}` +
-        `${latestZodVersion ? `, npm latest ${latestZodVersion}` : ''}, ` +
+        `${latestZodVersion ? `, npm ${zodDistTag} ${latestZodVersion}` : ''}, ` +
         `${zodExports.length} checked Zod exports, ${Object.keys(vld).length} VLD exports`
     );
   }

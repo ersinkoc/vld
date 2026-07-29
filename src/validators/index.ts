@@ -72,8 +72,11 @@ export { VldPromise, promise } from './promise';
 // Export string format validators
 export {
   email,
+  url,
   uuid,
   uuidv4,
+  uuidv6,
+  uuidv7,
   hostname,
   emoji,
   base64,
@@ -97,7 +100,12 @@ export {
   // Zod v4 parity
   xid,
   guid,
-  httpUrl
+  httpUrl,
+  ksuid,
+  type ISODateTimeOptions,
+  type ISOTimeOptions,
+  type URLFormatOptions,
+  type UUIDVersion
 } from './string-formats';
 
 // Import base for type inference

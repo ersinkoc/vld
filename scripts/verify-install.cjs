@@ -26,6 +26,7 @@ const tempRootDir = path.join(rootDir, '.tmp');
 const tempDir = path.join(tempRootDir, 'verify-install');
 const projectDir = path.join(tempDir, 'consumer');
 const packDir = path.join(tempDir, 'pack');
+const isolatedUserConfigPath = path.join(tempDir, 'empty-user-npmrc');
 const errors = [];
 
 function normalizeTarget(target) {
@@ -115,6 +116,7 @@ function run(label, command, args, options = {}) {
     return execFileCompat(command, args, {
       cwd: options.cwd || rootDir,
       encoding: options.encoding || 'utf8',
+      env: options.env || process.env,
       stdio: options.stdio || ['ignore', 'pipe', 'pipe'],
     });
   } catch (error) {
@@ -155,8 +157,22 @@ function writeConsumerProject(tarballPath) {
 }
 
 function installTarball() {
+  // Isolate the disposable consumer from user-level npm policy (for example,
+  // npm 11 allow-scripts lists). npm run forwards that setting through the
+  // environment, so remove only that inherited policy and keep scripts disabled.
+  fs.writeFileSync(isolatedUserConfigPath, '');
+  const installEnvironment = { ...process.env };
+  for (const key of Object.keys(installEnvironment)) {
+    if (key.toLowerCase() === 'npm_config_allow_scripts') {
+      delete installEnvironment[key];
+    }
+  }
+  installEnvironment.NPM_CONFIG_USERCONFIG = isolatedUserConfigPath;
+  installEnvironment.npm_config_userconfig = isolatedUserConfigPath;
+
   run('npm install packed package', 'npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund'], {
     cwd: projectDir,
+    env: installEnvironment,
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 }

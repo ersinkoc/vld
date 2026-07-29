@@ -108,7 +108,11 @@ describe('Locale System Tests', () => {
       await setLocaleAsync('tr');
       expect(getLocale()).toBe('tr');
       expect(v.string().safeParse(123).success).toBe(false);
-      expect((v.string().safeParse(123) as { success: false; error: Error }).error.message).toBe('Geçersiz metin');
+      // Zod-compatible: type mismatch uses "Invalid input: expected X, received Y" format
+      // Locale messages apply to constraint failures (too_small, invalid_format, etc.)
+      const error = (v.string().safeParse(123) as { success: false; error: Error }).error;
+      expect(error.message).toContain('expected string');
+      expect(error.message).toContain('received number');
     });
 
     it('should report eager fallback locales as loaded and allow registered overrides', () => {

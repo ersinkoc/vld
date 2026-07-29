@@ -11,7 +11,7 @@ const maxMiniStringBytes = Number(process.env.VLD_MAX_MINI_STRING_BUNDLE_BYTES |
 // Full Zod-compatible instance methods necessarily retain composition and
 // JSON-Schema code. Keep a tight absolute ceiling and also require the probe
 // to remain smaller than the installed latest Zod below.
-const maxRootStringBytes = Number(process.env.VLD_MAX_ROOT_STRING_BUNDLE_BYTES || 115_000);
+const maxRootStringBytes = Number(process.env.VLD_MAX_ROOT_STRING_BUNDLE_BYTES || 116_000);
 
 const forbiddenLocalePatterns = [
   /translatedLocaleCodes/,

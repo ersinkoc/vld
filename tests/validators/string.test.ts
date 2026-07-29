@@ -297,9 +297,9 @@ describe('VldString - Comprehensive Tests', () => {
 
       expect(schema.isSimple).toBe(true);
       expect(schema.parseKnownString('already checked')).toBe('already checked');
-      expect((schema as any)._getCompiledValidator()('compiled')).toEqual({
+      expect(schema.safeParse('compiled')).toEqual({
         success: true,
-        value: 'compiled'
+        data: 'compiled'
       });
     });
 

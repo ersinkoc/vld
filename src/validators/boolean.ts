@@ -1,10 +1,5 @@
 import { VldBase, ParseResult, VLD_VALIDATOR_TYPES, ValidatorType } from './base';
-import { getMessages } from '../locales/runtime';
-import { VldError } from '../errors-core';
-
-function createBooleanError(message: string): VldError {
-  return new VldError([{ code: 'invalid_boolean', path: [], message }]);
-}
+import { VldError, getTypeName, createInvalidTypeIssue } from '../errors-core';
 
 /**
  * Immutable boolean validator
@@ -40,7 +35,7 @@ export class VldBoolean extends VldBase<boolean, boolean> {
    */
   parse(value: unknown): boolean {
     if (typeof value !== 'boolean') {
-      throw new Error(this.errorMessage || getMessages().invalidBoolean);
+      throw new VldError([createInvalidTypeIssue('boolean', getTypeName(value), this.errorMessage)]);
     }
     return value;
   }
@@ -62,7 +57,7 @@ export class VldBoolean extends VldBase<boolean, boolean> {
     }
     return { 
       success: false, 
-      error: createBooleanError(this.errorMessage || getMessages().invalidBoolean)
+      error: new VldError([createInvalidTypeIssue('boolean', getTypeName(value), this.errorMessage)])
     };
   }
   
@@ -95,14 +90,14 @@ class VldTrue extends VldBoolean {
 
   override parse(value: unknown): boolean {
     if (value !== true) {
-      throw new Error(this.message);
+      throw new VldError([{ code: 'custom', path: [], message: this.message }]);
     }
     return true;
   }
 
   override parseKnownBoolean(value: boolean): boolean {
     if (value !== true) {
-      throw new Error(this.message);
+      throw new VldError([{ code: 'custom', path: [], message: this.message }]);
     }
     return true;
   }
@@ -112,7 +107,7 @@ class VldTrue extends VldBoolean {
     if (value !== true) {
       return {
         success: false,
-        error: createBooleanError(this.message)
+        error: new VldError([{ code: 'custom', path: [], message: this.message }])
       };
     }
     return { success: true, data: true };
@@ -133,14 +128,14 @@ class VldFalse extends VldBoolean {
 
   override parse(value: unknown): boolean {
     if (value !== false) {
-      throw new Error(this.message);
+      throw new VldError([{ code: 'custom', path: [], message: this.message }]);
     }
     return false;
   }
 
   override parseKnownBoolean(value: boolean): boolean {
     if (value !== false) {
-      throw new Error(this.message);
+      throw new VldError([{ code: 'custom', path: [], message: this.message }]);
     }
     return false;
   }
@@ -150,7 +145,7 @@ class VldFalse extends VldBoolean {
     if (value !== false) {
       return {
         success: false,
-        error: createBooleanError(this.message)
+        error: new VldError([{ code: 'custom', path: [], message: this.message }])
       };
     }
     return { success: true, data: false };

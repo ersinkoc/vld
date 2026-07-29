@@ -1,14 +1,14 @@
 /**
  * Comprehensive coverage test for src/utils/json-schema.ts
  *
- * Tests both toJSONSchema (VLD → JSON Schema) and fromJSONSchema
- * (JSON Schema → VLD) across all validator types, options, and edge cases.
+ * Tests both toJSONSchema (VLD -> JSON Schema) and fromJSONSchema
+ * (JSON Schema -> VLD) across all validator types, options, and edge cases.
  */
 
 import { toJSONSchema, fromJSONSchema } from '../src/utils/json-schema';
 import { v } from '../src/index';
 
-describe('toJSONSchema — VLD → JSON Schema', () => {
+describe('toJSONSchema - VLD -> JSON Schema', () => {
   // ==============================
   // PRIMITIVE TYPES
   // ==============================
@@ -61,7 +61,7 @@ describe('toJSONSchema — VLD → JSON Schema', () => {
   // ==============================
   // BIGINT & DATE (unrepresentable)
   // ==============================
-  describe('BigInt and Date — unrepresentable types', () => {
+  describe('BigInt and Date - unrepresentable types', () => {
     it('throws for VldBigInt by default (unrepresentable: throw)', () => {
       expect(() => toJSONSchema(v.bigint())).toThrow('BigInt cannot be represented');
     });
@@ -516,7 +516,7 @@ describe('toJSONSchema — VLD → JSON Schema', () => {
   });
 });
 
-describe('fromJSONSchema — JSON Schema → VLD', () => {
+describe('fromJSONSchema - JSON Schema -> VLD', () => {
   // ==============================
   // BOOLEAN SCHEMAS
   // ==============================
@@ -953,7 +953,7 @@ describe('coverage for remaining json-schema.ts branches', () => {
   });
 
   // ==============================
-  // BRANCH COVERAGE — uncovered edges
+  // BRANCH COVERAGE - uncovered edges
   // ==============================
   it('covers OpenAPI 3.0 exclusiveMinimum/exclusiveMaximum number conversion', () => {
     // typeof exclusiveMinimum === 'number' branch in normalizeOpenAPI30
@@ -1011,7 +1011,7 @@ describe('coverage for remaining json-schema.ts branches', () => {
 
   it('covers buildNullableSchema with array type (push null)', () => {
     // Need to create a nullable where the inner is something that produces array type
-    // A nullable nullable? No — use a type that already produces multiple type values
+    // A nullable nullable? No - use a type that already produces multiple type values
     const inner = v.nullable(v.string()); // Already type: ['string', 'null']
     const doubleNullable = v.nullable(inner) as any;
     // The inner's JSON Schema type is ['string', 'null'], so nullable should push another 'null'
@@ -1050,7 +1050,7 @@ describe('coverage for remaining json-schema.ts branches', () => {
   });
 
   it('covers nullable array type in fromJSONSchema', () => {
-    // type: ['string', 'null'] as array → union of types
+    // type: ['string', 'null'] as array -> union of types
     const schema = fromJSONSchema({ type: ['string', 'null'] }) as any;
     expect(schema.parse('hello')).toBe('hello');
     expect(() => schema.parse(42)).toThrow();

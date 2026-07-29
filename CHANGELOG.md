@@ -7,23 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-07-29
+
 ### Added
 
+- Added Zod 4-compatible structured error issues across all primitive and collection validators.
+  - Type mismatches now produce `invalid_type` issues with `expected` and `received` fields using Zod's `"Invalid input: expected X, received Y"` message format.
+  - Constraint failures produce `too_small` / `too_big` issues with `minimum`, `maximum`, `origin`, and `inclusive` fields.
+  - String format failures produce `invalid_format` issues with `format`, `origin`, and `pattern` fields.
+  - Enum and literal failures produce `invalid_value` issues with a `values` array.
+- Added `getTypeName()` and `createInvalidTypeIssue()` helpers to `src/errors-core.ts` for consistent type naming across all validators.
+- Added `origin`, `format`, `values`, and `pattern` fields to the `VldIssue` interface and its JSON serialization.
+- Added new error codes: `invalid_format`, `invalid_value`, and `not_multiple_of`.
+- Added `tests/validators/zod4-error-parity.test.ts` with 80+ tests covering all Zod 4 error issue paths.
 - Added current Zod array-based factory signatures, two-schema records, multi-value literals, empty objects, and per-schema encode/decode methods.
 - Added transformed record keys, structured `invalid_key` issues, direct prefaults, and shallow-cloned collection defaults.
 - Added a Zod 4.4.3 differential behavior suite to the release gate and a maintained compatibility policy.
 - Added schema-instance composition methods, tuple rest schemas, nested object/array/tuple codec encoding, current string format methods, and boolean `fromJSONSchema()` support.
+- Added full nested `regexes`/`iso` parity, UUID v1-v8 options, WHATWG URL filters/normalization, and precision-aware ISO date-time formats.
+- Added a daily Zod parity workflow with a blocking `latest` contract and a separate `canary` early-warning lane.
 
 ### Changed
 
+- **Breaking (error shape):** `parse()` now throws `VldError` (not plain `Error`) for all validators, matching Zod's `ZodError` throw behavior. Code using `try/catch` around `parse()` should check for `VldError` or `Error` interchangeably since `VldError extends Error`.
+- **Breaking (number validation):** `v.number()` now rejects `Infinity`, `-Infinity`, and `NaN` by default, matching Zod 4 behavior. Use `.finite()` explicitly if Infinity acceptance is needed.
 - JSON Schema now defaults to Draft 2020-12 and Zod-compatible handling of unrepresentable types; VLD extensions remain available through `{ unrepresentable: "vld" }`.
 - npm provenance is enforced for published packages.
+- Security audit now checks runtime dependencies only (`--omit=dev`), since VLD has zero runtime dependencies.
 
 ### Verified
 
-- 84 test suites and 2179 tests passing with 100% statement, branch, and line coverage.
-- Runtime guard average 11.61x faster, startup total 1.36x faster, and 4.76x less retained heap than Zod 4.4.3 in the current guard run.
-- Root string tree-shaken probe is 109.7 KiB versus Zod's 119.6 KiB; VLD mini remains 61.7 KiB.
+- 87 test suites and 2473 tests passing with 100% statement, branch, line, and function coverage.
+- Zod parity verified against both `zod@4.4.3` (latest) and `zod@4.5.0-canary` (canary): 240 exports checked, 0 missing, 0 behavioral mismatches.
+- Runtime guard average 11.46x faster, startup total 1.35x faster, and 4.66x less retained heap than Zod 4.4.3.
+- Root string tree-shaken probe is 112.5 KiB versus Zod's 119.6 KiB; VLD mini is 63.9 KiB.
 
 ## [2.1.0] - 2026-06-16
 

@@ -50,10 +50,10 @@ describe('VldStringFormat Coverage Tests', () => {
       expect(() => schema.parse('A1B2C3D4E5F6G7H8J9K')).toThrow(); // only 19 chars
     });
 
-    it('should throw on xid with invalid chars', () => {
+    it('should accept the current Zod XID alphabet and reject out-of-range chars', () => {
       const schema = v.xid();
-      // Contains 'I' which is not in the allowed charset
-      expect(() => schema.parse('ABCDEFGHIJKLMNOPQRST')).toThrow();
+      expect(schema.parse('ABCDEFGHIJKLMNOPQRST')).toBe('ABCDEFGHIJKLMNOPQRST');
+      expect(() => schema.parse('WBCDEFGHIJKLMNOPQRST')).toThrow();
     });
   });
 
@@ -122,6 +122,36 @@ describe('VldStringFormat Coverage Tests', () => {
 
       expect(() => schema.parse('d41d8cd98f00b204e9800998ecf8427e')).toThrow('Invalid unknown hash');
       expect(schema.safeParse('d41d8cd98f00b204e9800998ecf8427e').success).toBe(false);
+    });
+  });
+
+  describe('current Zod nested format surface', () => {
+    it('covers public regex factories and ISO precision branches', () => {
+      expect(v.regexes.uuid().test('550e8400-e29b-41d4-a716-446655440000')).toBe(true);
+      expect(v.regexes.uuid(8).test('550e8400-e29b-81d4-a716-446655440000')).toBe(true);
+      expect(v.regexes.time().test('12:30')).toBe(true);
+      expect(v.regexes.time({ precision: -1 }).test('12:30')).toBe(true);
+      expect(v.regexes.time({ precision: 3 }).test('12:30:45.123')).toBe(true);
+      expect(v.regexes.datetime().test('2024-02-29T12:30Z')).toBe(true);
+      expect(v.regexes.datetime({ local: true, precision: 0 }).test('2024-02-29T12:30:45')).toBe(true);
+      expect(v.regexes.datetime({ offset: true }).test('2024-02-29T12:30+03:00')).toBe(true);
+      expect(v.regexes.string().test('anything')).toBe(true);
+      expect(v.regexes.string({}).test('')).toBe(true);
+      expect(v.regexes.string({ minimum: 2 }).test('ab')).toBe(true);
+      expect(v.regexes.string({ maximum: 3 }).test('abc')).toBe(true);
+      expect(v.regexes.string({ minimum: 2, maximum: 3 }).test('ab')).toBe(true);
+      expect(v.regexes.mac('-').test('00-1A-2B-3C-4D-5E')).toBe(true);
+    });
+
+    it('covers WHATWG URL failure, filters, and normalization paths', () => {
+      expect(v.url().safeParse('not a URL').success).toBe(false);
+      expect(v.url({ protocol: /^https$/ }).safeParse('http://example.com').success).toBe(false);
+      expect(v.url({ hostname: /^example\\.com$/ }).safeParse('https://other.com').success).toBe(false);
+      expect(v.url({ normalize: true }).safeParse('HTTP://EXAMPLE.COM:80/a/../b')).toEqual({
+        success: true,
+        data: 'http://example.com/b'
+      });
+      expect(v.url({ normalize: true }).parse('HTTP://EXAMPLE.COM:80/a/../b')).toBe('http://example.com/b');
     });
   });
 

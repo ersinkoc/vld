@@ -149,7 +149,7 @@ describe('VldNumber Coverage Tests', () => {
       expect(() => positiveInt.parseKnownNumber(1.5)).toThrow('Need positive integer');
     });
 
-    it('should fall back to locale messages for internal fast-path failures without custom messages', () => {
+    it('should fall back to default messages for internal fast-path failures without custom messages', () => {
       const positive = new (VldNumber as any)({
         checks: [(value: number) => value > 0],
         jsonSchema: { exclusiveMinimum: 0 }
@@ -159,10 +159,11 @@ describe('VldNumber Coverage Tests', () => {
         jsonSchema: { exclusiveMinimum: 0, type: 'integer' }
       }) as VldNumber;
 
-      expect(() => positive.parse(0)).toThrow('Invalid number');
-      expect(() => positive.parseKnownNumber(0)).toThrow('Invalid number');
-      expect(() => positiveInt.parse(1.5)).toThrow('Invalid number');
-      expect(() => positiveInt.parseKnownNumber(1.5)).toThrow('Invalid number');
+      // Zod-compatible: positive fast-path produces too_small issue
+      expect(() => positive.parse(0)).toThrow('expected number to be');
+      expect(() => positive.parseKnownNumber(0)).toThrow('expected number to be');
+      expect(() => positiveInt.parse(1.5)).toThrow('expected');
+      expect(() => positiveInt.parseKnownNumber(1.5)).toThrow('expected');
     });
 
     it('should use default messages for parseKnownNumber check failures', () => {
@@ -215,6 +216,18 @@ describe('VldNumber Coverage Tests', () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.message).toBe('check exploded');
+      }
+    });
+
+    it('should use locale messages for fast-path failures without custom messages', () => {
+      // Zod-compatible behavior: number type mismatch produces invalid_type issue
+      const result = v.number().safeParse('not-a-number');
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        const issue = (result.error as any).issues[0];
+        expect(issue.code).toBe('invalid_type');
+        expect(issue.expected).toBe('number');
+        expect(issue.received).toBe('string');
       }
     });
   });

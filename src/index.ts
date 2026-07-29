@@ -817,8 +817,8 @@ export const v = {
 
   // String format validators (Zod 4 parity)
   email: (options?: { pattern?: RegExp }) => stringFormats.email(options),
-  url: () => VldString.create().url(),
-  uuid: (options?: { version?: 'v4' | 'v6' | 'v7' }) => stringFormats.uuid(options),
+  url: (options?: stringFormats.URLFormatOptions) => stringFormats.url(options),
+  uuid: (options?: { version?: stringFormats.UUIDVersion }) => stringFormats.uuid(options),
   uuidv4: () => stringFormats.uuidv4(),
   uuidv6: () => stringFormats.uuidv6(),
   uuidv7: () => stringFormats.uuidv7(),
@@ -841,9 +841,14 @@ export const v = {
   hash: (algorithm: 'md5' | 'sha1' | 'sha256' | 'sha384' | 'sha512') =>
     stringFormats.hash(algorithm),
   iso: {
+    ZodISODate: stringFormats.VldStringFormat,
+    ZodISODateTime: stringFormats.VldStringFormat,
+    ZodISODuration: stringFormats.VldStringFormat,
+    ZodISOTime: stringFormats.VldStringFormat,
     date: () => stringFormats.iso.date(),
-    time: () => stringFormats.iso.time(),
-    dateTime: () => stringFormats.iso.dateTime(),
+    time: (options?: stringFormats.ISOTimeOptions) => stringFormats.iso.time(options),
+    datetime: (options?: stringFormats.ISODateTimeOptions) => stringFormats.iso.datetime(options),
+    dateTime: (options?: stringFormats.ISODateTimeOptions) => stringFormats.iso.dateTime(options),
     duration: () => stringFormats.iso.duration(),
   },
   stringFormat: (name: string, validator: ((val: string) => boolean) | RegExp) =>
