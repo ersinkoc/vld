@@ -43,7 +43,7 @@ const createTypescriptPlugin = (options = {}) =>
 
 // Keep Vld* class names intact: json-schema.ts dispatches on
 // `schema.constructor.name === 'VldUnion'` (and ~40 sibling checks) with no
-// validatorType fallback for half of them — mangling breaks toJSONSchema on
+// validatorType fallback for half of them; mangling breaks toJSONSchema on
 // the published (minified) build even though the jest suite (unminified src)
 // stays green. Everything else stays mangled.
 const productionPlugins = isProduction

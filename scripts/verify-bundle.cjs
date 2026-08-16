@@ -32,7 +32,7 @@ async function bundleProbe(name, importPath, maxBytes, checkForbiddenLocales = t
   // Windows-safe import specifier: express the target relative to this entry
   // file using forward slashes only. Raw absolute paths embed backslashes that
   // ESM eats as escape sequences (\v, \n), and Rollup externalizes file://
-  // URLs instead of resolving them — both produce a tiny vacuous bundle.
+  // URLs instead of resolving them; both produce a tiny vacuous bundle.
   const specifier = path
     .relative(tempDir, path.resolve(tempDir, importPath))
     .split(path.sep)
