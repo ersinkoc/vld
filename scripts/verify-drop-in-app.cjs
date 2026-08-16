@@ -174,7 +174,52 @@ function runProject(label, projectDir) {
   return run(`${label} runtime`, process.execPath, ['dist/app.js'], { cwd: projectDir }).trim();
 }
 
+function verifyBuiltCjsJsonSchema() {
+  // The jest suite exercises unminified src/, but published artifacts are
+  // minified. json-schema.ts dispatches several composite conversions on
+  // `schema.constructor.name` with no validatorType fallback (VldUnion,
+  // VldOptional, VldNullable, ...), so terser class-name mangling silently
+  // broke toJSONSchema in the published build while every test stayed green.
+  // Assert the name-dispatched composites directly against the built CJS entry.
+  const cjsEntry = path.join(rootDir, 'dist', 'cjs', 'index.cjs');
+  if (!fs.existsSync(cjsEntry)) {
+    errors.push('Missing dist/cjs/index.cjs. Run npm run build before verify:drop-in.');
+    return;
+  }
+
+  const vld = require(cjsEntry);
+  const checks = [
+    {
+      label: 'union emits anyOf',
+      schema: vld.v.union([vld.v.string(), vld.v.number()]),
+      verify: (out) => Array.isArray(out.anyOf) && out.anyOf.length === 2,
+    },
+    {
+      label: 'optional unwraps to base type',
+      schema: vld.v.optional(vld.v.string()),
+      verify: (out) => out.type === 'string',
+    },
+    {
+      label: 'nullable emits type array containing null',
+      schema: vld.v.nullable(vld.v.string()),
+      verify: (out) => Array.isArray(out.type) && out.type.includes('null'),
+    },
+  ];
+
+  for (const check of checks) {
+    try {
+      const out = vld.toJSONSchema(check.schema);
+      if (!check.verify(out)) {
+        errors.push(`Built CJS toJSONSchema regression: ${check.label}, got ${JSON.stringify(out)}`);
+      }
+    } catch (error) {
+      errors.push(`Built CJS toJSONSchema threw for ${check.label}: ${error && error.message}`);
+    }
+  }
+}
+
 ensureBuiltPackage();
+verifyBuiltCjsJsonSchema();
 
 if (errors.length === 0) {
   fs.rmSync(tempDir, { recursive: true, force: true });

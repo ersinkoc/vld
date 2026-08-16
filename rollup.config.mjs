@@ -15,7 +15,11 @@ import { builtinModules } from 'module';
 
 const { globSync } = fg;
 
-const isProduction = process.env.NODE_ENV === 'production';
+// Minified output is the release default. Set VLD_MINIFY=0 to skip terser
+// (faster rebuilds during development). NODE_ENV=production remains honored
+// for callers that set it through their own tooling.
+const minifyDisabled = process.env.VLD_MINIFY === '0' || process.env.VLD_MINIFY === 'false';
+const isProduction = process.env.NODE_ENV === 'production' || !minifyDisabled;
 const nodeBuiltins = [...builtinModules, ...builtinModules.map((mod) => `node:${mod}`)];
 
 // ============================================
@@ -37,7 +41,14 @@ const createTypescriptPlugin = (options = {}) =>
     },
   });
 
-const productionPlugins = isProduction ? [terser()] : [];
+// Keep Vld* class names intact: json-schema.ts dispatches on
+// `schema.constructor.name === 'VldUnion'` (and ~40 sibling checks) with no
+// validatorType fallback for half of them — mangling breaks toJSONSchema on
+// the published (minified) build even though the jest suite (unminified src)
+// stays green. Everything else stays mangled.
+const productionPlugins = isProduction
+  ? [terser({ mangle: { keep_classnames: /^Vld/ } })]
+  : [];
 
 // ============================================
 // Entry Points

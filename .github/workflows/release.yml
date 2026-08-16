@@ -1,0 +1,127 @@
+name: Release
+
+# Publishes to npm on tag push (vX.Y.Z) with OIDC-based provenance and
+# creates the matching GitHub Release.
+#
+# Gate strategy: package.json hooks stay the single source of truth —
+# `prepack` runs the build and `prepublishOnly` runs `release:check`
+# (lint, types, full test suite, all verify gates, benchmark guards).
+# This workflow therefore publishes *through* those hooks instead of
+# re-listing every gate, so CI and local publishing can never drift.
+# The explicit `npm publish --provenance` is belt-and-braces; the
+# package.json publishConfig already sets provenance: true.
+#
+# Required repository secrets/config:
+# - NPM_TOKEN: an automation/granular npm token with publish rights to
+#   @oxog/vld (granular tokens must also allow provenance attestation).
+# - Repository Settings -> Actions -> General -> Workflow permissions:
+#   "Read and write permissions" (for Release creation), plus the
+#   id-token: write granted to this job below (for npm OIDC).
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Validate everything but skip npm publish and GitHub Release'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Publish + GitHub Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so the tag can be validated against package.json.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          registry-url: https://registry.npmjs.org/
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Verify tag matches package.json version
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        # Plain single-quoted JS strings only: no $, backticks, or double
+        # quotes inside the node payload, so bash double-quoting needs no
+        # escapes and YAML block scalars keep the text verbatim.
+        run: |
+          node -e "
+          const fs = require('fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const tag = process.env.GITHUB_REF.replace('refs/tags/', '');
+          if (tag !== 'v' + pkg.version) {
+            console.error('Tag ' + tag + ' does not match package.json version ' + pkg.version + '. Aborting.');
+            process.exit(1);
+          }
+          console.log('Tag ' + tag + ' matches package.json version ' + pkg.version);
+          "
+
+      - name: Verify CHANGELOG has an entry for this version
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        run: |
+          node -e "
+          const fs = require('fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const changelog = fs.readFileSync('CHANGELOG.md', 'utf8');
+          const heading = '## [' + pkg.version + ']';
+          if (!changelog.includes(heading)) {
+            console.error('CHANGELOG.md has no ' + heading + ' heading. Aborting.');
+            process.exit(1);
+          }
+          console.log('CHANGELOG.md contains ' + heading);
+          "
+
+      # Runs prepublishOnly -> release:check (lint, types, tests, build,
+      # every verify gate, benchmark guards) and prepack -> build.
+      - name: Publish to npm
+        if: ${{ !inputs.dry_run }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public
+
+      - name: Extract release notes from CHANGELOG.md
+        if: ${{ !inputs.dry_run }}
+        id: notes
+        run: |
+          node -e "
+          const fs = require('fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const changelog = fs.readFileSync('CHANGELOG.md', 'utf8');
+          const heading = '## [' + pkg.version + ']';
+          const start = changelog.indexOf(heading);
+          if (start === -1) { console.error('No changelog entry'); process.exit(1); }
+          const next = changelog.indexOf('\n## [', start + heading.length);
+          const body = (next === -1 ? changelog.slice(start) : changelog.slice(start, next)).trim();
+          const escaped = body.replace(/%/g, '%25').replace(/\r/g, '').replace(/\n/g, '%0A');
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, 'notes<<VLD_EOF\n' + escaped + '\nVLD_EOF\n');
+          "
+
+      - name: Create GitHub Release
+        if: ${{ !inputs.dry_run }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body: ${{ steps.notes.outputs.notes }}
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
