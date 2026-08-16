@@ -276,7 +276,11 @@ describe('Coercion Validators - 100% Coverage', () => {
     it('should handle boolean and array values using Date semantics', () => {
       expect(validator.parse(false).toISOString()).toBe('1970-01-01T00:00:00.000Z');
       expect(validator.parse(true).toISOString()).toBe('1970-01-01T00:00:00.001Z');
-      expect(validator.parse([1, 2]).toISOString()).toBe('2001-01-01T22:00:00.000Z');
+      // new Date([1, 2]) resolves to LOCAL midnight 2001-01-02 in V8, so the
+      // UTC rendering varies by runner timezone. Compare against an expected
+      // instant built with the same local-time semantics instead of a
+      // hardcoded UTC string (which only holds for UTC+02:00 runners).
+      expect(validator.parse([1, 2]).toISOString()).toBe(new Date(2001, 0, 2).toISOString());
     });
 
     it('should create validators through the static factory', () => {
