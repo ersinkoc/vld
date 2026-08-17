@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.6] - 2026-08-17
+
 ### Added
 
 - Added complete 100% Zod 4 API and property parity across all schemas, instance methods, and root/namespace exports.
