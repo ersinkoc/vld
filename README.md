@@ -6,23 +6,23 @@ VLD is a blazing-fast, type-safe validation library for TypeScript and JavaScrip
 
 ## Table of Contents
 
-- [Features](#-features)
-- [Performance](#-performance)
-- [Installation](#-installation)
-- [Quick Start](#-quick-start)
-- [API Reference](#-api-reference)
-- [Internationalization (i18n)](#-internationalization-i18n)
-- [Error Handling & Formatting](#%EF%B8%8F-error-handling--formatting)
-- [Advanced Examples](#-advanced-examples)
-- [Why VLD?](#-why-vld)
-- [Codecs - Bidirectional Transformations](#-codecs---bidirectional-transformations)
-- [Plugin System](#-plugin-system)
-- [Result Pattern](#-result-pattern)
-- [CLI Tools](#-cli-tools)
-- [Migrating from Zod](#-migrating-from-zod)
-- [Benchmarks](#-benchmarks)
-- [Contributing](#-contributing)
-- [Links](#-links)
+- [Features](#features)
+- [Performance](#performance)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [API Reference](#api-reference)
+- [Internationalization (i18n)](#internationalization-i18n)
+- [Error Handling & Formatting](#error-handling--formatting)
+- [Advanced Examples](#advanced-examples)
+- [Codecs - Bidirectional Transformations](#codecs---bidirectional-transformations)
+- [Plugin System](#plugin-system)
+- [Result Pattern](#result-pattern)
+- [CLI Tools](#cli-tools)
+- [Logger & Colored Output](#logger--colored-output)
+- [VLD vs. Zod](#vld-vs-zod)
+- [Benchmarks](#benchmarks)
+- [Contributing](#contributing)
+- [Links](#links)
 
 ## Features
 
@@ -34,7 +34,7 @@ VLD is a blazing-fast, type-safe validation library for TypeScript and JavaScrip
 - **Composable**: Chain validations for complex schemas
 - **Advanced Error Formatting**: Tree, pretty, and flatten error utilities
 - **Multi-language**: Built-in support for 27+ languages
-- **100% Statement / Branch / Line Coverage**: Rigorously tested with 2179 passing tests
+- **100% Statement / Branch / Function / Line Coverage**: Rigorously tested with 2502 passing tests
 - **Release-Gated Performance**: CI guards require VLD to stay faster than the latest stable Zod across runtime, startup, and memory benchmarks
 - **Drop-in App Verification**: A real TypeScript fixture is compiled and run once with `zod` and once with built VLD, then normalized runtime output is compared
 - **Audited Compatibility Contract**: Modern Zod 4.4.3 factory signatures, schema direction methods, release-fix behaviors, and JSON Schema defaults are differential-tested; see [the compatibility policy](docs/ZOD_COMPATIBILITY.md)
@@ -48,6 +48,38 @@ VLD is a blazing-fast, type-safe validation library for TypeScript and JavaScrip
 - **Default Values**: `default()` for handling undefined inputs elegantly
 - **Fallback Handling**: `catch()` for graceful error recovery
 - **Object Utilities**: `pick()`, `omit()`, `extend()` for flexible object schemas
+
+### New in v2.2.x - Error Parity, Canary Parity, and Minified Builds
+
+#### Zod 4-Compatible Error Issues
+Validation failures now carry Zod 4's structured issue shape, so error-handling code ports across unchanged:
+- `invalid_type` issues expose `expected` and `received` and use the `"Invalid input: expected X, received Y"` message format
+- `too_small` / `too_big` issues expose `minimum`, `maximum`, `origin`, and `inclusive`
+- `invalid_format` issues expose `format`, `origin`, and `pattern`; `invalid_value` issues expose a `values` array
+- `parse()` throws `VldError` (which extends `Error`) for every validator, matching Zod's throw behavior
+
+#### New Parity Helpers
+```typescript
+import { v, deepPartial, input, output } from '@oxog/vld';
+
+v.creditCard().parse('4242424242424242');   // regex plus Luhn checksum
+
+const schema = v.object({
+  profile: v.object({ name: v.string(), age: v.number() })
+});
+
+const draft = deepPartial(schema);      // every nested field optional
+const inputSide = input(schema);        // input-side view of a pipe
+const outputSide = output(schema);      // output-side view of a pipe
+```
+- `deepPartial()` walks children first, mirroring Zod's `visit.js` ordering, and stays cycle-safe through lazy deferral
+- `input()` / `output()` resolve pipe direction the way Zod's root helpers do
+- `@oxog/vld/v4/core` gained the matching `_creditCard`, `isValidCreditCard`, `standardProps`, `handleUnrepresentable`, `$ZodCyclicError`, `attachMemoizer`, and `isBackEdge` shims
+
+#### Minified Release Builds
+- Release artifacts ship minified by default (opt out with `VLD_MINIFY=0`)
+- Mangling preserves `/^Vld/` class names, because JSON Schema conversion dispatches on `schema.constructor.name`
+- A built-CJS guard in `verify:drop-in` asserts name-dispatched composites against the minified bundle, so this can never silently regress again
 
 ### NEW in v2.0.0 - Modular Architecture
 
@@ -65,13 +97,27 @@ const schema = object({
 - Full TypeScript support with identical type inference
 
 #### Lazy Locale Loading
+
+> **Bundle-size contract:** the lazy entrypoint is published as
+> `@oxog/vld/locales/lazy` (`src/locales/lazy.ts`). It uses dynamic `import()`
+> for each locale on first use, so tree-shaken bundles ship **only English by
+> default**. Importing the plain `@oxog/vld/locales` subpath (or the root
+> `@oxog/vld` package) eagerly pulls every locale into the graph; pick the
+> `lazy` subpath if you only need one or two languages in production.
+
 ```typescript
-import { setLocaleAsync } from '@oxog/vld/locales';
-await setLocaleAsync('tr'); // Loads Turkish on demand
+import { setLocaleAsync, preloadLocales } from '@oxog/vld/locales/lazy';
+
+// First call loads the locale on demand; subsequent calls hit the cache.
+await setLocaleAsync('tr');
+
+// SSR / batch warm-up: preload what you need before serving traffic.
+await preloadLocales(['en', 'de', 'ja']);
 ```
-- **92% bundle reduction** - Only English bundled by default
+- **92% bundle reduction** when you only ship English plus the locales you pre-load
+- `setLocaleAsync()` is true async dynamic-import, not a sync wrapper
 - `preloadLocales()` for SSR/batch loading
-- Full backwards compatibility with `setLocale()`
+- Backwards-compatible `setLocale()` is still available on the eager entrypoint
 
 #### Dual ESM/CJS Build
 - ESM builds for modern bundlers (Vite, esbuild)
@@ -151,18 +197,27 @@ await setLocaleAsync('tr'); // Loads Turkish on demand
 
 VLD is designed for speed and efficiency with recent optimizations delivering exceptional performance:
 
-### Release-Gated Speed Benchmarks (v2.1.0 vs Zod 4.4.3)
+### Release-Gated Speed Benchmarks (v2.2.1 vs Zod 4.4.3)
 - Runtime guard: VLD must stay at least 1.2x faster on every guarded hot path and keep at least a 3x average ratio
 - Startup guard: cross-platform floors are 0.85x import, 0.9x total startup, and 1.25x warm parse versus Zod
 - Memory guard: VLD must keep at least 2x lower total retained heap, 1.5x higher aggregate throughput, and no guarded case below 1.1x speed
 
-### Recent Local Benchmark Snapshot
-- **52.92x faster** for nullish validation
-- **46.58x faster** for catch validation
-- **27.62x faster** for number validation
-- **14.88x faster** for bigint validation
-- **10.71x faster** for nullable validation
-- **Over 10x faster** average guarded runtime ratio in recent release checks
+### Latest Runtime Guard Snapshot
+
+Measured with `npm run benchmark:guard` (5 samples per case) against Zod 4.4.3:
+
+| Guarded case | VLD | Zod | Ratio |
+|--------------|-----|-----|-------|
+| Nullish parse | 214.1M ops/sec | 7.0M ops/sec | **30.70x** |
+| Number positive int parse | 252.9M ops/sec | 27.8M ops/sec | **9.10x** |
+| Discriminated union parse | 35.0M ops/sec | 8.6M ops/sec | **4.06x** |
+| Optional parse | 212.9M ops/sec | 56.6M ops/sec | **3.76x** |
+| Union string and number parse | 39.1M ops/sec | 11.9M ops/sec | **3.30x** |
+| Simple string parse | 620.7M ops/sec | 208.8M ops/sec | **2.97x** |
+| Array number parse | 49.2M ops/sec | 28.3M ops/sec | **1.74x** |
+| Simple object parse | 45.2M ops/sec | 27.7M ops/sec | **1.63x** |
+
+8/8 guarded cases pass with a **7.16x average ratio**. Absolute ops/sec numbers are hardware-dependent; the ratios are what the release gate enforces.
 
 ### Optimizations
 - **110x improvement** in union type validation
@@ -173,10 +228,14 @@ VLD is designed for speed and efficiency with recent optimizations delivering ex
 - **Pre-computed keys** with Set for O(1) lookups
 
 ### Memory Efficiency
-- **18.13x less memory** for schema creation
-- **6.20x less memory** for union validation
-- **2.81x less memory** for simple string validation
-- **4.85x less memory** overall
+
+Measured with `npm run benchmark:memory` against Zod 4.4.3. Heap deltas move a few percent between runs, so treat these as approximate:
+
+- **~12.7x less memory** for schema creation
+- **~7.3x less memory** for union validation
+- **~2.9x less memory** for simple string validation
+- **~2.7x less memory** for complex object validation
+- **~5x less memory** overall
 
 ### A Note on Real-World Benchmarking
 
@@ -350,6 +409,7 @@ v.mac()                      // MAC address
 v.cidrv4()                   // IPv4 CIDR block
 v.cidrv6()                   // IPv6 CIDR block
 v.e164()                     // E.164 phone number
+v.creditCard()               // Credit card number (regex plus Luhn checksum)
 v.hash('sha256')             // Hash validation
 v.iso.date()                 // ISO date format
 v.iso.time()                 // ISO time format
@@ -1103,7 +1163,7 @@ VLD is designed as a compelling alternative to Zod, maintaining an audited compa
 | Feature                 | VLD                                | Zod                                  |
 | ----------------------- | ---------------------------------- | ------------------------------------ |
 | **Performance**         | **Release-gated faster runtime, startup, and memory paths** | Baseline                             |
-| **Memory Usage**        | **~4.85x less** overall            | Baseline                             |
+| **Memory Usage**        | **~5x less** overall               | Baseline                             |
 | **Internationalization**| **Built-in 27+ locales with lazy loading** | Built-in locales              |
 | **Dependencies**        | **Zero runtime dependencies**      | Zero runtime dependencies            |
 | **Bundle Size**         | Smaller                            | Larger                               |

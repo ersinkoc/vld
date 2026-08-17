@@ -4,7 +4,7 @@
 
 VLD is a blazing-fast validation library designed as a high-performance alternative to Zod. It provides Zod-compatible root and subpath APIs, release-gated parity against Zod 4.4.3, and real TypeScript app drop-in verification.
 
-**Version:** 1.4.0 | **License:** MIT | **Author:** Ersin Koc
+**Version:** 2.2.1 | **License:** MIT | **Author:** Ersin Koc
 
 ## Installation
 
@@ -37,11 +37,11 @@ if (result.success) {
 ## Core Features
 
 - **Zero Dependencies** - Lightweight and tree-shakeable
-- **11x+ Runtime Guard Snapshot** against Zod 4.4.3 in the v2.1.0 release check
+- **11x+ Runtime Guard Snapshot** against Zod 4.4.3 in the v2.2.1 release check
 - **Zod-Compatible Package Shape** - root, v4, v4-mini, v4/core, and v4/locales entry points
 - **Real App Drop-in Verified** - the same TypeScript fixture runs against Zod and built VLD
 - **27+ Languages** - Built-in i18n with setLocale()
-- **96.55% Test Coverage** - 1142 passing tests
+- **100% Test Coverage (Stmts / Branch / Funcs / Lines)** - 2502 passing tests
 - **Full TypeScript Support** - Excellent type inference
 - **19 Built-in Codecs** - Bidirectional data transformations
 - **Immutable Validators** - Prevents memory leaks

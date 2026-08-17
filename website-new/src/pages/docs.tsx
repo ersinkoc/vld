@@ -118,10 +118,10 @@ if (result.success) {
 }`,
     lang: 'typescript',
     tips: [
-      'VLD v2.1.0 is checked against Zod 4.4.3',
+      'VLD v2.2.1 is checked against Zod 4.4.3',
       'Root, v4, v4-mini, v4/core, and v4/locales entry points are covered',
       'Full TypeScript inference',
-      '2160 tests with 100% statement, branch, and line coverage',
+      '2502 tests with 100% statement, branch, function, and line coverage',
     ],
   },
   installation: {

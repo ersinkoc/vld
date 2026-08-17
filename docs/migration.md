@@ -31,7 +31,7 @@ A complete guide for migrating your codebase from Zod to VLD with minimal change
 - **Built-in i18n**: 27+ languages supported out of the box
 - **Better error formatting**: Tree, pretty, and flatten utilities
 - **Immutable validators**: Prevent memory leaks
-- **100% statement, branch, and line coverage**: Battle-tested with 2179 passing tests
+- **100% statement, branch, function, and line coverage**: Battle-tested with 2502 passing tests
 - **Plugin system**: Extend VLD with custom validators
 - **CLI tools**: Command-line validation and benchmarking
 - **Event system**: Validation lifecycle hooks

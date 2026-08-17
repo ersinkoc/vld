@@ -79,8 +79,7 @@ Three error formats for different use cases:
 
 ### Testing Strategy
 - Jest with ts-jest for ESM support
-- 100% statement, branch, and line coverage thresholds enforced
-- 93% function coverage threshold enforced
+- 100% statement, branch, function, and line coverage thresholds enforced
 - Test files in `tests/` directory mirror source structure:
   - `tests/validators/` - Individual validator tests
   - `tests/coercion/` - Type coercion tests

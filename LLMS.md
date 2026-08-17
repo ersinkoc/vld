@@ -66,7 +66,7 @@ VLD is a blazing-fast, type-safe validation library for TypeScript and JavaScrip
 - **Zod-Compatible Package Shape**: Root, v4, v4-mini, v4/core, and v4/locales imports are checked against Zod
 - **27+ Languages**: Built-in internationalization support
 - **19 Built-in Codecs**: Bidirectional data transformations
-- **96.55% Test Coverage**: Rigorously tested with 1142 passing tests
+- **100% Test Coverage (Stmts / Branch / Funcs / Lines)**: Rigorously tested with 2502 passing tests
 - **Tree-Shakeable**: Only import what you need
 - **Immutable Validators**: Prevents memory leaks and race conditions
 

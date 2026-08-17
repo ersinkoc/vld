@@ -7,7 +7,7 @@ const features = [
   {
     icon: Zap,
     title: 'Release-Gated Speed',
-    description: '11x+ guarded runtime speedup against Zod 4.4.3 in the v2.1.0 release check.',
+    description: '11x+ guarded runtime speedup against Zod 4.4.3 in the v2.2.1 release check.',
     color: 'from-amber-500 to-orange-500',
   },
   {
@@ -98,8 +98,8 @@ const myPlugin = definePlugin({
 const stats = [
   { value: '11x+', label: 'Runtime', sublabel: 'guard snapshot' },
   { value: '0', label: 'Dependencies', sublabel: 'zero bloat' },
-  { value: '2160', label: 'Tests', sublabel: 'release gate' },
-  { value: '100%', label: 'Coverage', sublabel: 'stmt/branch/line' },
+  { value: '2502', label: 'Tests', sublabel: 'release gate' },
+  { value: '100%', label: 'Coverage', sublabel: 'stmt/branch/func/line' },
 ]
 
 const comparisons = [
@@ -130,7 +130,7 @@ export function HomePage() {
               <div className="animate-fade-in">
                 <div className="tag mb-6">
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>v2.1.0 — Zod-Compatible Drop-in Release</span>
+                  <span>v2.2.1 — Zod-Compatible Drop-in Release</span>
                 </div>
               </div>
 

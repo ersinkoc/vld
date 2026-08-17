@@ -5,12 +5,44 @@ const path = require('path');
 const rootDir = path.resolve(__dirname, '..');
 const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
 const readme = fs.readFileSync(path.join(rootDir, 'README.md'), 'utf8');
+const llms = fs.readFileSync(path.join(rootDir, 'LLMS.md'), 'utf8');
+const migrationDoc = fs.readFileSync(path.join(rootDir, 'docs/migration.md'), 'utf8');
+const websiteMigrationDoc = fs.readFileSync(
+  path.join(rootDir, 'website-new/public/docs/migration.md'),
+  'utf8'
+);
+const performanceDoc = fs.readFileSync(path.join(rootDir, 'docs/PERFORMANCE.md'), 'utf8');
+const websitePerformanceDoc = fs.readFileSync(
+  path.join(rootDir, 'website-new/public/docs/PERFORMANCE.md'),
+  'utf8'
+);
+const homePage = fs.readFileSync(
+  path.join(rootDir, 'website-new/src/pages/home.tsx'),
+  'utf8'
+);
+const docsPage = fs.readFileSync(
+  path.join(rootDir, 'website-new/src/pages/docs.tsx'),
+  'utf8'
+);
+const llmsTxt = fs.readFileSync(path.join(rootDir, 'llms.txt'), 'utf8');
 const errors = [];
 
 const staleClaims = [
   '98.34%',
   '1914 passing tests',
   '2154 passing tests',
+  '2160 passing tests',
+  '2179 passing tests',
+  '2473 passing tests',
+  '1142 passing tests',
+  '695 passing tests',
+  '1914 tests',
+  '2154 tests',
+  '2160 tests',
+  '2179 tests',
+  '2473 tests',
+  '1142 tests',
+  '695 tests',
   '1.98x faster',
   '~1.98x faster',
   'Average: 1.98x',
@@ -90,9 +122,23 @@ function collectNamedImports() {
   return imports;
 }
 
+const docFiles = [
+  ['README.md', readme],
+  ['LLMS.md', llms],
+  ['docs/migration.md', migrationDoc],
+  ['website-new/public/docs/migration.md', websiteMigrationDoc],
+  ['docs/PERFORMANCE.md', performanceDoc],
+  ['website-new/public/docs/PERFORMANCE.md', websitePerformanceDoc],
+  ['website-new/src/pages/home.tsx', homePage],
+  ['website-new/src/pages/docs.tsx', docsPage],
+  ['llms.txt', llmsTxt],
+];
+
 for (const staleClaim of staleClaims) {
-  if (readme.includes(staleClaim)) {
-    errors.push(`README.md contains stale claim: ${staleClaim}`);
+  for (const [filePath, content] of docFiles) {
+    if (content.includes(staleClaim)) {
+      errors.push(`${filePath} contains stale claim: ${staleClaim}`);
+    }
   }
 }
 

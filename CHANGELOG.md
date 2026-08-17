@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added repository policy and contribution scaffolding: `SECURITY.md`, `CODE_OF_CONDUCT.md`, and GitHub issue templates for bug reports and feature requests.
+- Added `.nvmrc` (Node 24) and `.npmrc` (lockfile-exact installs, `ignore-scripts=true`) so local installs match the CI matrix.
+
+### Changed
+
+- Rewrote `.gitignore` into labelled sections and extended it to cover build metadata (`*.tsbuildinfo`, `.rollup.cache/`), packaging artifacts (`*.tgz`), test and gate scratch output (`test-results/`, `junit.xml`, `.nyc_output/`), tool caches (`.eslintcache`, `.cache/`), OS junk (`Thumbs.db`, `desktop.ini`), and local agent state. `.wrongstack/project.json` stays tracked while the rest of that directory stays ignored.
+
+### Removed
+
+- Removed `.npmignore`. The `files` field in `package.json` already scopes the published tarball, and `npm pack --dry-run` produces the same 299-file, 246.1 kB artifact with the file gone, so it was inert configuration carrying a broken `\!dist/*.d.ts` negation that would have stripped type declarations if it had ever taken effect.
+- Removed `fix-locale.js`, a one-off locale repair script from the v1.x era that depended on a `glob` package the project no longer installs.
+
+## [2.2.1] - 2026-08-17
+
+### Added
+
+- Added `creditCard()` string format (regex plus Luhn checksum) with `ZodCreditCard`, `ZodMiniCreditCard`, and `$ZodCreditCard` aliases, and localized messages across the locale set.
+- Added `deepPartial()`, `input()`, and `output()` root helpers backed by a children-first schema walker that mirrors Zod's `visit.js` ordering. Wrappers rebuild around the walked inner schema and cycles stay safe through `VldLazy` deferral.
+- Added `v4/core` parity shims: `_creditCard`, `isValidCreditCard`, `standardProps`, `handleUnrepresentable`, `$ZodCyclicError`, `attachMemoizer`, and `isBackEdge`.
+- Added `tests/canary-parity.test.ts` covering credit card validation, `deepPartial` across objects, arrays, records, maps, sets, tuples, unions, discriminated unions, intersections, pipes, lazy cycles, and wrappers, plus `input`/`output` pipe replacement and the new core utilities.
+- Added `.github/workflows/ci.yml`: lint, typecheck, the full test suite, build, and every verify gate on a Node 20/22/24 matrix, with benchmark guards on a single lane and a Windows lane for the path-sensitive gates.
+- Added `.github/workflows/release.yml`: publish on a `v*.*.*` tag push with OIDC provenance through the existing `prepublishOnly`/`release:check` hooks, tag/version and changelog guards, changelog-extracted GitHub Release notes, and a dry-run lane.
+
+### Changed
+
+- Release builds are now minified by default through terser (opt out with `VLD_MINIFY=0`). Mangling preserves `/^Vld/` class names because `json-schema.ts` dispatches roughly 41 conversions on `schema.constructor.name` with no fallback, which silently broke `toJSONSchema()` in minified artifacts while the unminified Jest suite stayed green.
+- The Zod canary parity lane is now non-blocking (`continue-on-error: true`). The stable `latest` lane remains blocking; canary stays an early-warning signal.
+
+### Fixed
+
+- Fixed `handleUnrepresentable` to shallow-clone the consumer-supplied fragment before merging it into the JSON Schema output, so a later mutation of the returned object can no longer corrupt emitted JSON.
+- Fixed `verify-bundle` probe imports to use relative forward-slash specifiers. Absolute Windows paths embedded backslashes that ESM consumed as escape sequences, and `file://` URLs made Rollup externalize the probe, turning the check into a vacuous pass.
+- Fixed the drop-in verification gap for minified output: `verify-drop-in` now asserts name-dispatched composites against the built CJS bundle (union emits `anyOf`, optional unwraps, nullable emits a type array).
+- Fixed a `VldCoerceDate` array-coercion test that depended on the local timezone.
+- Synced the `package-lock.json` root version with `package.json`. The version bump left the lockfile at 2.2.0, which failed the `verify:package` gate and therefore blocked `release:check`.
+
+### Security
+
+- Resolved high-severity advisories in the development dependency tree by pinning `brace-expansion` 2.1.4 and `js-yaml` 4.3.1 through `overrides`. Runtime dependencies remain at zero.
+
+### Verified
+
+- 88 test suites and 2502 tests passing with 100% statement, branch, function, and line coverage.
+- Runtime performance guard green against Zod 4.4.3: 8/8 guarded cases pass with a 7.16x average ratio (floors are 1.2x per case and 3x average).
+- Startup guard green: import 0.95x, total 1.03x, warm parse 2.56x versus Zod (floors are 0.85x, 0.9x, and 1.25x).
+- `verify:package` green: 299 files, ~243 KiB tarball and ~1.1 MiB unpacked, inside the configured budgets.
+- `verify:ascii` and `verify:docs` green: 221 files scanned, 7 package specifiers and 56 named README imports resolved against the built package.
+
 ## [2.2.0] - 2026-07-29
 
 ### Added
