@@ -61,6 +61,7 @@ export {
   VldStringFormat as $ZodCIDRv6,
   VldStringFormat as $ZodCUID,
   VldStringFormat as $ZodCUID2,
+  VldStringFormat as $ZodCreditCard,
   VldStringFormat as $ZodCustomStringFormat,
   VldStringFormat as $ZodE164,
   VldStringFormat as $ZodEmail,
@@ -305,4 +306,61 @@ export const toDotPath = (path: readonly (string | number)[]) => path.map(String
 export const isValidBase64 = (value: string) => root.base64().safeParse(value).success;
 export const isValidBase64URL = (value: string) => root.base64url().safeParse(value).success;
 export const isValidJWT = (value: string) => root.jwt().safeParse(value).success;
+
+// Zod canary core additions. `standardProps` returns the Standard Schema v1
+// property bag; `handleUnrepresentable` mirrors the canary's JSON Schema
+// fallback semantics for types with no JSON representation.
+import { isValidCreditCard } from '../../validators/string-formats';
+
+export { isValidCreditCard };
+export const _creditCard = (...args: unknown[]) => root.creditCard(valueArg<{ message?: string }>(args));
+export const standardProps = (schema: unknown): object => {
+  const target = schema as { '~standard'?: unknown };
+  if (target && typeof target['~standard'] === 'object' && target['~standard'] !== null) {
+    return target['~standard'] as object;
+  }
+  const base = schema as { safeParse?: (value: unknown) => { success: boolean; data?: unknown; error?: Error } };
+  if (typeof base?.safeParse !== 'function') {
+    throw new TypeError('standardProps expects a VLD schema');
+  }
+  return {
+    validate: (value: unknown) => {
+      const result = base.safeParse!(value);
+      if (result.success) return { value: result.data };
+      return { issues: [{ message: result.error?.message ?? 'Invalid input' }] };
+    },
+    vendor: 'vld',
+    version: 1
+  };
+};
+export const handleUnrepresentable = (
+  schema: unknown,
+  ctx: { unrepresentable?: unknown },
+  json: Record<string, unknown>,
+  params: { path: (string | number)[] },
+  message: string
+): boolean => {
+  const behavior =
+    typeof ctx.unrepresentable === 'function'
+      ? (ctx.unrepresentable as (info: { zodSchema: unknown; path: (string | number)[]; message: string }) => unknown)({
+          zodSchema: schema,
+          path: params.path,
+          message
+        })
+      : ctx.unrepresentable;
+  if (behavior === 'any') return false;
+  if (behavior === undefined || behavior === 'throw') throw new Error(message);
+  Object.assign(json, behavior);
+  return true;
+};
+
 export const _checkInternal = unsupportedCoreFactory('_checkInternal');
+
+// Zod canary added three cycle-detection internals to zod/v4/core:
+// $ZodCyclicError, attachMemoizer, isBackEdge. VLD resolves cycles lazily
+// through its schema graph and does not expose these to users, so the
+// compatibility surface here is a thin shim that satisfies the parity
+// contract (key presence and typeof 'function') without affecting behavior.
+export const $ZodCyclicError = unsupportedCoreFactory('$ZodCyclicError');
+export const attachMemoizer = unsupportedCoreFactory('attachMemoizer');
+export const isBackEdge = unsupportedCoreFactory('isBackEdge');

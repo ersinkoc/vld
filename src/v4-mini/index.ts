@@ -15,6 +15,7 @@ export {
   ZodCUID2 as ZodMiniCUID2,
   ZodCatch as ZodMiniCatch,
   ZodCodec as ZodMiniCodec,
+  ZodCreditCard as ZodMiniCreditCard,
   ZodCustom as ZodMiniCustom,
   ZodCustomStringFormat as ZodMiniCustomStringFormat,
   ZodDate as ZodMiniDate,

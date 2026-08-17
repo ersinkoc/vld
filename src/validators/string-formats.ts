@@ -86,7 +86,7 @@ function macRegex(delimiter = ':'): RegExp {
 
 type StaticRegexName =
   | 'base64' | 'base64url' | 'bigint' | 'boolean' | 'browserEmail' | 'cidrv4' | 'cidrv6'
-  | 'cuid' | 'cuid2' | 'date' | 'domain' | 'duration' | 'e164' | 'email' | 'extendedDuration'
+  | 'creditCard' | 'cuid' | 'cuid2' | 'date' | 'domain' | 'duration' | 'e164' | 'email' | 'extendedDuration'
   | 'guid' | 'hex' | 'hostname' | 'html5Email' | 'httpProtocol' | 'httpUrl' | 'idnEmail'
   | 'integer' | 'ipv4' | 'ipv6' | 'jwt' | 'ksuid' | 'lowercase' | 'md5' | 'md5_base64'
   | 'md5_base64url' | 'md5_hex' | 'nanoid' | 'null' | 'number' | 'rfc5322Email'
@@ -115,6 +115,7 @@ const REGEXES: RegexNamespace = {
   duration: /^P(?:(\d+W)|(?!.*W)(?=\d|T\d)(\d+Y)?(\d+M)?(\d+D)?(T(?=\d)(\d+H)?(\d+M)?(\d+([.,]\d+)?S)?)?)$/,
   extendedDuration: /^[-+]?P(?!$)(?:(?:[-+]?\d+Y)|(?:[-+]?\d+[.,]\d+Y$))?(?:(?:[-+]?\d+M)|(?:[-+]?\d+[.,]\d+M$))?(?:(?:[-+]?\d+W)|(?:[-+]?\d+[.,]\d+W$))?(?:(?:[-+]?\d+D)|(?:[-+]?\d+[.,]\d+D$))?(?:T(?=[\d+-])(?:(?:[-+]?\d+H)|(?:[-+]?\d+[.,]\d+H$))?(?:(?:[-+]?\d+M)|(?:[-+]?\d+[.,]\d+M$))?(?:[-+]?\d+(?:[.,]\d+)?S)?)??$/,
   guid: /^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$/,
+  creditCard: /^\d(?:[ -]?\d){11,18}$/,
   uuid: uuidRegex,
   uuid4: uuidRegex(4),
   uuid6: uuidRegex(6),
@@ -298,6 +299,40 @@ export const hash = (algorithm: 'md5' | 'sha1' | 'sha256' | 'sha384' | 'sha512')
     'hash',
     value => ((REGEXES as unknown) as Record<string, RegExp | undefined>)[algorithm]?.test(value) ?? false,
     `Invalid ${algorithm} hash`
+  );
+
+// Credit card validation: regex shape check plus Luhn checksum, matching the
+// Zod canary contract. The regex is intentionally shape-only (length and
+// separators); the Luhn check is not expressible as a pattern.
+const CREDIT_CARD_SEPARATORS = /[ -]/g;
+
+function isLuhnValid(digits: string): boolean {
+  let sum = 0;
+  let double = false;
+  for (let i = digits.length - 1; i >= 0; i--) {
+    let value = digits.charCodeAt(i) - 48;
+    if (double) {
+      value *= 2;
+      if (value > 9) value -= 9;
+    }
+    sum += value;
+    double = !double;
+  }
+  return sum % 10 === 0;
+}
+
+export function isValidCreditCard(input: string): boolean {
+  if (!REGEXES.creditCard.test(input)) return false;
+  return isLuhnValid(input.replace(CREDIT_CARD_SEPARATORS, ''));
+}
+
+export const creditCard = (params?: { message?: string }): VldStringFormat =>
+  VldStringFormat.create(
+    'credit_card',
+    isValidCreditCard,
+    params?.message,
+    undefined,
+    REGEXES.creditCard.source
   );
 
 export const iso = {

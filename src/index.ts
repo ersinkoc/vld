@@ -396,6 +396,7 @@ export {
   VldStringFormat as ZodCIDRv6,
   VldStringFormat as ZodCUID,
   VldStringFormat as ZodCUID2,
+  VldStringFormat as ZodCreditCard,
   VldStringFormat as ZodCustomStringFormat,
   VldStringFormat as ZodE164,
   VldStringFormat as ZodEmail,
@@ -650,6 +651,198 @@ configureSchemaCompositionFactories({
   toJSONSchema: (schema, options) => toJSONSchemaFn(schema, options as any)
 });
 
+// ============================================
+// Schema Transformations (Zod 4 canary parity)
+// ============================================
+
+/**
+ * Generic recursive schema walker mirroring Zod's `visit`-based transforms:
+ * children are rebuilt first, then the caller's replace hook runs on the
+ * rebuilt node. A memo cache preserves shared-schema identity and keeps
+ * lazy (recursive) schemas finite by deferring their walk to getter time.
+ */
+function transformSchema(
+  schema: AnySchema,
+  replace: (schema: AnySchema) => AnySchema | undefined,
+  cache: Map<AnySchema, AnySchema>
+): AnySchema {
+  const cached = cache.get(schema);
+  if (cached) return cached;
+
+  const walk = (child: AnySchema): AnySchema => transformSchema(child, replace, cache);
+
+  if (schema instanceof VldLazy) {
+    const source = schema as unknown as { unwrap: () => AnySchema };
+    const deferred = VldLazy.create(() => transformSchema(source.unwrap(), replace, cache));
+    cache.set(schema, deferred);
+    return deferred;
+  }
+
+  const mapped = mapContainer(schema, walk);
+  const result = replace(mapped) ?? mapped;
+  cache.set(schema, result);
+  return result;
+}
+
+/**
+ * Rebuilds a container or wrapper node around transformed children. Returns
+ * the original node when no child changed, so untouched subtrees keep their
+ * identity. Leaves pass through unchanged.
+ */
+function mapContainer(node: AnySchema, walk: (child: AnySchema) => AnySchema): AnySchema {
+  const s = node as any;
+
+  if (node instanceof VldObject) {
+    const shape = node.shape as Record<string, AnySchema>;
+    const nextShape: Record<string, AnySchema> = {};
+    let changed = false;
+    for (const key of Object.keys(shape)) {
+      nextShape[key] = walk(shape[key]!);
+      changed ||= nextShape[key] !== shape[key];
+    }
+    let nextCatchall = s.config.catchall as AnySchema | undefined;
+    if (nextCatchall) {
+      const mappedCatchall = walk(nextCatchall);
+      changed ||= mappedCatchall !== nextCatchall;
+      nextCatchall = mappedCatchall;
+    }
+    return changed ? new (VldObject as any)({ ...s.config, shape: nextShape, catchall: nextCatchall }) : node;
+  }
+  if (node instanceof VldArray) {
+    const element = walk(s.element);
+    return element === s.element ? node : VldArray.create(element);
+  }
+  if (node instanceof VldSet) {
+    const item = walk(s.itemSchema);
+    return item === s.itemSchema ? node : VldSet.create(item);
+  }
+  if (node instanceof VldMap) {
+    const key = walk(s.keySchema);
+    const value = walk(s.valueSchema);
+    return key === s.keySchema && value === s.valueSchema ? node : VldMap.create(key, value);
+  }
+  if (node instanceof VldRecord) {
+    const value = walk(s.valueSchema);
+    const key = s.keySchema ? walk(s.keySchema) : undefined;
+    const keyChanged = s.keySchema !== undefined && key !== s.keySchema;
+    return value === s.valueSchema && !keyChanged ? node : VldRecord.create(value, key);
+  }
+  if (node instanceof VldTuple) {
+    const items = (node.items as readonly AnySchema[]).map(walk);
+    const itemsChanged = items.some((item, i) => item !== s.items[i]);
+    const rest = s.restValidator == null ? undefined : walk(s.restValidator);
+    const restChanged = s.restValidator != null && rest !== s.restValidator;
+    return itemsChanged || restChanged ? new (VldTuple as any)(items, s.errorMessage, rest) : node;
+  }
+  if (node instanceof VldUnion) {
+    const options = (s.validators as readonly AnySchema[]).map(walk);
+    return options.some((option, i) => option !== s.validators[i])
+      ? new (VldUnion as any)(options, s.errorMessage)
+      : node;
+  }
+  if (node instanceof VldXor) {
+    const options = (s._options as readonly AnySchema[]).map(walk);
+    return options.some((option, i) => option !== s._options[i]) ? new (VldXor as any)(options) : node;
+  }
+  if (node instanceof VldDiscriminatedUnion) {
+    const options = (s._options as readonly AnySchema[]).map(walk);
+    // A transformed option set can no longer be rebuilt as a discriminated
+    // union (the discriminator may have stopped being a plain literal/enum),
+    // so it degrades to a plain union, matching Zod's deepPartial behavior.
+    return options.some((option, i) => option !== s._options[i]) ? VldUnion.create(...options) : node;
+  }
+  if (node instanceof VldIntersection) {
+    const first = walk(s.validatorA);
+    const second = walk(s.validatorB);
+    return first === s.validatorA && second === s.validatorB ? node : VldIntersection.create(first, second);
+  }
+  if (node instanceof VldPipe) {
+    const first = walk(s.first);
+    const second = walk(s.second);
+    return first === s.first && second === s.second ? node : new VldPipe(first, second);
+  }
+
+  // Wrappers: rebuild around the transformed inner schema.
+  if (node instanceof VldOptional) {
+    const inner = walk(s.baseValidator);
+    return inner === s.baseValidator ? node : VldOptional.create(inner);
+  }
+  if (node instanceof VldNullable) {
+    const inner = walk(s.baseValidator);
+    return inner === s.baseValidator ? node : VldNullable.create(inner);
+  }
+  if (node instanceof VldNullish) {
+    const inner = walk(s.baseValidator);
+    return inner === s.baseValidator ? node : VldNullish.create(inner);
+  }
+  if (node instanceof VldExactOptional) {
+    const inner = walk(s.baseValidator);
+    return inner === s.baseValidator ? node : VldExactOptional.create(inner);
+  }
+  if (node instanceof VldDefault) {
+    const inner = walk(s.baseValidator);
+    return inner === s.baseValidator ? node : new VldDefault(inner, s.defaultValue);
+  }
+  if (node instanceof VldPrefault) {
+    const inner = walk(s.baseValidator);
+    return inner === s.baseValidator ? node : new VldPrefault(inner, s.defaultValue);
+  }
+  if (node instanceof VldCatch) {
+    const inner = walk(s.baseValidator);
+    return inner === s.baseValidator ? node : new VldCatch(inner, s.fallbackValue);
+  }
+  if (node instanceof VldReadonly) {
+    const inner = walk(s.baseValidator);
+    return inner === s.baseValidator ? node : new VldReadonly(inner);
+  }
+  if (node instanceof VldMeta) {
+    const inner = walk(s.baseValidator);
+    return inner === s.baseValidator ? node : new VldMeta(inner, s.metadata);
+  }
+  if (node instanceof VldRefine) {
+    const inner = walk(s.baseValidator);
+    return inner === s.baseValidator ? node : new VldRefine(inner, s.predicate, s.customMessage);
+  }
+  if (node instanceof VldTransform) {
+    const inner = walk(s.baseValidator);
+    return inner === s.baseValidator ? node : new VldTransform(inner, s.transformer);
+  }
+  if (node instanceof VldPreprocess) {
+    const inner = walk(s._schema);
+    return inner === s._schema ? node : new VldPreprocess(s._preprocessor, inner);
+  }
+
+  // Leaves (primitives, formats, literals, enums, custom) pass through unchanged.
+  return node;
+}
+
+/** Returns a copy of the schema with every nested object's properties made optional. */
+export function deepPartial<T extends AnySchema>(schema: T): T {
+  return transformSchema(
+    schema,
+    node => (node instanceof VldObject ? (node.partial() as AnySchema) : undefined),
+    new Map()
+  ) as T;
+}
+
+/** Returns a copy of the schema with every pipe replaced by its input side. */
+export function input<T extends AnySchema>(schema: T): T {
+  return transformSchema(
+    schema,
+    node => (node instanceof VldPipe ? ((node as any).first as AnySchema) : undefined),
+    new Map()
+  ) as T;
+}
+
+/** Returns a copy of the schema with every pipe replaced by its output side. */
+export function output<T extends AnySchema>(schema: T): T {
+  return transformSchema(
+    schema,
+    node => (node instanceof VldPipe ? ((node as any).second as AnySchema) : undefined),
+    new Map()
+  ) as T;
+}
+
 /**
  * Main API object with factory methods for all validators
  */
@@ -690,6 +883,9 @@ export const v = {
   discriminatedUnion: discriminatedUnionFactory,
   xor: xorFactory,
   keyof: <T extends Record<string, any>>(schema: VldObject<T>) => schema.keyof(),
+  deepPartial,
+  input,
+  output,
   
   // Literal and enum
   literal: literalFactory,
@@ -837,6 +1033,7 @@ export const v = {
   mac: () => stringFormats.mac(),
   cidrv4: () => stringFormats.cidrv4(),
   cidrv6: () => stringFormats.cidrv6(),
+  creditCard: (params?: { message?: string }) => stringFormats.creditCard(params),
   e164: () => stringFormats.e164(),
   hash: (algorithm: 'md5' | 'sha1' | 'sha256' | 'sha384' | 'sha512') =>
     stringFormats.hash(algorithm),
@@ -1051,6 +1248,7 @@ export const {
   mac,
   cidrv4,
   cidrv6,
+  creditCard,
   e164,
   hash,
   iso,
