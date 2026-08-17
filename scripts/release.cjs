@@ -140,8 +140,15 @@ console.log(`New version:     ${newVersion}`);
 // Delegate the actual commit + tag creation to `npm version` so the commit
 // shape matches prior releases ("chore: release vX.Y.Z"). Using
 // --no-git-tag would defeat the CI workflow; we WANT the vX.Y.Z tag here.
+//
+// Note: we must NOT pipe this call through run() because run() does
+//   .toString().trim() on the child output, and Node returns null when
+// stdio is 'inherit' (the parent already streamed it). Calling .toString()
+// on null throws "Cannot read properties of null (reading 'toString')".
+// Use execFileSync directly and ignore its return value — the user sees
+// `npm version`'s own output via inherited stdio.
 try {
-  run('npm', ['version', newVersion, '-m', `chore: release v${newVersion}`], {
+  execFileCompat('npm', ['version', newVersion, '-m', `chore: release v${newVersion}`], {
     cwd: rootDir,
     stdio: 'inherit',
   });
