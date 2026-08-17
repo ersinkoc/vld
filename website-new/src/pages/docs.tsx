@@ -184,12 +184,12 @@ if (result.success) {
     code: `// VLD advantages over alternatives:
 
 // 1. Performance - release-gated against Zod 4.4.3
-const result = schema.safeParse(data) // v2.1.0 runtime guard: 11x+ snapshot
+const result = schema.safeParse(data) // v2.2.1 runtime guard: 11x+ snapshot
 
 // 2. Package health
 // exports, bundle, install, package, and type declarations are checked
 
-// 3. Memory Usage - 4.7x+ less retained heap in the v2.1.0 guard
+// 3. Memory Usage - 4.7x+ less retained heap in the v2.2.1 guard
 
 // 4. Built-in i18n - 27+ languages
 import { setLocale } from "@oxog/vld"
