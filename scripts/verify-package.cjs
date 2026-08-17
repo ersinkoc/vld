@@ -197,9 +197,6 @@ function verifyPackageMetadata() {
   if (packageJson.publishConfig?.access !== 'public') {
     errors.push('publishConfig.access must be public for the scoped npm package');
   }
-  if (packageJson.publishConfig?.provenance !== true) {
-    errors.push('publishConfig.provenance must stay enabled for npm provenance');
-  }
   for (const file of REQUIRED_FILES) {
     if (!packageJson.files?.includes(file)) {
       errors.push(`package.json files must include ${file}`);

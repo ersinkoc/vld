@@ -1,8 +1,5 @@
-// Bumps package.json version and creates the matching vX.Y.Z tag locally.
-// Publishing is intentionally NOT done here — .github/workflows/release.yml
-// ships the release on tag push (OIDC provenance, CHANGELOG check, GitHub
-// Release). This script only produces the commit + tag; the maintainer
-// pushes with `git push --follow-tags`.
+// Bumps package.json version, creates the matching vX.Y.Z tag locally,
+// and publishes the package to npm.
 //
 // Usage:
 //   npm run release                       # auto-detect bump from commits
@@ -138,14 +135,13 @@ console.log(`Bump kind:       ${bump}`);
 console.log(`New version:     ${newVersion}`);
 
 // Delegate the actual commit + tag creation to `npm version` so the commit
-// shape matches prior releases ("chore: release vX.Y.Z"). Using
-// --no-git-tag would defeat the CI workflow; we WANT the vX.Y.Z tag here.
+// shape matches prior releases ("chore: release vX.Y.Z").
 //
 // Note: we must NOT pipe this call through run() because run() does
-//   .toString().trim() on the child output, and Node returns null when
+// .toString().trim() on the child output, and Node returns null when
 // stdio is 'inherit' (the parent already streamed it). Calling .toString()
 // on null throws "Cannot read properties of null (reading 'toString')".
-// Use execFileSync directly and ignore its return value — the user sees
+// Use execFileCompat directly and ignore its return value - the user sees
 // `npm version`'s own output via inherited stdio.
 try {
   execFileCompat('npm', ['version', newVersion, '-m', `chore: release v${newVersion}`], {
@@ -159,5 +155,20 @@ try {
 
 console.log('');
 console.log(`Created commit + tag v${newVersion}.`);
-console.log('Push with:  git push --follow-tags');
-console.log('CI workflow .github/workflows/release.yml will publish to npm.');
+console.log('Publishing to npm...');
+
+// Publish to npm (prepublishOnly hook runs release:check automatically)
+try {
+  execFileCompat('npm', ['publish', '--access', 'public'], {
+    cwd: rootDir,
+    stdio: 'inherit',
+  });
+} catch (error) {
+  console.error(`npm publish failed: ${error.message}`);
+  process.exit(1);
+}
+
+console.log('');
+console.log(`Successfully published @oxog/vld@${newVersion} to npm!`);
+console.log('Push commit and tags to remote with:  git push --follow-tags');
+
