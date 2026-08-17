@@ -326,7 +326,7 @@ export const standardProps = (schema: unknown): object => {
   return {
     validate: (value: unknown) => {
       const result = base.safeParse!(value);
-      if (result.success) return { value };
+      if (result.success) return { value: result.data };
       return { issues: [{ message: result.error?.message ?? 'Invalid input' }] };
     },
     vendor: 'vld',

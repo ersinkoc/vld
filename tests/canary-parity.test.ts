@@ -353,16 +353,19 @@ describe('v4/core canary additions', () => {
     expect(Array.isArray((bad as { issues: unknown[] }).issues)).toBe(true);
   });
 
-  it('standardProps.validate returns the original input, not the schema parsed output', () => {
-    // For a transforming validator the Standard Schema v1 contract is that
-    // success returns { value: <original input> }. The schema's parsed output
-    // is exposed through a separate "output" view, not the validate result.
+  it('standardProps.validate returns the schema parsed output, matching the Standard Schema v1 contract', () => {
+    // The repo's own ~standard getter (src/validators/base.ts:~standard) and
+    // the StandardSchemaV1SuccessResult<Output> spec both return the
+    // schema's parsed output on success ({ value: Output }). The shim must
+    // behave identically so consumers (form libs, Standard Schema tooling)
+    // see the same value whether they use VldBase['~standard'] or
+    // v4/core.standardProps(schema).
     const schema = v.pipe(v.string(), v.transform(s => s.length));
     const props = core.standardProps(schema) as {
       validate: (value: unknown) => { value?: unknown; issues?: unknown[] };
     };
     const result = props.validate('hello');
-    expect((result as { value: unknown }).value).toBe('hello');
+    expect((result as { value: number }).value).toBe(5);
   });
 
   it('handleUnrepresentable honors each configured behavior', () => {
