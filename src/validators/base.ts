@@ -180,7 +180,7 @@ export function resolveErrorMessage(error: ErrorParam | undefined, fallback: str
   return fallback;
 }
 
-function isPromiseLike<T = unknown>(value: unknown): value is PromiseLike<T> {
+export function isPromiseLike<T = unknown>(value: unknown): value is PromiseLike<T> {
   return value !== null &&
     (typeof value === 'object' || typeof value === 'function') &&
     typeof (value as { then?: unknown }).then === 'function';
@@ -434,17 +434,17 @@ export abstract class VldBase<TInput, TOutput = TInput> {
    */
   refine<TRefined extends TOutput>(
     predicate: (value: TOutput) => value is TRefined,
-    message?: string
+    message?: ErrorParam
   ): VldRefine<TInput, TOutput, TRefined>;
   refine(
     predicate: (value: TOutput) => boolean | Promise<boolean>,
-    message?: string
+    message?: ErrorParam
   ): VldRefine<TInput, TOutput, TOutput>;
   refine(
     predicate: (value: TOutput) => boolean | Promise<boolean>,
-    message?: string
+    message?: ErrorParam
   ): VldRefine<TInput, TOutput, TOutput> {
-    return new VldRefine(this, predicate, message);
+    return new VldRefine(this, predicate, resolveErrorMessage(message, 'Refinement check failed'));
   }
 
   /**
@@ -641,17 +641,17 @@ export abstract class VldBase<TInput, TOutput = TInput> {
    */
   check<TRefined extends TOutput>(
     predicate: (value: TOutput) => value is TRefined,
-    message?: string
+    message?: ErrorParam
   ): VldRefine<TInput, TOutput, TRefined>;
   check(
     predicate: (value: TOutput) => boolean | Promise<boolean>,
-    message?: string
+    message?: ErrorParam
   ): VldRefine<TInput, TOutput, TOutput>;
   check(
     predicate: (value: TOutput) => boolean | Promise<boolean>,
-    message?: string
+    message?: ErrorParam
   ): VldRefine<TInput, TOutput, TOutput> {
-    return new VldRefine(this, predicate, message);
+    return this.refine(predicate, message);
   }
 
   /**
@@ -824,12 +824,15 @@ export class VldBrand<TInput, TOutput, TBrand extends string> extends VldBase<
  * Refine validator - adds custom validation
  */
 export class VldRefine<TInput, TBase, TOutput extends TBase = TBase> extends VldBase<TInput, TOutput> {
+  private readonly customMessage: string;
+
   constructor(
     private readonly baseValidator: VldBase<TInput, TBase>,
     private readonly predicate: (value: TBase) => boolean | Promise<boolean>,
-    private readonly customMessage?: string
+    customMessage?: string
   ) {
     super(VLD_VALIDATOR_TYPES.REFINE);
+    this.customMessage = customMessage || 'Refinement check failed';
   }
   
   parse(value: unknown): TOutput {
@@ -841,7 +844,7 @@ export class VldRefine<TInput, TBase, TOutput extends TBase = TBase> extends Vld
     }
 
     if (!passed) {
-      throw new Error(this.customMessage || 'Refinement check failed');
+      throw new Error(this.customMessage);
     }
     
     return baseResult as TOutput;
@@ -858,9 +861,159 @@ export class VldRefine<TInput, TBase, TOutput extends TBase = TBase> extends Vld
   override async parseAsync(value: unknown): Promise<TOutput> {
     const baseResult = await this.baseValidator.parseAsync(value);
     if (!await this.predicate(baseResult)) {
-      throw new Error(this.customMessage || 'Refinement check failed');
+      throw new Error(this.customMessage);
     }
     return baseResult as TOutput;
+  }
+
+  private _wrap(nextBase: any): any {
+    return new VldRefine(nextBase, this.predicate, this.customMessage);
+  }
+
+  // Common constraint methods
+  min(length: number | Date | bigint | any, message?: ErrorParam): this {
+    return this._wrap((this.baseValidator as any).min?.(length, message) ?? this.baseValidator);
+  }
+  max(length: number | Date | bigint | any, message?: ErrorParam): this {
+    return this._wrap((this.baseValidator as any).max?.(length, message) ?? this.baseValidator);
+  }
+  length(length: number, message?: ErrorParam): this {
+    return this._wrap((this.baseValidator as any).length?.(length, message) ?? this.baseValidator);
+  }
+  email(message?: ErrorParam): this {
+    return this._wrap((this.baseValidator as any).email?.(message) ?? this.baseValidator);
+  }
+  url(message?: ErrorParam): this {
+    return this._wrap((this.baseValidator as any).url?.(message) ?? this.baseValidator);
+  }
+  uuid(message?: ErrorParam): this {
+    return this._wrap((this.baseValidator as any).uuid?.(message) ?? this.baseValidator);
+  }
+  regex(pattern: RegExp, message?: ErrorParam): this {
+    return this._wrap((this.baseValidator as any).regex?.(pattern, message) ?? this.baseValidator);
+  }
+  startsWith(str: string, message?: ErrorParam): this {
+    return this._wrap((this.baseValidator as any).startsWith?.(str, message) ?? this.baseValidator);
+  }
+  endsWith(str: string, message?: ErrorParam): this {
+    return this._wrap((this.baseValidator as any).endsWith?.(str, message) ?? this.baseValidator);
+  }
+  includes(str: string, message?: ErrorParam): this {
+    return this._wrap((this.baseValidator as any).includes?.(str, message) ?? this.baseValidator);
+  }
+  ip(message?: ErrorParam): this {
+    return this._wrap((this.baseValidator as any).ip?.(message) ?? this.baseValidator);
+  }
+  ipv4(message?: ErrorParam): this {
+    return this._wrap((this.baseValidator as any).ipv4?.(message) ?? this.baseValidator);
+  }
+  ipv6(message?: ErrorParam): this {
+    return this._wrap((this.baseValidator as any).ipv6?.(message) ?? this.baseValidator);
+  }
+  nonempty(message?: ErrorParam): this {
+    return this._wrap((this.baseValidator as any).nonempty?.(message) ?? this.baseValidator);
+  }
+  trim(): this {
+    return this._wrap((this.baseValidator as any).trim?.() ?? this.baseValidator);
+  }
+  toLowerCase(): this {
+    return this._wrap((this.baseValidator as any).toLowerCase?.() ?? this.baseValidator);
+  }
+  lowercase(): this {
+    return this.toLowerCase();
+  }
+  toUpperCase(): this {
+    return this._wrap((this.baseValidator as any).toUpperCase?.() ?? this.baseValidator);
+  }
+  uppercase(): this {
+    return this.toUpperCase();
+  }
+
+  // Number / BigInt methods
+  positive(message?: ErrorParam): this {
+    return this._wrap((this.baseValidator as any).positive?.(message) ?? this.baseValidator);
+  }
+  negative(message?: ErrorParam): this {
+    return this._wrap((this.baseValidator as any).negative?.(message) ?? this.baseValidator);
+  }
+  nonnegative(message?: ErrorParam): this {
+    return this._wrap((this.baseValidator as any).nonnegative?.(message) ?? this.baseValidator);
+  }
+  nonpositive(message?: ErrorParam): this {
+    return this._wrap((this.baseValidator as any).nonpositive?.(message) ?? this.baseValidator);
+  }
+  int(message?: ErrorParam): this {
+    return this._wrap((this.baseValidator as any).int?.(message) ?? this.baseValidator);
+  }
+  finite(message?: ErrorParam): this {
+    return this._wrap((this.baseValidator as any).finite?.(message) ?? this.baseValidator);
+  }
+  safe(message?: ErrorParam): this {
+    return this._wrap((this.baseValidator as any).safe?.(message) ?? this.baseValidator);
+  }
+  multipleOf(value: number, message?: ErrorParam): this {
+    return this._wrap((this.baseValidator as any).multipleOf?.(value, message) ?? this.baseValidator);
+  }
+  step(value: number, message?: ErrorParam): this {
+    return this._wrap((this.baseValidator as any).step?.(value, message) ?? this.baseValidator);
+  }
+  gt(value: any, message?: ErrorParam): this {
+    return this._wrap((this.baseValidator as any).gt?.(value, message) ?? this.baseValidator);
+  }
+  gte(value: any, message?: ErrorParam): this {
+    return this._wrap((this.baseValidator as any).gte?.(value, message) ?? this.baseValidator);
+  }
+  lt(value: any, message?: ErrorParam): this {
+    return this._wrap((this.baseValidator as any).lt?.(value, message) ?? this.baseValidator);
+  }
+  lte(value: any, message?: ErrorParam): this {
+    return this._wrap((this.baseValidator as any).lte?.(value, message) ?? this.baseValidator);
+  }
+
+  // Object methods
+  extend<U extends Record<string, any>>(extension: { [K in keyof U]: VldBase<unknown, U[K]> }): any {
+    return this._wrap((this.baseValidator as any).extend?.(extension) ?? this.baseValidator);
+  }
+  merge(other: any): any {
+    return this._wrap((this.baseValidator as any).merge?.(other) ?? this.baseValidator);
+  }
+  pick<K extends keyof TOutput>(...keys: K[]): any {
+    return this._wrap((this.baseValidator as any).pick?.(...keys) ?? this.baseValidator);
+  }
+  omit<K extends keyof TOutput>(...keys: K[]): any {
+    return this._wrap((this.baseValidator as any).omit?.(...keys) ?? this.baseValidator);
+  }
+  partial(): any {
+    return this._wrap((this.baseValidator as any).partial?.() ?? this.baseValidator);
+  }
+  required(): any {
+    return this._wrap((this.baseValidator as any).required?.() ?? this.baseValidator);
+  }
+  strict(message?: ErrorParam): this {
+    return this._wrap((this.baseValidator as any).strict?.(message) ?? this.baseValidator);
+  }
+  passthrough(): this {
+    return this._wrap((this.baseValidator as any).passthrough?.() ?? this.baseValidator);
+  }
+  strip(): this {
+    return this._wrap((this.baseValidator as any).strip?.() ?? this.baseValidator);
+  }
+  catchall(validator: any): this {
+    return this._wrap((this.baseValidator as any).catchall?.(validator) ?? this.baseValidator);
+  }
+  get shape(): any {
+    return (this.baseValidator as any).shape;
+  }
+  get keyof(): any {
+    return (this.baseValidator as any).keyof;
+  }
+
+  // Array methods
+  unwrap(): any {
+    return (this.baseValidator as any).unwrap ? (this.baseValidator as any).unwrap() : this.baseValidator;
+  }
+  get element(): any {
+    return (this.baseValidator as any).element;
   }
 }
 
@@ -1330,6 +1483,156 @@ export class VldSuperRefine<TInput, TOutput> extends VldBase<TInput, TOutput> {
     } catch (error) {
       return { success: false, error: error as Error };
     }
+  }
+
+  private _wrap(nextInner: any): any {
+    return new VldSuperRefine(nextInner, this._refinement);
+  }
+
+  // Common constraint methods
+  min(length: number | Date | bigint | any, message?: ErrorParam): this {
+    return this._wrap((this._inner as any).min?.(length, message) ?? this._inner);
+  }
+  max(length: number | Date | bigint | any, message?: ErrorParam): this {
+    return this._wrap((this._inner as any).max?.(length, message) ?? this._inner);
+  }
+  length(length: number, message?: ErrorParam): this {
+    return this._wrap((this._inner as any).length?.(length, message) ?? this._inner);
+  }
+  email(message?: ErrorParam): this {
+    return this._wrap((this._inner as any).email?.(message) ?? this._inner);
+  }
+  url(message?: ErrorParam): this {
+    return this._wrap((this._inner as any).url?.(message) ?? this._inner);
+  }
+  uuid(message?: ErrorParam): this {
+    return this._wrap((this._inner as any).uuid?.(message) ?? this._inner);
+  }
+  regex(pattern: RegExp, message?: ErrorParam): this {
+    return this._wrap((this._inner as any).regex?.(pattern, message) ?? this._inner);
+  }
+  startsWith(str: string, message?: ErrorParam): this {
+    return this._wrap((this._inner as any).startsWith?.(str, message) ?? this._inner);
+  }
+  endsWith(str: string, message?: ErrorParam): this {
+    return this._wrap((this._inner as any).endsWith?.(str, message) ?? this._inner);
+  }
+  includes(str: string, message?: ErrorParam): this {
+    return this._wrap((this._inner as any).includes?.(str, message) ?? this._inner);
+  }
+  ip(message?: ErrorParam): this {
+    return this._wrap((this._inner as any).ip?.(message) ?? this._inner);
+  }
+  ipv4(message?: ErrorParam): this {
+    return this._wrap((this._inner as any).ipv4?.(message) ?? this._inner);
+  }
+  ipv6(message?: ErrorParam): this {
+    return this._wrap((this._inner as any).ipv6?.(message) ?? this._inner);
+  }
+  nonempty(message?: ErrorParam): this {
+    return this._wrap((this._inner as any).nonempty?.(message) ?? this._inner);
+  }
+  trim(): this {
+    return this._wrap((this._inner as any).trim?.() ?? this._inner);
+  }
+  toLowerCase(): this {
+    return this._wrap((this._inner as any).toLowerCase?.() ?? this._inner);
+  }
+  lowercase(): this {
+    return this.toLowerCase();
+  }
+  toUpperCase(): this {
+    return this._wrap((this._inner as any).toUpperCase?.() ?? this._inner);
+  }
+  uppercase(): this {
+    return this.toUpperCase();
+  }
+
+  // Number / BigInt methods
+  positive(message?: ErrorParam): this {
+    return this._wrap((this._inner as any).positive?.(message) ?? this._inner);
+  }
+  negative(message?: ErrorParam): this {
+    return this._wrap((this._inner as any).negative?.(message) ?? this._inner);
+  }
+  nonnegative(message?: ErrorParam): this {
+    return this._wrap((this._inner as any).nonnegative?.(message) ?? this._inner);
+  }
+  nonpositive(message?: ErrorParam): this {
+    return this._wrap((this._inner as any).nonpositive?.(message) ?? this._inner);
+  }
+  int(message?: ErrorParam): this {
+    return this._wrap((this._inner as any).int?.(message) ?? this._inner);
+  }
+  finite(message?: ErrorParam): this {
+    return this._wrap((this._inner as any).finite?.(message) ?? this._inner);
+  }
+  safe(message?: ErrorParam): this {
+    return this._wrap((this._inner as any).safe?.(message) ?? this._inner);
+  }
+  multipleOf(value: number, message?: ErrorParam): this {
+    return this._wrap((this._inner as any).multipleOf?.(value, message) ?? this._inner);
+  }
+  step(value: number, message?: ErrorParam): this {
+    return this._wrap((this._inner as any).step?.(value, message) ?? this._inner);
+  }
+  gt(value: any, message?: ErrorParam): this {
+    return this._wrap((this._inner as any).gt?.(value, message) ?? this._inner);
+  }
+  gte(value: any, message?: ErrorParam): this {
+    return this._wrap((this._inner as any).gte?.(value, message) ?? this._inner);
+  }
+  lt(value: any, message?: ErrorParam): this {
+    return this._wrap((this._inner as any).lt?.(value, message) ?? this._inner);
+  }
+  lte(value: any, message?: ErrorParam): this {
+    return this._wrap((this._inner as any).lte?.(value, message) ?? this._inner);
+  }
+
+  // Object methods
+  extend<U extends Record<string, any>>(extension: { [K in keyof U]: VldBase<unknown, U[K]> }): any {
+    return this._wrap((this._inner as any).extend?.(extension) ?? this._inner);
+  }
+  merge(other: any): any {
+    return this._wrap((this._inner as any).merge?.(other) ?? this._inner);
+  }
+  pick<K extends keyof TOutput>(...keys: K[]): any {
+    return this._wrap((this._inner as any).pick?.(...keys) ?? this._inner);
+  }
+  omit<K extends keyof TOutput>(...keys: K[]): any {
+    return this._wrap((this._inner as any).omit?.(...keys) ?? this._inner);
+  }
+  partial(): any {
+    return this._wrap((this._inner as any).partial?.() ?? this._inner);
+  }
+  required(): any {
+    return this._wrap((this._inner as any).required?.() ?? this._inner);
+  }
+  strict(message?: ErrorParam): this {
+    return this._wrap((this._inner as any).strict?.(message) ?? this._inner);
+  }
+  passthrough(): this {
+    return this._wrap((this._inner as any).passthrough?.() ?? this._inner);
+  }
+  strip(): this {
+    return this._wrap((this._inner as any).strip?.() ?? this._inner);
+  }
+  catchall(validator: any): this {
+    return this._wrap((this._inner as any).catchall?.(validator) ?? this._inner);
+  }
+  get shape(): any {
+    return (this._inner as any).shape;
+  }
+  get keyof(): any {
+    return (this._inner as any).keyof;
+  }
+
+  // Array methods
+  unwrap(): any {
+    return (this._inner as any).unwrap ? (this._inner as any).unwrap() : this._inner;
+  }
+  get element(): any {
+    return (this._inner as any).element;
   }
 }
 
