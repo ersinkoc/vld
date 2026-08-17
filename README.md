@@ -2,9 +2,7 @@
 
 [![NPM Version](https://img.shields.io/npm/v/@oxog/vld.svg)](https://www.npmjs.com/package/@oxog/vld) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/) [![Zero Dependencies](https://img.shields.io/badge/Dependencies-0-green.svg)](package.json) [![Test Coverage](https://img.shields.io/badge/Coverage-100%25-brightgreen.svg)](package.json) [![Website](https://img.shields.io/badge/Website-vld.oxog.dev-6366f1.svg)](https://vld.oxog.dev)
 
-VLD is an ultra-fast, type-safe schema validation library for TypeScript and JavaScript with **drop-in Zod compatibility**. Built for extreme performance and developer ergonomics, it delivers full static type inference, zero runtime dependencies, and built-in internationalization across 27+ languages.
-
-🌐 **Website & Live Playground**: [https://vld.oxog.dev](https://vld.oxog.dev)
+**Website & Live Playground**: [https://vld.oxog.dev](https://vld.oxog.dev)
 
 ---
 
@@ -412,4 +410,4 @@ Contributions are warmly welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) 
 
 ---
 
-Made with ❤️ by [Ersin KOC](https://github.com/ersinkoc)
+Made with Love by [Ersin KOC](https://github.com/ersinkoc)

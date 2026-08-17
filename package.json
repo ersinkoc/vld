@@ -157,6 +157,7 @@
     "verify:package": "node scripts/verify-package.cjs",
     "verify:security": "node scripts/verify-security.cjs",
     "verify:types": "node scripts/verify-types.cjs",
+    "verify:zod": "node scripts/verify-zod-parity.cjs",
     "test": "jest --coverage",
     "test:types": "tsc --noEmit",
     "benchmark": "npm run build && node benchmarks/quick-bench.cjs",
