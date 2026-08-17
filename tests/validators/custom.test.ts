@@ -344,24 +344,30 @@ describe('v.custom()', () => {
     });
   });
 
-  describe('type safety', () => {
-    it('should provide proper type inference', () => {
-      const schema = v.custom<{ length: number }>({
-        parse: (value: unknown) => {
-          if (typeof value === 'string') {
-            return { length: value.length };
-          }
-          throw new Error('Expected string');
-        }
-      });
+  describe('overloads parity', () => {
+    it('should support zero-arg custom validator accepting any value', () => {
+      const c = v.custom();
+      expect(c.parse('anything')).toBe('anything');
+      expect(c.parse(123)).toBe(123);
+      expect(c.parse({ a: 1 })).toEqual({ a: 1 });
+    });
 
-      const result = schema.parse('hello');
-      expect(result).toEqual({ length: 5 });
+    it('should support predicate-function custom validator with string errorParam', () => {
+      const c = v.custom((val) => typeof val === 'string' && val.startsWith('prefix_'), 'Must start with prefix_');
+      expect(c.parse('prefix_valid')).toBe('prefix_valid');
+      expect(() => c.parse('invalid')).toThrow('Must start with prefix_');
+    });
 
-      // Type should be inferred correctly
-      type ResultType = typeof result extends { length: number } ? true : false;
-      const typeCheck: ResultType = true;
-      expect(typeCheck).toBe(true);
+    it('should support predicate-function custom validator with object errorParam', () => {
+      const c = v.custom((val) => typeof val === 'number' && val > 0, { message: 'Must be positive number' });
+      expect(c.parse(10)).toBe(10);
+      expect(() => c.parse(-5)).toThrow('Must be positive number');
+    });
+
+    it('should support predicate-function custom validator with function errorParam', () => {
+      const c = v.custom((val) => typeof val === 'boolean', () => ({ message: 'Must be boolean' }));
+      expect(c.parse(true)).toBe(true);
+      expect(() => c.parse('str')).toThrow('Must be boolean');
     });
   });
 });

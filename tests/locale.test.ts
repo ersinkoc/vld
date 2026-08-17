@@ -434,8 +434,8 @@ describe('Locale System Tests', () => {
       });
       
       expect(result.success).toBe(false);
-      const err = result as { success: false; error: Error };
-      expect(err.error.message).toContain('Ungültiges');
+      const err = result as { success: false; error: any };
+      expect(err.error.issues.some((i: any) => i.message.includes('Ungültiges'))).toBe(true);
     });
 
     it('should preserve custom messages over locale messages', () => {

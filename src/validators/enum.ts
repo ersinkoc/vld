@@ -154,14 +154,14 @@ export class VldEnum<T extends readonly [EnumValue, ...EnumValue[]]> extends Vld
    * Exclude specific values from the enum
    * Creates a new enum validator without the specified values
    */
-  exclude<const E extends readonly EnumValue[]>(...excludeValues: E): VldEnum<
-    T[number] extends E[number] ? never : T[number] extends Exclude<T[number], E[number]> ? T : Exclude<T, E>
-  > {
-    const filtered = this._values.filter(v => !excludeValues.includes(v));
+  exclude<const E extends readonly EnumValue[]>(values: E): VldEnum<any>;
+  exclude<const E extends readonly EnumValue[]>(...values: E): VldEnum<any>;
+  exclude(...args: any[]): any {
+    const excludeList = (args.length === 1 && Array.isArray(args[0])) ? args[0] : args;
+    const filtered = this._values.filter(v => !excludeList.includes(v));
     if (filtered.length === 0) {
       throw new Error('Cannot exclude all enum values');
     }
-    // Type assertion needed because TypeScript can't guarantee the filtered array maintains the required type
     return new VldEnum(filtered as any, this.errorMessage);
   }
 
@@ -169,12 +169,14 @@ export class VldEnum<T extends readonly [EnumValue, ...EnumValue[]]> extends Vld
    * Extract specific values from the enum
    * Creates a new enum validator with only the specified values
    */
-  extract<const E extends readonly EnumValue[]>(...extractValues: E): VldEnum<[E[number], ...E[number][]]> {
-    const extracted = this._values.filter(v => extractValues.includes(v));
+  extract<const E extends readonly EnumValue[]>(values: E): VldEnum<any>;
+  extract<const E extends readonly EnumValue[]>(...values: E): VldEnum<any>;
+  extract(...args: any[]): any {
+    const extractList = (args.length === 1 && Array.isArray(args[0])) ? args[0] : args;
+    const extracted = this._values.filter(v => extractList.includes(v));
     if (extracted.length === 0) {
       throw new Error('Cannot extract non-existent enum values');
     }
-    // Type assertion needed because TypeScript can't guarantee the extracted array has the required type
     return new VldEnum(extracted as any, this.errorMessage);
   }
 }

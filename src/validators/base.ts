@@ -719,9 +719,16 @@ export abstract class VldBase<TInput, TOutput = TInput> {
   /**
    * Get or set metadata for this schema
    */
+  meta(): SchemaMetadata | undefined;
+  meta(data: Partial<SchemaMetadata>): VldMeta<TInput, TOutput>;
   meta(data?: Partial<SchemaMetadata>): SchemaMetadata | undefined | VldMeta<TInput, TOutput> {
     if (data === undefined) {
-      return globalRegistry.get(this as unknown as VldBase<unknown, unknown>);
+      return (
+        globalRegistry.get(this as unknown as VldBase<unknown, unknown>) ??
+        ((this as any).baseValidator?.meta?.()) ??
+        ((this as any).schema?.meta?.()) ??
+        ((this as any).inner?.meta?.())
+      );
     }
     const schema = new VldMeta(this, data);
     globalRegistry.add(schema as unknown as VldBase<unknown, unknown>, data);
@@ -752,7 +759,12 @@ export abstract class VldBase<TInput, TOutput = TInput> {
   }
 
   get description(): string | undefined {
-    return this.meta()?.description;
+    return (
+      this.meta()?.description ??
+      ((this as any).baseValidator?.description) ??
+      ((this as any).schema?.description) ??
+      ((this as any).inner?.description)
+    );
   }
 }
 

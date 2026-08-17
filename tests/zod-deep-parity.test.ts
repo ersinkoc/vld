@@ -169,18 +169,58 @@ describe('Zod Deep API Parity Tests', () => {
     });
   });
 
-  describe('z.custom() and v.custom() Overloads', () => {
-    it('should support zero-arg custom validator accepting any value', () => {
-      const c = (z.custom as any)();
-      expect(c.parse('anything')).toBe('anything');
-      expect(c.parse(123)).toBe(123);
-      expect(c.parse({ a: 1 })).toEqual({ a: 1 });
+  describe('Drop-in Replacement Real-World Ergonomics', () => {
+    it('should support object.pick and omit with object mask or varargs', () => {
+      const o1 = z.object({ a: z.string(), b: z.number(), c: z.boolean() });
+      const picked = o1.pick({ a: true, c: true });
+      expect(picked.parse({ a: 'hi', c: true })).toEqual({ a: 'hi', c: true });
+
+      const omitted = o1.omit({ b: true });
+      expect(omitted.parse({ a: 'hi', c: true })).toEqual({ a: 'hi', c: true });
     });
 
-    it('should support predicate-function custom validator with custom message', () => {
-      const c = (z.custom as any)((val: any) => typeof val === 'string' && val.startsWith('prefix_'), 'Must start with prefix_');
-      expect(c.parse('prefix_valid')).toBe('prefix_valid');
-      expect(() => c.parse('invalid')).toThrow('Must start with prefix_');
+    it('should support enum extract and exclude with arrays or varargs', () => {
+      const e = z.enum(['Admin', 'User', 'Guest']);
+      const extracted = e.extract(['Admin', 'User']);
+      expect(extracted.parse('Admin')).toBe('Admin');
+      expect(() => extracted.parse('Guest' as any)).toThrow();
+
+      const excluded = e.exclude(['Guest']);
+      expect(excluded.parse('Admin')).toBe('Admin');
+      expect(() => excluded.parse('Guest' as any)).toThrow();
+    });
+
+    it('should support schema description through wrapped chains', () => {
+      const s = z.string()
+        .describe('User email')
+        .default('anonymous@example.com')
+        .catch('fallback@example.com')
+        .readonly()
+        .brand<'Email'>();
+
+      expect(s.description).toBe('User email');
+      expect(s.parse(undefined)).toBe('anonymous@example.com');
+    });
+
+    it('should correctly format and flatten nested errors across multiple fields', () => {
+      const schema = z.object({
+        name: z.string().min(3),
+        profile: z.object({
+          age: z.number().min(18)
+        })
+      });
+
+      const res = schema.safeParse({ name: 'ab', profile: { age: 10 } });
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        const fmt = res.error.format();
+        expect(fmt['name']?._errors.length).toBeGreaterThan(0);
+        expect(fmt['profile']?.['age']?._errors.length).toBeGreaterThan(0);
+
+        const flat = res.error.flatten();
+        expect(flat.fieldErrors['name']?.length).toBeGreaterThan(0);
+        expect(flat.fieldErrors['profile']?.length).toBeGreaterThan(0);
+      }
     });
   });
 });

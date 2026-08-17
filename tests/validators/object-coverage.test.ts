@@ -3,7 +3,7 @@
  * These tests target specific uncovered lines in object.ts
  */
 
-import { v } from '../../src';
+import { v, VldError } from '../../src';
 
 describe('VldObject Coverage Tests', () => {
   describe('strict mode (safeParse path)', () => {
@@ -944,6 +944,7 @@ describe('VldObject Coverage Tests', () => {
       if (!result.success) {
         expect(result.error.message).toContain('plain parse failure');
       }
+      expect(() => throwingSchema.parse({ value: 'ok' })).toThrow('plain parse failure');
     });
 
     it('should convert non-Error field lookup failures into safeParse errors', () => {
@@ -971,6 +972,30 @@ describe('VldObject Coverage Tests', () => {
       }).strict();
 
       expect(schema.safeParse({ value: 'ok', extra: true }).success).toBe(false);
+    });
+
+    it('should handle VldError directly in createSafeParseError helper', () => {
+      const schema = v.object({ a: v.string() }) as any;
+      const originalErr = new VldError([{ code: 'custom', path: ['a'], message: 'err' }]);
+      const res = schema.createSafeParseError(originalErr);
+      expect(res).toBe(originalErr);
+
+      const noPathErr = new VldError([{ code: 'custom', message: 'no path' } as any]);
+      const res2 = schema.createSafeParseError(noPathErr, 'field');
+      expect(res2.issues[0].path).toEqual(['field']);
+    });
+
+    it('should handle nested VldError with no path in parseObjectValue catch', () => {
+      const mockValidator = {
+        parse() {
+          throw new VldError([{ code: 'custom', message: 'no path' } as any]);
+        },
+        validatorType: 'custom'
+      } as any;
+      const schema = v.object({ field: mockValidator }) as any;
+      schema._simpleFieldModes[0] = undefined;
+      schema._validators[0] = mockValidator;
+      expect(() => schema.parse({ field: 'any' })).toThrow();
     });
 
     it('should allow strict objects without extra keys in the safeParse fallback path', () => {

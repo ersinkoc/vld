@@ -256,7 +256,10 @@ describe('Zod 4 parity additions', () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(formatError(result.error)).toEqual({
-        _errors: ['Invalid field "id": String must be at least 2 characters']
+        _errors: [],
+        id: {
+          _errors: ['Invalid field "id": String must be at least 2 characters']
+        }
       });
       expect(result.error).toBeInstanceOf(VldError);
       const vldError = result.error as VldError;
