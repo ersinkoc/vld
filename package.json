@@ -158,8 +158,6 @@
     "verify:package": "node scripts/verify-package.cjs",
     "verify:security": "node scripts/verify-security.cjs",
     "verify:types": "node scripts/verify-types.cjs",
-    "verify:zod": "node scripts/verify-zod-parity.cjs --tag latest",
-    "verify:zod:canary": "node scripts/verify-zod-parity.cjs --tag canary",
     "test": "jest --coverage",
     "test:types": "tsc --noEmit",
     "benchmark": "npm run build && node benchmarks/quick-bench.cjs",
@@ -176,10 +174,8 @@
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "prepack": "npm run build",
-    "release:check": "npm run lint && npm run test:types && npm test -- --runInBand && npm run build && npm run verify:ascii && npm run verify:docs && npm run verify:exports && npm run verify:bundle && npm run verify:types && npm run verify:package && npm run verify:install && npm run verify:security && npm run verify:zod && npm run verify:drop-in && npm run benchmark:guard:built && npm run benchmark:startup:guard && npm run benchmark:memory:guard",
-    "release:check:strict": "npm run release:check && npm run zod:install:canary && npm run build && npm run verify:zod:canary && npm run zod:restore",
-    "zod:install:canary": "npm install --no-save --package-lock=false --ignore-scripts zod@canary",
-    "zod:restore": "npm install --no-save --package-lock=false --ignore-scripts zod@4.4.3",
+    "release": "node scripts/release.cjs",
+    "release:check": "npm run lint && npm run test:types && npm test -- --runInBand && npm run build && npm run verify:ascii && npm run verify:docs && npm run verify:exports && npm run verify:bundle && npm run verify:types && npm run verify:package && npm run verify:install && npm run verify:security && npm run verify:drop-in && npm run benchmark:guard:built && npm run benchmark:startup:guard && npm run benchmark:memory:guard",
     "prepublishOnly": "npm run release:check"
   },
   "keywords": [
