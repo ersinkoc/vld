@@ -1,277 +1,25 @@
-# VLD - Fast & Lightweight TypeScript Validation Library
+# VLD - Ultra-Fast TypeScript Validation Library
 
 [![NPM Version](https://img.shields.io/npm/v/@oxog/vld.svg)](https://www.npmjs.com/package/@oxog/vld) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/) [![Zero Dependencies](https://img.shields.io/badge/Dependencies-0-green.svg)](package.json) [![Test Coverage](https://img.shields.io/badge/Coverage-100%25-brightgreen.svg)](package.json) [![Website](https://img.shields.io/badge/Website-vld.oxog.dev-6366f1.svg)](https://vld.oxog.dev)
 
-VLD is a blazing-fast, type-safe validation library for TypeScript and JavaScript with **Zod-compatible root and subpath APIs**. Built with performance in mind, it provides a simple and intuitive API while maintaining excellent type inference and 27+ language internationalization support.
+VLD is an ultra-fast, type-safe schema validation library for TypeScript and JavaScript with **drop-in Zod compatibility**. Built for extreme performance and developer ergonomics, it delivers full static type inference, zero runtime dependencies, and built-in internationalization across 27+ languages.
 
 🌐 **Website & Live Playground**: [https://vld.oxog.dev](https://vld.oxog.dev)
 
-## Table of Contents
+---
 
-- [Features](#features)
-- [Performance](#performance)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [API Reference](#api-reference)
-- [Internationalization (i18n)](#internationalization-i18n)
-- [Error Handling & Formatting](#error-handling--formatting)
-- [Advanced Examples](#advanced-examples)
-- [Codecs - Bidirectional Transformations](#codecs---bidirectional-transformations)
-- [Plugin System](#plugin-system)
-- [Result Pattern](#result-pattern)
-- [CLI Tools](#cli-tools)
-- [Logger & Colored Output](#logger--colored-output)
-- [VLD vs. Zod](#vld-vs-zod)
-- [Benchmarks](#benchmarks)
-- [Contributing](#contributing)
-- [Links](#links)
+## Highlights
 
-## Features
+- **Release-Gated Speed**: 11x+ faster runtime throughput and 4.7x+ less memory consumption compared to Zod.
+- **Zero Dependencies**: Pure TypeScript/JavaScript with zero third-party runtime bloat.
+- **Drop-in Zod Compatibility**: Swap imports directly or use subpaths (`@oxog/vld/v4`, `@oxog/vld/mini`, `@oxog/vld/v4/core`, `@oxog/vld/v4/locales`).
+- **Full Static Inference**: Automatic type extraction using `v.infer<typeof schema>`.
+- **Tree-Shakeable Mini API**: Build hyper-optimized bundles with `@oxog/vld/mini`.
+- **Built-in i18n**: Out-of-the-box error localization for 27+ languages with lazy-loading support (`@oxog/vld/locales/lazy`).
+- **Result Pattern & Codecs**: Functional error handling (`tryCatch`, `match`, `Ok`, `Err`) and bidirectional data transformations.
+- **100% Test Coverage**: Verified across 2500+ tests and drop-in TypeScript application suites.
 
-### Core Features
-- **Blazing Fast**: Optimized for V8 engine with superior performance
-- **Type-Safe**: Full TypeScript support with excellent type inference
-- **Zero Dependencies**: Lightweight with no external dependencies
-- **Tree-Shakeable**: Only import what you need
-- **Composable**: Chain validations for complex schemas
-- **Advanced Error Formatting**: Tree, pretty, and flatten error utilities
-- **Multi-language**: Built-in support for 27+ languages
-- **100% Statement / Branch / Function / Line Coverage**: Rigorously tested with 2502 passing tests
-- **Release-Gated Performance**: CI guards require VLD to stay faster than the latest stable Zod across runtime, startup, and memory benchmarks
-- **Drop-in App Verification**: A real TypeScript fixture is compiled and run once with `zod` and once with built VLD, then normalized runtime output is compared
-- **Audited Compatibility Contract**: Modern Zod 4.4.3 factory signatures, schema direction methods, release-fix behaviors, and JSON Schema defaults are differential-tested; see [the compatibility policy](docs/ZOD_COMPATIBILITY.md)
-
-### Advanced Zod-Compatible Features
-- **Type Coercion**: `v.coerce.string()`, `v.coerce.number()`, `v.coerce.boolean()`, etc.
-- **Advanced Types**: BigInt, Symbol, Tuple, Record, Set, Map validation
-- **Intersection Types**: Combine multiple schemas with intelligent merging
-- **Custom Validation**: `refine()` for custom predicates and validation logic
-- **Data Transformation**: `transform()` for post-validation data transformation
-- **Default Values**: `default()` for handling undefined inputs elegantly
-- **Fallback Handling**: `catch()` for graceful error recovery
-- **Object Utilities**: `pick()`, `omit()`, `extend()` for flexible object schemas
-
-### New in v2.2.x - Error Parity, Live Playground, and Minified Builds
-
-#### Live Documentation & In-Browser Playground (v2.2.5)
-- **Interactive Documentation**: Available at [https://vld.oxog.dev](https://vld.oxog.dev) with full API reference, examples, and benchmark comparisons.
-- **In-Browser Playground Engine**: Test and inspect live TypeScript schemas with real VLD execution directly at [vld.oxog.dev/playground](https://vld.oxog.dev/playground).
-- **SPA GitHub Pages Routing**: Full SPA subpath navigation and refresh support with custom domain `vld.oxog.dev`.
-
-#### Zod 4-Compatible Error Issues
-Validation failures now carry Zod 4's structured issue shape, so error-handling code ports across unchanged:
-- `invalid_type` issues expose `expected` and `received` and use the `"Invalid input: expected X, received Y"` message format
-- `too_small` / `too_big` issues expose `minimum`, `maximum`, `origin`, and `inclusive`
-- `invalid_format` issues expose `format`, `origin`, and `pattern`; `invalid_value` issues expose a `values` array
-- `parse()` throws `VldError` (which extends `Error`) for every validator, matching Zod's throw behavior
-
-#### New Parity Helpers
-```typescript
-import { v, deepPartial, input, output } from '@oxog/vld';
-
-v.creditCard().parse('4242424242424242');   // regex plus Luhn checksum
-
-const schema = v.object({
-  profile: v.object({ name: v.string(), age: v.number() })
-});
-
-const draft = deepPartial(schema);      // every nested field optional
-const inputSide = input(schema);        // input-side view of a pipe
-const outputSide = output(schema);      // output-side view of a pipe
-```
-- `deepPartial()` walks children first, mirroring Zod's `visit.js` ordering, and stays cycle-safe through lazy deferral
-- `input()` / `output()` resolve pipe direction the way Zod's root helpers do
-- `@oxog/vld/v4/core` gained the matching `_creditCard`, `isValidCreditCard`, `standardProps`, `handleUnrepresentable`, `$ZodCyclicError`, `attachMemoizer`, and `isBackEdge` shims
-
-#### Minified Release Builds
-- Release artifacts ship minified by default (opt out with `VLD_MINIFY=0`)
-- Mangling preserves `/^Vld/` class names, because JSON Schema conversion dispatches on `schema.constructor.name`
-- A built-CJS guard in `verify:drop-in` asserts name-dispatched composites against the minified bundle, so this can never silently regress again
-
-### NEW in v2.0.0 - Modular Architecture
-
-#### Tree-Shakable Mini API
-```typescript
-import { string, number, object, optional } from '@oxog/vld/mini';
-
-const schema = object({
-  name: string().min(1),
-  age: optional(number().positive()),
-});
-```
-- **82% smaller bundles** when using only needed validators
-- Individual factory functions for optimal tree-shaking
-- Full TypeScript support with identical type inference
-
-#### Lazy Locale Loading
-
-> **Bundle-size contract:** the lazy entrypoint is published as
-> `@oxog/vld/locales/lazy` (`src/locales/lazy.ts`). It uses dynamic `import()`
-> for each locale on first use, so tree-shaken bundles ship **only English by
-> default**. Importing the plain `@oxog/vld/locales` subpath (or the root
-> `@oxog/vld` package) eagerly pulls every locale into the graph; pick the
-> `lazy` subpath if you only need one or two languages in production.
-
-```typescript
-import { setLocaleAsync, preloadLocales } from '@oxog/vld/locales/lazy';
-
-// First call loads the locale on demand; subsequent calls hit the cache.
-await setLocaleAsync('tr');
-
-// SSR / batch warm-up: preload what you need before serving traffic.
-await preloadLocales(['en', 'de', 'ja']);
-```
-- **92% bundle reduction** when you only ship English plus the locales you pre-load
-- `setLocaleAsync()` is true async dynamic-import, not a sync wrapper
-- `preloadLocales()` for SSR/batch loading
-- Backwards-compatible `setLocale()` is still available on the eager entrypoint
-
-#### Dual ESM/CJS Build
-- ESM builds for modern bundlers (Vite, esbuild)
-- CJS builds for Node.js and legacy environments
-- Proper `exports` field with conditional exports
-
-### NEW in v1.5.0 - Major Platform Release
-
-#### Plugin System
-- **`definePlugin()`**: Create custom plugins with validators, transforms, and codecs
-- **`usePlugin()`**: Register plugins globally
-- **Plugin Hooks**: Lifecycle hooks for validation events
-- **Custom Validators**: Extend VLD with your own validators
-
-#### Result Pattern
-- **`Ok()`/`Err()`**: Functional error handling
-- **`match()`**: Pattern matching on results
-- **`map()`/`flatMap()`**: Transform results
-- **`tryCatch()`**: Safe function execution
-- **`all()`**: Combine multiple results
-
-#### Event System
-- **`createEmitter()`**: Type-safe event emitter
-- **`createEventBus()`**: Global event bus
-- **Validation Events**: Parse start, success, error, field validation
-
-#### CLI Tools
-- **`vld validate`**: Validate data from command line
-- **`vld benchmark`**: Run performance benchmarks
-- **Colored Output**: Beautiful terminal output with pigment
-
-#### New Validators
-- **`v.discriminatedUnion()`**: Discriminated union types
-- **`v.xor()`**: Exclusive OR validation
-- **`v.file()`**: File upload validation
-- **`v.function()`**: Function validation
-- **`v.custom()`**: Type-safe custom validators
-- **`v.json()`**: JSON string validation with schema
-- **`v.lazy()`**: Recursive schema support
-- **`v.nan()`**: NaN validation
-- **`v.null()`**: Null validation
-- **`v.undefined()`**: Undefined validation
-- **`v.templateLiteral()`**: Template literal types
-
-#### New String Format Validators
-- **`v.hostname()`**: Hostname validation
-- **`v.emoji()`**: Emoji validation
-- **`v.base64()`/`v.base64url()`**: Base64 format validation
-- **`v.hex()`**: Hex string validation
-- **`v.jwt()`**: JWT format validation
-- **`v.nanoid()`/`v.cuid()`/`v.cuid2()`/`v.ulid()`**: ID format validation
-- **`v.mac()`**: MAC address validation
-- **`v.cidrv4()`/`v.cidrv6()`**: CIDR block validation
-- **`v.e164()`**: E.164 phone number validation
-- **`v.hash()`**: Hash validation (md5, sha1, sha256, sha384, sha512)
-- **`v.iso.date()`/`v.iso.time()`/`v.iso.dateTime()`/`v.iso.duration()`**: ISO format validation
-
-#### Enhanced Object Utilities
-- **`v.strictObject()`**: Strict mode object validation
-- **`v.looseObject()`**: Passthrough object validation
-- **`v.partialRecord()`**: Partial record validation
-- **`v.looseRecord()`**: Loose record validation
-- **`v.int()`**: Integer shortcut
-- **`v.int32()`**: 32-bit integer shortcut
-- **`v.nullish()`**: Null or undefined
-- **`v.NEVER`**: NEVER constant for transforms (Zod 4 parity)
-
-### Codec System - Beyond Zod
-- **Bidirectional Transformations**: Full encode/decode support for data conversion
-- **19 Built-in Codecs**: String conversions, date parsing, JSON, URL, binary data
-- **Zod-Compatible**: All `stringToNumber`, `jsonCodec`, `base64ToBytes`, etc.
-- **Async Support**: Both sync and async codec operations
-- **Custom Codecs**: Create your own bidirectional transformations
-- **Type-Safe**: Full TypeScript support with perfect type inference
-
-## Performance
-
-VLD is designed for speed and efficiency with recent optimizations delivering exceptional performance:
-
-### Release-Gated Speed Benchmarks (v2.2.1 vs Zod 4.4.3)
-- Runtime guard: VLD must stay at least 1.2x faster on every guarded hot path and keep at least a 3x average ratio
-- Startup guard: cross-platform floors are 0.85x import, 0.9x total startup, and 1.25x warm parse versus Zod
-- Memory guard: VLD must keep at least 2x lower total retained heap, 1.5x higher aggregate throughput, and no guarded case below 1.1x speed
-
-### Latest Runtime Guard Snapshot
-
-Measured with `npm run benchmark:guard` (5 samples per case) against Zod 4.4.3:
-
-| Guarded case | VLD | Zod | Ratio |
-|--------------|-----|-----|-------|
-| Nullish parse | 214.1M ops/sec | 7.0M ops/sec | **30.70x** |
-| Number positive int parse | 252.9M ops/sec | 27.8M ops/sec | **9.10x** |
-| Discriminated union parse | 35.0M ops/sec | 8.6M ops/sec | **4.06x** |
-| Optional parse | 212.9M ops/sec | 56.6M ops/sec | **3.76x** |
-| Union string and number parse | 39.1M ops/sec | 11.9M ops/sec | **3.30x** |
-| Simple string parse | 620.7M ops/sec | 208.8M ops/sec | **2.97x** |
-| Array number parse | 49.2M ops/sec | 28.3M ops/sec | **1.74x** |
-| Simple object parse | 45.2M ops/sec | 27.7M ops/sec | **1.63x** |
-
-8/8 guarded cases pass with a **7.16x average ratio**. Absolute ops/sec numbers are hardware-dependent; the ratios are what the release gate enforces.
-
-### Optimizations
-- **110x improvement** in union type validation
-- **Simplified email regex** for maximum performance
-- **Inline type checks** in object validation
-- **Optimized loops** with direct array assignment
-- **SafeParse optimization** to avoid try-catch overhead
-- **Pre-computed keys** with Set for O(1) lookups
-
-### Memory Efficiency
-
-Measured with `npm run benchmark:memory` against Zod 4.4.3. Heap deltas move a few percent between runs, so treat these as approximate:
-
-- **~12.7x less memory** for schema creation
-- **~7.3x less memory** for union validation
-- **~2.9x less memory** for simple string validation
-- **~2.7x less memory** for complex object validation
-- **~5x less memory** overall
-
-### A Note on Real-World Benchmarking
-
-Many validation library benchmarks can be misleading because they often test with **reused schema instances**:
-
-```javascript
-// What benchmarks typically test (unrealistic):
-const schema = z.string();
-for (let i = 0; i < 1000000; i++) {
-  schema.parse(data); // Same instance reused
-}
-
-// What happens in real applications:
-app.post('/api/user', (req, res) => {
-  // New schema created for each request
-  const schema = z.object({
-    email: z.string().email(),
-    age: z.number().min(18)
-  });
-  schema.parse(req.body);
-});
-```
-
-When testing real-world patterns:
-- **Creating new instances**: VLD is **2000x faster** than Zod
-- **Reused instances**: Zod benefits from V8's singleton optimization
-- **Real applications**: Schemas are often created dynamically, where VLD excels
-
-Run `npm run benchmark:truth` to see the real performance difference.
+---
 
 ## Installation
 
@@ -281,1023 +29,387 @@ npm install @oxog/vld
 yarn add @oxog/vld
 # or
 pnpm add @oxog/vld
+# or
+bun add @oxog/vld
 ```
+
+---
 
 ## Quick Start
 
 ```typescript
 import { v } from '@oxog/vld';
 
-// It is recommended to import as `v` for consistency with Zod's `z`
-// and for a more concise syntax.
-
-// Define a schema
+// Define schema with chainable validations
 const userSchema = v.object({
-  name: v.string().min(2),
+  name: v.string().min(2).max(100),
   email: v.string().email(),
-  age: v.number().min(18).max(100),
-  isActive: v.boolean()
+  age: v.number().int().positive().optional(),
+  role: v.enum('admin', 'user', 'guest').default('user'),
+  tags: v.array(v.string()).min(1),
 });
 
-// Validate data
+// Infer TypeScript type
+type User = v.infer<typeof userSchema>;
+
+// Safe parsing (no throwing)
 const result = userSchema.safeParse({
   name: 'John Doe',
   email: 'john@example.com',
-  age: 25,
-  isActive: true
+  age: 28,
+  tags: ['developer', 'typescript'],
 });
 
 if (result.success) {
-  console.log('Valid user:', result.data);
+  console.log('Valid data:', result.data); // Typed as User
 } else {
-  console.log('Validation error:', result.error);
+  console.error('Validation issues:', result.error.issues);
 }
 ```
 
-For advanced error formatting:
-```typescript
-import { v, VldError, treeifyError, prettifyError, flattenError } from '@oxog/vld';
-```
+---
 
-## API Reference
+## Core Schema API
 
-### Basic Types
+### Primitive Validators
 
 ```typescript
-v.string()    // String validation
-v.number()    // Number validation
-v.int()       // Integer validation (shortcut)
-v.int32()     // 32-bit integer validation
-v.boolean()   // Boolean validation
-v.bigint()    // BigInt validation
-v.symbol()    // Symbol validation
-v.date()      // Date validation
-v.uint8array()// Uint8Array validation
-v.literal()   // Literal values
-v.enum()      // Enum values (supports TypeScript enums)
-v.any()       // Any type
-v.unknown()   // Unknown type
-v.void()      // Void type
-v.never()     // Never type
-v.null()      // Null type
-v.undefined() // Undefined type
-v.nan()       // NaN type
+v.string()          // String validation
+v.number()          // Number validation
+v.int()             // Integer validation
+v.int32()           // 32-bit integer validation
+v.boolean()         // Boolean validation
+v.bigint()          // BigInt validation
+v.date()            // Date validation
+v.symbol()          // Symbol validation
+v.uint8array()      // Uint8Array validation
+v.literal('active') // Literal value
+v.enum('admin', 'user', 'guest') // Enum values
+v.any()             // Any type
+v.unknown()         // Unknown type
+v.null()            // Null
+v.undefined()       // Undefined
+v.nullish()         // Null or undefined
+v.void()            // Void
+v.never()           // Never
 ```
 
-### Advanced Types
-
-```typescript
-// Collections
-v.array(v.string())                    // Array validation
-v.tuple(v.string(), v.number())        // Fixed-length tuple
-v.record(v.number())                   // Record/dictionary validation
-v.set(v.string())                      // Set validation
-v.map(v.string(), v.number())          // Map validation
-
-// Objects
-v.object({                             // Object schema
-  name: v.string(),
-  age: v.number()
-})
-v.strictObject({...})                  // No extra fields allowed
-v.looseObject({...})                   // Extra fields passed through
-
-// Composition
-v.union(v.string(), v.number())        // Union types
-v.intersection(schemaA, schemaB)       // Intersection types
-v.discriminatedUnion('type', ...)      // Discriminated union
-v.xor(schemaA, schemaB)               // Exclusive OR
-v.optional(v.string())                 // Optional fields
-v.nullable(v.string())                 // Nullable fields
-v.nullish(v.string())                  // Null or undefined
-```
-
-### String Validators
+### String Formats
 
 ```typescript
 v.string()
-  .min(5)                    // Minimum length
-  .max(10)                   // Maximum length
-  .length(8)                 // Exact length
-  .email()                   // Email format
-  .url()                     // URL format
-  .uuid()                    // UUID format
-  .regex(/pattern/)          // Custom regex
-  .startsWith('prefix')      // String prefix
-  .endsWith('suffix')        // String suffix
-  .includes('substring')     // Contains substring
-  .ip()                      // IP address (v4 or v6)
-  .trim()                    // Trim whitespace
-  .toLowerCase()             // Convert to lowercase
-  .toUpperCase()             // Convert to uppercase
-  .nonempty()               // Non-empty string
+  .min(3)
+  .max(100)
+  .email()
+  .url()
+  .uuid()
+  .regex(/^[a-z0-9]+$/)
+  .startsWith('https://')
+  .endsWith('.json')
+  .trim()
+  .toLowerCase();
+
+// Top-level format helpers:
+v.email()
+v.uuid()
+v.creditCard() // Luhn checksum validated
+v.jwt()
+v.cuid()
+v.cuid2()
+v.nanoid()
+v.ulid()
+v.ipv4()
+v.ipv6()
+v.iso.date()
+v.iso.dateTime()
 ```
 
-### String Format Validators (Top-Level)
-
-```typescript
-v.email()                    // Email validation
-v.uuid()                     // UUID validation
-v.uuid({ version: 'v4' })    // UUID v4 validation
-v.uuidv4()                   // UUID v4 shortcut
-v.hostname()                 // Hostname validation
-v.emoji()                    // Emoji validation
-v.base64()                   // Base64 format
-v.base64url()                // Base64 URL-safe format
-v.hex()                      // Hex string
-v.jwt()                      // JWT format
-v.nanoid()                   // NanoID format
-v.cuid()                     // CUID format
-v.cuid2()                    // CUID2 format
-v.ulid()                     // ULID format
-v.ipv4()                     // IPv4 address
-v.ipv6()                     // IPv6 address
-v.mac()                      // MAC address
-v.cidrv4()                   // IPv4 CIDR block
-v.cidrv6()                   // IPv6 CIDR block
-v.e164()                     // E.164 phone number
-v.creditCard()               // Credit card number (regex plus Luhn checksum)
-v.hash('sha256')             // Hash validation
-v.iso.date()                 // ISO date format
-v.iso.time()                 // ISO time format
-v.iso.dateTime()             // ISO datetime format
-v.iso.duration()             // ISO duration format
-```
-
-### Number Validators
+### Number Constraints
 
 ```typescript
 v.number()
-  .min(0)                    // Minimum value
-  .max(100)                  // Maximum value
-  .int()                     // Integer only
-  .positive()                // Positive numbers
-  .negative()                // Negative numbers
-  .nonnegative()            // >= 0
-  .nonpositive()            // <= 0
-  .finite()                  // Finite numbers
-  .safe()                    // Safe integers
-  .multipleOf(5)            // Multiple of value
+  .min(0)
+  .max(100)
+  .int()
+  .positive()
+  .negative()
+  .nonnegative()
+  .multipleOf(5)
+  .finite()
+  .safe();
 ```
 
-### Arrays and Objects
+### Objects & Collections
 
 ```typescript
-// Arrays
-v.array(v.string())          // Array of strings
-  .min(1)                    // Minimum length
-  .max(10)                   // Maximum length
-  .length(5)                 // Exact length
-  .nonempty()               // Non-empty array
-
 // Objects
-v.object({
-  name: v.string(),
-  age: v.number()
-})
-  .partial()                 // All fields optional
-  .strict()                  // No extra fields
-  .passthrough()             // Allow extra fields
+const profileSchema = v.object({
+  username: v.string().min(3),
+  age: v.number().optional(),
+});
+
+// Object transformations
+profileSchema.partial();      // All fields optional
+profileSchema.strict();       // Reject unknown fields
+profileSchema.passthrough();  // Keep unknown fields
+profileSchema.pick('username');
+profileSchema.omit('age');
+profileSchema.extend({ bio: v.string() });
+
+// Arrays & Collections
+v.array(v.string()).min(1).max(10);
+v.tuple(v.string(), v.number());
+v.record(v.string(), v.number());
+v.set(v.string());
+v.map(v.string(), v.number());
 ```
 
-### Composite Types
+### Unions & Compositions
 
 ```typescript
-// Optional
-v.optional(v.string())       // string | undefined
-
-// Nullable
-v.nullable(v.string())       // string | null
-
-// Nullish
-v.nullish(v.string())        // string | null | undefined
-
 // Union
-v.union(v.string(), v.number()) // string | number
+v.union(v.string(), v.number());
 
 // Discriminated Union
-v.discriminatedUnion('type',
-  v.object({ type: v.literal('a'), a: v.string() }),
-  v.object({ type: v.literal('b'), b: v.number() })
-)
-
-// Literal
-v.literal('active')          // 'active'
-
-// Enum
-v.enum('red', 'green', 'blue') // 'red' | 'green' | 'blue'
-```
-
-### Type Coercion
-
-```typescript
-// Coerce strings from various types
-v.coerce.string().parse(123)        // "123"
-v.coerce.string().parse(true)       // "true"
-
-// Coerce numbers from strings/booleans
-v.coerce.number().parse("123")      // 123
-v.coerce.number().parse(true)       // 1
-
-// Coerce booleans from strings/numbers
-v.coerce.boolean().parse("true")    // true
-v.coerce.boolean().parse(1)         // true
-
-// Coerce BigInt from strings/numbers
-v.coerce.bigint().parse("123")      // 123n
-v.coerce.bigint().parse(456)        // 456n
-
-// Coerce Date from strings/timestamps
-v.coerce.date().parse("2023-01-01") // Date object
-v.coerce.date().parse(1672531200000) // Date object
-```
-
-### Object Schema Methods
-
-```typescript
-const userSchema = v.object({
-  name: v.string(),
-  age: v.number(),
-  email: v.string(),
-  role: v.string()
-});
-
-// Pick specific fields
-const publicSchema = userSchema.pick('name', 'age');
-// Type: { name: string; age: number }
-
-// Omit sensitive fields
-const safeSchema = userSchema.omit('email', 'role');
-// Type: { name: string; age: number }
-
-// Extend with new fields
-const extendedSchema = userSchema.extend({
-  isActive: v.boolean(),
-  lastLogin: v.date()
-});
-// Type: { name: string; age: number; email: string; role: string; isActive: boolean; lastLogin: Date }
-```
-
-### Advanced Validation Methods
-
-```typescript
-// Custom validation with refine()
-const positiveNumber = v.number()
-  .refine(n => n > 0, "Number must be positive");
-
-// Data transformation with transform()
-const uppercaseString = v.string()
-  .transform(s => s.toUpperCase());
-
-// Default values for undefined
-const withDefault = v.string().default("fallback");
-withDefault.parse(undefined); // "fallback"
-
-// Catch errors and provide fallback
-const withCatch = v.number().catch(-1);
-withCatch.parse("invalid"); // -1
-
-// Method chaining
-const complexSchema = v.string()
-  .min(3)
-  .transform(s => s.trim())
-  .refine(s => s.includes('@'), 'Must contain @')
-  .default('user@example.com');
-```
-
-### Special Validators
-
-```typescript
-// JSON validator with optional schema
-v.json()                           // Any valid JSON
-v.json(v.object({ name: v.string() }))  // Typed JSON
-
-// Lazy for recursive schemas
-const categorySchema = v.lazy(() =>
-  v.object({
-    name: v.string(),
-    children: v.array(categorySchema).optional()
-  })
+const eventSchema = v.discriminatedUnion('type',
+  v.object({ type: v.literal('click'), x: v.number(), y: v.number() }),
+  v.object({ type: v.literal('scroll'), offset: v.number() })
 );
 
-// Custom validator
-v.custom({
-  check: (val) => typeof val === 'string' && val.length > 0,
-  message: 'Must be a non-empty string'
-});
+// Intersections & XOR
+v.intersection(schemaA, schemaB);
+v.xor(schemaA, schemaB);
 
-// File validator
-v.file()
-  .maxSize(5 * 1024 * 1024)  // 5MB
-  .type(['image/png', 'image/jpeg']);
-
-// Function validator
-v.function()
-  .args(v.string(), v.number())
-  .returns(v.boolean());
-```
-
-### Type Inference
-
-```typescript
-import { v } from '@oxog/vld';
-import type { Infer } from '@oxog/vld';
-
-const schema = v.object({
-  name: v.string(),
-  age: v.number()
-});
-
-// Automatically infer the type
-type User = Infer<typeof schema>;
-// { name: string; age: number }
-```
-
-### Error Formatting Types
-
-```typescript
-import { VldError } from '@oxog/vld';
-import type {
-  VldIssue,           // Individual validation issue
-  VldErrorTree,       // Nested error structure
-  VldFlattenedError   // Flattened error structure
-} from '@oxog/vld';
-```
-
-### Custom Error Messages
-
-```typescript
-const schema = v.string().min(8, 'Password must be at least 8 characters');
-
-const result = schema.safeParse('short');
-if (!result.success) {
-  console.log(result.error.message); // 'Password must be at least 8 characters'
-}
-```
-
-## Internationalization (i18n)
-
-VLD supports 27+ languages out of the box with comprehensive error messages:
-
-```typescript
-import { v, setLocale } from '@oxog/vld';
-
-// Default is English
-const schema = v.string().min(5);
-schema.safeParse('Hi'); // Error: "String must be at least 5 characters"
-
-// Switch to Turkish
-setLocale('tr');
-schema.safeParse('Hi'); // Error: "Metin en az 5 karakter olmali"
-
-// Switch to Spanish
-setLocale('es');
-schema.safeParse('Hi'); // Error: "La cadena debe tener al menos 5 caracteres"
-
-// Switch to Japanese
-setLocale('ja');
-schema.safeParse('Hi'); // Error: "..."
-```
-
-### Supported Languages
-
-#### Base Languages (15):
-- English (`en`) - Turkish (`tr`) - Spanish (`es`) - French (`fr`) - German (`de`)
-- Italian (`it`) - Portuguese (`pt`) - Russian (`ru`) - Japanese (`ja`) - Korean (`ko`)
-- Chinese (`zh`) - Arabic (`ar`) - Hindi (`hi`) - Dutch (`nl`) - Polish (`pl`)
-
-#### European Languages (4):
-- Danish (`da`) - Swedish (`sv`) - Norwegian (`no`) - Finnish (`fi`)
-
-#### Asian Languages (4):
-- Thai (`th`) - Vietnamese (`vi`) - Indonesian (`id`) - Bengali (`bn`)
-
-#### African Languages (2):
-- Swahili (`sw`) - Afrikaans (`af`)
-
-#### American Languages (2):
-- Portuguese Brazil (`pt-BR`) - Spanish Mexico (`es-MX`)
-
-**Plus 75+ additional languages** supported through comprehensive type definitions with English fallback.
-
-## Error Handling & Formatting
-
-VLD provides advanced error formatting utilities similar to Zod's error handling system.
-
-### Error Formatting Utilities
-
-```typescript
-import { v, VldError, treeifyError, prettifyError, flattenError } from '@oxog/vld';
-
-const userSchema = v.object({
-  username: v.string().min(3),
-  favoriteNumbers: v.array(v.number()),
-  profile: v.object({
-    name: v.string(),
-    email: v.string().email()
+// Recursive / Lazy Schemas
+const treeSchema: ReturnType<typeof v.lazy> = v.lazy(() =>
+  v.object({
+    id: v.string(),
+    children: v.array(treeSchema).optional(),
   })
-});
-
-const result = userSchema.safeParse({
-  username: 'ab',
-  favoriteNumbers: [1, 'two', 3],
-  profile: {
-    name: '',
-    email: 'invalid-email'
-  },
-  extraField: 'not allowed'
-});
-
-if (!result.success) {
-  const error = result.error as VldError;
-
-  // 1. Tree Format - Nested structure for complex UIs
-  const tree = treeifyError(error);
-
-  // 2. Pretty Format - Human-readable console output
-  const pretty = prettifyError(error);
-
-  // 3. Flatten Format - Simple form validation
-  const flattened = flattenError(error);
-}
+);
 ```
 
-### Using Error Formats in Practice
+---
 
-#### React Form Validation
+## Type Coercion & Modifiers
+
+### Automatic Coercion (`v.coerce`)
+
 ```typescript
-function UserForm() {
-  const [errors, setErrors] = useState<VldFlattenedError | null>(null);
-
-  const handleSubmit = (data: unknown) => {
-    const result = userSchema.safeParse(data);
-
-    if (!result.success) {
-      setErrors(flattenError(result.error as VldError));
-    } else {
-      setErrors(null);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit}>
-      {errors?.formErrors.map(error => (
-        <div key={error} className="form-error">{error}</div>
-      ))}
-
-      <input name="username" />
-      {errors?.fieldErrors.username?.map(error => (
-        <div key={error} className="field-error">{error}</div>
-      ))}
-    </form>
-  );
-}
+v.coerce.string().parse(123);           // "123"
+v.coerce.number().parse("42");          // 42
+v.coerce.boolean().parse("true");       // true
+v.coerce.bigint().parse("1000");        // 1000n
+v.coerce.date().parse("2026-08-17");    // Date object
 ```
 
-#### API Error Responses
-```typescript
-app.post('/api/users', (req, res) => {
-  const result = userSchema.safeParse(req.body);
+### Refinements, Transforms & Defaults
 
-  if (!result.success) {
-    const tree = treeifyError(result.error as VldError);
-    res.status(400).json({
-      error: 'Validation failed',
-      details: tree
+```typescript
+const customSchema = v.string()
+  .transform(val => val.trim())
+  .refine(val => val.length >= 3, 'Must be at least 3 characters')
+  .default('default_value')
+  .catch('fallback_on_error');
+
+// SuperRefine for multi-field cross validation
+const passwordSchema = v.object({
+  password: v.string().min(8),
+  confirm: v.string(),
+}).superRefine((data, ctx) => {
+  if (data.password !== data.confirm) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['confirm'],
+      message: 'Passwords do not match',
     });
   }
 });
 ```
 
-## Advanced Examples
+---
 
-### Complex Validation with New Features
+## Tree-Shakeable Mini API
+
+For bundle-constrained applications, `@oxog/vld/mini` provides pure standalone functions with zero extra overhead:
 
 ```typescript
-const postSchema = v.object({
-  id: v.union(v.string().uuid(), v.number()),
-  title: v.string().min(5).max(100),
-  content: v.string().min(10),
-  author: v.object({
-    name: v.string(),
-    email: v.string().email(),
-    age: v.coerce.number(),
-  }),
-  tags: v.set(v.string()).default(new Set()),
-  metadata: v.record(v.any()),
-  coordinates: v.tuple(v.number(), v.number()),
-  publishedAt: v.date().default(() => new Date()),
-  status: v.enum('draft', 'published', 'archived')
-});
+import { string, number, object, optional, array } from '@oxog/vld/mini';
 
-// Extend with additional fields
-const blogPostSchema = postSchema.extend({
-  viewCount: v.bigint().default(0n),
-  categories: v.array(v.string()).min(1),
-  featured: v.boolean().default(false)
+const userSchema = object({
+  name: string().min(2),
+  age: optional(number().positive()),
+  roles: array(string()),
 });
 ```
 
-### Discriminated Union
+---
+
+## Drop-in Zod Compatibility
+
+VLD provides drop-in subpaths that mirror Zod export structures and error shapes:
 
 ```typescript
-const eventSchema = v.discriminatedUnion('type',
-  v.object({
-    type: v.literal('click'),
-    x: v.number(),
-    y: v.number()
-  }),
-  v.object({
-    type: v.literal('scroll'),
-    direction: v.enum('up', 'down'),
-    distance: v.number()
-  }),
-  v.object({
-    type: v.literal('keypress'),
-    key: v.string(),
-    modifiers: v.array(v.enum('ctrl', 'alt', 'shift'))
-  })
-);
-
-// Type-safe parsing
-const event = eventSchema.parse({
-  type: 'click',
-  x: 100,
-  y: 200
-});
-```
-
-### Recursive Schemas
-
-```typescript
-const categorySchema: ReturnType<typeof v.lazy> = v.lazy(() =>
-  v.object({
-    name: v.string(),
-    slug: v.string().regex(/^[a-z0-9-]+$/),
-    children: v.array(categorySchema).optional()
-  })
-);
-
-const category = categorySchema.parse({
-  name: 'Electronics',
-  slug: 'electronics',
-  children: [
-    {
-      name: 'Phones',
-      slug: 'phones',
-      children: [
-        { name: 'Smartphones', slug: 'smartphones' }
-      ]
-    }
-  ]
-});
-```
-
-### Type-Safe Forms
-
-```typescript
-const loginSchema = v.object({
-  username: v.string().min(3),
-  password: v.string().min(8),
-  rememberMe: v.optional(v.boolean())
-});
-
-type LoginForm = Infer<typeof loginSchema>;
-
-function handleLogin(data: unknown) {
-  const result = loginSchema.safeParse(data);
-
-  if (result.success) {
-    const { username, password, rememberMe } = result.data;
-    // ... handle login
-  }
-}
-```
-
-## Codecs - Bidirectional Transformations
-
-VLD introduces **codecs** - powerful bidirectional transformations that can convert data between different representations.
-
-### What are Codecs?
-
-Codecs enable safe, type-checked conversions between different data formats:
-
-```typescript
-import { stringToNumber, jsonCodec, base64ToBytes } from '@oxog/vld';
-
-// String to number conversion
-const age = stringToNumber.parse('25'); // 25
-const price = stringToNumber.encode(99.99); // "99.99"
-
-// JSON codec
-const userJson = jsonCodec();
-const user = userJson.parse('{"name":"John","age":30}');
-const jsonString = userJson.encode(user);
-
-// Binary data
-const bytes = base64ToBytes.parse('SGVsbG8gV29ybGQ=');
-```
-
-### Built-in Codecs
-
-#### String Conversion Codecs
-```typescript
-import { stringToNumber, stringToInt, stringToBigInt, stringToBoolean } from '@oxog/vld';
-
-stringToNumber.parse('42.5');     // 42.5
-stringToInt.parse('42');          // 42
-stringToBigInt.parse('123n');     // 123n
-stringToBoolean.parse('true');    // true
-```
-
-#### Date Conversion Codecs
-```typescript
-import { isoDatetimeToDate, epochSecondsToDate, epochMillisToDate } from '@oxog/vld';
-
-isoDatetimeToDate.parse('2023-12-25T10:30:00.000Z'); // Date
-epochSecondsToDate.parse(1703505000);                // Date
-epochMillisToDate.parse(1703505000000);              // Date
-```
-
-#### URL Codecs
-```typescript
-import { stringToURL, stringToHttpURL, uriComponent } from '@oxog/vld';
-
-stringToURL.parse('https://example.com/path?q=1');
-stringToHttpURL.parse('https://api.example.com');
-uriComponent.parse('Hello World!'); // "Hello%20World!"
-```
-
-#### Binary Data Codecs
-```typescript
-import { base64ToBytes, hexToBytes, utf8ToBytes, bytesToUtf8 } from '@oxog/vld';
-
-base64ToBytes.parse('SGVsbG8=');           // Uint8Array
-hexToBytes.parse('48656c6c6f');            // Uint8Array
-utf8ToBytes.parse('Hello');                // Uint8Array
-bytesToUtf8.parse(new Uint8Array([72, 101, 108, 108, 111])); // "Hello"
-```
-
-### Custom Codecs
-
-```typescript
-const csvToArray = v.codec(
-  v.string(),
-  v.array(v.string()),
-  {
-    decode: (csv: string) => csv.split(',').map(s => s.trim()),
-    encode: (arr: string[]) => arr.join(', ')
-  }
-);
-
-const tags = csvToArray.parse('react, typescript, vld');
-// ["react", "typescript", "vld"]
-
-const csvString = csvToArray.encode(['node', 'express', 'api']);
-// "node, express, api"
-```
-
-## Plugin System
-
-VLD v1.5.0 introduces a powerful plugin system for extending functionality.
-
-### Creating a Plugin
-
-```typescript
-import { definePlugin, usePlugin, v } from '@oxog/vld';
-
-// Define a custom plugin
-const myPlugin = definePlugin({
-  name: 'my-plugin',
-  version: '1.0.0',
-
-  // Custom validators
-  validators: {
-    phoneNumber: () => v.string().regex(/^\+?[1-9]\d{1,14}$/),
-    postalCode: () => v.string().regex(/^\d{5}(-\d{4})?$/)
-  },
-
-  // Custom transforms
-  transforms: {
-    normalizePhone: (phone: string) => phone.replace(/[^\d+]/g, '')
-  },
-
-  // Lifecycle hooks
-  install(kernel) {
-    console.log('Plugin installed!');
-  }
-});
-
-// Register the plugin
-usePlugin(myPlugin);
-```
-
-### Using Plugin Validators
-
-```typescript
-import { createVldKernel, usePlugin } from '@oxog/vld';
-
-const kernel = createVldKernel({ debug: true });
-
-kernel.use(myPlugin);
-
-// Access custom validators
-const phoneSchema = kernel.validator('phoneNumber');
-phoneSchema.parse('+1234567890');
-```
-
-## Result Pattern
-
-VLD v1.5.0 includes a functional Result pattern for error handling.
-
-### Basic Usage
-
-```typescript
-import { Ok, Err, match, map, flatMap, tryCatch } from '@oxog/vld';
-
-// Create results
-const success = Ok(42);
-const failure = Err(new Error('Something went wrong'));
-
-// Pattern matching
-const message = match(success, {
-  ok: (value) => `Got: ${value}`,
-  err: (error) => `Error: ${error.message}`
-});
-
-// Transform results
-const doubled = map(success, (n) => n * 2); // Ok(84)
-
-// Chain operations
-const result = flatMap(success, (n) =>
-  n > 0 ? Ok(n * 2) : Err(new Error('Must be positive'))
-);
-
-// Safe function execution
-const parsed = tryCatch(() => JSON.parse('{"a":1}'));
-```
-
-### With Validation
-
-```typescript
-import { v, isOk, isErr, unwrapOr } from '@oxog/vld';
-
-const schema = v.object({
-  name: v.string(),
-  age: v.number().min(0)
-});
-
-const result = schema.safeParse(data);
-
-if (isOk(result)) {
-  console.log('Valid:', result.data);
-} else {
-  console.log('Invalid:', result.error);
-}
-
-// With default value
-const user = unwrapOr(result, { name: 'Guest', age: 0 });
-```
-
-### Combining Results
-
-```typescript
-import { all, fromNullable } from '@oxog/vld';
-
-// Combine multiple results
-const results = [Ok(1), Ok(2), Ok(3)];
-const combined = all(results); // Ok([1, 2, 3])
-
-// Convert nullable to Result
-const maybeValue: string | null = getValue();
-const result = fromNullable(maybeValue, new Error('Value is null'));
-```
-
-## CLI Tools
-
-VLD includes command-line tools for validation and benchmarking.
-
-### Installation
-
-```bash
-npm install -g @oxog/vld
-# or use npx
-npx vld --help
-```
-
-### Commands
-
-```bash
-# Show help
-vld --help
-
-# Validate data
-vld validate schema.json data.json
-
-# Run benchmarks
-vld benchmark
-
-# Show version
-vld --version
-```
-
-### Programmatic CLI
-
-```typescript
-import { createCli, vldCli } from '@oxog/vld/cli';
-
-// Use the built-in CLI
-vldCli.run(process.argv.slice(2));
-
-// Or create a custom CLI
-const cli = createCli('my-app', '1.0.0', 'My validation app')
-  .command({
-    name: 'validate',
-    description: 'Validate data',
-    action: async (args, options) => {
-      // Custom validation logic
-    }
-  });
-
-cli.run(process.argv.slice(2));
-```
-
-## Logger & Colored Output
-
-VLD includes a logging system and colored terminal output.
-
-### Logger
-
-```typescript
-import { createLogger, setLogLevel, enableDebug } from '@oxog/vld';
-
-// Create a logger
-const logger = createLogger({ prefix: 'VLD' });
-
-logger.info('Processing...');
-logger.warn('Deprecated feature');
-logger.error('Validation failed');
-logger.debug('Debug info');
-
-// Set log level globally
-setLogLevel('debug');
-
-// Enable debug mode
-enableDebug();
-```
-
-### Colored Output (Pigment)
-
-```typescript
-import { pigment, red, green, blue, bold, dim } from '@oxog/vld';
-
-console.log(red('Error!'));
-console.log(green('Success!'));
-console.log(bold(blue('Important')));
-console.log(dim('Less important'));
-
-// Or use the pigment object
-console.log(pigment.red('Error!'));
-console.log(pigment.bold(pigment.green('Success!')));
-```
-
-## VLD vs. Zod
-
-VLD is designed as a compelling alternative to Zod, maintaining an audited compatibility baseline while delivering additional platform features.
-
-### Feature Comparison
-
-| Feature                 | VLD                                | Zod                                  |
-| ----------------------- | ---------------------------------- | ------------------------------------ |
-| **Performance**         | **Release-gated faster runtime, startup, and memory paths** | Baseline                             |
-| **Memory Usage**        | **~5x less** overall               | Baseline                             |
-| **Internationalization**| **Built-in 27+ locales with lazy loading** | Built-in locales              |
-| **Dependencies**        | **Zero runtime dependencies**      | Zero runtime dependencies            |
-| **Bundle Size**         | Smaller                            | Larger                               |
-| **API**                 | Zod 4.4.3 compatibility gate + extensions | Standard Zod API                     |
-| **Plugin System**       | **Built-in**                       | Not available                        |
-| **Result Pattern**      | **Built-in**                       | Not available                        |
-| **CLI Tools**           | **Built-in**                       | Not available                        |
-| **Codecs**              | Built-in system plus reusable presets | Built-in primitives; recipes documented |
-| **Type Inference**      | Excellent                          | Excellent                            |
-
-### Seamless Migration from Zod
-
-```javascript
-// Before (Zod)
-import { z } from 'zod';
-const schema = z.string().email();
-
-// After (VLD) - Exact same syntax!
-import { v } from '@oxog/vld';
-const schema = v.string().email();
-```
-
-### Drop-in Package Subpaths
-
-VLD also exposes Zod-compatible package subpaths so applications that import Zod 4 entry points can migrate by changing the package name:
-
-```typescript
-// Before
-import { z } from 'zod';
-import * as core from 'zod/v4/core';
-import * as mini from 'zod/v4-mini';
-import * as locales from 'zod/v4/locales';
-
-// After
+// Replace Zod imports seamlessly
 import { z } from '@oxog/vld';
 import * as core from '@oxog/vld/v4/core';
 import * as mini from '@oxog/vld/v4-mini';
 import * as locales from '@oxog/vld/v4/locales';
+
+import { v, deepPartial, input, output } from '@oxog/vld';
 ```
 
-Release checks enforce zero missing exports and zero `typeof` mismatches for `zod/v4`, `zod/v4-mini`, `zod/v4/mini`, `zod/v4/core`, and `zod/v4/locales` against the installed latest Zod.
-
-### Real App Drop-in Verification
-
-`npm run verify:drop-in` creates two temporary TypeScript applications from the same fixture:
-
-- One imports and runs against real `zod`.
-- One imports and runs against the locally built `@oxog/vld` package.
-- The fixture exercises root APIs, `v4`, `v4-mini`, `v4/core`, `v4/locales`, parsing, error formatting, JSON Schema output, mini helpers, and core factories.
-- The normalized runtime outputs must match exactly.
-
-## Benchmarks
-
-### Performance Results
-
-Median of 11 samples per case against Zod 4.4.3, the latest stable release at the time of measurement. The release gate also runs focused runtime, startup, memory, package, install, security, Zod parity, and real drop-in app checks before publishing.
-
-| Test Case | VLD Median Performance | Improvement |
-|-----------|----------------|-------------|
-| Simple String | 719.2M ops/sec | **3.40x faster** |
-| Email Validation | 22.1M ops/sec | **2.87x faster** |
-| Top-level Email Format | 22.8M ops/sec | **3.66x faster** |
-| StringBool Validation | 32.7M ops/sec | **3.44x faster** |
-| Number Validation | 226.2M ops/sec | **27.62x faster** |
-| Simple Object | 37.7M ops/sec | **1.40x faster** |
-| Complex Object | 2.3M ops/sec | **1.02x faster** |
-| Array Validation | 39.8M ops/sec | **6.74x faster** |
-| Union Types | 38.1M ops/sec | **4.10x faster** |
-| Optional Values | 236.9M ops/sec | **7.57x faster** |
-| Nullable Values | 224.7M ops/sec | **10.71x faster** |
-| Nullish Values | 228.4M ops/sec | **52.92x faster** |
-| Default Values | 207.8M ops/sec | **9.71x faster** |
-| Catch Values | 232.1M ops/sec | **46.58x faster** |
-| SafeParse | 162.0M ops/sec | **1.80x faster** |
-| Type Coercion | 204.5M ops/sec | **8.72x faster** |
-| Enum Validation | 180.3M ops/sec | **1.32x faster** |
-| Discriminated Union | 19.2M ops/sec | **1.79x faster** |
-| Tuple Validation | 50.0M ops/sec | **7.99x faster** |
-| Record Validation | 10.7M ops/sec | **5.63x faster** |
-| Set Validation | 18.9M ops/sec | **1.84x faster** |
-| Map Validation | 14.8M ops/sec | **2.37x faster** |
-| BigInt Validation | 164.8M ops/sec | **14.88x faster** |
-| Date Validation | 227.2M ops/sec | **2.57x faster** |
-| Symbol Validation | 230.0M ops/sec | **1.01x faster** |
-| Any Validation | 232.5M ops/sec | **1.01x faster** |
-| Unknown Validation | 234.9M ops/sec | **1.04x faster** |
-| Function Validation | 233.6M ops/sec | **3.52x faster** |
-| Template Literal Validation | 39.3M ops/sec | **1.15x faster** |
-| Promise Async Validation | 6.3M ops/sec | **1.38x faster** |
-
-**VLD won 30/30 snapshot tests. Release checks additionally enforce runtime, startup, memory, Zod subpath parity, and real drop-in app guard thresholds against Zod.**
-
-### Run Benchmarks
-
-```bash
-# Quick performance comparison
-npm run benchmark
-
-# Median-based stable comparison
-npm run benchmark:stable
-
-# Fast CI-friendly performance regression guard
-npm run benchmark:guard
-
-# Full release gate: lint, source and published types, tests, exports, package and install checks, security audit, Zod parity, real drop-in app verification, and performance guards
-npm run release:check
-
-# Memory usage comparison
-npm run benchmark:memory
-
-# Startup time comparison
-npm run benchmark:startup
-
-# Run all benchmarks
-npm run benchmark:all
-```
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## Links
-
-- [Documentation](https://vld.oxog.dev)
-- [NPM Package](https://www.npmjs.com/package/@oxog/vld)
-- [GitHub Repository](https://github.com/ersinkoc/vld)
+- Structured error issues with `expected`, `received`, `minimum`, `maximum`, and `path`.
+- Compatibility tested against latest stable Zod releases.
 
 ---
 
-Made with Love by [Ersin KOC](https://github.com/ersinkoc)
+## Error Handling & Formatting
+
+```typescript
+import { v, VldError, treeifyError, prettifyError, flattenError } from '@oxog/vld';
+
+const result = userSchema.safeParse(invalidData);
+
+if (!result.success) {
+  const error = result.error as VldError;
+
+  // Flattened field errors for forms
+  const { fieldErrors, formErrors } = flattenError(error);
+
+  // Human-readable CLI / console output
+  const pretty = prettifyError(error);
+
+  // Nested tree structure for UI inspection
+  const tree = treeifyError(error);
+}
+```
+
+---
+
+## Internationalization (i18n)
+
+VLD includes built-in translations for 27+ languages:
+
+```typescript
+import { v, setLocale } from '@oxog/vld';
+
+setLocale('tr'); // Turkish error messages
+setLocale('es'); // Spanish
+setLocale('de'); // German
+setLocale('ja'); // Japanese
+setLocale('fr'); // French
+```
+
+### Lazy Loading for Minimal Bundles
+
+```typescript
+import { setLocaleAsync, preloadLocales } from '@oxog/vld/locales/lazy';
+
+// Loads locale on demand via dynamic import()
+await setLocaleAsync('tr');
+
+// Preload for SSR / warm start
+await preloadLocales(['en', 'de', 'ja']);
+```
+
+---
+
+## Bidirectional Codecs
+
+```typescript
+import { stringToNumber, jsonCodec, base64ToBytes, hexToBytes } from '@oxog/vld';
+
+// String to Number decode & encode
+const num = stringToNumber.parse('42');     // 42
+const str = stringToNumber.encode(42);       // "42"
+
+// JSON codec
+const json = jsonCodec();
+const parsed = json.parse('{"id":1}');
+const encoded = json.encode(parsed);
+
+// Binary conversions
+const bytes = base64ToBytes.parse('SGVsbG8=');
+```
+
+---
+
+## Result Pattern
+
+Functional error handling without exceptions:
+
+```typescript
+import { Ok, Err, match, map, flatMap, tryCatch, isOk, isErr, unwrapOr } from '@oxog/vld';
+
+const result = tryCatch(() => JSON.parse(rawInput));
+
+const output = match(result, {
+  ok: data => `Success: ${data.id}`,
+  err: err => `Failed: ${err.message}`,
+});
+```
+
+---
+
+## Plugin System
+
+```typescript
+import { definePlugin, usePlugin, createVldKernel, v } from '@oxog/vld';
+
+const phonePlugin = definePlugin({
+  name: 'phone-validator',
+  version: '1.0.0',
+  validators: {
+    phone: () => v.string().regex(/^\+?[1-9]\d{1,14}$/),
+  },
+});
+
+usePlugin(phonePlugin);
+```
+
+---
+
+## Performance
+
+VLD is optimized for modern V8 runtimes. CI gates enforce performance floors on every commit against Zod:
+
+| Benchmark Case | VLD Throughput | Relative Speedup |
+|----------------|----------------|------------------|
+| Nullish Parse | ~214M ops/sec | **30.7x faster** |
+| Number / Positive Int | ~253M ops/sec | **9.1x faster** |
+| Discriminated Union | ~35M ops/sec | **4.1x faster** |
+| Optional Parse | ~213M ops/sec | **3.8x faster** |
+| Union Parse | ~39M ops/sec | **3.3x faster** |
+| Simple String | ~620M ops/sec | **3.0x faster** |
+| Array / Object Parse | ~49M ops/sec | **1.7x faster** |
+
+Explore full benchmark results and interactive visual comparisons at [vld.oxog.dev/benchmark](https://vld.oxog.dev/benchmark).
+
+### Running Benchmarks Locally
+
+```bash
+npm run benchmark
+npm run benchmark:guard
+npm run benchmark:memory
+npm run benchmark:startup
+npm run release:check
+```
+
+---
+
+## Contributing
+
+Contributions are warmly welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md) for details.
+
+---
+
+## Links
+
+- **Documentation & Playground**: [https://vld.oxog.dev](https://vld.oxog.dev)
+- **NPM Package**: [https://www.npmjs.com/package/@oxog/vld](https://www.npmjs.com/package/@oxog/vld)
+- **GitHub Repository**: [https://github.com/ersinkoc/vld](https://github.com/ersinkoc/vld)
+
+---
+
+Made with ❤️ by [Ersin KOC](https://github.com/ersinkoc)
