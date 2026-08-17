@@ -1,8 +1,10 @@
 # VLD - Fast & Lightweight TypeScript Validation Library
 
-[![NPM Version](https://img.shields.io/npm/v/@oxog/vld.svg)](https://www.npmjs.com/package/@oxog/vld) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/) [![Zero Dependencies](https://img.shields.io/badge/Dependencies-0-green.svg)](package.json) [![Test Coverage](https://img.shields.io/badge/Coverage-100%25-brightgreen.svg)](package.json)
+[![NPM Version](https://img.shields.io/npm/v/@oxog/vld.svg)](https://www.npmjs.com/package/@oxog/vld) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/) [![Zero Dependencies](https://img.shields.io/badge/Dependencies-0-green.svg)](package.json) [![Test Coverage](https://img.shields.io/badge/Coverage-100%25-brightgreen.svg)](package.json) [![Website](https://img.shields.io/badge/Website-vld.oxog.dev-6366f1.svg)](https://vld.oxog.dev)
 
 VLD is a blazing-fast, type-safe validation library for TypeScript and JavaScript with **Zod-compatible root and subpath APIs**. Built with performance in mind, it provides a simple and intuitive API while maintaining excellent type inference and 27+ language internationalization support.
+
+🌐 **Website & Live Playground**: [https://vld.oxog.dev](https://vld.oxog.dev)
 
 ## Table of Contents
 

@@ -12,6 +12,7 @@ export default defineConfig(() => ({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@oxog/vld': path.resolve(__dirname, '../dist/index.js'),
     },
   },
   build: {

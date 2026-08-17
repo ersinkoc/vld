@@ -118,7 +118,7 @@ if (result.success) {
 }`,
     lang: 'typescript',
     tips: [
-      'VLD v2.2.1 is checked against Zod 4.4.3',
+      'VLD v2.2.5 is checked against Zod 4.4.3',
       'Root, v4, v4-mini, v4/core, and v4/locales entry points are covered',
       'Full TypeScript inference',
       '2502 tests with 100% statement, branch, function, and line coverage',
@@ -184,12 +184,12 @@ if (result.success) {
     code: `// VLD advantages over alternatives:
 
 // 1. Performance - release-gated against Zod 4.4.3
-const result = schema.safeParse(data) // v2.2.1 runtime guard: 11x+ snapshot
+const result = schema.safeParse(data) // v2.2.5 runtime guard: 11x+ snapshot
 
 // 2. Package health
 // exports, bundle, install, package, and type declarations are checked
 
-// 3. Memory Usage - 4.7x+ less retained heap in the v2.2.1 guard
+// 3. Memory Usage - 4.7x+ less retained heap in the v2.2.5 guard
 
 // 4. Built-in i18n - 27+ languages
 import { setLocale } from "@oxog/vld"

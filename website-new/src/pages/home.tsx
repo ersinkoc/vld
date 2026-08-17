@@ -7,7 +7,7 @@ const features = [
   {
     icon: Zap,
     title: 'Release-Gated Speed',
-    description: '11x+ guarded runtime speedup against Zod 4.4.3 in the v2.2.1 release check.',
+    description: '11x+ guarded runtime speedup against Zod 4.4.3 in the v2.2.5 release check.',
     color: 'from-amber-500 to-orange-500',
   },
   {
@@ -130,7 +130,7 @@ export function HomePage() {
               <div className="animate-fade-in">
                 <div className="tag mb-6">
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>v2.2.1 — Zod-Compatible Drop-in Release</span>
+                  <span>v2.2.5 — Zod-Compatible Drop-in Release</span>
                 </div>
               </div>
 

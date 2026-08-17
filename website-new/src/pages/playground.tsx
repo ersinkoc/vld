@@ -1,6 +1,7 @@
-import { useState, useCallback } from 'react'
-import { Play, RotateCcw, CheckCircle2, XCircle, Copy, Check, ChevronDown } from 'lucide-react'
+import { useState, useCallback, useEffect } from 'react'
+import { Play, RotateCcw, CheckCircle2, XCircle, Copy, Check, ChevronDown, Sparkles, Timer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { runVldValidation, type ValidationOutput } from '@/lib/vld-runner'
 
 const presets = [
   {
@@ -55,7 +56,7 @@ type ApiResponse = v.infer<typeof apiResponseSchema>`,
     "total": 2,
     "page": 1
   },
-  "timestamp": "2024-01-15T10:30:00Z"
+  "timestamp": "2026-08-17T10:30:00Z"
 }`
   },
   {
@@ -109,7 +110,7 @@ const companySchema = v.object({
   employees: v.number().int().positive(),
   headquarters: addressSchema,
   branches: v.array(addressSchema).optional(),
-  founded: v.number().int().min(1800).max(2024),
+  founded: v.number().int().min(1800).max(2026),
 })
 
 type Company = v.infer<typeof companySchema>`,
@@ -194,77 +195,39 @@ const invalidExamples = [
 export function PlaygroundPage() {
   const [code, setCode] = useState(presets[0].code)
   const [data, setData] = useState(presets[0].data)
-  const [output, setOutput] = useState<{ success: boolean; message: string } | null>(null)
+  const [output, setOutput] = useState<ValidationOutput | null>(null)
   const [copied, setCopied] = useState(false)
   const [showPresets, setShowPresets] = useState(false)
   const [activePreset, setActivePreset] = useState(presets[0].name)
 
   const runValidation = useCallback(() => {
-    try {
-      const parsedData = JSON.parse(data)
-
-      // Simple mock validation logic
-      const errors: Array<{ path: string[]; message: string }> = []
-
-      // Check for common validation patterns in code
-      if (code.includes('.email()') && parsedData.email && !parsedData.email.includes('@')) {
-        errors.push({ path: ['email'], message: 'Invalid email format' })
-      }
-      if (code.includes('.min(') && parsedData.name && parsedData.name.length < 2) {
-        errors.push({ path: ['name'], message: 'String must be at least 2 characters' })
-      }
-      if (code.includes('password') && parsedData.password && parsedData.password.length < 8) {
-        errors.push({ path: ['password'], message: 'Password must be at least 8 characters' })
-      }
-      if (code.includes('.int()') && parsedData.age && !Number.isInteger(parsedData.age)) {
-        errors.push({ path: ['age'], message: 'Must be an integer' })
-      }
-      if (code.includes('.positive()') && parsedData.price && parsedData.price <= 0) {
-        errors.push({ path: ['price'], message: 'Must be positive' })
-      }
-      if (code.includes('.boolean()') && parsedData.acceptTerms !== undefined && typeof parsedData.acceptTerms !== 'boolean') {
-        errors.push({ path: ['acceptTerms'], message: 'Must be a boolean' })
-      }
-
-      // Check for enum values
-      const enumMatch = code.match(/v\.enum\(\[([^\]]+)\]\)/)
-      if (enumMatch && parsedData.role) {
-        const enumValues = enumMatch[1].split(',').map(s => s.trim().replace(/['"]/g, ''))
-        if (!enumValues.includes(parsedData.role)) {
-          errors.push({ path: ['role'], message: `Must be one of: ${enumValues.join(', ')}` })
-        }
-      }
-
-      if (errors.length > 0) {
-        setOutput({
-          success: false,
-          message: JSON.stringify({
-            success: false,
-            error: {
-              issues: errors,
-              message: `Validation failed with ${errors.length} error(s)`
-            }
-          }, null, 2)
-        })
-      } else {
-        setOutput({
-          success: true,
-          message: JSON.stringify({
-            success: true,
-            data: parsedData
-          }, null, 2)
-        })
-      }
-    } catch (e) {
-      setOutput({ success: false, message: 'JSON Parse Error: ' + (e as Error).message })
-    }
+    const res = runVldValidation(code, data)
+    setOutput(res)
   }, [code, data])
+
+  // Run on first load
+  useEffect(() => {
+    runValidation()
+  }, [])
+
+  // Keyboard shortcut Ctrl/Cmd + Enter
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault()
+        runValidation()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [runValidation])
 
   const reset = () => {
     setCode(presets[0].code)
     setData(presets[0].data)
-    setOutput(null)
     setActivePreset(presets[0].name)
+    const res = runVldValidation(presets[0].code, presets[0].data)
+    setOutput(res)
   }
 
   const copyCode = async () => {
@@ -278,12 +241,14 @@ export function PlaygroundPage() {
     setData(preset.data)
     setActivePreset(preset.name)
     setShowPresets(false)
-    setOutput(null)
+    const res = runVldValidation(preset.code, preset.data)
+    setOutput(res)
   }
 
   const tryInvalidExample = (example: typeof invalidExamples[0]) => {
     setData(example.data)
-    setOutput(null)
+    const res = runVldValidation(code, example.data)
+    setOutput(res)
   }
 
   return (
@@ -293,10 +258,15 @@ export function PlaygroundPage() {
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
             <div>
-              <h1 className="font-display text-3xl font-bold mb-1">Playground</h1>
-              <p className="text-muted-foreground">Try VLD validation in your browser</p>
+              <div className="flex items-center gap-2 mb-1">
+                <h1 className="font-display text-3xl font-bold">Playground</h1>
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-vld-primary/10 text-vld-primary font-medium flex items-center gap-1">
+                  <Sparkles className="w-3 h-3" /> Live Engine
+                </span>
+              </div>
+              <p className="text-muted-foreground">Test live TypeScript schemas with real VLD in your browser</p>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {/* Preset Dropdown */}
               <div className="relative">
                 <Button
@@ -409,24 +379,32 @@ export function PlaygroundPage() {
 
             {/* Right Panel - Output */}
             <div className="rounded-xl overflow-hidden border border-border bg-card shadow-sm h-fit lg:sticky lg:top-24">
-              <div className="bg-muted/50 px-4 py-3 border-b border-border flex items-center gap-2">
-                {output && (
-                  output.success
-                    ? <CheckCircle2 className="w-4 h-4 text-vld-success" />
-                    : <XCircle className="w-4 h-4 text-vld-error" />
-                )}
-                <span className="font-medium text-sm">Output</span>
-                {output && (
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${output.success ? 'bg-vld-success/10 text-vld-success' : 'bg-vld-error/10 text-vld-error'}`}>
-                    {output.success ? 'Valid' : 'Invalid'}
-                  </span>
+              <div className="bg-muted/50 px-4 py-3 border-b border-border flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {output && (
+                    output.success
+                      ? <CheckCircle2 className="w-4 h-4 text-vld-success" />
+                      : <XCircle className="w-4 h-4 text-vld-error" />
+                  )}
+                  <span className="font-medium text-sm">Validation Output</span>
+                  {output && (
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${output.success ? 'bg-vld-success/10 text-vld-success' : 'bg-vld-error/10 text-vld-error'}`}>
+                      {output.success ? 'Valid' : 'Invalid'}
+                    </span>
+                  )}
+                </div>
+                {output?.executionTimeMs !== undefined && (
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Timer className="w-3.5 h-3.5 text-vld-primary" />
+                    <span>{output.executionTimeMs} ms</span>
+                  </div>
                 )}
               </div>
               <div className="p-4 min-h-[500px] max-h-[600px] overflow-auto bg-zinc-950">
                 {output ? (
                   <pre className="font-mono text-sm whitespace-pre-wrap">
                     <code className={output.success ? 'text-emerald-400' : 'text-red-400'}>
-                      {output.message}
+                      {output.rawMessage}
                     </code>
                   </pre>
                 ) : (
@@ -450,7 +428,7 @@ export function PlaygroundPage() {
               </div>
               <div>
                 <span className="font-medium text-foreground">Error Handling</span>
-                <p>Use <code className="text-vld-primary">safeParse()</code> for validation without throwing errors.</p>
+                <p>Use <code className="text-vld-primary">safeParse()</code> for safe validation without throwing errors.</p>
               </div>
               <div>
                 <span className="font-medium text-foreground">Chaining</span>

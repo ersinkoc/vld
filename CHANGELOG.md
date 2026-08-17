@@ -7,13 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.5] - 2026-08-17
+
 ### Added
 
+- Added modern documentation website and live playground deployed at [vld.oxog.dev](https://vld.oxog.dev).
+- Added in-browser live VLD execution engine in the playground for real-time schema validation, issue inspection, and execution timing.
+- Added GitHub Pages SPA routing decoder and `404.html` fallback for direct subpath navigation and page refresh.
+- Added cross-platform documentation synchronization script (`scripts/sync-docs.js`).
 - Added repository policy and contribution scaffolding: `SECURITY.md`, `CODE_OF_CONDUCT.md`, and GitHub issue templates for bug reports and feature requests.
 - Added `.nvmrc` (Node 24) and `.npmrc` (lockfile-exact installs, `ignore-scripts=true`) so local installs match the CI matrix.
 
 ### Changed
 
+- Updated website pages (Home, Docs, API Reference, Benchmarks, Examples) to reflect latest `v2.2.5` APIs and release-gate benchmarks.
 - Rewrote `.gitignore` into labelled sections and extended it to cover build metadata (`*.tsbuildinfo`, `.rollup.cache/`), packaging artifacts (`*.tgz`), test and gate scratch output (`test-results/`, `junit.xml`, `.nyc_output/`), tool caches (`.eslintcache`, `.cache/`), OS junk (`Thumbs.db`, `desktop.ini`), and local agent state. `.wrongstack/project.json` stays tracked while the rest of that directory stays ignored.
 
 ### Removed

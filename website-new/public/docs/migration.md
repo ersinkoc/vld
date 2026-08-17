@@ -431,25 +431,24 @@ const schema = v.object({
 
 ## Troubleshooting
 
-### Issue: Union Types Not Working
+### Union calling conventions
 
 ```javascript
-// Problem (Zod syntax)
-v.union([v.string(), v.number()]) // Error!
+// Current Zod syntax
+v.union([v.string(), v.number()])
 
-// Solution (VLD syntax)
-v.union(v.string(), v.number()) // Correct
+// VLD extension retained for existing users
+v.union(v.string(), v.number())
 ```
 
-### Issue: Type Inference Errors
+### Type inference aliases
 
-```javascript
-// Problem
-type User = v.infer<typeof schema>; // Error!
+```typescript
+type User = v.infer<typeof schema>;
 
-// Solution
+// Direct aliases are also available
 import { Infer } from '@oxog/vld';
-type User = Infer<typeof schema>; // Correct
+type SameUser = Infer<typeof schema>;
 ```
 
 ### Issue: Discriminated Union
