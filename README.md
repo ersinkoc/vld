@@ -51,7 +51,12 @@ VLD is a blazing-fast, type-safe validation library for TypeScript and JavaScrip
 - **Fallback Handling**: `catch()` for graceful error recovery
 - **Object Utilities**: `pick()`, `omit()`, `extend()` for flexible object schemas
 
-### New in v2.2.x - Error Parity, Canary Parity, and Minified Builds
+### New in v2.2.x - Error Parity, Live Playground, and Minified Builds
+
+#### Live Documentation & In-Browser Playground (v2.2.5)
+- **Interactive Documentation**: Available at [https://vld.oxog.dev](https://vld.oxog.dev) with full API reference, examples, and benchmark comparisons.
+- **In-Browser Playground Engine**: Test and inspect live TypeScript schemas with real VLD execution directly at [vld.oxog.dev/playground](https://vld.oxog.dev/playground).
+- **SPA GitHub Pages Routing**: Full SPA subpath navigation and refresh support with custom domain `vld.oxog.dev`.
 
 #### Zod 4-Compatible Error Issues
 Validation failures now carry Zod 4's structured issue shape, so error-handling code ports across unchanged:
