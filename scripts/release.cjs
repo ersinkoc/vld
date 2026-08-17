@@ -42,6 +42,27 @@ function run(command, args, options) {
   return execFileCompat(command, args, options).toString().trim();
 }
 
+// Resolve git to an absolute path so the helper above skips the cmd.exe
+// branch. Without this, --pretty=%s|||%b is parsed by cmd.exe as a pipeline
+// and `|||` fails before git ever runs. Same reason npm gets a shell, but
+// git we can spawn directly because we control its absolute path.
+function resolveGit() {
+  if (process.env.GIT && path.isAbsolute(process.env.GIT)) return process.env.GIT;
+  const candidates =
+    process.platform === 'win32'
+      ? [
+          'C:\\Program Files\\Git\\cmd\\git.exe',
+          'C:\\Program Files\\Git\\mingw64\\bin\\git.exe',
+        ]
+      : ['/usr/bin/git', '/usr/local/bin/git'];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  throw new Error('Unable to locate git binary on this system.');
+}
+
+const gitBin = resolveGit();
+
 const rootDir = path.resolve(__dirname, '..');
 const pkgPath = path.join(rootDir, 'package.json');
 const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
@@ -56,7 +77,7 @@ if (explicit) {
   // Find the most recent vX.Y.Z tag (if any). No tags yet -> bump from 0.0.0.
   let range = '';
   try {
-    const lastTag = run('git', ['describe', '--tags', '--abbrev=0', '--match', 'v*.*.*']);
+    const lastTag = run(gitBin, ['describe', '--tags', '--abbrev=0', '--match', 'v*.*.*']);
     if (lastTag) range = `${lastTag}..HEAD`;
   } catch (_) {
     range = '';
@@ -67,7 +88,7 @@ if (explicit) {
     : ['log', '--pretty=%s|||%b'];
   let log = '';
   try {
-    log = run('git', logArgs);
+    log = run(gitBin, logArgs);
   } catch (error) {
     console.error('Unable to read git log:', error.message);
     process.exit(1);
