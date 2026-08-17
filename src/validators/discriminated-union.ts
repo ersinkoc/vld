@@ -4,7 +4,7 @@
  * Provides O(1) lookup performance by using a discriminator key
  */
 
-import { VldBase, VLD_VALIDATOR_TYPES } from './base';
+import { VldBase, VLD_VALIDATOR_TYPES, ensureVldError } from './base';
 import { VldObject } from './object';
 import { VldLiteral } from './literal';
 import { VldEnum } from './enum';
@@ -106,7 +106,7 @@ export class VldDiscriminatedUnion<K extends string, Options extends readonly Vl
     if (typeof value !== 'object' || value === null) {
       return {
         success: false,
-        error: new Error(
+        error: ensureVldError(
           `Expected object, received ${value === null ? 'null' : typeof value}`
         )
       };
@@ -123,7 +123,7 @@ export class VldDiscriminatedUnion<K extends string, Options extends readonly Vl
     if (!matchedSchema) {
       return {
         success: false,
-        error: new Error(
+        error: ensureVldError(
           `Invalid discriminator value for "${this._discriminator}". ` +
           `Expected one of: ${JSON.stringify(this._validValues)}, ` +
           `received: ${JSON.stringify(discriminatorValue)}`
@@ -142,7 +142,7 @@ export class VldDiscriminatedUnion<K extends string, Options extends readonly Vl
     } catch (error) {
       return {
         success: false,
-        error: error as Error
+        error: ensureVldError(error)
       };
     }
   }

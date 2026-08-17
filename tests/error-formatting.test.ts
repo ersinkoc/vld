@@ -55,6 +55,38 @@ describe('Error Formatting Tests', () => {
         Error.captureStackTrace = originalCaptureStackTrace;
       }
     });
+
+    it('should support isEmpty, addIssue, addIssues, format, and flatten', () => {
+      const emptyErr = new VldError([]);
+      expect(emptyErr.isEmpty).toBe(true);
+
+      const err = new VldError([{ code: 'custom', path: [], message: 'Root error' }]);
+      expect(err.isEmpty).toBe(false);
+      expect(err.errors).toHaveLength(1);
+
+      err.addIssue({ code: 'custom', path: ['nested', 'field'], message: 'Nested error' });
+      err.addIssue({ code: 'custom', path: ['nested', 'field2'], message: 'Nested error 2' });
+      expect(err.issues).toHaveLength(3);
+
+      err.addIssues([
+        { code: 'custom', path: ['other'], message: 'Other error' }
+      ]);
+      err.addIssues();
+      expect(err.issues).toHaveLength(4);
+
+      const formatted = err.format();
+      expect(formatted['_errors']).toContain('Root error');
+      expect(formatted['nested']['field']['_errors']).toContain('Nested error');
+      expect(formatted['nested']['field2']['_errors']).toContain('Nested error 2');
+
+      const flat = err.flatten();
+      expect(flat.formErrors).toContain('Root error');
+      expect(flat.fieldErrors['nested']).toBeDefined();
+
+      const customFlat = err.flatten(issue => issue.message.toUpperCase());
+      expect(customFlat.formErrors).toContain('ROOT ERROR');
+      expect(customFlat.fieldErrors['nested']).toContain('NESTED ERROR');
+    });
   });
 
   describe('treeifyError', () => {

@@ -102,6 +102,27 @@ describe('v.custom()', () => {
         expect(result2.error.message).toBe('Non-empty string required');
       }
     });
+
+    it('should support custom safeParseAsync implementation', async () => {
+      const schema = v.custom({
+        parse: (value: unknown) => String(value),
+        safeParseAsync: async (value: unknown) => {
+          if (typeof value === 'string' && value.length > 0) {
+            return { success: true, data: value };
+          }
+          return { success: false, error: new Error('Async non-empty required') };
+        }
+      });
+
+      const res1 = await schema.safeParseAsync('hello');
+      expect(res1.success).toBe(true);
+
+      const res2 = await schema.safeParseAsync('');
+      expect(res2.success).toBe(false);
+      if (!res2.success) {
+        expect(res2.error.message).toBe('Async non-empty required');
+      }
+    });
   });
 
   describe('async support', () => {

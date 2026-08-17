@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
-import { v } from '../src/index';
+import { v, z } from '../src/index';
 
 describe('Method Chaining after .refine(), .superRefine(), and .check()', () => {
   describe('VldString chaining', () => {
@@ -292,6 +292,142 @@ describe('Method Chaining after .refine(), .superRefine(), and .check()', () => 
       expect(schema.parse(validDate)).toBe(validDate);
       expect(() => schema.parse(new Date(2019, 0, 1))).toThrow('Must be 2020+');
       expect(() => schema.parse(new Date(2017, 0, 1))).toThrow();
+    });
+  });
+
+  describe('Zod Parity - refine with object params, path, and issues structure', () => {
+    it('should support refine(fn, { message, path }) object form with issues accessible', () => {
+      const schema = v.object({
+        password: v.string(),
+        confirm: v.string()
+      }).refine(data => data.password === data.confirm, {
+        message: 'Passwords do not match',
+        path: ['confirm']
+      });
+
+      const res = schema.safeParse({ password: '123', confirm: '456' });
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error.issues).toHaveLength(1);
+        expect(res.error.issues[0]!.message).toBe('Passwords do not match');
+        expect(res.error.issues[0]!.path).toEqual(['confirm']);
+        expect(res.error.issues.map(i => i.message)).toEqual(['Passwords do not match']);
+        expect(res.error.format()).toBeDefined();
+        expect(res.error.flatten()).toBeDefined();
+        expect(res.error.errors).toBe(res.error.issues);
+      }
+    });
+
+    it('should support superRefine with custom code, path, and message in issues', () => {
+      const schema = v.object({
+        user: v.object({
+          email: v.string()
+        })
+      }).superRefine((data, ctx) => {
+        if (!data.user.email.includes('@')) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['user', 'email'],
+            message: 'Invalid email in user object'
+          });
+        }
+      });
+
+      const res = schema.safeParse({ user: { email: 'bad' } });
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error.issues).toHaveLength(1);
+        expect(res.error.issues[0]!.path).toEqual(['user', 'email']);
+        expect(res.error.issues[0]!.message).toBe('Invalid email in user object');
+        expect(res.error.issues[0]!.code).toBe('custom');
+      }
+    });
+
+    it('should support z.infer, z.input, z.output type derivations and ZodSchema types', () => {
+      const mySchema = v.object({
+        name: v.string(),
+        age: v.number()
+      });
+
+      type MyInferred = z.infer<typeof mySchema>;
+      type MyInput = z.input<typeof mySchema>;
+      type MyOutput = z.output<typeof mySchema>;
+
+      const obj: MyInferred = { name: 'Alice', age: 30 };
+      const inputObj: MyInput = { name: 'Alice', age: 30 };
+      const outputObj: MyOutput = { name: 'Alice', age: 30 };
+
+      expect(mySchema.parse(obj)).toEqual(inputObj);
+      expect(mySchema.parse(outputObj)).toEqual(obj);
+    });
+
+    it('should support custom function returning message/path in refine', () => {
+      const schema = v.string().refine(s => s.length > 5, (val: string) => ({
+        message: `Value ${val} is too short`,
+        path: ['field']
+      }));
+
+      const res = schema.safeParse('abc');
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error.issues[0]!.message).toBe('Value abc is too short');
+        expect(res.error.issues[0]!.path).toEqual(['field']);
+      }
+
+      const stringFnSchema = v.string().refine(s => s === 'ok', () => 'Must be ok exactly');
+      expect(() => stringFnSchema.parse('bad')).toThrow('Must be ok exactly');
+
+      const fallbackFnSchema = v.string().refine(s => s === 'ok', (() => ({})) as any);
+      expect(() => fallbackFnSchema.parse('bad')).toThrow('Refinement check failed');
+
+      const objFnSchema = v.string().min(5, (() => 'Min 5 chars') as any);
+      expect(() => objFnSchema.parse('a')).toThrow('Min 5 chars');
+
+      const objMsgFnSchema = v.string().min(5, (() => ({ message: 'Min 5 chars obj' })) as any);
+      expect(() => objMsgFnSchema.parse('a')).toThrow('Min 5 chars obj');
+
+      const objEmptyFnSchema = v.string().min(5, (() => ({})) as any);
+      expect(() => objEmptyFnSchema.parse('a')).toThrow();
+
+      const refineErrorObj = v.string().refine(s => s === 'ok', { error: 'Custom error obj' });
+      expect(() => refineErrorObj.parse('bad')).toThrow('Custom error obj');
+
+      const refineErrorFn = v.string().refine(s => s === 'ok', { error: () => 'Custom fn error obj' });
+      expect(() => refineErrorFn.parse('bad')).toThrow('Custom fn error obj');
+
+      const refineErrorEmpty = v.string().refine(s => s === 'ok', { error: {} as any });
+      expect(() => refineErrorEmpty.parse('bad')).toThrow('Refinement check failed');
+
+      const resolveMsgObj = v.string().min(5, { message: 'Min 5 msg' });
+      expect(() => resolveMsgObj.parse('a')).toThrow('Min 5 msg');
+
+      const resolveErrFnObj = v.string().min(5, { error: () => 'Fn error' });
+      expect(() => resolveErrFnObj.parse('a')).toThrow('Fn error');
+
+      const resolveErrEmptyFn = v.string().min(5, { error: () => '' });
+      expect(() => resolveErrEmptyFn.parse('a')).toThrow();
+
+      const resolveEmptyObj = v.string().min(5, {} as any);
+      expect(() => resolveEmptyObj.parse('a')).toThrow();
+
+      const refinePrimitive = v.string().refine(s => s === 'ok', 123 as any);
+      expect(() => refinePrimitive.parse('bad')).toThrow('Refinement check failed');
+    });
+
+    it('should fallback to default validation error when superRefine issue has no message', async () => {
+      const schema = v.string().superRefine((_, ctx) => {
+        ctx.addIssue({} as any);
+      });
+
+      expect(() => schema.parse('test')).toThrow('Validation error');
+
+      const safeRes = schema.safeParse('test');
+      expect(safeRes.success).toBe(false);
+      if (!safeRes.success) {
+        expect(safeRes.error.issues[0]!.message).toBe('Validation error');
+      }
+
+      await expect(schema.parseAsync('test')).rejects.toThrow('Validation error');
     });
   });
 });

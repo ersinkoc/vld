@@ -3,7 +3,7 @@
  * Validates that the resolved value matches the inner schema
  */
 
-import { type ParseResult, type StandardSchemaV1Props, type StandardSchemaV1Result, type StandardTypedV1Types, VLD_VALIDATOR_TYPES } from './base';
+import { type ParseResult, type StandardSchemaV1Props, type StandardSchemaV1Result, type StandardTypedV1Types, VLD_VALIDATOR_TYPES, ensureVldError } from './base';
 
 type PromiseInner<T> = {
   parse(value: unknown): T;
@@ -84,7 +84,7 @@ export class VldPromise<T> {
     if (!this._isThenable(value)) {
       return {
         success: false as const,
-        error: new Error('Expected a Promise value')
+        error: ensureVldError('Expected a Promise value')
       };
     }
 
@@ -103,7 +103,7 @@ export class VldPromise<T> {
     } catch (err) {
       return {
         success: false as const,
-        error: err instanceof Error ? err : new Error(String(err))
+        error: ensureVldError(err)
       };
     }
   }

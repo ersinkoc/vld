@@ -4,7 +4,7 @@
  */
 
 import { v } from '../../src';
-import { VldBase, VLD_VALIDATOR_TYPES } from '../../src/validators/base';
+import { VldBase, VLD_VALIDATOR_TYPES, ensureVldError } from '../../src/validators/base';
 
 class ThrowingFallbackValidator extends VldBase<unknown, never> {
   constructor(private readonly thrown: unknown) {
@@ -16,7 +16,7 @@ class ThrowingFallbackValidator extends VldBase<unknown, never> {
   }
 
   safeParse() {
-    return { success: false as const, error: new Error(String(this.thrown)) };
+    return { success: false as const, error: ensureVldError(String(this.thrown)) };
   }
 }
 

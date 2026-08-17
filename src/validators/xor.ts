@@ -4,7 +4,7 @@
  * Ensures exactly one schema in the union matches
  */
 
-import { VldBase, VLD_VALIDATOR_TYPES } from './base';
+import { VldBase, VLD_VALIDATOR_TYPES, ensureVldError } from './base';
 import type { ParseResult } from './base';
 
 /**
@@ -49,14 +49,14 @@ export class VldXor<Options extends readonly VldBase<any, any>[]> extends VldBas
     if (matchCount === 0) {
       return {
         success: false,
-        error: new Error('No schema matched in XOR union')
+        error: ensureVldError('No schema matched in XOR union')
       };
     }
 
     if (matchCount > 1) {
       return {
         success: false,
-        error: new Error(
+        error: ensureVldError(
           `Input matches ${matchCount} schemas in XOR union, but exactly one is required`
         )
       };

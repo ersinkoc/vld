@@ -1,4 +1,4 @@
-import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
+import { VldBase, ParseResult, VLD_VALIDATOR_TYPES, ensureVldError } from './base';
 import { getMessages } from '../locales/runtime';
 
 /**
@@ -110,7 +110,7 @@ export class VldStringBool extends VldBase<unknown, boolean> {
     } catch (error) {
       return {
         success: false,
-        error: error as Error
+        error: ensureVldError(error)
       };
     }
   }

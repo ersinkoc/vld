@@ -1,5 +1,5 @@
 import { VldBigInt } from '../validators/bigint';
-import { ParseResult, VLD_VALIDATOR_TYPES } from '../validators/base';
+import { ParseResult, VLD_VALIDATOR_TYPES, ensureVldError } from '../validators/base';
 import { getMessages } from '../locales/runtime';
 
 /**
@@ -113,7 +113,7 @@ export class VldCoerceBigInt extends VldBigInt {
     try {
       return { success: true, data: this.parse(value) };
     } catch (error) {
-      return { success: false, error: error as Error };
+      return { success: false, error: ensureVldError(error) };
     }
   }
 }

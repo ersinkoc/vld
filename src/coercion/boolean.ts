@@ -1,5 +1,5 @@
 import { VldBoolean } from '../validators/boolean';
-import { ParseResult, VLD_VALIDATOR_TYPES } from '../validators/base';
+import { ParseResult, VLD_VALIDATOR_TYPES, ensureVldError } from '../validators/base';
 
 /**
  * Boolean coercion validator that attempts to convert values to booleans
@@ -30,7 +30,7 @@ export class VldCoerceBoolean extends VldBoolean {
     try {
       return { success: true, data: this.parse(value) };
     } catch (error) {
-      return { success: false, error: error as Error };
+      return { success: false, error: ensureVldError(error) };
     }
   }
 }

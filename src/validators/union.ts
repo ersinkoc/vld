@@ -1,4 +1,4 @@
-import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
+import { VldBase, ParseResult, VLD_VALIDATOR_TYPES, ensureVldError } from './base';
 import { getMessages } from '../locales/runtime';
 
 type SimpleUnionMode =
@@ -221,7 +221,7 @@ export class VldUnion<T extends readonly VldBase<any, any>[]> extends VldBase<
     // All validators failed - return error with collected messages
     return {
       success: false,
-      error: new Error(
+      error: ensureVldError(
         this.errorMessage ||
         getMessages().unionNoMatch(errors)
       )

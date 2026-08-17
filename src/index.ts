@@ -18,6 +18,7 @@
 import { VldBase, configureSchemaCompositionFactories, resolveErrorMessage, type ErrorParam, type ParseResult, type SchemaMetadata, type SuperRefineContext } from './validators/base';
 import type { Infer, Input, Output } from './validators';
 import { globalRegistry } from './registry';
+import { VldError, type VldIssue } from './errors-core';
 
 // Import validators
 import { VldString } from './validators/string';
@@ -1148,12 +1149,59 @@ export const v = {
   fromJSONSchema: fromJSONSchemaFn
 };
 
+/* eslint-disable @typescript-eslint/no-unused-vars */
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace v {
   export type infer<T extends VldBase<any, any>> = Infer<T>;
   export type input<T extends VldBase<any, any>> = Input<T>;
   export type output<T extends VldBase<any, any>> = Output<T>;
+  export type Schema<Output = any, _Def = any, Input = Output> = VldBase<Input, Output>;
+  export type ZodSchema<Output = any, _Def = any, Input = Output> = VldBase<Input, Output>;
+  export type ZodType<Output = any, _Def = any, Input = Output> = VldBase<Input, Output>;
+  export type ZodTypeAny = VldBase<any, any>;
+  export type ZodTypeDef = any;
+  export type ZodError<_T = any> = VldError;
+  export type ZodIssue = VldIssue;
+  export type SafeParseSuccess<T> = { readonly success: true; readonly data: T; readonly error?: undefined };
+  export type SafeParseError<_T = unknown> = { readonly success: false; readonly error: VldError; readonly data?: undefined };
+  export type SafeParseReturnType<_Input, Output> = ParseResult<Output>;
+  export type CustomErrorParams = {
+    message?: string;
+    path?: (string | number)[];
+    params?: { [k: string]: any };
+    fatal?: boolean;
+  };
 }
+
+// eslint-disable-next-line @typescript-eslint/no-namespace
+export namespace z {
+  export type infer<T extends VldBase<any, any>> = Infer<T>;
+  export type input<T extends VldBase<any, any>> = Input<T>;
+  export type output<T extends VldBase<any, any>> = Output<T>;
+  export type Schema<Output = any, _Def = any, Input = Output> = VldBase<Input, Output>;
+  export type ZodSchema<Output = any, _Def = any, Input = Output> = VldBase<Input, Output>;
+  export type ZodType<Output = any, _Def = any, Input = Output> = VldBase<Input, Output>;
+  export type ZodTypeAny = VldBase<any, any>;
+  export type ZodTypeDef = any;
+  export type ZodError<_T = any> = VldError;
+  export type ZodIssue = VldIssue;
+  export type SafeParseSuccess<T> = { readonly success: true; readonly data: T; readonly error?: undefined };
+  export type SafeParseError<_T = unknown> = { readonly success: false; readonly error: VldError; readonly data?: undefined };
+  export type SafeParseReturnType<_Input, Output> = ParseResult<Output>;
+  export type CustomErrorParams = {
+    message?: string;
+    path?: (string | number)[];
+    params?: { [k: string]: any };
+    fatal?: boolean;
+  };
+}
+
+export type ZodSchema<Output = any, _Def = any, Input = Output> = VldBase<Input, Output>;
+export type ZodTypeAny = VldBase<any, any>;
+export type ZodTypeDef = any;
+export type { VldIssue as ZodIssue };
+export type { SafeParseSuccess, SafeParseError, SafeParseReturnType, CustomErrorParams } from './validators/base';
+/* eslint-enable @typescript-eslint/no-unused-vars */
 
 /**
  * Zod-compatible namespace alias.

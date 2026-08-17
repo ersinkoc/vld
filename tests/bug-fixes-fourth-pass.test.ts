@@ -4,7 +4,7 @@
  */
 
 import { v } from '../src';
-import { VldBase } from '../src/validators/base';
+import { VldBase, ensureVldError } from '../src/validators/base';
 import { isDangerousKey } from '../src/utils/security';
 
 describe('Fourth Bug Analysis Fixes', () => {
@@ -47,7 +47,7 @@ describe('Fourth Bug Analysis Fixes', () => {
           try {
             return { success: true as const, data: this.parse(value) };
           } catch (error) {
-            return { success: false as const, error: error as Error };
+            return { success: false as const, error: ensureVldError(error) };
           }
         }
       }

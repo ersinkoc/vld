@@ -1,5 +1,5 @@
 import { VldString } from '../validators/string';
-import { ParseResult, VLD_VALIDATOR_TYPES } from '../validators/base';
+import { ParseResult, VLD_VALIDATOR_TYPES, ensureVldError } from '../validators/base';
 import { getMessages } from '../locales/runtime';
 import { isValidIPv6 } from '../utils/ip-validation';
 
@@ -249,7 +249,7 @@ export class VldCoerceString extends VldString {
     try {
       return { success: true, data: this.parse(value) };
     } catch (error) {
-      return { success: false, error: error as Error };
+      return { success: false, error: ensureVldError(error) };
     }
   }
 }

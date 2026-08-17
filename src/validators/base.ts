@@ -1,12 +1,27 @@
 import { globalRegistry } from '../registry';
 import type { SchemaRegistry } from '../registry';
+import { VldError, type VldIssue } from '../errors-core';
 
 /**
  * Base result type for validation
  */
 export type ParseResult<T> =
-  | { readonly success: true; readonly data: T }
-  | { readonly success: false; readonly error: Error };
+  | { readonly success: true; readonly data: T; readonly error?: undefined }
+  | { readonly success: false; readonly error: VldError; readonly data?: undefined };
+
+export type SafeParseSuccess<T> = { readonly success: true; readonly data: T; readonly error?: undefined };
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export type SafeParseError<_T = unknown> = { readonly success: false; readonly error: VldError; readonly data?: undefined };
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export type SafeParseReturnType<_Input, Output> = SafeParseSuccess<Output> | SafeParseError<_Input>;
+
+export function ensureVldError(error: unknown): VldError {
+  if (error instanceof VldError) {
+    return error;
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  return new VldError([{ code: 'custom', path: [], message }]);
+}
 
 export interface StandardTypedV1<Input = unknown, Output = Input> {
   readonly '~standard': StandardTypedV1Props<Input, Output>;
@@ -144,16 +159,16 @@ export const VLD_VALIDATOR_TYPES = {
 export type ValidatorType = typeof VLD_VALIDATOR_TYPES[keyof typeof VLD_VALIDATOR_TYPES];
 
 /**
- * Context for superRefine - allows adding multiple issues
+ * Context for superRefine - allows adding multiple issues with path and code
  */
 export interface SuperRefineContext {
-  addIssue(issue: { message: string; code?: string }): void;
+  addIssue(issue: { message: string; code?: string; path?: (string | number)[]; fatal?: boolean; [key: string]: any }): void;
   path: (string | number)[];
 }
 
 export interface CheckPayload<T> {
   value: T;
-  issues: Array<{ message?: string; code?: string }>;
+  issues: Array<{ message?: string; code?: string; path?: (string | number)[] }>;
   aborted?: boolean;
 }
 
@@ -161,21 +176,34 @@ export type VldCheck<T> =
   | ((payload: CheckPayload<T>) => void | Promise<void>)
   | { _zod?: { check?: (payload: CheckPayload<T>) => void | Promise<void> } };
 
+export type CustomErrorParams = {
+  message?: string;
+  path?: (string | number)[];
+  params?: { [k: string]: any };
+  fatal?: boolean;
+};
+
 export type ErrorMap = (issue: { code?: string; input?: unknown; path?: (string | number)[] }) => string | undefined;
-export type ErrorParam = string | { error?: string | ErrorMap; message?: string };
+export type ErrorParam =
+  | string
+  | CustomErrorParams
+  | ((value: any) => CustomErrorParams | string)
+  | { error?: string | ErrorMap; message?: string };
 
 export function resolveErrorMessage(error: ErrorParam | undefined, fallback: string): string {
   if (typeof error === 'string') {
     return error;
   }
-  if (typeof error?.error === 'string') {
-    return error.error;
+  if (typeof error === 'function') {
+    const res = error(undefined);
+    if (typeof res === 'string') return res;
+    if (typeof res === 'object' && res?.message) return res.message;
+    return fallback;
   }
-  if (typeof error?.error === 'function') {
-    return error.error({}) || fallback;
-  }
-  if (typeof error?.message === 'string') {
-    return error.message;
+  if (typeof error === 'object' && error !== null) {
+    if (typeof (error as any).error === 'string') return (error as any).error;
+    if (typeof (error as any).error === 'function') return (error as any).error({}) || fallback;
+    if (typeof (error as any).message === 'string') return (error as any).message;
   }
   return fallback;
 }
@@ -329,7 +357,7 @@ export abstract class VldBase<TInput, TOutput = TInput> {
     try {
       return { success: true, data: await this.parseAsync(value) };
     } catch (error) {
-      return { success: false, error: error as Error };
+      return { success: false, error: ensureVldError(error) };
     }
   }
 
@@ -434,17 +462,17 @@ export abstract class VldBase<TInput, TOutput = TInput> {
    */
   refine<TRefined extends TOutput>(
     predicate: (value: TOutput) => value is TRefined,
-    message?: ErrorParam
+    message?: ErrorParam | CustomErrorParams | ((val: TOutput) => CustomErrorParams | string)
   ): VldRefine<TInput, TOutput, TRefined>;
   refine(
     predicate: (value: TOutput) => boolean | Promise<boolean>,
-    message?: ErrorParam
+    message?: ErrorParam | CustomErrorParams | ((val: TOutput) => CustomErrorParams | string)
   ): VldRefine<TInput, TOutput, TOutput>;
   refine(
     predicate: (value: TOutput) => boolean | Promise<boolean>,
-    message?: ErrorParam
+    message?: ErrorParam | CustomErrorParams | ((val: TOutput) => CustomErrorParams | string)
   ): VldRefine<TInput, TOutput, TOutput> {
-    return new VldRefine(this, predicate, resolveErrorMessage(message, 'Refinement check failed'));
+    return new VldRefine(this, predicate, message);
   }
 
   /**
@@ -641,15 +669,15 @@ export abstract class VldBase<TInput, TOutput = TInput> {
    */
   check<TRefined extends TOutput>(
     predicate: (value: TOutput) => value is TRefined,
-    message?: ErrorParam
+    message?: ErrorParam | CustomErrorParams | ((val: TOutput) => CustomErrorParams | string)
   ): VldRefine<TInput, TOutput, TRefined>;
   check(
     predicate: (value: TOutput) => boolean | Promise<boolean>,
-    message?: ErrorParam
+    message?: ErrorParam | CustomErrorParams | ((val: TOutput) => CustomErrorParams | string)
   ): VldRefine<TInput, TOutput, TOutput>;
   check(
     predicate: (value: TOutput) => boolean | Promise<boolean>,
-    message?: ErrorParam
+    message?: ErrorParam | CustomErrorParams | ((val: TOutput) => CustomErrorParams | string)
   ): VldRefine<TInput, TOutput, TOutput> {
     return this.refine(predicate, message);
   }
@@ -824,17 +852,49 @@ export class VldBrand<TInput, TOutput, TBrand extends string> extends VldBase<
  * Refine validator - adds custom validation
  */
 export class VldRefine<TInput, TBase, TOutput extends TBase = TBase> extends VldBase<TInput, TOutput> {
-  private readonly customMessage: string;
+  private readonly customMessage: ErrorParam | CustomErrorParams | ((val: TBase) => CustomErrorParams | string);
+  private readonly refinePath?: (string | number)[];
 
   constructor(
     private readonly baseValidator: VldBase<TInput, TBase>,
     private readonly predicate: (value: TBase) => boolean | Promise<boolean>,
-    customMessage?: string
+    customMessage?: ErrorParam | CustomErrorParams | ((val: TBase) => CustomErrorParams | string)
   ) {
     super(VLD_VALIDATOR_TYPES.REFINE);
-    this.customMessage = customMessage || 'Refinement check failed';
+    this.customMessage = customMessage ?? 'Refinement check failed';
+    if (typeof customMessage === 'object' && customMessage !== null && 'path' in customMessage && Array.isArray(customMessage.path)) {
+      this.refinePath = customMessage.path;
+    }
   }
-  
+
+  private _createIssue(val: TBase): VldIssue {
+    if (typeof this.customMessage === 'function') {
+      const res = this.customMessage(val);
+      if (typeof res === 'string') {
+        return { code: 'custom', path: this.refinePath ?? [], message: res };
+      }
+      return {
+        code: 'custom',
+        path: res?.path ?? this.refinePath ?? [],
+        message: res?.message ?? 'Refinement check failed'
+      };
+    }
+    if (typeof this.customMessage === 'object' && this.customMessage !== null) {
+      const msg = (this.customMessage as any).message ?? (this.customMessage as any).error;
+      const resolvedMsg = typeof msg === 'function' ? msg({}) : (typeof msg === 'string' ? msg : 'Refinement check failed');
+      return {
+        code: 'custom',
+        path: (this.customMessage as any).path ?? this.refinePath ?? [],
+        message: resolvedMsg
+      };
+    }
+    return {
+      code: 'custom',
+      path: this.refinePath ?? [],
+      message: typeof this.customMessage === 'string' ? this.customMessage : 'Refinement check failed'
+    };
+  }
+
   parse(value: unknown): TOutput {
     const baseResult = this.baseValidator.parse(value);
 
@@ -844,7 +904,7 @@ export class VldRefine<TInput, TBase, TOutput extends TBase = TBase> extends Vld
     }
 
     if (!passed) {
-      throw new Error(this.customMessage);
+      throw new VldError([this._createIssue(baseResult)]);
     }
     
     return baseResult as TOutput;
@@ -854,16 +914,24 @@ export class VldRefine<TInput, TBase, TOutput extends TBase = TBase> extends Vld
     try {
       return { success: true, data: this.parse(value) };
     } catch (error) {
-      return { success: false, error: error as Error };
+      return { success: false, error: ensureVldError(error) };
     }
   }
 
   override async parseAsync(value: unknown): Promise<TOutput> {
     const baseResult = await this.baseValidator.parseAsync(value);
     if (!await this.predicate(baseResult)) {
-      throw new Error(this.customMessage);
+      throw new VldError([this._createIssue(baseResult)]);
     }
     return baseResult as TOutput;
+  }
+
+  override async safeParseAsync(value: unknown): Promise<ParseResult<TOutput>> {
+    try {
+      return { success: true, data: await this.parseAsync(value) };
+    } catch (error) {
+      return { success: false, error: ensureVldError(error) };
+    }
   }
 
   private _wrap(nextBase: any): any {
@@ -1046,7 +1114,7 @@ export class VldTransform<TInput, TBase, TOutput> extends VldBase<TInput, TOutpu
     try {
       return { success: true, data: this.parse(value) };
     } catch (error) {
-      return { success: false, error: error as Error };
+      return { success: false, error: ensureVldError(error) };
     }
   }
 
@@ -1416,9 +1484,15 @@ export class VldSuperRefine<TInput, TOutput> extends VldBase<TInput, TOutput> {
   parse(value: unknown): TOutput {
     const result = this._inner.parse(value);
 
-    const issues: { message: string; code?: string }[] = [];
+    const issues: VldIssue[] = [];
     const ctx: SuperRefineContext = {
-      addIssue: (issue) => issues.push(issue),
+      addIssue: (issue) => {
+        issues.push({
+          code: (issue.code as any) || 'custom',
+          path: issue.path ?? [],
+          message: issue.message || 'Validation error'
+        });
+      },
       path: []
     };
 
@@ -1428,7 +1502,7 @@ export class VldSuperRefine<TInput, TOutput> extends VldBase<TInput, TOutput> {
     }
 
     if (issues.length > 0) {
-      throw new Error(issues.map(i => i.message).join('; '));
+      throw new VldError(issues, issues.map(i => i.message).join('; '));
     }
 
     return result;
@@ -1436,11 +1510,17 @@ export class VldSuperRefine<TInput, TOutput> extends VldBase<TInput, TOutput> {
 
   safeParse(value: unknown): ParseResult<TOutput> {
     const result = this._inner.safeParse(value);
-    if (!result.success) return { success: false, error: result.error };
+    if (!result.success) return { success: false, error: ensureVldError(result.error) };
 
-    const issues: { message: string; code?: string }[] = [];
+    const issues: VldIssue[] = [];
     const ctx: SuperRefineContext = {
-      addIssue: (issue) => issues.push(issue),
+      addIssue: (issue) => {
+        issues.push({
+          code: (issue.code as any) || 'custom',
+          path: issue.path ?? [],
+          message: issue.message || 'Validation error'
+        });
+      },
       path: []
     };
 
@@ -1452,7 +1532,7 @@ export class VldSuperRefine<TInput, TOutput> extends VldBase<TInput, TOutput> {
     if (issues.length > 0) {
       return {
         success: false,
-        error: new Error(issues.map(i => i.message).join('; '))
+        error: new VldError(issues, issues.map(i => i.message).join('; '))
       };
     }
 
@@ -1462,16 +1542,22 @@ export class VldSuperRefine<TInput, TOutput> extends VldBase<TInput, TOutput> {
   override async parseAsync(value: unknown): Promise<TOutput> {
     const result = await this._inner.parseAsync(value);
 
-    const issues: { message: string; code?: string }[] = [];
+    const issues: VldIssue[] = [];
     const ctx: SuperRefineContext = {
-      addIssue: (issue) => issues.push(issue),
+      addIssue: (issue) => {
+        issues.push({
+          code: (issue.code as any) || 'custom',
+          path: issue.path ?? [],
+          message: issue.message || 'Validation error'
+        });
+      },
       path: []
     };
 
     await this._refinement(result, ctx);
 
     if (issues.length > 0) {
-      throw new Error(issues.map(i => i.message).join('; '));
+      throw new VldError(issues, issues.map(i => i.message).join('; '));
     }
 
     return result;
@@ -1481,7 +1567,7 @@ export class VldSuperRefine<TInput, TOutput> extends VldBase<TInput, TOutput> {
     try {
       return { success: true, data: await this.parseAsync(value) };
     } catch (error) {
-      return { success: false, error: error as Error };
+      return { success: false, error: ensureVldError(error) };
     }
   }
 
@@ -1666,7 +1752,7 @@ export class VldPreprocess<TInput, TOutput> extends VldBase<unknown, TOutput> {
     } catch (error) {
       return {
         success: false,
-        error: error as Error
+        error: ensureVldError(error)
       };
     }
   }

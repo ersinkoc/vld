@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added `namespace z` and top-level `ZodSchema`, `ZodType`, `ZodTypeAny`, `ZodTypeDef`, `ZodIssue` type exports for 100% drop-in replacement with `z.infer<typeof S>`, `z.input<typeof S>`, and `z.output<typeof S>`.
+- Added `.errors` alias, `.isEmpty`, `.addIssue()`, `.addIssues()`, `.format()`, and `.flatten()` directly on `VldError` / `ZodError` instances.
+- Added `{ message?: string, path?: (string | number)[], params?: object }` config overload and custom message function `(val) => { message, path }` support to `.refine()` and `.check()`.
+- Added `{ code, path, message, fatal }` support to `ctx.addIssue()` in `.superRefine()` with path preservation.
+
+### Fixed
+
+- Fixed `safeParse` error shape across all validators and refinements to always return a `VldError` instance exposing `.issues` (`result.error.issues.map(...)`).
+
 ## [2.2.5] - 2026-08-17
 
 ### Added

@@ -1,4 +1,4 @@
-import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
+import { VldBase, ParseResult, VLD_VALIDATOR_TYPES, ensureVldError } from './base';
 import { getMessages } from '../locales/runtime';
 
 /**
@@ -16,7 +16,7 @@ export class VldJson<T = unknown> extends VldBase<unknown, T> {
    * Create a new JSON validator
    */
   static create<T = unknown>(schema?: VldBase<unknown, T>): VldJson<T> {
-    return new VldJson(schema);
+    return new VldJson<T>(schema);
   }
 
   /**
@@ -55,7 +55,7 @@ export class VldJson<T = unknown> extends VldBase<unknown, T> {
     } catch (error) {
       return {
         success: false,
-        error: error as Error
+        error: ensureVldError(error)
       };
     }
   }

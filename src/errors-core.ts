@@ -151,12 +151,14 @@ function deserializeIssue(issue: VldIssueJSON): VldIssue {
 export class VldError extends Error {
   public readonly issues: VldIssue[];
 
-  constructor(issues: VldIssue[]) {
+  constructor(issues: VldIssue[], customMessage?: string) {
     const firstIssue = issues[0];
     const message =
-      issues.length === 1 && firstIssue !== undefined
-        ? firstIssue.message
-        : `${issues.length} validation errors`;
+      customMessage !== undefined
+        ? customMessage
+        : issues.length === 1 && firstIssue !== undefined
+          ? firstIssue.message
+          : `${issues.length} validation errors`;
 
     super(message);
     this.name = 'VldError';
@@ -171,8 +173,62 @@ export class VldError extends Error {
     return this.issues[0];
   }
 
+  get errors(): VldIssue[] {
+    return this.issues;
+  }
+
+  get isEmpty(): boolean {
+    return this.issues.length === 0;
+  }
+
   get formattedErrors(): string[] {
     return this.issues.map((issue) => issue.message);
+  }
+
+  addIssue(issue: VldIssue): void {
+    this.issues.push(issue);
+  }
+
+  addIssues(issues: VldIssue[] = []): void {
+    this.issues.push(...issues);
+  }
+
+  format(): Record<string, any> {
+    const result: any = { _errors: [] };
+    for (const issue of this.issues) {
+      if (!issue.path || issue.path.length === 0) {
+        result._errors.push(issue.message);
+      } else {
+        let curr = result;
+        for (const key of issue.path) {
+          if (!curr[key]) {
+            curr[key] = { _errors: [] };
+          }
+          curr = curr[key];
+        }
+        curr._errors.push(issue.message);
+      }
+    }
+    return result;
+  }
+
+  flatten<U = string>(mapper?: (issue: VldIssue) => U): {
+    formErrors: U[];
+    fieldErrors: { [k: string]: U[] };
+  } {
+    const mapFn = mapper ?? ((i: VldIssue) => i.message as unknown as U);
+    const formErrors: U[] = [];
+    const fieldErrors: { [k: string]: U[] } = {};
+    for (const issue of this.issues) {
+      if (!issue.path || issue.path.length === 0) {
+        formErrors.push(mapFn(issue));
+      } else {
+        const key = String(issue.path[0]);
+        fieldErrors[key] = fieldErrors[key] ?? [];
+        fieldErrors[key].push(mapFn(issue));
+      }
+    }
+    return { formErrors, fieldErrors };
   }
 
   toJSON(): VldErrorJSON {

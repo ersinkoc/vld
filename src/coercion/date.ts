@@ -1,5 +1,5 @@
 import { VldDate } from '../validators/date';
-import { ParseResult, VLD_VALIDATOR_TYPES } from '../validators/base';
+import { ParseResult, VLD_VALIDATOR_TYPES, ensureVldError } from '../validators/base';
 import { getMessages } from '../locales/runtime';
 
 /**
@@ -46,7 +46,7 @@ export class VldCoerceDate extends VldDate {
     try {
       return { success: true, data: this.parse(value) };
     } catch (error) {
-      return { success: false, error: error as Error };
+      return { success: false, error: ensureVldError(error) };
     }
   }
 }
