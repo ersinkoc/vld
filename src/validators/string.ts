@@ -135,6 +135,14 @@ export class VldString extends VldBase<string, string> {
     return this._isSimple;
   }
 
+  get minLength(): number | null {
+    return this.config.jsonSchema?.minLength ?? null;
+  }
+
+  get maxLength(): number | null {
+    return this.config.jsonSchema?.maxLength ?? null;
+  }
+
   /**
    * Build the Zod 4-compatible VldIssue for a failed check at the given index.
    */

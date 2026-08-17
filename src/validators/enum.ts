@@ -38,6 +38,18 @@ export class VldEnum<T extends readonly [EnumValue, ...EnumValue[]]> extends Vld
   get values(): T {
     return this._values;
   }
+
+  get options(): T {
+    return this._values;
+  }
+
+  get enum(): { [K in T[number]]: K } {
+    const res: any = {};
+    for (const val of this._values) {
+      res[val] = val;
+    }
+    return res;
+  }
   
   /**
    * Create a new enum validator

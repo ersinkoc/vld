@@ -70,6 +70,14 @@ export class VldDiscriminatedUnion<K extends string, Options extends readonly Vl
     this._validValues = Array.from(this._discriminatorMap.keys());
   }
 
+  get options(): Options {
+    return this._options;
+  }
+
+  get discriminator(): K {
+    return this._discriminator;
+  }
+
   static create<K extends string, Options extends readonly VldBase<any, any>[]>(
     discriminator: K,
     options: Options

@@ -65,6 +65,18 @@ export class VldBigInt extends VldBase<bigint, bigint> {
   get isSimple(): boolean {
     return this._checks.length === 0;
   }
+
+  get minValue(): bigint | null {
+    return this.config.jsonSchema?.minimum ? BigInt(this.config.jsonSchema.minimum) : null;
+  }
+
+  get maxValue(): bigint | null {
+    return this.config.jsonSchema?.maximum ? BigInt(this.config.jsonSchema.maximum) : null;
+  }
+
+  get format(): string | null {
+    return (this.config.jsonSchema as any)?.format ?? null;
+  }
   
   /**
    * Create a new bigint validator
@@ -277,5 +289,17 @@ export class VldBigInt extends VldBase<bigint, bigint> {
   lte(value: bigint | number, message?: string): VldBigInt {
     const compareValue = typeof value === 'bigint' ? value : BigInt(value);
     return this.max(compareValue, message);
+  }
+
+  /**
+   * Create a new validator with multiple of constraint
+   */
+  multipleOf(divisor: bigint, message?: string): VldBigInt {
+    return new VldBigInt({
+      ...this.config,
+      checks: [...this.config.checks, (v: bigint) => v % divisor === 0n],
+      errorMessage: message || `BigInt must be a multiple of ${divisor}`,
+      jsonSchema: { ...this.config.jsonSchema, multipleOf: divisor } as any
+    });
   }
 }

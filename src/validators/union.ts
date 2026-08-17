@@ -44,6 +44,10 @@ export class VldUnion<T extends readonly VldBase<any, any>[]> extends VldBase<
     );
   }
 
+  get options(): T {
+    return this.validators;
+  }
+
   private createSimpleMode(validator: VldBase<any, any>): SimpleUnionMode {
     if ((validator as { isSimple?: boolean }).isSimple !== true) {
       return undefined;

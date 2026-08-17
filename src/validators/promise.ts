@@ -3,7 +3,7 @@
  * Validates that the resolved value matches the inner schema
  */
 
-import { type ParseResult, type StandardSchemaV1Props, type StandardSchemaV1Result, type StandardTypedV1Types, VLD_VALIDATOR_TYPES, ensureVldError } from './base';
+import { VldBase, type ParseResult, type StandardSchemaV1Props, type StandardSchemaV1Result, type StandardTypedV1Types, VLD_VALIDATOR_TYPES, ensureVldError } from './base';
 
 type PromiseInner<T> = {
   parse(value: unknown): T;
@@ -21,24 +21,23 @@ type PromiseInner<T> = {
  *
  * Use parseAsync() or safeParseAsync() for proper async handling.
  */
-export class VldPromise<T> {
-  readonly validatorType = VLD_VALIDATOR_TYPES.PROMISE;
-
+export class VldPromise<T> extends VldBase<unknown, Promise<T>> {
   constructor(private readonly inner: PromiseInner<T>) {
+    super(VLD_VALIDATOR_TYPES.PROMISE);
   }
 
-  get '~standard'(): StandardSchemaV1Props<unknown, T> {
+  override get '~standard'(): StandardSchemaV1Props<unknown, any> {
     return {
       version: 1,
       vendor: 'vld',
-      validate: async (value: unknown): Promise<StandardSchemaV1Result<T>> => {
-        const result = await this.safeParseAsync(value);
+      validate: async (value: unknown): Promise<StandardSchemaV1Result<any>> => {
+        const result = await this.safeParse(value);
         if (result.success) {
           return { value: result.data };
         }
         return { issues: [{ message: result.error.message }] };
       },
-      types: undefined as unknown as StandardTypedV1Types<unknown, T>
+      types: undefined as unknown as StandardTypedV1Types<unknown, any>
     };
   }
 
@@ -65,13 +64,12 @@ export class VldPromise<T> {
     if (!this._isThenable(value)) {
       throw new Error('Expected a Promise value');
     }
-    // Now we can safely await it
     const resolved = await Promise.resolve(value);
     return this.inner.parseAsync ? this.inner.parseAsync(resolved) : this.inner.parse(resolved);
   }
 
-  parseAsync(value: unknown): Promise<T> {
-    return this.parse(value);
+  override parseAsync(value: unknown): Promise<Promise<T>> {
+    return this.parse(value) as any;
   }
 
   /**
@@ -79,36 +77,38 @@ export class VldPromise<T> {
    * @param value The Promise to validate
    * @returns A Promise resolving to ParseResult containing the validated value
    */
-  async safeParse(value: unknown): Promise<ParseResult<T>> {
+  safeParse(value: unknown): any {
     // Check if value is thenable BEFORE wrapping in Promise.resolve
     if (!this._isThenable(value)) {
-      return {
+      return Promise.resolve({
         success: false as const,
         error: ensureVldError('Expected a Promise value')
-      };
+      });
     }
 
-    try {
-      const resolved = await Promise.resolve(value);
-      if (this.inner.safeParseAsync) {
-        return await this.inner.safeParseAsync(resolved);
-      }
+    return (async () => {
+      try {
+        const resolved = await Promise.resolve(value);
+        if (this.inner.safeParseAsync) {
+          return await this.inner.safeParseAsync(resolved);
+        }
 
-      const innerResult = this.inner.safeParse(resolved);
-      if (!innerResult.success) {
-        return innerResult;
-      }
+        const innerResult = this.inner.safeParse(resolved);
+        if (!innerResult.success) {
+          return innerResult;
+        }
 
-      return { success: true as const, data: innerResult.data };
-    } catch (err) {
-      return {
-        success: false as const,
-        error: ensureVldError(err)
-      };
-    }
+        return { success: true as const, data: innerResult.data };
+      } catch (err) {
+        return {
+          success: false as const,
+          error: ensureVldError(err)
+        };
+      }
+    })();
   }
 
-  safeParseAsync(value: unknown): Promise<ParseResult<T>> {
+  override safeParseAsync(value: unknown): Promise<ParseResult<Promise<T>>> {
     return this.safeParse(value);
   }
 }

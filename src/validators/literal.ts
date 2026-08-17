@@ -30,6 +30,10 @@ export class VldLiteral<T extends LiteralValue> extends VldBase<T, T> {
     return this._values[0]!;
   }
 
+  get value(): T {
+    return this._values[0]!;
+  }
+
   get values(): readonly T[] {
     return this._values;
   }

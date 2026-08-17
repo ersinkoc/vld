@@ -102,6 +102,26 @@ export class VldNumber extends VldBase<number, number> {
   get isSimple(): boolean {
     return this._isSimple;
   }
+
+  get minValue(): number | null {
+    return this.config.jsonSchema?.minimum ?? this.config.jsonSchema?.exclusiveMinimum ?? null;
+  }
+
+  get maxValue(): number | null {
+    return this.config.jsonSchema?.maximum ?? this.config.jsonSchema?.exclusiveMaximum ?? null;
+  }
+
+  get isInt(): boolean {
+    return this.config.jsonSchema?.type === 'integer';
+  }
+
+  get isFinite(): boolean {
+    return true;
+  }
+
+  get format(): string | null {
+    return (this.config.jsonSchema as any)?.format ?? null;
+  }
   
   /**
    * Create a new number validator

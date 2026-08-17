@@ -17,7 +17,7 @@
 // Import base class
 import { VldBase, configureSchemaCompositionFactories, resolveErrorMessage, type ErrorParam, type ParseResult, type SchemaMetadata, type SuperRefineContext } from './validators/base';
 import type { Infer, Input, Output } from './validators';
-import { globalRegistry } from './registry';
+import { globalRegistry, registry } from './registry';
 import { VldError, type VldIssue } from './errors-core';
 
 // Import validators
@@ -50,7 +50,7 @@ import { VldDiscriminatedUnion } from './validators/discriminated-union';
 import { VldXor } from './validators/xor';
 import { VldJson } from './validators/json';
 import { VldTemplateLiteral, templateLiteral as createTemplateLiteral } from './validators/template-literal';
-import { VldCustom, custom as customFn, type CustomValidatorOptions } from './validators/custom';
+import { VldCustom, custom as customFn } from './validators/custom';
 import { VldFile, file as fileFn } from './validators/file';
 import { VldFunction, functionValidator as functionFn } from './validators/function';
 import {
@@ -987,9 +987,7 @@ export const v = {
   json: <T = unknown>(schema?: VldBase<unknown, T>) => VldJson.create(schema),
 
   // Custom validator for type-safe user-defined schemas
-  custom: <TOutput = unknown>(
-    options: CustomValidatorOptions<TOutput>
-  ) => customFn<TOutput>(options),
+  custom: customFn,
 
   // File validator for file uploads
   file: () => fileFn(),
@@ -1148,6 +1146,95 @@ export const v = {
   toJSONSchema: toJSONSchemaFn,
   fromJSONSchema: fromJSONSchemaFn
 };
+
+Object.assign(v, {
+  globalRegistry,
+  registry,
+  _default: <TInput, TOutput>(schema: VldBase<TInput, TOutput>, defaultValue: TOutput | (() => TOutput)) => new VldDefault(schema, defaultValue),
+  success: <TOutput = unknown>(_val?: TOutput) => customFn<TOutput>({ parse: (val: any) => val as TOutput }),
+  _function: () => functionFn(),
+  ZodType: VldBase,
+  ZodTypeAny: VldBase,
+  ZodTypeDef: Object,
+  ZodError: VldErrorClass,
+  ZodRealError: VldErrorClass,
+  _ZodString: VldString,
+  ZodString: VldString,
+  ZodStringFormat: VldString,
+  ZodEmail: VldString,
+  ZodGUID: VldString,
+  ZodUUID: VldString,
+  ZodURL: VldString,
+  ZodEmoji: VldString,
+  ZodNanoID: VldString,
+  ZodCUID: VldString,
+  ZodCUID2: VldString,
+  ZodULID: VldString,
+  ZodXID: VldString,
+  ZodKSUID: VldString,
+  ZodIPv4: VldString,
+  ZodMAC: VldString,
+  ZodIPv6: VldString,
+  ZodCIDRv4: VldString,
+  ZodCIDRv6: VldString,
+  ZodBase64: VldString,
+  ZodBase64URL: VldString,
+  ZodE164: VldString,
+  ZodJWT: VldString,
+  ZodCustomStringFormat: VldString,
+  ZodNumber: VldNumber,
+  ZodNumberFormat: VldNumber,
+  ZodBoolean: VldBoolean,
+  ZodBigInt: VldBigInt,
+  ZodBigIntFormat: VldBigInt,
+  ZodSymbol: VldSymbol,
+  ZodUndefined: VldUndefined,
+  ZodNull: VldNull,
+  ZodAny: VldAny,
+  ZodUnknown: VldUnknown,
+  ZodNever: VldNever,
+  ZodVoid: VldVoid,
+  ZodDate: VldDate,
+  ZodArray: VldArray,
+  ZodObject: VldObject,
+  ZodUnion: VldUnion,
+  ZodXor: VldXor,
+  ZodDiscriminatedUnion: VldDiscriminatedUnion,
+  ZodIntersection: VldIntersection,
+  ZodTuple: VldTuple,
+  ZodRecord: VldRecord,
+  ZodMap: VldMap,
+  ZodSet: VldSet,
+  ZodEnum: VldEnum,
+  ZodLiteral: VldLiteral,
+  ZodFile: VldFile,
+  ZodTransform: VldBase,
+  ZodOptional: VldBase,
+  ZodExactOptional: VldBase,
+  ZodNullable: VldBase,
+  ZodDefault: VldBase,
+  ZodPrefault: VldBase,
+  ZodNonOptional: VldBase,
+  ZodSuccess: VldCustom,
+  ZodCatch: VldBase,
+  ZodNaN: VldNan,
+  ZodPipe: VldBase,
+  ZodCodec: VldCodec,
+  ZodPreprocess: VldBase,
+  ZodReadonly: VldBase,
+  ZodTemplateLiteral: VldTemplateLiteral,
+  ZodLazy: VldLazy,
+  ZodPromise: VldPromise,
+  ZodFunction: VldFunction,
+  ZodCustom: VldCustom,
+  ZodISODateTime: VldString,
+  ZodISODate: VldString,
+  ZodISOTime: VldString,
+  ZodISODuration: VldString,
+  $brand: Symbol.for('zod.brand'),
+  $output: Symbol.for('zod.output'),
+  $input: Symbol.for('zod.input'),
+});
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 // eslint-disable-next-line @typescript-eslint/no-namespace

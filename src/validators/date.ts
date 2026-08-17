@@ -59,6 +59,16 @@ export class VldDate extends VldBase<Date, Date> {
     return this.config.jsonSchema;
   }
 
+  get minDate(): Date | null {
+    const raw = this.config.jsonSchema?.formatMinimum ?? (this.config.jsonSchema as any)?.minimum;
+    return raw ? new Date(raw) : null;
+  }
+
+  get maxDate(): Date | null {
+    const raw = this.config.jsonSchema?.formatMaximum ?? (this.config.jsonSchema as any)?.maximum;
+    return raw ? new Date(raw) : null;
+  }
+
   /**
    * Create a new date validator
    */

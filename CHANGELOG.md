@@ -9,7 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added complete 100% Zod 4 API and property parity across all schemas, instance methods, and root/namespace exports.
 - Added `namespace z` and top-level `ZodSchema`, `ZodType`, `ZodTypeAny`, `ZodTypeDef`, `ZodIssue` type exports for 100% drop-in replacement with `z.infer<typeof S>`, `z.input<typeof S>`, and `z.output<typeof S>`.
+- Added schema introspection getters: `type`, `_def`, `def`, `_zod` on all validators (`VldBase`).
+- Added schema-specific getters: `minLength`/`maxLength` (`VldString`), `minValue`/`maxValue`/`isInt`/`isFinite`/`format` (`VldNumber`), `minDate`/`maxDate` (`VldDate`), `minValue`/`maxValue`/`format` (`VldBigInt`), `options`/`enum` (`VldEnum`), `value` (`VldLiteral`), `options`/`discriminator` (`VldUnion`/`VldDiscriminatedUnion`), `keyType`/`valueType` (`VldRecord`/`VldMap`).
+- Added `min`, `max`, `size`, `nonempty` method chaining on `VldMap` and `VldSet`.
+- Added zero-argument `z.custom()`, predicate `z.custom((v) => ...)`, and options `z.custom({ parse: ... })` overloads.
 - Added `.errors` alias, `.isEmpty`, `.addIssue()`, `.addIssues()`, `.format()`, and `.flatten()` directly on `VldError` / `ZodError` instances.
 - Added `{ message?: string, path?: (string | number)[], params?: object }` config overload and custom message function `(val) => { message, path }` support to `.refine()` and `.check()`.
 - Added `{ code, path, message, fatal }` support to `ctx.addIssue()` in `.superRefine()` with path preservation.
@@ -17,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fixed `safeParse` error shape across all validators and refinements to always return a `VldError` instance exposing `.issues` (`result.error.issues.map(...)`).
+- Fixed `VldPromise` to extend `VldBase` so all standard base methods (`refine`, `transform`, `optional`, `nullable`, `meta`, `describe`, etc.) are supported on promises while preserving asynchronous parsing semantics.
 
 ## [2.2.5] - 2026-08-17
 

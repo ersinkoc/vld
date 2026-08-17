@@ -1,4 +1,4 @@
-import { VldBase, ParseResult, VLD_VALIDATOR_TYPES, ensureVldError } from './base';
+import { VldBase, ParseResult, VLD_VALIDATOR_TYPES, ensureVldError, type ErrorParam, resolveErrorMessage } from './base';
 
 /**
  * Type-safe custom validator options
@@ -104,15 +104,31 @@ export class VldCustom<TOutput = unknown> extends VldBase<unknown, TOutput> {
 
 /**
  * Helper function to create custom validators
- * Usage: v.custom<number>({
- *   parse: (value) => {
- *     if (typeof value !== 'string') throw new Error('Expected string');
- *     return parseInt(value, 10);
- *   }
- * })
+ * Supports:
+ * - v.custom() -> accepts any
+ * - v.custom((val) => boolean, "error message")
+ * - v.custom({ parse: (val) => ... })
  */
 export function custom<TOutput = unknown>(
-  options: CustomValidatorOptions<TOutput>
+  optionsOrPredicate?: CustomValidatorOptions<TOutput> | ((data: unknown) => boolean | Promise<boolean>),
+  errorParam?: ErrorParam
 ): VldCustom<TOutput> {
-  return VldCustom.create(options);
+  if (typeof optionsOrPredicate === 'function') {
+    const predicate = optionsOrPredicate;
+    return VldCustom.create<TOutput>({
+      parse: (value: unknown) => {
+        const passed = predicate(value);
+        if (!passed) {
+          throw ensureVldError(resolveErrorMessage(errorParam, 'Custom validation failed'));
+        }
+        return value as TOutput;
+      }
+    });
+  }
+  if (!optionsOrPredicate) {
+    return VldCustom.create<TOutput>({
+      parse: (value: unknown) => value as TOutput
+    });
+  }
+  return VldCustom.create(optionsOrPredicate);
 }

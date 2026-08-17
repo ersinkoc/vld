@@ -23,15 +23,19 @@ function createMapError(message: string): VldError {
  * Immutable Map validator
  */
 export class VldMap<K, V> extends VldBase<unknown, Map<K, V>> {
+  private readonly _checks: ReadonlyArray<{ fn: (map: Map<K, V>) => boolean; message: string }>;
+
   /**
    * Private constructor to enforce immutability
    */
   private constructor(
     private readonly keyValidator: VldBase<unknown, K>,
     private readonly valueValidator: VldBase<unknown, V>,
-    private readonly errorMessage?: string
+    private readonly errorMessage?: string,
+    checks: ReadonlyArray<{ fn: (map: Map<K, V>) => boolean; message: string }> = []
   ) {
     super(VLD_VALIDATOR_TYPES.MAP);
+    this._checks = checks;
     this._simpleKeyMode = this.getSimpleItemMode(keyValidator);
     this._simpleValueMode = this.getSimpleItemMode(valueValidator);
     this._simpleKeyValue = this._simpleKeyMode === 'literal' ? (keyValidator as any).literal : undefined;
@@ -48,6 +52,14 @@ export class VldMap<K, V> extends VldBase<unknown, Map<K, V>> {
   }
 
   get valueSchema(): VldBase<unknown, V> {
+    return this.valueValidator;
+  }
+
+  get keyType(): VldBase<unknown, K> {
+    return this.keyValidator;
+  }
+
+  get valueType(): VldBase<unknown, V> {
     return this.valueValidator;
   }
   
@@ -192,10 +204,7 @@ export class VldMap<K, V> extends VldBase<unknown, Map<K, V>> {
         }
         result.set(key as K, val as V);
       }
-      return result;
-    }
-
-    if (simpleKeyMode === 'string' && simpleValueMode === 'string') {
+    } else if (simpleKeyMode === 'string' && simpleValueMode === 'string') {
       for (const [key, val] of value) {
         if (typeof key !== 'string') {
           throw new Error(this.getSimpleItemError(simpleKeyMode, this._simpleKeyValue, key));
@@ -205,10 +214,7 @@ export class VldMap<K, V> extends VldBase<unknown, Map<K, V>> {
         }
         result.set(key as K, val as V);
       }
-      return result;
-    }
-
-    if (simpleKeyMode !== undefined && simpleValueMode !== undefined) {
+    } else if (simpleKeyMode !== undefined && simpleValueMode !== undefined) {
       const keyMode = simpleKeyMode as ConcreteSimpleMapItemMode;
       const valueMode = simpleValueMode as ConcreteSimpleMapItemMode;
 
@@ -217,20 +223,25 @@ export class VldMap<K, V> extends VldBase<unknown, Map<K, V>> {
         const validValue = this.parseSimpleItem<V>(valueMode, this._simpleValueValue, val);
         result.set(validKey, validValue);
       }
-      return result;
+    } else {
+      for (const [key, val] of value) {
+        try {
+          const validKey = simpleKeyMode === undefined
+            ? this.keyValidator.parse(key)
+            : this.parseSimpleItem<K>(simpleKeyMode as ConcreteSimpleMapItemMode, this._simpleKeyValue, key);
+          const validValue = simpleValueMode === undefined
+            ? this.valueValidator.parse(val)
+            : this.parseSimpleItem<V>(simpleValueMode as ConcreteSimpleMapItemMode, this._simpleValueValue, val);
+          result.set(validKey, validValue);
+        } catch (error) {
+          throw new Error((error as Error).message);
+        }
+      }
     }
-
-    for (const [key, val] of value) {
-      try {
-        const validKey = simpleKeyMode === undefined
-          ? this.keyValidator.parse(key)
-          : this.parseSimpleItem<K>(simpleKeyMode as ConcreteSimpleMapItemMode, this._simpleKeyValue, key);
-        const validValue = simpleValueMode === undefined
-          ? this.valueValidator.parse(val)
-          : this.parseSimpleItem<V>(simpleValueMode as ConcreteSimpleMapItemMode, this._simpleValueValue, val);
-        result.set(validKey, validValue);
-      } catch (error) {
-        throw new Error((error as Error).message);
+    
+    for (const check of this._checks) {
+      if (!check.fn(result)) {
+        throw new Error(check.message);
       }
     }
     
@@ -246,5 +257,30 @@ export class VldMap<K, V> extends VldBase<unknown, Map<K, V>> {
     } catch (error) {
       return { success: false, error: createMapError((error as Error).message) };
     }
+  }
+
+  min(size: number, message?: string): VldMap<K, V> {
+    return new VldMap(this.keyValidator, this.valueValidator, this.errorMessage, [
+      ...this._checks,
+      { fn: (m) => m.size >= size, message: message || `Map must contain at least ${size} entries` }
+    ]);
+  }
+
+  max(size: number, message?: string): VldMap<K, V> {
+    return new VldMap(this.keyValidator, this.valueValidator, this.errorMessage, [
+      ...this._checks,
+      { fn: (m) => m.size <= size, message: message || `Map must contain at most ${size} entries` }
+    ]);
+  }
+
+  size(size: number, message?: string): VldMap<K, V> {
+    return new VldMap(this.keyValidator, this.valueValidator, this.errorMessage, [
+      ...this._checks,
+      { fn: (m) => m.size === size, message: message || `Map must contain exactly ${size} entries` }
+    ]);
+  }
+
+  nonempty(message?: string): VldMap<K, V> {
+    return this.min(1, message || 'Map cannot be empty');
   }
 }

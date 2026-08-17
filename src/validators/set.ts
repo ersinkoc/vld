@@ -22,14 +22,18 @@ function createSetError(message: string): VldError {
  * Immutable Set validator
  */
 export class VldSet<T> extends VldBase<unknown, Set<T>> {
+  private readonly _checks: ReadonlyArray<{ fn: (set: Set<T>) => boolean; message: string }>;
+
   /**
    * Private constructor to enforce immutability
    */
   private constructor(
     private readonly itemValidator: VldBase<unknown, T>,
-    private readonly errorMessage?: string
+    private readonly errorMessage?: string,
+    checks: ReadonlyArray<{ fn: (set: Set<T>) => boolean; message: string }> = []
   ) {
     super(VLD_VALIDATOR_TYPES.SET);
+    this._checks = checks;
     this._simpleItemMode = this.getSimpleItemMode(itemValidator);
     this._simpleItemValue = this._simpleItemMode === 'literal' ? (itemValidator as any).literal : undefined;
   }
@@ -128,91 +132,72 @@ export class VldSet<T> extends VldBase<unknown, Set<T>> {
         }
         result.add(item as T);
       }
-      return result;
-    }
-
-    if (simpleMode === 'number') {
+    } else if (simpleMode === 'number') {
       for (const item of value) {
         if (typeof item !== 'number' || isNaN(item)) {
           throw new Error(this.getSimpleItemError(item));
         }
         result.add(item as T);
       }
-      return result;
-    }
-
-    if (simpleMode === 'boolean') {
+    } else if (simpleMode === 'boolean') {
       for (const item of value) {
         if (typeof item !== 'boolean') {
           throw new Error(this.getSimpleItemError(item));
         }
         result.add(item as T);
       }
-      return result;
-    }
-
-    if (simpleMode === 'bigint') {
+    } else if (simpleMode === 'bigint') {
       for (const item of value) {
         if (typeof item !== 'bigint') {
           throw new Error(this.getSimpleItemError(item));
         }
         result.add(item as T);
       }
-      return result;
-    }
-
-    if (simpleMode === 'symbol') {
+    } else if (simpleMode === 'symbol') {
       for (const item of value) {
         if (typeof item !== 'symbol') {
           throw new Error(this.getSimpleItemError(item));
         }
         result.add(item as T);
       }
-      return result;
-    }
-
-    if (simpleMode === 'null') {
+    } else if (simpleMode === 'null') {
       for (const item of value) {
         if (item !== null) {
           throw new Error(this.getSimpleItemError(item));
         }
         result.add(null as T);
       }
-      return result;
-    }
-
-    if (simpleMode === 'undefinedValue') {
+    } else if (simpleMode === 'undefinedValue') {
       for (const item of value) {
         if (item !== undefined) {
           throw new Error(this.getSimpleItemError(item));
         }
         result.add(undefined as T);
       }
-      return result;
-    }
-
-    if (simpleMode === 'literal') {
+    } else if (simpleMode === 'literal') {
       for (const item of value) {
         if (item !== this._simpleItemValue) {
           throw new Error(this.getSimpleItemError(item));
         }
         result.add(this._simpleItemValue as T);
       }
-      return result;
-    }
-
-    if (simpleMode === 'passthrough') {
+    } else if (simpleMode === 'passthrough') {
       for (const item of value) {
         result.add(item as T);
       }
-      return result;
+    } else {
+      for (const item of value) {
+        try {
+          result.add(this.itemValidator.parse(item));
+        } catch (error) {
+          throw new Error((error as Error).message);
+        }
+      }
     }
-
-    for (const item of value) {
-      try {
-        result.add(this.itemValidator.parse(item));
-      } catch (error) {
-        throw new Error((error as Error).message);
+    
+    for (const check of this._checks) {
+      if (!check.fn(result)) {
+        throw new Error(check.message);
       }
     }
     
@@ -228,5 +213,30 @@ export class VldSet<T> extends VldBase<unknown, Set<T>> {
     } catch (error) {
       return { success: false, error: createSetError((error as Error).message) };
     }
+  }
+
+  min(size: number, message?: string): VldSet<T> {
+    return new VldSet(this.itemValidator, this.errorMessage, [
+      ...this._checks,
+      { fn: (s) => s.size >= size, message: message || `Set must contain at least ${size} elements` }
+    ]);
+  }
+
+  max(size: number, message?: string): VldSet<T> {
+    return new VldSet(this.itemValidator, this.errorMessage, [
+      ...this._checks,
+      { fn: (s) => s.size <= size, message: message || `Set must contain at most ${size} elements` }
+    ]);
+  }
+
+  size(size: number, message?: string): VldSet<T> {
+    return new VldSet(this.itemValidator, this.errorMessage, [
+      ...this._checks,
+      { fn: (s) => s.size === size, message: message || `Set must contain exactly ${size} elements` }
+    ]);
+  }
+
+  nonempty(message?: string): VldSet<T> {
+    return this.min(1, message || 'Set cannot be empty');
   }
 }

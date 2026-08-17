@@ -319,6 +319,25 @@ export abstract class VldBase<TInput, TOutput = TInput> {
     this.validatorType = validatorType;
   }
 
+  get type(): string {
+    return this.validatorType;
+  }
+
+  get _def(): any {
+    return {
+      typeName: 'Zod' + this.validatorType.charAt(0).toUpperCase() + this.validatorType.slice(1),
+      ...((this as any).config || {})
+    };
+  }
+
+  get def(): any {
+    return this._def;
+  }
+
+  get _zod(): any {
+    return this._def;
+  }
+
   get '~standard'(): StandardSchemaV1Props<unknown, TOutput> {
     return {
       version: 1,

@@ -47,6 +47,14 @@ export class VldRecord<T, K extends PropertyKey = string> extends VldBase<unknow
   get keySchema(): VldBase<unknown, K> | undefined {
     return this.keyValidator;
   }
+
+  get valueType(): VldBase<unknown, T> {
+    return this.valueValidator;
+  }
+
+  get keyType(): VldBase<unknown, K> | undefined {
+    return this.keyValidator;
+  }
   
   /**
    * Create a new record validator
