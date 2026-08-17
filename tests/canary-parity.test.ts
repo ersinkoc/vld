@@ -353,6 +353,18 @@ describe('v4/core canary additions', () => {
     expect(Array.isArray((bad as { issues: unknown[] }).issues)).toBe(true);
   });
 
+  it('standardProps.validate returns the original input, not the schema parsed output', () => {
+    // For a transforming validator the Standard Schema v1 contract is that
+    // success returns { value: <original input> }. The schema's parsed output
+    // is exposed through a separate "output" view, not the validate result.
+    const schema = v.pipe(v.string(), v.transform(s => s.length));
+    const props = core.standardProps(schema) as {
+      validate: (value: unknown) => { value?: unknown; issues?: unknown[] };
+    };
+    const result = props.validate('hello');
+    expect((result as { value: unknown }).value).toBe('hello');
+  });
+
   it('handleUnrepresentable honors each configured behavior', () => {
     const schema = v.symbol();
     const json: Record<string, unknown> = {};
@@ -378,5 +390,17 @@ describe('v4/core canary additions', () => {
     };
     expect(core.handleUnrepresentable(schema, { unrepresentable: fn }, json, { path: ['a'] }, 'called')).toBe(true);
     expect(json).toStrictEqual({ type: 'string', description: 'called' });
+  });
+
+  it('handleUnrepresentable shallow-clones the consumer-supplied object so a later mutation does not corrupt the JSON output', () => {
+    const schema = v.symbol();
+    const fragment = { description: 'first' };
+    const json: Record<string, unknown> = {};
+    expect(core.handleUnrepresentable(schema, { unrepresentable: fragment }, json, { path: [] }, 'm')).toBe(true);
+    expect(json).toStrictEqual({ description: 'first' });
+    // Mutate the consumer's original fragment after merging.
+    fragment.description = 'corrupted';
+    // The merged JSON output must remain the original snapshot.
+    expect(json).toStrictEqual({ description: 'first' });
   });
 });

@@ -326,7 +326,7 @@ export const standardProps = (schema: unknown): object => {
   return {
     validate: (value: unknown) => {
       const result = base.safeParse!(value);
-      if (result.success) return { value: result.data };
+      if (result.success) return { value };
       return { issues: [{ message: result.error?.message ?? 'Invalid input' }] };
     },
     vendor: 'vld',
@@ -350,7 +350,9 @@ export const handleUnrepresentable = (
       : ctx.unrepresentable;
   if (behavior === 'any') return false;
   if (behavior === undefined || behavior === 'throw') throw new Error(message);
-  Object.assign(json, behavior);
+  // Shallow-clone the consumer-supplied fragment so a later mutation of the
+  // returned object does not silently corrupt the JSON output.
+  Object.assign(json, { ...(behavior as Record<string, unknown>) });
   return true;
 };
 
