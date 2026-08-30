@@ -38,7 +38,7 @@ const FILE_SIZE_BUDGETS = {
   'dist/cjs/index.cjs': Number(process.env.VLD_MAX_CJS_INDEX_BYTES || 90_000),
   'dist/mini.js': Number(process.env.VLD_MAX_ESM_MINI_BYTES || 10_000),
   'dist/cjs/mini.cjs': Number(process.env.VLD_MAX_CJS_MINI_BYTES || 14_000),
-  'dist/index.d.ts': Number(process.env.VLD_MAX_INDEX_TYPES_BYTES || 90_000),
+  'dist/index.d.ts': Number(process.env.VLD_MAX_INDEX_TYPES_BYTES || 100_000),
 };
 const REQUIRED_FILES = ['dist', 'README.md', 'LICENSE', 'CHANGELOG.md'];
 const RUNTIME_DEPENDENCY_FIELDS = [

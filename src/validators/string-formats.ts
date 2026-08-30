@@ -96,6 +96,7 @@ type StaticRegexName =
   | 'ulid' | 'undefined' | 'unicodeEmail' | 'uppercase' | 'uuid4' | 'uuid6' | 'uuid7' | 'xid';
 
 export type RegexNamespace = Readonly<Record<StaticRegexName, RegExp> & {
+  nanoidOfLength: (length: number) => RegExp;
   datetime: typeof dateTimeRegex;
   emoji: () => RegExp;
   mac: typeof macRegex;
@@ -112,6 +113,7 @@ const REGEXES: RegexNamespace = {
   xid: /^[0-9a-vA-V]{20}$/,
   ksuid: /^[A-Za-z0-9]{27}$/,
   nanoid: /^[a-zA-Z0-9_-]{21}$/,
+  nanoidOfLength: (length: number) => new RegExp(`^[a-zA-Z0-9_-]{${length}}$`),
   duration: /^P(?:(\d+W)|(?!.*W)(?=\d|T\d)(\d+Y)?(\d+M)?(\d+D)?(T(?=\d)(\d+H)?(\d+M)?(\d+([.,]\d+)?S)?)?)$/,
   extendedDuration: /^[-+]?P(?!$)(?:(?:[-+]?\d+Y)|(?:[-+]?\d+[.,]\d+Y$))?(?:(?:[-+]?\d+M)|(?:[-+]?\d+[.,]\d+M$))?(?:(?:[-+]?\d+W)|(?:[-+]?\d+[.,]\d+W$))?(?:(?:[-+]?\d+D)|(?:[-+]?\d+[.,]\d+D$))?(?:T(?=[\d+-])(?:(?:[-+]?\d+H)|(?:[-+]?\d+[.,]\d+H$))?(?:(?:[-+]?\d+M)|(?:[-+]?\d+[.,]\d+M$))?(?:[-+]?\d+(?:[.,]\d+)?S)?)??$/,
   guid: /^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$/,

@@ -39,6 +39,10 @@ import { th } from './th';
 import { vi } from './vi';
 import { id } from './id';
 import { bn } from './bn';
+import { gu } from './gu';
+import { kn } from './kn';
+import { ne } from './ne';
+import { sk } from './sk';
 
 // African Languages
 import { sw } from './sw';
@@ -52,16 +56,17 @@ const translatedLocaleCodes = [
   'en', 'tr', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'ja', 'ko', 'zh', 'ar', 'hi', 'nl', 'pl',
   'da', 'sv', 'no', 'fi',
   'th', 'vi', 'id', 'bn',
+  'gu', 'kn', 'ne', 'sk',
   'sw', 'af',
   'pt-BR', 'es-MX'
 ] as const satisfies readonly Locale[];
 
 const fallbackLocaleCodes = [
-  'is', 'cs', 'sk', 'hu', 'ro', 'bg', 'hr', 'sl', 'lv', 'lt', 'et',
+  'is', 'cs', 'hu', 'ro', 'bg', 'hr', 'sl', 'lv', 'lt', 'et',
   'el', 'mk', 'sq', 'sr', 'bs', 'me', 'mt', 'ga', 'cy', 'eu', 'ca',
   'ms', 'tl', 'ur', 'fa', 'he', 'ka', 'am', 'hy', 'az', 'kk', 'ky',
-  'uz', 'tg', 'mn', 'my', 'km', 'lo', 'si', 'ta', 'te', 'ml', 'kn',
-  'gu', 'pa', 'or', 'as', 'ne', 'mr', 'sd', 'dv',
+  'uz', 'tg', 'mn', 'my', 'km', 'lo', 'si', 'ta', 'te', 'ml',
+  'pa', 'or', 'as', 'mr', 'sd', 'dv',
   'ha', 'yo', 'ig', 'zu', 'xh', 'st', 'tn', 'ts', 've', 'nr', 'ss',
   'es-AR', 'fr-CA', 'qu', 'gn', 'ay'
 ] as const satisfies readonly Locale[];
@@ -69,16 +74,16 @@ const fallbackLocaleCodes = [
 const translatedLocales: Record<typeof translatedLocaleCodes[number], LocaleMessages> = {
   // Base languages
   en, tr, es, fr, de, it, pt, ru, ja, ko, zh, ar, hi, nl, pl,
-  
+
   // Major European Languages
-  da, sv, no, fi,
-  
-  // Major Asian Languages  
-  th, vi, id, bn,
-  
+  da, sv, no, fi, sk,
+
+  // Major Asian Languages
+  th, vi, id, bn, gu, kn, ne,
+
   // African Languages
   sw, af,
-  
+
   // American Languages
   'pt-BR': ptBR,
   'es-MX': esMX,

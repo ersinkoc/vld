@@ -118,8 +118,9 @@ if (result.success) {
 }`,
     lang: 'typescript',
     tips: [
-      'VLD v2.2.5 is checked against Zod 4.4.3',
-      'Root, v4, v4-mini, v4/core, and v4/locales entry points are covered',
+      'VLD v2.3.0 is checked against Zod 4.5.4 (253/253 exports)',
+      'Root, mini, v4, v4-mini, v4/core, v4/locales, and compile entry points are covered',
+      'AOT compile (v.compile / v.validate) is release-gated at 1.46x / 2.36x geomean vs z.compile',
       'Full TypeScript inference',
       '2502 tests with 100% statement, branch, function, and line coverage',
     ],
@@ -183,15 +184,17 @@ if (result.success) {
     description: 'VLD was built to address performance limitations while maintaining an ergonomic API and practical Zod replacement paths.',
     code: `// VLD advantages over alternatives:
 
-// 1. Performance - release-gated against Zod 4.4.3
-const result = schema.safeParse(data) // v2.2.5 runtime guard: 11x+ snapshot
+// 1. AOT Compile performance - release-gated against Zod 4.5.4
+import { v, compile } from "@oxog/vld"
+const compiled = compile(schema) // 1.46x parse, 2.36x validate vs z.compile
+const ok = v.validate(compiled, data) // 310M ops/sec on Moltar ParseSafe
 
 // 2. Package health
-// exports, bundle, install, package, and type declarations are checked
+// 253/253 Zod exports, bundle, install, package, and type declarations are checked
 
-// 3. Memory Usage - 4.7x+ less retained heap in the v2.2.5 guard
+// 3. Memory Usage - 4.7x+ less retained heap in the v2.1.0 memory guard
 
-// 4. Built-in i18n - 27+ languages
+// 4. Built-in i18n - 32 languages
 import { setLocale } from "@oxog/vld"
 setLocale("tr") // Turkish error messages
 

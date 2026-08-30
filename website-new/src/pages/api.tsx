@@ -179,6 +179,37 @@ const apiMethods: ApiMethod[] = [
   { name: 'setLogLevel()', description: 'Set log level at runtime', category: 'Logger', signature: 'setLogLevel(level): void', example: `setLogLevel("warn")` },
   { name: 'enableDebug()', description: 'Enable debug logging', category: 'Logger', signature: 'enableDebug(): void' },
   { name: 'disableLogging()', description: 'Disable all logging', category: 'Logger', signature: 'disableLogging(): void' },
+
+  // AOT Compile (v2.3.0) — Zod 4.5.4 parity
+  { name: 'v.compile()', description: 'AOT-compile a schema to a flat if/typeof guard. Returns the same schema with _zod.bag.validator set. Pass { JITless: true } to skip the compile step.', category: 'AOT Compile', signature: 'v.compile(schema, options?): T', example: `import { v, compile } from "@oxog/vld"
+
+const schema = v.object({ name: v.string(), age: v.number() })
+const compiled = compile(schema)
+compiled.parse({ name: "ada", age: 30 }) // returns the input on success (Moltar ParseSafe semantic)
+v.validate(compiled, { name: "ada", age: 30 }) // true` },
+  { name: 'v.validate()', description: 'Boolean validator. Reads _zod.bag.validator when present, falls back to safeParse for uncompiled schemas.', category: 'AOT Compile', signature: 'v.validate(schema, value): boolean', example: `import { v, compile } from "@oxog/vld"
+
+const compiled = compile(v.string().email())
+v.validate(compiled, "user@example.com") // true
+v.validate(compiled, "not-an-email")     // false` },
+  { name: 'v.validateAsync()', description: 'Async boolean validator. Resolves to true on success, false on failure.', category: 'AOT Compile', signature: 'v.validateAsync(schema, value): Promise<boolean>', example: `import { v, compile, validateAsync } from "@oxog/vld"
+
+const compiled = compile(v.string().email())
+await validateAsync(compiled, "user@example.com") // true` },
+  { name: 'v.properties()', description: 'All-keys-optional object schema. Equivalent to v.object(shape with every key optional()).', category: 'AOT Compile', signature: 'v.properties(shape): VldObject', example: `import { v } from "@oxog/vld"
+
+const schema = v.properties({ a: v.string(), b: v.number() })
+schema.parse({ a: "x" })        // ok, b is optional
+schema.parse({ a: "x", b: 1 })  // ok` },
+  { name: 'v.getDiscriminatedOption()', description: 'Look up a discriminatedUnion option by discriminator value at runtime. Returns undefined if no match.', category: 'AOT Compile', signature: 'v.getDiscriminatedOption(discriminator, options, value): VldBase | undefined' },
+  { name: 'v.memoizer()', description: 'Build a v4-core-compatible memoizer. The returned function caches the most recent (input, output) pair.', category: 'AOT Compile', signature: 'v.memoizer(): (input: unknown, output?: unknown) => unknown' },
+  { name: 'v.toZod()', description: 'Convert a raw value (or VLD schema) to a VLD schema. Convenience for the v4-core toZod helper.', category: 'AOT Compile', signature: 'v.toZod(value): VldBase', example: `import { v } from "@oxog/vld"
+
+const schema = v.toZod({ a: v.string() }) // wraps in v.object if shape, returns as-is if VldBase
+const str = v.toZod("hello")              // v.string()` },
+  { name: 'ZodCompileError', description: 'Thrown when an AOT-compiled validator fails at compile time (unsupported schema shape, etc).', category: 'AOT Compile', signature: 'class ZodCompileError extends Error' },
+  { name: 'ZodCompileAsyncError', description: 'Async variant of ZodCompileError for validateAsync paths.', category: 'AOT Compile', signature: 'class ZodCompileAsyncError extends Error' },
+  { name: 'ZodCompileUnsupportedError', description: 'Thrown when a schema feature cannot be lowered to an AOT compile body (e.g. custom refinements, async transforms).', category: 'AOT Compile', signature: 'class ZodCompileUnsupportedError extends Error' },
 ]
 
 const categoryIcons: Record<string, React.ElementType> = {
@@ -187,6 +218,7 @@ const categoryIcons: Record<string, React.ElementType> = {
   'Arrays': Layers,
   'Composition': Layers,
   'Modifiers': Wand2,
+  'AOT Compile': Activity,
   'String Formats': FileCode,
   'Coercion': Wand2,
   'Advanced': Shield,

@@ -19,9 +19,10 @@ The build runs `npm run sync-docs` first, replacing `public/docs` with the root 
 
 ## Release Notes
 
-The website copy tracks VLD v2.1.0:
+The website copy tracks VLD v2.3.0:
 
 - Zod-compatible root and subpath APIs
-- Zod 4.4.3 parity checks
+- AOT compile (`v.compile`, `v.validate`, `v.validateAsync`, `v.properties`, `v.getDiscriminatedOption`, `v.memoizer`, `v.toZod`, `ZodCompileError`, `ZodCompileAsyncError`, `ZodCompileUnsupportedError`)
+- Zod 4.5.4 parity (253/253 exports across root, mini, v4, v4-mini, v4/core, v4/locales, compile, and nested entry points)
 - Real TypeScript app drop-in verification
-- Runtime, startup, memory, package, install, docs, exports, and type release guards
+- AOT compile, runtime, startup, memory, package, install, docs, exports, and type release guards

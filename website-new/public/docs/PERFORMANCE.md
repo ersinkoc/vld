@@ -1,10 +1,11 @@
 # VLD Performance Guide
 
-Comprehensive guide to understanding and optimizing VLD's performance in your applications (v2.1.0).
+Comprehensive guide to understanding and optimizing VLD's performance in your applications (v2.3.0).
 
 ## Table of Contents
 
 - [Performance Overview](#performance-overview)
+- [AOT Compile Benchmarks](#aot-compile-benchmarks)
 - [Benchmark Results](#benchmark-results)
 - [Optimization Techniques](#optimization-techniques)
 - [Real-World Patterns](#real-world-patterns)
@@ -14,22 +15,41 @@ Comprehensive guide to understanding and optimizing VLD's performance in your ap
 
 ## Performance Overview
 
-VLD is built from the ground up with performance as a primary goal. The v2.1.0 release gate compares VLD against Zod 4.4.3 across runtime throughput, startup behavior, retained heap, packaging, installability, type declarations, and real app drop-in behavior.
+VLD is built from the ground up with performance as a primary goal. The v2.3.0 release gate compares VLD against Zod 4.5.4 across **AOT compile** parse and validate, runtime throughput, startup behavior, retained heap, packaging, installability, type declarations, and real app drop-in behavior.
 
 ### Key Performance Features
 
+- **AOT Schema Compiler**: `v.compile(schema)` emits a flat `if/typeof` guard via `new Function()` that V8 inlines as a single zero-allocation check (Zod 4.5 API)
+- **Compile + Validate APIs**: `v.validate()` returns a boolean directly from the compiled body; `v.compile(s).parse(input)` returns the input on success (Moltar ParseSafe semantic)
 - **Zero Dependencies**: No external packages means smaller bundle and faster startup
 - **Optimized Algorithms**: Hand-tuned for V8's JIT compiler
 - **Immutable Validators**: Prevents memory leaks and improves caching
 - **Minimal Allocations**: Reduces garbage collection pressure
 - **Fast-Path Optimizations**: Common cases are optimized for speed
-- **Release Guards**: `npm run release:check` blocks releases that fall below runtime, startup, memory, docs, exports, package, install, type, security, Zod parity, and drop-in app thresholds
+- **Release Guards**: `npm run release:check` blocks releases that fall below AOT compile, runtime, startup, memory, docs, exports, package, install, type, security, Zod parity, and drop-in app thresholds
 
 ## Benchmark Results
 
-### Release-Gated Snapshot
+### AOT Compile Benchmarks (v2.3.0, against Zod 4.5.4)
 
-The latest v2.1.0 release check measured VLD against Zod 4.4.3 with focused CI-friendly guards:
+`benchmarks/moltar-deep.cjs` measures `v.compile(schema).parse(input)` and `v.validate(compiled, input)` against the matching Zod 4.5.4 paths. 200,000 iterations × 21 runs, median. Node v24.13.0.
+
+| Scenario | VLD parse | Zod parse | VLD/Zod | VLD validate | Zod validate | VLD/Zod |
+|----------|-----------|-----------|---------|--------------|--------------|---------|
+| moltarParseSafe | **310.4M** | 161.1M | **1.93x** | **127.9M** | 53.3M | **2.40x** |
+| wideObject (20 keys) | **15.0M** | 7.9M | **1.89x** | **15.3M** | 6.8M | **2.24x** |
+| arrayOfObjects (100×3 keys) | **3.49M** | 1.13M | **3.09x** | **3.54M** | 3.30M | 1.07x |
+| tuple (5 items) | **46.2M** | 29.8M | **1.55x** | **69.9M** | 16.3M | **4.28x** |
+| union (3 types) | 48.2M | 98.1M | 0.49x | **74.0M** | 23.6M | **3.13x** |
+| nested (3 levels) | **46.3M** | 44.4M | **1.04x** | **55.0M** | 24.9M | **2.21x** |
+| **Geometric mean** | | | **1.46x** | | | **2.36x** |
+| **Scenarios won** | | | **5 / 6** | | | **6 / 6** |
+
+The `union` parse loss is structural: Zod's compiled body wraps a `try { return iife(...) } catch { ... }` around the per-option check, and V8 honors the zero-cost exception optimization in that specific shape. V8 does not apply the same optimization inside `new Function()` bodies, so the equivalent throw-based dispatch costs ~100x in our measurements. Inline `if/else` is the right trade-off for every other shape.
+
+**Compiled parse semantic on inputs with extra keys**: VLD returns the input as-is. Zod compiled allocates a new object with only the known keys. This is observable only when the input has keys outside the schema; on Moltar ParseSafe data (no extras) the two are indistinguishable. The uncompiled `parse()` path still strips — that default-object behavior is preserved.
+
+### Release-Gated Snapshot (v2.1.0, against Zod 4.4.3)
 
 | Guard | v2.1.0 Snapshot | Release Threshold |
 |-------|------------------|-------------------|
@@ -40,7 +60,7 @@ The latest v2.1.0 release check measured VLD against Zod 4.4.3 with focused CI-f
 | Retained heap | **4.76x less heap** | Must stay below Zod |
 | Aggregate memory speed | **3.13x faster** | Must stay faster than Zod |
 
-Release checks also verify 239 Zod exports against 339 VLD exports across root and subpath entry points, then run a real TypeScript fixture against both packages.
+Release checks also verify 253 Zod exports against 354 VLD exports across root, mini, v4, v4-mini, v4/core, v4/locales, and compile subpaths, then run a real TypeScript fixture against both packages.
 
 ### Memory Usage
 
@@ -394,6 +414,21 @@ const schema = object({
 
 ## Running Benchmarks
 
+### AOT Compile Benchmark (v2.3.0)
+
+```bash
+# 6-scenario guard, 200k iters × 21 runs, median
+ITER=200000 RUNS=21 node benchmarks/moltar-deep.cjs
+
+# Single Moltar ParseSafe scenario, lower noise
+node benchmarks/moltar-parse-safe.cjs
+
+# 28-case semantic equivalence suite (parse/safeParse/validate + error paths)
+node benchmarks/compile-smoke.cjs
+```
+
+These scripts write a `benchmarks/.temp_files/moltar-deep.json` snapshot that the v2.3.0 release guard reads for trend tracking.
+
 ### Quick Benchmark
 
 ```bash
@@ -426,7 +461,7 @@ npm run benchmark:all
 npm run release:check
 ```
 
-This runs linting, TypeScript checks, the full Jest suite, build, ASCII/docs/export/bundle/type/package/install/security verification, Zod parity checks, real app drop-in verification, and runtime/startup/memory performance guards.
+This runs linting, TypeScript checks, the full Jest suite, build, ASCII/docs/export/bundle/type/package/install/security verification, Zod parity checks (253/253 against Zod 4.5.4), real app drop-in verification, AOT compile guards, and runtime/startup/memory performance guards.
 
 ## Performance Tips Summary
 

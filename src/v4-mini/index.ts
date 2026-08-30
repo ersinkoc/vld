@@ -135,3 +135,19 @@ export const maximum = (value: number, params?: ConstraintParam): VldBase<unknow
   const message = constraintMessage(params);
   return numberFactory().max(value, message);
 };
+
+// Zod 4.5 AOT compilation parity (Zod Mini exposes compile/validate)
+export {
+  compile,
+  validate,
+  validateAsync,
+  properties,
+  getDiscriminatedOption,
+  memoizer,
+  toZod,
+  ZodCompileError,
+  ZodCompileAsyncError,
+  ZodCompileUnsupportedError
+} from '../compile';
+
+export const exactPartial = <T extends Record<string, any>>(schema: VldObject<T>): VldObject<any> => schema.exactPartial();

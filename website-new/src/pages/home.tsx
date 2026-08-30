@@ -7,7 +7,7 @@ const features = [
   {
     icon: Zap,
     title: 'Release-Gated Speed',
-    description: '11x+ guarded runtime speedup against Zod 4.4.3 in the v2.2.5 release check.',
+    description: 'AOT-compiled `v.compile()` is 1.46x ahead of Zod 4.5.4 on parse, 2.36x on validate (5/6 + 6/6 scenarios, v2.3.0 guard).',
     color: 'from-amber-500 to-orange-500',
   },
   {
@@ -96,21 +96,21 @@ const myPlugin = definePlugin({
 })`
 
 const stats = [
-  { value: '11x+', label: 'Runtime', sublabel: 'guard snapshot' },
+  { value: '1.46x', label: 'Compile Parse', sublabel: 'vs Zod 4.5.4' },
+  { value: '2.36x', label: 'Compile Validate', sublabel: 'vs Zod 4.5.4' },
   { value: '0', label: 'Dependencies', sublabel: 'zero bloat' },
-  { value: '2502', label: 'Tests', sublabel: 'release gate' },
-  { value: '100%', label: 'Coverage', sublabel: 'stmt/branch/func/line' },
+  { value: '100%', label: 'Zod Parity', sublabel: '253/253 exports' },
 ]
 
 const comparisons = [
-  { feature: 'Runtime Guard', vld: '11x+ faster', zod: 'baseline', winner: 'vld' },
+  { feature: 'AOT Compile (parse)', vld: '1.46x faster (5/6)', zod: 'baseline', winner: 'vld' },
+  { feature: 'AOT Compile (validate)', vld: '2.36x faster (6/6)', zod: 'baseline', winner: 'vld' },
   { feature: 'Startup Guard', vld: '1.5x+ faster', zod: 'baseline', winner: 'vld' },
   { feature: 'Memory Guard', vld: '4.7x+ less heap', zod: 'baseline', winner: 'vld' },
-  { feature: 'Drop-in App', vld: 'verified', zod: 'reference', winner: 'vld' },
+  { feature: 'Zod 4.5.4 Parity', vld: '253/253 exports', zod: 'reference', winner: 'vld' },
   { feature: 'TypeScript Inference', vld: 'Full', zod: 'Full', winner: 'tie' },
-  { feature: 'Built-in i18n', vld: '27+ langs', zod: 'None', winner: 'vld' },
+  { feature: 'Built-in i18n', vld: '32 langs', zod: 'None', winner: 'vld' },
   { feature: 'Built-in Codecs', vld: '19 codecs', zod: 'None', winner: 'vld' },
-  { feature: 'Plugin System', vld: 'Yes', zod: 'No', winner: 'vld' },
 ]
 
 export function HomePage() {
@@ -130,7 +130,7 @@ export function HomePage() {
               <div className="animate-fade-in">
                 <div className="tag mb-6">
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>v2.2.5 — Zod-Compatible Drop-in Release</span>
+                  <span>v2.3.0 — AOT Compile Release, 100% Zod 4.5.4 Parity</span>
                 </div>
               </div>
 
@@ -141,7 +141,7 @@ export function HomePage() {
 
               <p className="animate-fade-in stagger-2 text-lg text-muted-foreground mb-8 leading-relaxed">
                 A lightning-fast, type-safe validation library with zero dependencies.
-                Drop-in Zod replacement with root and subpath APIs verified against Zod 4.4.3.
+                Drop-in Zod replacement with AOT compile support, 253/253 export parity against Zod 4.5.4, and release-gated benchmarks across the root, v4, v4-mini, v4/core, v4/locales, mini, and compile subpaths.
               </p>
 
               <div className="animate-fade-in stagger-3 flex flex-wrap items-center gap-4 mb-10">

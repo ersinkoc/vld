@@ -1,4 +1,4 @@
-import { VldBase, ParseResult, VldOptional, VLD_VALIDATOR_TYPES } from './base';
+import { VldBase, ParseResult, VldOptional, VldExactOptional, VLD_VALIDATOR_TYPES } from './base';
 import { getMessages } from '../locales/runtime';
 import { VldEnum } from './enum';
 import { isDangerousKey } from '../utils/security';
@@ -984,6 +984,23 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
       ...this._config,
       shape: deepPartialShape
     });
+  }
+
+  /**
+   * Zod 4 `z.exactPartial()` counterpart — same as `partial()` but errors
+   * when an explicit `undefined` is provided for an optional field. VLD
+   * mirrors Zod's behaviour by rejecting explicit-undefined inputs through
+   * `VldExactOptional`.
+   */
+  exactPartial(): VldObject<{ [K in keyof T]?: T[K] }> {
+    const exactPartialShape: any = {};
+    for (const key in this._config.shape) {
+      exactPartialShape[key] = new VldExactOptional(this._config.shape[key]);
+    }
+    return new VldObject({
+      ...this._config,
+      shape: exactPartialShape
+    }) as any;
   }
 
   /**

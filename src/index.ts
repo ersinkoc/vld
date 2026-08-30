@@ -91,6 +91,18 @@ import {
   treeifyError as treeifyErrorFn
 } from './errors';
 import { fromJSONSchema as fromJSONSchemaFn, toJSONSchema as toJSONSchemaFn } from './utils/json-schema';
+import {
+  compile as compileFn,
+  validate as validateFn,
+  validateAsync as validateAsyncFn,
+  properties as propertiesFn,
+  getDiscriminatedOption as getDiscriminatedOptionFn,
+  memoizer as memoizerFn,
+  toZod as toZodFn,
+  ZodCompileError as ZodCompileErrorClass,
+  ZodCompileAsyncError as ZodCompileAsyncErrorClass,
+  ZodCompileUnsupportedError as ZodCompileUnsupportedErrorClass
+} from './compile';
 
 // Import string format validators
 import * as stringFormats from './validators/string-formats';
@@ -1090,6 +1102,16 @@ export const v = {
   ksuid: () => stringFormats.ksuid(),
   regexes: stringFormats.regexes,
 
+  // Zod 4.5 AOT compilation (compile/validate/properties/getDiscriminatedOption/memoizer/toZod)
+  compile: <T extends VldBase<any, any>>(schema: T, options?: { JITless?: boolean }) =>
+    compileFn(schema, options) as T,
+  validate: validateFn,
+  validateAsync: validateAsyncFn,
+  properties: propertiesFn,
+  getDiscriminatedOption: getDiscriminatedOptionFn,
+  memoizer: memoizerFn,
+  toZod: toZodFn,
+
   // Template literal validator
   templateLiteral: (...components: (VldBase<any, any> | string)[]) => createTemplateLiteral(...components),
 
@@ -1144,10 +1166,7 @@ export const v = {
   prettifyError: prettifyErrorFn,
   flattenError: flattenErrorFn,
   toJSONSchema: toJSONSchemaFn,
-  fromJSONSchema: fromJSONSchemaFn
-};
-
-Object.assign(v, {
+  fromJSONSchema: fromJSONSchemaFn,
   globalRegistry,
   registry,
   _default: <TInput, TOutput>(schema: VldBase<TInput, TOutput>, defaultValue: TOutput | (() => TOutput)) => new VldDefault(schema, defaultValue),
@@ -1158,6 +1177,9 @@ Object.assign(v, {
   ZodTypeDef: Object,
   ZodError: VldErrorClass,
   ZodRealError: VldErrorClass,
+  ZodCompileError: ZodCompileErrorClass,
+  ZodCompileAsyncError: ZodCompileAsyncErrorClass,
+  ZodCompileUnsupportedError: ZodCompileUnsupportedErrorClass,
   _ZodString: VldString,
   ZodString: VldString,
   ZodStringFormat: VldString,
@@ -1233,8 +1255,8 @@ Object.assign(v, {
   ZodISODuration: VldString,
   $brand: Symbol.for('zod.brand'),
   $output: Symbol.for('zod.output'),
-  $input: Symbol.for('zod.input'),
-});
+  $input: Symbol.for('zod.input')
+};
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -1416,7 +1438,15 @@ export const {
   encodeAsync,
   safeEncodeAsync,
   formatError,
-  NEVER
+  NEVER,
+  // Zod 4.5 AOT compilation
+  compile,
+  validate,
+  validateAsync,
+  properties,
+  getDiscriminatedOption,
+  memoizer,
+  toZod
 } = v;
 
 const catchFactory = v.catch;
@@ -1625,3 +1655,16 @@ export {
 
 // For backward compatibility during migration
 export default v;
+
+// ============================================
+// Zod 4.5 AOT compilation (compile/validate)
+// ============================================
+//
+// `compile`, `validate`, `validateAsync`, `properties`, `getDiscriminatedOption`,
+// `memoizer`, `toZod` are already re-exported through the `v` namespace
+// destructure above. `ZodCompileAsyncError` and `ZodCompileUnsupportedError`
+// are the public class names that Zod 4.5 exposes; we re-export them as
+// standalone values so `import { ZodCompileAsyncError } from '@oxog/vld'`
+// works as a drop-in.
+
+export { compileFn as zodCompileFn, ZodCompileAsyncError, ZodCompileUnsupportedError } from './compile';

@@ -1,6 +1,6 @@
 # Getting Started with VLD
 
-A comprehensive guide to get you up and running with VLD (v2.1.0), the blazing-fast TypeScript validation library with Zod-compatible root and subpath APIs, modular architecture, plugin system, and CLI tools.
+A comprehensive guide to get you up and running with VLD (v2.3.0), the blazing-fast TypeScript validation library with Zod-compatible root and subpath APIs, AOT compile support, modular architecture, plugin system, and CLI tools.
 
 ## Table of Contents
 
@@ -42,7 +42,7 @@ VLD provides a simple, chainable API for building validation schemas. The core c
 
 ## Import Options
 
-VLD v2.1.0 provides multiple import options for different needs:
+VLD v2.3.0 provides multiple import options for different needs:
 
 ### Full API (Classic)
 ```typescript

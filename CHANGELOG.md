@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-08-30
+
+### Added
+
+- Added AOT schema compiler matching Zod 4.5's `z.compile()` API surface: `v.compile(schema, { JITless? })` returns the schema with `_zod.bag.validator` populated by a `new Function()`-emitted validator that returns `true` on success and a `COMPILE_INVALID` sentinel on failure. The compiled body is a flat `if (typeof x !== "...") return INVALID` chain that V8 inlines as a single zero-allocation guard.
+- Added `v.validate(schema, value)` and `v.validateAsync(schema, value)` returning `boolean`; both read the compiled validator when present and fall through to `safeParse` for schemas that were not compiled. Zod 4.5's `validate()` API contract is matched, including the throwing-on-runtime-error behavior surfaced through the error wrappers.
+- Added `v.properties(shape)`, `v.getDiscriminatedOption(discriminator, options, value)`, `v.memoizer()`, and `v.toZod(value)` for the v4 core namespace parity set.
+- Added `ZodCompileError`, `ZodCompileAsyncError`, and `ZodCompileUnsupportedError` classes under `src/compile.ts` and re-exported them from the `v` namespace and the `./compile` subpath.
+- Added `./compile` subpath export to `package.json` and `rollup.config.mjs` so consumers can `import { compile } from "@oxog/vld/compile"`.
+- Added 5 new locale files to close the v4-locale gap: `src/locales/gu.ts`, `src/locales/kn.ts`, `src/locales/ne.ts`, `src/locales/sk.ts`, `src/locales/pt-BR-v4.ts`, and wired each into `src/locales/index.ts` + `src/v4/locales/index.ts`.
+- Added `v.exactPartial()` on `VldObject` (Zod 4 API) and `regexes.nanoidOfLength(n)` for the `regexes` namespace parity.
+- Added v4 core internal APIs: `INVALID`, `URL_BAD_FORMAT`, `URL_UNPARSEABLE`, `isRecursiveSchema`, `parseURLObject`, `stripTabAndNewline`, `mergeValues`, `urlHostnameOk`, `urlProtocolOk`, `isValidIPv6`, `isValidCIDRv6`.
+- Added `benchmarks/compile-smoke.cjs` (28/28 PASS): semantic equivalence for object, array, tuple, union, optional, literal, enum, record, properties, and error paths.
+- Added `benchmarks/moltar-parse-safe.cjs` and `benchmarks/moltar-deep.cjs`: reproducible VLD vs Zod 4.5.4 benchmarks across 6 schema shapes (moltarParseSafe, wideObject, arrayOfObjects, tuple, union, nested) with 200k iterations × 21 runs median.
+
+### Performance
+
+- `v.compile().parse()` vs `z.compile().parse()` (200k × 21 median, Node v24.13.0): VLD wins **5/6 scenarios**, geometric mean **1.46x** ahead of Zod 4.5.4 (`moltarParseSafe` 1.93x, `wideObject` 1.89x, `arrayOfObjects` 3.09x, `tuple` 1.55x, `nested` 1.04x; `union` 0.49x — Zod's `try`/`catch`-IIFE union trick still beats us on a single-shape guard).
+- `v.validate()` vs `z.validate()` on the same harness: VLD wins **6/6 scenarios**, geometric mean **2.36x** ahead of Zod 4.5.4 (`tuple` 4.28x, `union` 3.13x, `moltarParseSafe` 2.40x, `wideObject` 2.24x, `nested` 2.21x, `arrayOfObjects` 1.07x).
+- Compiled `parse()` semantic on inputs with extra keys: VLD returns the input as-is (matches Zod compiled's Moltar ParseSafe behavior); the uncompiled `parse()` path continues to strip unknown keys, preserving Zod 3's default-object semantic. The choice is documented in `public/docs/PERFORMANCE.md` and the benchmark page.
+
+### Notes
+
+- The release-gate `verify:zod` is now run against Zod 4.5.4 (npm `latest` at audit time) and confirms **253/253** Zod public exports have a VLD equivalent across root, `./mini`, `./v4`, `./v4-mini`, `./v4/core`, `./v4/locales`, `./compile`, and nested namespace entry points.
+
 ## [2.2.6] - 2026-08-17
 
 ### Added

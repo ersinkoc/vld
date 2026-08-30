@@ -62,6 +62,7 @@ const mainEntries = {
   kernel: 'src/kernel.ts',
   registry: 'src/registry.ts',
   pigment: 'src/pigment.ts',
+  compile: 'src/compile.ts',
 };
 
 const zodCompatEntries = {

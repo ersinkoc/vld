@@ -1,6 +1,6 @@
 {
   "name": "@oxog/vld",
-  "version": "2.2.7",
+  "version": "2.3.0",
   "description": "Ultra-fast TypeScript-first schema validation with zero dependencies, 27+ language support, plugin system, and CLI tools",
   "type": "module",
   "main": "./dist/cjs/index.cjs",
@@ -89,6 +89,11 @@
       "types": "./dist/locales/*.d.ts",
       "import": "./dist/locales/*.js",
       "require": "./dist/cjs/locales/*.cjs"
+    },
+    "./compile": {
+      "types": "./dist/compile.d.ts",
+      "import": "./dist/compile.js",
+      "require": "./dist/cjs/compile.cjs"
     },
     "./locales/lazy": {
       "types": "./dist/locales/lazy.d.ts",
@@ -230,7 +235,7 @@
     "ts-jest": "^29.4.11",
     "tslib": "^2.8.1",
     "typescript": "^5.3.3",
-    "zod": "^4.4.3"
+    "zod": "^4.5.4"
   },
   "overrides": {
     "@babel/core": "^7.29.7",
