@@ -1,5 +1,5 @@
 /**
- * Deep Moltar ParseSafe benchmark — VLD vs Zod across multiple schema
+ * Deep Moltar ParseSafe benchmark  -  VLD vs Zod across multiple schema
  * shapes (small object, large object, nested array, deep object, union,
  * discriminated union, tuple) and both `parse` and `validate` paths.
  *
@@ -171,7 +171,7 @@ for (const [name, cell] of Object.entries(results)) {
     ['Zod compiled   validate',cell.zodCompiledValidate],
   ];
   for (const [label, r] of rows) {
-    const bar = '█'.repeat(Math.round((r.opsPerSec / maxOps) * 30));
+    const bar = '#'.repeat(Math.round((r.opsPerSec / maxOps) * 30));
     const ms = r.medianMs.toFixed(2).padStart(7);
     const ops = r.opsPerSec.toLocaleString(undefined, { maximumFractionDigits: 0 }).padStart(13);
     console.log(`  ${label.padEnd(28)} ${ms} ms  ${ops} ops/s  ${bar}`);
@@ -179,7 +179,7 @@ for (const [name, cell] of Object.entries(results)) {
   const zodC = cell.zodCompiledParse.opsPerSec;
   const vldC = cell.vldCompiledParse.opsPerSec;
   const ratio = (vldC / zodC).toFixed(2);
-  const flag = vldC > zodC ? '🟢' : '🔴';
+  const flag = vldC > zodC ? '[OK]' : '[!]';
   console.log(`  ${flag} VLD compile / Zod compile: ${ratio}x`);
 }
 

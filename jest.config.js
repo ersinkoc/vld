@@ -76,7 +76,7 @@ export default {
     '!src/v4/**/*.ts',
     '!src/v4-mini/**/*.ts',
     '!src/utils/json-schema.ts',  // Comprehensively tested (155 tests) but excluded from threshold
-    '!src/compile.ts',            // AOT compiler — tested via 85 dedicated Jest tests + 28-case smoke + every v.validate/v.compile call across 2630 tests; deep internal branch coverage tracked in the dedicated suite
+    '!src/compile.ts',            // AOT compiler  -  tested via 85 dedicated Jest tests + 28-case smoke + every v.validate/v.compile call across 2630 tests; deep internal branch coverage tracked in the dedicated suite
     '!**/node_modules/**'
   ],
   

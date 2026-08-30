@@ -109,3 +109,29 @@ tmp/
 !/.wrongstack/project.json
 
 .mimosa/
+
+# ---------------------------------------------------------------------------
+# Package manager artefacts
+# ---------------------------------------------------------------------------
+# Project pins npm via package-lock.json. Other lockfiles are agent / scratch
+# noise from local experiments and must not be tracked.
+pnpm-lock.yaml
+pnpm-workspace.yaml
+yarn.lock
+bun.lockb
+bun.lock
+
+# ---------------------------------------------------------------------------
+# One-off scratch / helper scripts dropped at the repo root during local
+# development. Legitimate CommonJS entry points live under `benchmarks/` and
+# `scripts/` and are tracked; this rule only matches the repo root.
+# ---------------------------------------------------------------------------
+/*.cjs
+
+# Root-level test scaffolding the agent leaves behind when rerunning coverage
+# / smoke harnesses from the repo root.
+last-*.txt
+*-append.txt
+test-output/
+test-results/
+.mavis-trash/

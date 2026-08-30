@@ -1,5 +1,5 @@
 /**
- * VLD vs Zod (with z.compile()) — Moltar ParseSafe benchmark
+ * VLD vs Zod (with z.compile())  -  Moltar ParseSafe benchmark
  *
  * Reproduces the Moltar ParseSafe scenario in-process:
  *   - Schema: nested object with primitives and a nested object
@@ -10,7 +10,7 @@
  *   1. VLD runtime parse
  *   2. VLD compiled parse (via v.compile / v.validate)
  *   3. Zod 4.5 runtime parse
- *   4. Zod 4.5 compiled parse (via z.compile / z.validate) — this is the
+ *   4. Zod 4.5 compiled parse (via z.compile / z.validate)  -  this is the
  *      "fastest schema library on the Moltar ParseSafe benchmark" that the
  *      Zod creator references in the 4.5 release post
  *
@@ -100,7 +100,7 @@ function smoke() {
   try { vld.parse(vldSchema, missing); } catch { vldThrew = true; }
   try { zodCompiled.parse(missing); } catch { zodThrew = true; }
   if (!vldThrew || !zodThrew) throw new Error('Missing-attribute throw check failed');
-  console.log('Functional equivalence: VLD (compiled) ≡ Zod (compiled) ✓');
+  console.log('Functional equivalence: VLD (compiled) == Zod (compiled) [OK]');
 }
 
 smoke();
@@ -155,7 +155,7 @@ const results = [
 const maxName = Math.max(...results.map((r) => r.name.length));
 const maxOps = Math.max(...results.map((r) => r.opsPerSec));
 for (const r of results) {
-  const bar = '█'.repeat(Math.round((r.opsPerSec / maxOps) * 40));
+  const bar = '#'.repeat(Math.round((r.opsPerSec / maxOps) * 40));
   const ms = r.medianMs.toFixed(2).padStart(7);
   const ops = r.opsPerSec.toLocaleString(undefined, { maximumFractionDigits: 0 }).padStart(12);
   console.log(`${r.name.padEnd(maxName)}  ${ms} ms  ${ops} ops/s  ${bar}`);
@@ -166,6 +166,6 @@ const zodCompiledParseOps = results.find((r) => r.name === 'Zod  (compiled   par
 console.log('\n--- Speedup vs Zod (compiled parse) ---');
 for (const r of results) {
   const ratio = r.opsPerSec / zodCompiledParseOps;
-  const flag = ratio > 1 ? '🟢 faster' : ratio < 1 ? '🔴 slower' : '  equal  ';
+  const flag = ratio > 1 ? '[OK] faster' : ratio < 1 ? '[!] slower' : '  equal  ';
   console.log(`${r.name.padEnd(maxName)}  ${flag}  ${ratio.toFixed(2)}x`);
 }

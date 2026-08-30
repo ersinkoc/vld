@@ -987,7 +987,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
   }
 
   /**
-   * Zod 4 `z.exactPartial()` counterpart — same as `partial()` but errors
+   * Zod 4 `z.exactPartial()` counterpart  -  same as `partial()` but errors
    * when an explicit `undefined` is provided for an optional field. VLD
    * mirrors Zod's behaviour by rejecting explicit-undefined inputs through
    * `VldExactOptional`.

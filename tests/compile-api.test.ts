@@ -26,7 +26,7 @@ import {
 } from '../src/compile';
 import { regexes } from '../src/validators/string-formats';
 
-describe('AOT compile — error class hierarchy', () => {
+describe('AOT compile  -  error class hierarchy', () => {
   test('ZodCompileError is an Error subclass with name', () => {
     const e = new ZodCompileError('boom');
     expect(e).toBeInstanceOf(Error);
@@ -60,7 +60,7 @@ describe('AOT compile — error class hierarchy', () => {
   });
 });
 
-describe('AOT compile — memoizer', () => {
+describe('AOT compile  -  memoizer', () => {
   test('memoizer caches by key reference', () => {
     let calls = 0;
     const compute = (k: { id: number }) => {
@@ -77,7 +77,7 @@ describe('AOT compile — memoizer', () => {
   });
 });
 
-describe('AOT compile — compileFn / compileFnValidate', () => {
+describe('AOT compile  -  compileFn / compileFnValidate', () => {
   test('compileFnValidate emits a thin validator for primitives', () => {
     const fn = compileFnValidateDirect(v.string());
     expect(fn).not.toBeNull();
@@ -104,7 +104,7 @@ describe('AOT compile — compileFn / compileFnValidate', () => {
   });
 });
 
-describe('AOT compile — compile()', () => {
+describe('AOT compile  -  compile()', () => {
   test('compile() is idempotent (returns the same schema on repeat call)', () => {
     const schema = v.object({ a: v.string() });
     const a = compileDirect(schema);
@@ -129,7 +129,7 @@ describe('AOT compile — compile()', () => {
   });
 });
 
-describe('AOT compile — validate() / validateAsync()', () => {
+describe('AOT compile  -  validate() / validateAsync()', () => {
   test('validate() returns true for valid input via compiled body', () => {
     const schema = v.object({ a: v.string(), b: v.number() });
     const compiled = compileDirect(schema);
@@ -167,7 +167,7 @@ describe('AOT compile — validate() / validateAsync()', () => {
   });
 });
 
-describe('AOT compile — properties()', () => {
+describe('AOT compile  -  properties()', () => {
   test('every key becomes optional', () => {
     const schema = propertiesDirect({ a: v.string(), b: v.number() });
     expect(schema.parse({})).toEqual({});
@@ -181,7 +181,7 @@ describe('AOT compile — properties()', () => {
   });
 });
 
-describe('AOT compile — getDiscriminatedOption()', () => {
+describe('AOT compile  -  getDiscriminatedOption()', () => {
   test('returns the matching option by discriminator value', () => {
     const aSchema = v.object({ type: v.literal('a'), a: v.string() });
     const bSchema = v.object({ type: v.literal('b'), b: v.number() });
@@ -210,7 +210,7 @@ describe('AOT compile — getDiscriminatedOption()', () => {
   });
 });
 
-describe('AOT compile — toZod()', () => {
+describe('AOT compile  -  toZod()', () => {
   test('returns the same VldBase if the input is already a schema', () => {
     const schema = v.string();
     expect(toZodDirect(schema)).toBe(schema);
@@ -235,14 +235,14 @@ describe('AOT compile — toZod()', () => {
   });
 
   test('builds v.object() from a plain object shape', () => {
-    // toZod treats a plain object as a shape (object of validators) — the
+    // toZod treats a plain object as a shape (object of validators)  -  the
     // string 'placeholder' is the value of the "a" property in the shape.
     const schema = toZodDirect({ a: v.string() });
     expect(schema.parse({ a: 'x' })).toEqual({ a: 'x' });
   });
 });
 
-describe('v.* namespace — compile / validate / properties / getDiscriminatedOption / memoizer / toZod', () => {
+describe('v.* namespace  -  compile / validate / properties / getDiscriminatedOption / memoizer / toZod', () => {
   test('v.compile compiles and caches', () => {
     const schema = v.object({ a: v.string() });
     const compiled = v.compile(schema);
@@ -291,7 +291,7 @@ describe('v.* namespace — compile / validate / properties / getDiscriminatedOp
   });
 });
 
-describe('AOT compile — compiled parse returns the input on success (Moltar ParseSafe)', () => {
+describe('AOT compile  -  compiled parse returns the input on success (Moltar ParseSafe)', () => {
   test('compile(s).parse() returns the input as-is when valid', () => {
     const schema = v.object({ a: v.string(), b: v.number() });
     const compiled = v.compile(schema);
@@ -307,7 +307,7 @@ describe('AOT compile — compiled parse returns the input on success (Moltar Pa
   });
 });
 
-describe('AOT compile — parse() / safeParse() fall back to the original parse path on failure', () => {
+describe('AOT compile  -  parse() / safeParse() fall back to the original parse path on failure', () => {
   test('compile(s).parse() falls back to the original parse() and throws on invalid input', () => {
     const schema = v.object({ a: v.string() });
     const compiled = v.compile(schema);
@@ -323,7 +323,7 @@ describe('AOT compile — parse() / safeParse() fall back to the original parse 
   });
 });
 
-describe('Coverage gap — v.compile via the v namespace (src/index.ts)', () => {
+describe('Coverage gap  -  v.compile via the v namespace (src/index.ts)', () => {
   test('v.compile is exposed and calls the AOT compile surface', () => {
     const schema = v.object({ a: v.string(), b: v.number().int() });
     const compiled = v.compile(schema);
@@ -338,7 +338,7 @@ describe('Coverage gap — v.compile via the v namespace (src/index.ts)', () => 
   });
 });
 
-describe('Coverage gap — VldObject.exactPartial (src/validators/object.ts)', () => {
+describe('Coverage gap  -  VldObject.exactPartial (src/validators/object.ts)', () => {
   test('exactPartial() makes every key optional and rejects explicit undefined', () => {
     const schema = v.object({ a: v.string(), b: v.number() }).exactPartial();
     expect(schema.parse({})).toEqual({});
@@ -352,7 +352,7 @@ describe('Coverage gap — VldObject.exactPartial (src/validators/object.ts)', (
   });
 });
 
-describe('Coverage gap — regexes.nanoidOfLength (src/validators/string-formats.ts)', () => {
+describe('Coverage gap  -  regexes.nanoidOfLength (src/validators/string-formats.ts)', () => {
   test('nanoidOfLength(n) returns a fresh RegExp that matches exactly n characters', () => {
     const re = regexes.nanoidOfLength(10);
     expect(re).toBeInstanceOf(RegExp);
@@ -362,7 +362,7 @@ describe('Coverage gap — regexes.nanoidOfLength (src/validators/string-formats
   });
 });
 
-describe('AOT compile — every string check kind is lowered', () => {
+describe('AOT compile  -  every string check kind is lowered', () => {
   test('min / max / length', () => {
     expect(v.validate(v.compile(v.string().min(2)), 'ab')).toBe(true);
     expect(v.validate(v.compile(v.string().min(3)), 'ab')).toBe(false);
@@ -387,7 +387,7 @@ describe('AOT compile — every string check kind is lowered', () => {
   });
 });
 
-describe('AOT compile — every number check kind is lowered', () => {
+describe('AOT compile  -  every number check kind is lowered', () => {
   test('int / finite', () => {
     expect(v.validate(v.compile(v.number().int()), 1)).toBe(true);
     expect(v.validate(v.compile(v.number().int()), 1.5)).toBe(false);
@@ -429,7 +429,7 @@ describe('AOT compile — every number check kind is lowered', () => {
   });
 });
 
-describe('AOT compile — boolean / bigint / null / undefined / literal / enum', () => {
+describe('AOT compile  -  boolean / bigint / null / undefined / literal / enum', () => {
   test('boolean', () => {
     expect(v.validate(v.compile(v.boolean()), true)).toBe(true);
     expect(v.validate(v.compile(v.boolean()), false)).toBe(true);
@@ -461,7 +461,7 @@ describe('AOT compile — boolean / bigint / null / undefined / literal / enum',
   });
 });
 
-describe('AOT compile — array / tuple / record / object / union / optional', () => {
+describe('AOT compile  -  array / tuple / record / object / union / optional', () => {
   test('array of strings', () => {
     const schema = v.array(v.string());
     expect(v.validate(v.compile(schema), ['a', 'b'])).toBe(true);
@@ -514,7 +514,7 @@ describe('AOT compile — array / tuple / record / object / union / optional', (
   });
 });
 
-describe('AOT compile — root re-exports (zodCompileFn, ZodCompileAsyncError, ZodCompileUnsupportedError)', () => {
+describe('AOT compile  -  root re-exports (zodCompileFn, ZodCompileAsyncError, ZodCompileUnsupportedError)', () => {
   test('zodCompileFn is the same as compileFn and works for primitives', () => {
     expect(typeof zodCompileFn).toBe('function');
     const fn = zodCompileFn(v.string());
@@ -536,7 +536,7 @@ describe('AOT compile — root re-exports (zodCompileFn, ZodCompileAsyncError, Z
   });
 });
 
-describe('AOT compile — refinements / transforms fall back gracefully', () => {
+describe('AOT compile  -  refinements / transforms fall back gracefully', () => {
   test('refined schema is not compiled (validateOnly returns null)', () => {
     const refined = v.string().refine((s) => s.length > 0);
     const compiled = compileFnDirect(refined);
@@ -551,7 +551,7 @@ describe('AOT compile — refinements / transforms fall back gracefully', () => 
   });
 });
 
-describe('AOT compile — bigint check kinds', () => {
+describe('AOT compile  -  bigint check kinds', () => {
   test('bigint with min / max', () => {
     expect(v.validate(v.compile(v.bigint().min(2n)), 2n)).toBe(true);
     expect(v.validate(v.compile(v.bigint().min(2n)), 1n)).toBe(false);
@@ -573,7 +573,7 @@ describe('AOT compile — bigint check kinds', () => {
   });
 });
 
-describe('AOT compile — array of objects (inline build path)', () => {
+describe('AOT compile  -  array of objects (inline build path)', () => {
   test('array of objects validates and returns true on the hot path', () => {
     const schema = v.array(v.object({ a: v.string(), b: v.number() }));
     expect(v.validate(v.compile(schema), [
@@ -593,7 +593,7 @@ describe('AOT compile — array of objects (inline build path)', () => {
   });
 });
 
-describe('AOT compile — deeply nested objects', () => {
+describe('AOT compile  -  deeply nested objects', () => {
   test('nested object schema lowers and validates', () => {
     const schema = v.object({
       level1: v.object({
@@ -612,7 +612,7 @@ describe('AOT compile — deeply nested objects', () => {
   });
 });
 
-describe('AOT compile — date / null / undefined / unknown / any', () => {
+describe('AOT compile  -  date / null / undefined / unknown / any', () => {
   test('date accepts a valid Date and rejects Invalid Date and non-dates', () => {
     expect(v.validate(v.compile(v.date()), new Date())).toBe(true);
     expect(v.validate(v.compile(v.date()), new Date('not-a-date'))).toBe(false);
@@ -630,7 +630,7 @@ describe('AOT compile — date / null / undefined / unknown / any', () => {
   });
 });
 
-describe('AOT compile — literal with single and multiple values', () => {
+describe('AOT compile  -  literal with single and multiple values', () => {
   test('literal with a single value (string)', () => {
     expect(v.validate(v.compile(v.literal('a')), 'a')).toBe(true);
     expect(v.validate(v.compile(v.literal('a')), 'b')).toBe(false);
@@ -650,7 +650,7 @@ describe('AOT compile — literal with single and multiple values', () => {
   });
 });
 
-describe('AOT compile — array of arrays / nested arrays', () => {
+describe('AOT compile  -  array of arrays / nested arrays', () => {
   test('array of arrays of strings', () => {
     const schema = v.array(v.array(v.string()));
     expect(v.validate(v.compile(schema), [['a', 'b'], ['c']])).toBe(true);
@@ -658,7 +658,7 @@ describe('AOT compile — array of arrays / nested arrays', () => {
   });
 });
 
-describe('AOT compile — union with three types', () => {
+describe('AOT compile  -  union with three types', () => {
   test('union routes by runtime type', () => {
     const schema: any = v.union([v.string(), v.number(), v.boolean()]);
     expect(v.validate(v.compile(schema), 'a')).toBe(true);
@@ -669,7 +669,7 @@ describe('AOT compile — union with three types', () => {
   });
 });
 
-describe('AOT compile — error throws when schema cannot be lowered', () => {
+describe('AOT compile  -  error throws when schema cannot be lowered', () => {
   test('compile() returns the schema unchanged for an unhandled schema kind (lazy)', () => {
     // VldLazy is intentionally not lowered; compile() returns the schema and
     // falls back to the runtime parse() path on validate/parse.
@@ -680,14 +680,14 @@ describe('AOT compile — error throws when schema cannot be lowered', () => {
   });
 
   test('compileFn() returns null when the schema kind is unknown', () => {
-    // A bare object that doesn't match any known Vld* kind — compileFn
+    // A bare object that doesn't match any known Vld* kind  -  compileFn
     // returns null so compile() falls through to the safeParse path.
     const notASchema: any = { _checks: [], _checkMetas: [] };
     expect(compileFnDirect(notASchema)).toBeNull();
   });
 });
 
-describe('AOT compile — schema with non-identifier keys', () => {
+describe('AOT compile  -  schema with non-identifier keys', () => {
   test('object with a key that needs bracket access', () => {
     const schema: any = v.object({ 'with-dash': v.string(), 'normal': v.number() });
     expect(v.validate(v.compile(schema), { 'with-dash': 'x', 'normal': 1 })).toBe(true);

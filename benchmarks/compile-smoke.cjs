@@ -1,5 +1,5 @@
 /**
- * VLD compile/validate smoke test — sanity check that the AOT compiler
+ * VLD compile/validate smoke test  -  sanity check that the AOT compiler
  * round-trips identical results to the runtime parser before we feed it
  * to the Moltar ParseSafe benchmark.
  */
@@ -16,7 +16,7 @@ const sampleUser = {
 
 function expect(label, actual, expected) {
   const ok = JSON.stringify(actual) === JSON.stringify(expected);
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${label} → ${JSON.stringify(actual)}`);
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}  ->  ${JSON.stringify(actual)}`);
   if (!ok) {
     console.log(`     expected: ${JSON.stringify(expected)}`);
     process.exitCode = 1;
@@ -116,7 +116,7 @@ function expect(label, actual, expected) {
   expect('properties() partial allows subset', schema.safeParse({ a: 'x' }).success, true);
 }
 
-// 11. Result/error equivalence — uncompiled vs compiled must agree
+// 11. Result/error equivalence  -  uncompiled vs compiled must agree
 {
   const schema = v.object({ a: v.string(), b: v.number() });
   const compiled = v.compile(schema);

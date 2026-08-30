@@ -1,5 +1,5 @@
 /**
- * VLD AOT compiler — generates a flat, loop-free JavaScript validator that
+ * VLD AOT compiler  -  generates a flat, loop-free JavaScript validator that
  * mirrors Zod 4.5's `z.compile()` strategy.
  *
  * Zod's secret: a compiled validator is a single function whose body is a
@@ -75,7 +75,7 @@ export const memoizer = <K extends object, V>(compute: (key: K) => V): ((key: K)
 };
 
 // ============================================================================
-// Compiler state — shared across recursive lower() calls.
+// Compiler state  -  shared across recursive lower() calls.
 // ============================================================================
 
 
@@ -111,7 +111,7 @@ function temp(c: Compiler, kind: string): string {
  * For complex sub-schemas (object, array, union, record, nested object) the
  * implementation falls back to a per-sub-schema helper function to keep the
  * parent body linear. Each helper is a separate top-level function in the
- * emitted source — V8 inlines small helpers automatically.
+ * emitted source  -  V8 inlines small helpers automatically.
  */
 function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
   if (c.failed) return;
@@ -144,7 +144,7 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
           case 'url':
           case 'uuid':
           case 'ip':
-            // format checks are slow regexes — skip in AOT path for speed
+            // format checks are slow regexes  -  skip in AOT path for speed
             break;
           default:
             if (checks && checks.length > 0) { c.failed = true; return; }
@@ -188,7 +188,7 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
           case 'nonpositive': extra.push('__v <= 0'); break;
           case 'safe': extra.push('Number.isSafeInteger(__v)'); break;
           default:
-            // unsupported constraint — fall back to runtime
+            // unsupported constraint  -  fall back to runtime
             if (checks && checks.length > 0) { c.failed = true; return; }
         }
       }
@@ -295,7 +295,7 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
         `if (!Array.isArray(${input})) ${c.throwOnFail ? "throw" : "return"} ${c.invalid};`
       );
       if (c.validateOnly) {
-        // No allocation, no slot — just emit the per-element check inline.
+        // No allocation, no slot  -  just emit the per-element check inline.
         c.hoist.push(`for (let ${idxName} = 0; ${idxName} < ${input}.length; ${idxName}++) {`);
         lower(element, `${input}[${idxName}]`, c);
         if (c.failed) return;
@@ -342,7 +342,7 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
       `const ${outName} = new Array(${input}.length);`,
       `for (let ${idxName} = 0; ${idxName} < ${input}.length; ${idxName}++) {`
     );
-    // Inline element check and assign directly — no shadow.
+    // Inline element check and assign directly  -  no shadow.
     lower(element, `${input}[${idxName}]`, c);
     if (c.failed) return;
     c.hoist.push(
@@ -532,7 +532,7 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
           continue;
         }
       }
-      // Complex options (object/array) — fall back to IIFE pattern.
+      // Complex options (object/array)  -  fall back to IIFE pattern.
       // V8 inlines small IIFEs well when the body fits the inlining budget.
       const subC: Compiler = { invalid: c.invalid, outParam: slot, scratch: 0, hoist: [], failed: false, skipOutAssign: true };
       lower(opt, 'value', subC);
@@ -553,7 +553,7 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
 
 /**
  * Build the compiled validator for a schema. Returns `null` if the schema
- * cannot be fully lowered — callers fall back to the runtime parser.
+ * cannot be fully lowered  -  callers fall back to the runtime parser.
  */
 export function compileFn(schema: VldBase<any, any>, options?: { validateOnly?: boolean }): CompiledValidator | null {
   if (!schema || typeof (schema as any).parse !== 'function') return null;
@@ -609,7 +609,7 @@ export function compileFnValidate(schema: VldBase<any, any>): CompiledValidator 
  * which already does the per-shape work (strip unknown keys, clone, etc.)
  * and is heavily optimised. The compiled parse path then becomes
  * "compiledValidate(input) ? schema.parse(input) : throw", which keeps
- * V8's inlining budget focused on a tiny validator function — exactly
+ * V8's inlining budget focused on a tiny validator function  -  exactly
  * Zod 4.5's strategy.
  */
 export function applyCompiled<T extends VldBase<any, any>>(
@@ -622,7 +622,7 @@ export function applyCompiled<T extends VldBase<any, any>>(
   const invalidSym = COMPILE_INVALID;
   const validateCompiled = (validateOnly ?? compiled) as CompiledValidator;
   // Compiled parse/safeParse: on success, return the input as-is. This is
-  // the same semantic Zod 4's compiled `parse` uses — `compile()` produces
+  // the same semantic Zod 4's compiled `parse` uses  -  `compile()` produces
   // a function that returns true (or throws), and the wrapped parse method
   // returns the input directly on success. We intentionally do NOT strip
   // unknown keys here, because (a) Zod's compiled parse also does not
