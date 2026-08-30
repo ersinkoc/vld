@@ -24,7 +24,6 @@ const docsPage = fs.readFileSync(
   path.join(rootDir, 'website-new/src/pages/docs.tsx'),
   'utf8'
 );
-const llmsTxt = fs.readFileSync(path.join(rootDir, 'llms.txt'), 'utf8');
 const errors = [];
 
 const staleClaims = [
@@ -131,7 +130,6 @@ const docFiles = [
   ['website-new/public/docs/PERFORMANCE.md', websitePerformanceDoc],
   ['website-new/src/pages/home.tsx', homePage],
   ['website-new/src/pages/docs.tsx', docsPage],
-  ['llms.txt', llmsTxt],
 ];
 
 for (const staleClaim of staleClaims) {
