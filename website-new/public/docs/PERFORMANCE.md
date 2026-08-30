@@ -1,6 +1,6 @@
 # VLD Performance Guide
 
-Comprehensive guide to understanding and optimizing VLD's performance in your applications (v2.3.0).
+Comprehensive guide to understanding and optimizing VLD's performance in your applications (v2.4.0).
 
 ## Table of Contents
 
@@ -15,7 +15,7 @@ Comprehensive guide to understanding and optimizing VLD's performance in your ap
 
 ## Performance Overview
 
-VLD is built from the ground up with performance as a primary goal. The v2.3.0 release gate compares VLD against Zod 4.5.4 across **AOT compile** parse and validate, runtime throughput, startup behavior, retained heap, packaging, installability, type declarations, and real app drop-in behavior.
+VLD is built from the ground up with performance as a primary goal. The v2.4.0 release gate compares VLD against Zod 4.5.4 across **AOT compile** parse and validate, runtime throughput, startup behavior, retained heap, packaging, installability, type declarations, and real app drop-in behavior.
 
 ### Key Performance Features
 
@@ -30,7 +30,7 @@ VLD is built from the ground up with performance as a primary goal. The v2.3.0 r
 
 ## Benchmark Results
 
-### AOT Compile Benchmarks (v2.3.0, against Zod 4.5.4)
+### AOT Compile Benchmarks (v2.4.0, against Zod 4.5.4)
 
 `benchmarks/moltar-deep.cjs` measures `v.compile(schema).parse(input)` and `v.validate(compiled, input)` against the matching Zod 4.5.4 paths. 200,000 iterations × 21 runs, median. Node v24.13.0.
 
@@ -414,7 +414,7 @@ const schema = object({
 
 ## Running Benchmarks
 
-### AOT Compile Benchmark (v2.3.0)
+### AOT Compile Benchmark (v2.4.0)
 
 ```bash
 # 6-scenario guard, 200k iters × 21 runs, median
@@ -427,7 +427,7 @@ node benchmarks/moltar-parse-safe.cjs
 node benchmarks/compile-smoke.cjs
 ```
 
-These scripts write a `benchmarks/.temp_files/moltar-deep.json` snapshot that the v2.3.0 release guard reads for trend tracking.
+These scripts write a `benchmarks/.temp_files/moltar-deep.json` snapshot that the v2.4.0 release guard reads for trend tracking.
 
 ### Quick Benchmark
 

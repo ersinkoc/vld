@@ -118,7 +118,7 @@ if (result.success) {
 }`,
     lang: 'typescript',
     tips: [
-      'VLD v2.3.0 is checked against Zod 4.5.4 (253/253 exports)',
+      'VLD v2.4.0 is checked against Zod 4.5.4 (253/253 exports)',
       'Root, mini, v4, v4-mini, v4/core, v4/locales, and compile entry points are covered',
       'AOT compile (v.compile / v.validate) is release-gated at 1.46x / 2.36x geomean vs z.compile',
       'Full TypeScript inference',

@@ -2,7 +2,7 @@
 
 A complete guide for migrating your codebase from Zod to VLD with minimal changes, Zod-compatible package subpaths, and release-gated parity checks.
 
-**VLD v2.3.0 targets drop-in replacement workflows for Zod 4.5.4 root and subpath imports while keeping plugin system, CLI tools, i18n, codecs, and event system support, and adding AOT compile parity (`v.compile`, `v.validate`, `v.validateAsync`, `v.properties`, `v.getDiscriminatedOption`, `v.memoizer`, `v.toZod`, `ZodCompileError`, `ZodCompileAsyncError`, `ZodCompileUnsupportedError`).**
+**VLD v2.4.0 targets drop-in replacement workflows for Zod 4.5.4 root and subpath imports while keeping plugin system, CLI tools, i18n, codecs, and event system support, and adding AOT compile parity (`v.compile`, `v.validate`, `v.validateAsync`, `v.properties`, `v.getDiscriminatedOption`, `v.memoizer`, `v.toZod`, `ZodCompileError`, `ZodCompileAsyncError`, `ZodCompileUnsupportedError`).**
 
 ## Table of Contents
 
@@ -21,7 +21,7 @@ A complete guide for migrating your codebase from Zod to VLD with minimal change
 
 ### Performance Benefits
 
-- **AOT compile: 1.46x parse, 2.36x validate geomean** vs Zod 4.5.4 in the v2.3.0 release guard (5/6 parse scenarios, 6/6 validate scenarios)
+- **AOT compile: 1.46x parse, 2.36x validate geomean** vs Zod 4.5.4 in the v2.4.0 release guard (5/6 parse scenarios, 6/6 validate scenarios)
 - **11x+ guarded runtime speedup** in the v2.1.0 release check snapshot
 - **4.7x+ less retained heap** in the v2.1.0 memory guard snapshot
 - **1.5x+ total startup speedup** in the v2.1.0 startup guard snapshot
@@ -154,7 +154,7 @@ v.never()           // z.never()
 
 ## Zod 4 API Parity
 
-VLD v2.3.0 keeps expanding compatibility with Zod 4 APIs:
+VLD v2.4.0 keeps expanding compatibility with Zod 4 APIs:
 
 ### Discriminated Union (Now Supported!)
 
@@ -400,10 +400,10 @@ const envSchema = v.object({
 
 After migrating to VLD, you can expect:
 
-### AOT Compile Performance (v2.3.0)
+### AOT Compile Performance (v2.4.0)
 
 ```javascript
-// v2.3.0 release guard snapshot (vs Zod 4.5.4):
+// v2.4.0 release guard snapshot (vs Zod 4.5.4):
 // v.compile(s).parse(): 1.46x faster geomean, 5/6 scenarios
 // v.validate(compiled, x): 2.36x faster geomean, 6/6 scenarios
 const compiled = v.compile(schema);

@@ -1,6 +1,6 @@
 # VLD API Reference
 
-Complete API documentation for the VLD validation library (v2.3.0 - Zod-compatible root and subpath APIs + AOT compile + Modular Architecture + Plugin System + CLI Tools).
+Complete API documentation for the VLD validation library (v2.4.0 - Zod-compatible root and subpath APIs + AOT compile + Modular Architecture + Plugin System + CLI Tools).
 
 ## Table of Contents
 
@@ -40,7 +40,7 @@ pnpm add @oxog/vld
 
 ## Import Options
 
-VLD v2.3.0 provides multiple import strategies for different needs:
+VLD v2.4.0 provides multiple import strategies for different needs:
 
 ### Full API (Classic)
 ```typescript

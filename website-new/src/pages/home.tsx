@@ -7,7 +7,7 @@ const features = [
   {
     icon: Zap,
     title: 'Release-Gated Speed',
-    description: 'AOT-compiled `v.compile()` is 1.46x ahead of Zod 4.5.4 on parse, 2.36x on validate (5/6 + 6/6 scenarios, v2.3.0 guard).',
+    description: 'AOT-compiled `v.compile()` is 1.46x ahead of Zod 4.5.4 on parse, 2.36x on validate (5/6 + 6/6 scenarios, v2.4.0 guard).',
     color: 'from-amber-500 to-orange-500',
   },
   {
@@ -130,7 +130,7 @@ export function HomePage() {
               <div className="animate-fade-in">
                 <div className="tag mb-6">
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>v2.3.0 — AOT Compile Release, 100% Zod 4.5.4 Parity</span>
+                  <span>v2.4.0 — AOT Compile Release, 100% Zod 4.5.4 Parity</span>
                 </div>
               </div>
 

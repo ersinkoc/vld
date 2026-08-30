@@ -50,22 +50,22 @@ export default {
     '!src/locales/es-MX.ts',
     '!src/locales/fi.ts',
     '!src/locales/fr.ts',
-    '!src/locales/gu.ts',         // v2.3.0 locale addition (translation only)
+    '!src/locales/gu.ts',         // v2.4.0 locale addition (translation only)
     '!src/locales/hi.ts',
     '!src/locales/id.ts',
     '!src/locales/it.ts',
     '!src/locales/ja.ts',
-    '!src/locales/kn.ts',         // v2.3.0 locale addition (translation only)
+    '!src/locales/kn.ts',         // v2.4.0 locale addition (translation only)
     '!src/locales/ko.ts',
-    '!src/locales/ne.ts',         // v2.3.0 locale addition (translation only)
+    '!src/locales/ne.ts',         // v2.4.0 locale addition (translation only)
     '!src/locales/nl.ts',
     '!src/locales/no.ts',
     '!src/locales/pl.ts',
     '!src/locales/pt.ts',
     '!src/locales/pt-BR.ts',
-    '!src/locales/pt-BR-v4.ts',   // v2.3.0 locale addition (translation only)
+    '!src/locales/pt-BR-v4.ts',   // v2.4.0 locale addition (translation only)
     '!src/locales/ru.ts',
-    '!src/locales/sk.ts',         // v2.3.0 locale addition (translation only)
+    '!src/locales/sk.ts',         // v2.4.0 locale addition (translation only)
     '!src/locales/sv.ts',
     '!src/locales/sw.ts',
     '!src/locales/th.ts',

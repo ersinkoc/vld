@@ -1,6 +1,6 @@
 # VLD Advanced Features
 
-Deep dive into VLD's advanced features and capabilities for complex validation scenarios (v2.3.0 - Zod-compatible package subpaths + AOT compile + Plugin System + CLI Tools).
+Deep dive into VLD's advanced features and capabilities for complex validation scenarios (v2.4.0 - Zod-compatible package subpaths + AOT compile + Plugin System + CLI Tools).
 
 ## Table of Contents
 

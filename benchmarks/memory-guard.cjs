@@ -8,9 +8,9 @@
 const { execFileSync } = require('child_process');
 
 const samples = Number(process.env.VLD_MEMORY_GUARD_SAMPLES || 3);
-// v2.3.0 added the AOT compile module (~700 LOC) to the published bundle, so
+// v2.4.0 added the AOT compile module (~700 LOC) to the published bundle, so
 // VLD retained heap grew past the 2x ratio established in v2.1.0. The 1.5x
-// minimum still asserts a meaningful win over Zod (see v2.3.0 release notes).
+// minimum still asserts a meaningful win over Zod (see v2.4.0 release notes).
 const minTotalMemoryRatio = Number(process.env.VLD_MEMORY_GUARD_MIN_TOTAL_RATIO || 1.5);
 const minTotalSpeedRatio = Number(process.env.VLD_MEMORY_GUARD_MIN_SPEED_RATIO || 1.5);
 const minCaseSpeedRatio = Number(process.env.VLD_MEMORY_GUARD_MIN_CASE_SPEED_RATIO || 1.1);

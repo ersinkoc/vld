@@ -2,7 +2,7 @@ import { Zap, Clock, HardDrive, Cpu, TrendingUp, TrendingDown, BarChart3, Activi
 import { cn } from '@/lib/utils'
 
 // ============================================================================
-// v2.3.0 AOT compile guard — VLD vs Zod 4.5.4
+// v2.4.0 AOT compile guard — VLD vs Zod 4.5.4
 // ============================================================================
 // Source: benchmarks/moltar-deep.cjs (200,000 iters × 21 runs, median)
 // Node.js v24.13.0, Windows 11, single-isolate.
@@ -230,7 +230,7 @@ export function BenchmarkPage() {
             </div>
             <h1 className="font-display text-4xl lg:text-5xl font-bold mb-4">Performance Benchmarks</h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              v2.3.0 AOT compile guard against Zod 4.5.4. The <code className="text-vld-primary font-mono">v.compile()</code> body
+              v2.4.0 AOT compile guard against Zod 4.5.4. The <code className="text-vld-primary font-mono">v.compile()</code> body
               is a flat <code className="text-vld-primary font-mono">if/typeof</code> chain emitted via{' '}
               <code className="text-vld-primary font-mono">new Function()</code>; <code className="text-vld-primary font-mono">v.validate()</code>{' '}
               returns the boolean result and <code className="text-vld-primary font-mono">v.compile(schema).parse()</code> returns the input on success (Zod-compiled semantic).
@@ -647,7 +647,7 @@ export function BenchmarkPage() {
               <div>
                 <p className="font-medium text-foreground mb-1">Environment</p>
                 <ul className="space-y-1">
-                  <li>• Node.js v24.13.0 (v2.3.0 AOT guard), v20 LTS (legacy guard)</li>
+                  <li>• Node.js v24.13.0 (v2.4.0 AOT guard), v20 LTS (legacy guard)</li>
                   <li>• Windows 11 / macOS / Linux</li>
                   <li>• Zod 4.5.4 (AOT guard) / Zod 4.4.3 (legacy guard)</li>
                 </ul>
@@ -677,7 +677,7 @@ export function BenchmarkPage() {
           <div className="mt-8 p-4 rounded-lg border border-border bg-muted/30">
             <p className="text-sm text-muted-foreground">
               <strong className="text-foreground">Note:</strong> Benchmark results may vary based on hardware, Node.js version, and system load.
-              The v2.3.0 AOT guard is measured against Zod 4.5.4 (npm <code className="font-mono">latest</code> at audit time). The
+              The v2.4.0 AOT guard is measured against Zod 4.5.4 (npm <code className="font-mono">latest</code> at audit time). The
               release gate compares against the installed latest stable Zod and must pass before publishing.
             </p>
           </div>

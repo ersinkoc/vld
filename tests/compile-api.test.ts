@@ -3,7 +3,7 @@
  * v.validate / v.validateAsync / v.properties / v.getDiscriminatedOption /
  * v.memoizer / v.toZod namespace exports.
  *
- * Also covers three small coverage gaps that surfaced when the v2.3.0
+ * Also covers three small coverage gaps that surfaced when the v2.4.0
  * AOT compile module landed:
  *   - src/index.ts line 1107 (v.compile via the v namespace)
  *   - src/validators/object.ts lines 996-1000 (VldObject.exactPartial)
