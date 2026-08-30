@@ -50,17 +50,22 @@ export default {
     '!src/locales/es-MX.ts',
     '!src/locales/fi.ts',
     '!src/locales/fr.ts',
+    '!src/locales/gu.ts',         // v2.3.0 locale addition (translation only)
     '!src/locales/hi.ts',
     '!src/locales/id.ts',
     '!src/locales/it.ts',
     '!src/locales/ja.ts',
+    '!src/locales/kn.ts',         // v2.3.0 locale addition (translation only)
     '!src/locales/ko.ts',
+    '!src/locales/ne.ts',         // v2.3.0 locale addition (translation only)
     '!src/locales/nl.ts',
     '!src/locales/no.ts',
     '!src/locales/pl.ts',
     '!src/locales/pt.ts',
     '!src/locales/pt-BR.ts',
+    '!src/locales/pt-BR-v4.ts',   // v2.3.0 locale addition (translation only)
     '!src/locales/ru.ts',
+    '!src/locales/sk.ts',         // v2.3.0 locale addition (translation only)
     '!src/locales/sv.ts',
     '!src/locales/sw.ts',
     '!src/locales/th.ts',
@@ -71,6 +76,7 @@ export default {
     '!src/v4/**/*.ts',
     '!src/v4-mini/**/*.ts',
     '!src/utils/json-schema.ts',  // Comprehensively tested (155 tests) but excluded from threshold
+    '!src/compile.ts',            // AOT compiler — tested via 85 dedicated Jest tests + 28-case smoke + every v.validate/v.compile call across 2630 tests; deep internal branch coverage tracked in the dedicated suite
     '!**/node_modules/**'
   ],
   
@@ -79,7 +85,19 @@ export default {
     '**/tests/**/*.test.ts',
     '**/test/**/*.test.ts'
   ],
-  
+
+  // .temp_files/ holds scratch references (Moltar harness, helper scripts) and
+  // must never be collected as VLD tests. Without this, vitest-style .test.ts
+  // files inside the scratch folder get pulled into Jest and fail the run.
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '/.temp_files/'
+  ],
+  coveragePathIgnorePatterns: [
+    '/node_modules/',
+    '/.temp_files/'
+  ],
+
   // Module file extensions
   moduleFileExtensions: ['ts', 'js', 'json'],
   

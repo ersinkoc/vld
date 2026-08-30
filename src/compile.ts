@@ -127,8 +127,14 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
           case 'max': extra.push(`__v.length <= ${m.value}`); break;
           case 'length': extra.push(`__v.length === ${m.value}`); break;
           case 'regex': {
-            const r = m.value as RegExp;
-            extra.push(`${r.source.replace(/\\\\/g, '\\\\').replace(/\//g, '\\/')}.test(__v)`);
+            // VldString stores the regex pattern as a string under `pattern`,
+            // not under `value` as a RegExp instance. Escape the source for a
+            // RegExp literal, then emit `.test(__v)`.
+            const source = (m as { pattern?: string }).pattern
+              ?? (m.value as RegExp)?.source
+              ?? String(m.value);
+            const escaped = source.replace(/\\/g, '\\\\').replace(/\//g, '\\/');
+            extra.push(`/${escaped}/.test(__v)`);
             break;
           }
           case 'startsWith': extra.push(`__v.startsWith(${JSON.stringify(m.value)})`); break;
@@ -200,7 +206,29 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
     return;
   }
   if (kindOf(schema) === 'VldBigInt') {
-    c.hoist.push(`if (typeof ${input} !== "bigint") ${c.throwOnFail ? "throw" : "return"} ${c.invalid}; ${c.validateOnly ? c.outParam + " = true; " : (c.skipOutAssign ? "" : c.outParam + " = ") + input};`);
+    const checks = (schema as any)._checks as Array<(v: any) => boolean> | undefined;
+    const metas = (schema as any)._checkMetas as Array<{ kind: string; value?: bigint }> | undefined;
+    const extra: string[] = [];
+    if (metas) {
+      for (const m of metas) {
+        switch (m.kind) {
+          case 'min': extra.push(`__v >= ${m.value}n`); break;
+          case 'max': extra.push(`__v <= ${m.value}n`); break;
+          case 'positive': extra.push('__v > 0n'); break;
+          case 'negative': extra.push('__v < 0n'); break;
+          case 'nonnegative': extra.push('__v >= 0n'); break;
+          case 'nonpositive': extra.push('__v <= 0n'); break;
+          default:
+            if (checks && checks.length > 0) { c.failed = true; return; }
+        }
+      }
+    } else if (checks && checks.length > 0) {
+      c.failed = true; return;
+    }
+    const allChecks = ['typeof __v === "bigint"', ...extra];
+    c.hoist.push(
+      `{ const __v = ${input}; if (!(${allChecks.join(' && ')})) ${c.throwOnFail ? "throw" : "return"} ${c.invalid}; ${c.outParam} = __v; }`
+    );
     return;
   }
   if (kindOf(schema) === 'VldDate') {
