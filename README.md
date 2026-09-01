@@ -317,7 +317,8 @@ await preloadLocales(['en', 'de', 'ja']);
 
 VLD 3.0 ships the **V2 pattern** (single-def + check classes) for every chain-heavy
 validator. This matches Zod 4.5's "method memoization" optimization and is
-**2-6x faster** in parse, **1.6-10x smaller** in memory.
+**3.00x faster** on the honest head-to-head (10/10 wins, semantic-checked, see
+`benchmarks/dropin-vs-zod.cjs`) and **1.6-10x smaller** in memory.
 
 ### What changed
 

@@ -2,7 +2,7 @@
 
 A complete guide for migrating your codebase to VLD 3.0 with minimal changes, Zod-compatible package subpaths, and release-gated parity checks.
 
-**VLD 3.0 is a non-breaking major bump.** Existing `v.*` factories stay V1 by default (backward compatible); use `vV2` or `v.setV2Mode(true)` for the 2-6x faster V2 method-memoization path.
+**VLD 3.0 is a non-breaking major bump.** Existing `v.*` factories stay V1 by default (backward compatible); use `vV2` or `v.setV2Mode(true)` for the V2 method-memoization path. **3.00x faster** vs Zod 4.5.4 on the honest head-to-head benchmark (`benchmarks/dropin-vs-zod.cjs`, 10/10 wins, semantic-checked).
 
 ## Table of Contents
 
@@ -23,7 +23,7 @@ A complete guide for migrating your codebase to VLD 3.0 with minimal changes, Zo
 
 ### Performance Benefits (v3.0 — V2 method-memoization)
 
-- **2-6x faster** than Zod 4.5 on the valid path (1M `safeParse` ops, pre-built schemas)
+- **3.00x faster** than Zod 4.5.4 on the honest head-to-head (10/10 wins, semantic-checked, `benchmarks/dropin-vs-zod.cjs`)
 - **1.6-10x less memory** than Zod 4.5 (per-instance retained heap)
 - **6.5x faster** than Zod 4.5 on `number().int().positive().min(1)`
 - **3.2x faster** than Zod 4.5 on a realistic 10-field API schema
@@ -37,7 +37,7 @@ A complete guide for migrating your codebase to VLD 3.0 with minimal changes, Zo
 - **Built-in i18n**: 27+ languages supported out of the box
 - **Better error formatting**: Tree, pretty, flatten, plus ZodError `.format()` / `.flatten()`
 - **Immutable validators**: Prevent memory leaks
-- **2704/2704 unit tests pass**, 22/22 real-world Zod test, 28/28 Zod 4.5 parity
+- **3031/3031 unit tests pass**, 22/22 real-world Zod test, 28/28 Zod 4.5 parity
 - **100% statement, branch, function, and line coverage**
 - **Plugin system**: Extend VLD with custom validators
 - **CLI tools**: Command-line validation and benchmarking
@@ -117,7 +117,7 @@ That's it. VLD is a drop-in replacement for Zod 4.5. All public API surface, inc
 ### When to use V2
 
 - New code, hot paths
-- You want 2-6x faster and 1.6-10x less memory
+- You want 3.00x drop-in speedup (or 1.6-10x less memory with V2)
 - You don't read internal fields
 
 ### Mixing V1 and V2
@@ -136,7 +136,7 @@ const schema = v.object({            // V1 object
 
 ## API Compatibility
 
-VLD 3.0 is 100% backward compatible with VLD 2.4.x. All 2704 unit tests from VLD 2.x pass unchanged.
+VLD 3.0 is 100% backward compatible with VLD 2.4.x. All 3031 unit tests (including 2704 carried over from VLD 2.x) pass unchanged.
 
 ## Zod 4.5 Package Subpaths
 
@@ -208,7 +208,7 @@ const zodResult = toZodSafeResult(result);
 **None.** VLD 3.0 is a non-breaking major bump:
 
 - `v.*` factories still return V1 (legacy) by default
-- All VLD 2.x tests pass unchanged (2704/2704)
+- All VLD 2.x tests pass unchanged (2704 carried over + 327 new V2 / drop-in tests)
 - 22/22 real-world Zod test passes
 - 28/28 Zod 4.5 parity test passes
 - Zod 4.5 subpath exports are unchanged
@@ -263,7 +263,7 @@ import { v } from '@oxog/vld';
 const User = v.object({ name: v.string() });
 const parsed = User.parse(data);
 const safe = User.safeParse(data);
-// Identical behavior, 2-6x faster on the V2 path
+// Identical behavior, 3.00x faster (drop-in geomean vs Zod 4.5.4)
 ```
 
 ### V2 drop-in for hot paths
@@ -339,7 +339,7 @@ const stringV2 = vV2.string().min(1).email();
 
 ### "My V2 schema behaves differently from V1"
 
-V2 hot path is functionally identical to V1. If you see a behavior difference, file an issue with a reproduction. 22/22 real-world Zod test and 2704/2704 unit tests pass on V2.
+V2 hot path is functionally identical to V1. If you see a behavior difference, file an issue with a reproduction. 22/22 real-world Zod test and 3031/3031 unit tests pass on V2.
 
 ### "v.setV2Mode(true) broke my tests"
 

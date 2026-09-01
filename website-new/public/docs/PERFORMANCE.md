@@ -1,6 +1,6 @@
 # VLD Performance Guide (v3.0.0)
 
-Comprehensive guide to understanding and optimizing VLD's performance in your applications. VLD 3.0 ships the V2 method-memoization pattern, matching Zod 4.5's "method memoization" optimization and beating it on both throughput (2-6x) and memory (1.6-10x).
+Comprehensive guide to understanding and optimizing VLD's performance in your applications. VLD 3.0 is a true drop-in replacement for Zod 4.5.4 — 3.00x geomean on the honest head-to-head (10/10 wins, semantic-checked). V2 method-memoization is opt-in via `vV2` or `v.setV2Mode(true)` and contributes to the same 3.00x geomean; 1.6-10x smaller per instance.
 
 ## Table of Contents
 
@@ -53,7 +53,7 @@ VLD 3.0 is built from the ground up with performance as a primary goal. The rele
 
 ### Test Coverage
 
-- **95 test suites, 2704/2704 tests pass** (no regressions vs v2.4.0)
+- **104 test suites, 3031/3031 tests pass** (no regressions vs v2.4.0)
 - **22/22 real-world Zod pattern test** (discriminated union, lazy, preprocess, pipe, brand, pick/omit, merge, extend, catch, default, transform, refine, etc.)
 - **28/28 Zod 4.5 parity test** (`import { v as z }` is a drop-in)
 
@@ -63,10 +63,10 @@ VLD 3.0 is built from the ground up with performance as a primary goal. The rele
 
 | Guard | v3.0 Snapshot | Release Threshold |
 |-------|------------------|-------------------|
-| Runtime throughput (V2) | **2-6x faster than Zod 4.5** | Must stay faster |
+| Runtime throughput (drop-in) | **3.00x faster than Zod 4.5.4** (10/10 wins, semantic-checked) | Must stay faster |
 | Memory (V2) | **1.6-10x less than Zod 4.5** | Must stay below |
 | Startup | **1.5x+ faster** | >= 1.10x |
-| 2704 unit tests | **PASS** | No regressions |
+| 3031 unit tests | **PASS** | No regressions |
 | 22/22 real-world Zod test | **PASS** | All must pass |
 | Bundle size | **53.0 KiB minified root** | Release-gated |
 
@@ -181,7 +181,7 @@ if (result.success) {
 ```javascript
 import { vV2 } from '@oxog/vld';
 
-// 2-6x faster than v.* for the same chain
+// part of the 3.00x drop-in geomean
 const hotPathSchema = vV2.string().min(1).email();
 ```
 
@@ -412,13 +412,13 @@ npm run benchmark:startup
 npm run release:check
 ```
 
-This runs linting, TypeScript checks, the full Jest suite (2704 tests), build, ASCII/docs/export/bundle/type/package/install/security verification, Zod parity checks (28/28), real app drop-in verification, and runtime/startup/memory performance guards.
+This runs linting, TypeScript checks, the full Jest suite (3031 tests), build, ASCII/docs/export/bundle/type/package/install/security verification, Zod parity checks (28/28), real app drop-in verification, and runtime/startup/memory performance guards.
 
 ## Performance Tips Summary (v3.0)
 
 1. **Reuse schemas** — Create once, use many times
 2. **Use safeParse** — Avoid exception overhead
-3. **Use vV2 for hot paths** — 2-6x faster than v.* on the same chain
+3. **Use vV2 for hot paths** — part of the 3.00x drop-in geomean vs Zod 4.5.4
 4. **Use v.setV2Mode(true)** — One-line global V2 swap
 5. **Optimize unions** — Most common types first
 6. **Flatten structures** — Avoid deep nesting

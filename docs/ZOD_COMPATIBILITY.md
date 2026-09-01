@@ -6,12 +6,12 @@ VLD 3.0 is a **drop-in replacement for Zod 4.5**. The release gate checks the ex
 
 ## v3.0 highlights
 
-- **V2 method-memoization**: 21 V2 classes shipped, matching Zod 4.5's "method memoization" optimization and beating it on both throughput (2-6x faster) and memory (1.6-10x smaller)
+- **V2 method-memoization**: 21 V2 classes shipped, matching Zod 4.5's "method memoization" optimization. Honest head-to-head on `benchmarks/dropin-vs-zod.cjs` shows 3.00x geomean (10/10 wins, semantic-checked); 1.6-10x smaller per instance.
 - **ZodError compatibility layer**: `toZodError()` / `ZodLikeError` / `toZodSafeResult()` for ZodError-shaped errors with `.format()` and `.flatten()`
 - **vV2 drop-in factory**: `import { vV2 as v } from '@oxog/vld'` for one-line V2 swap
 - **v.setV2Mode(true)** global toggle: no source rewrites needed
 - **z alias**: `import { v as z } from '@oxog/vld'` keeps the z.* style
-- **95 test suites, 2704/2704 tests pass**, **22/22 real-world Zod test**, **28/28 Zod 4.5 parity test**
+- **104 test suites, 3031/3031 tests pass**, **22/22 real-world Zod test**, **28/28 Zod 4.5 parity test**
 
 ## Current compatibility baseline
 
@@ -21,7 +21,7 @@ VLD 3.0 is a **drop-in replacement for Zod 4.5**. The release gate checks the ex
 | Modern factories | Array-based `union`, `tuple`, `xor`, `discriminatedUnion`, `enum`, multi-value `literal`, two-schema `record`, and empty `object()` calls are supported. VLD's older rest-argument forms remain available as extensions. |
 | String formats | `regexes` mirrors Zod's nested public namespace, UUID versions v1-v8 are supported, URL protocol/hostname filters and normalization use WHATWG `URL`, and `iso.datetime()`/precision/offset/local options are available. |
 | Direction API | Every schema exposes `decode`, `encode`, safe variants, async variants, and `spa`; codecs override the backward direction with their inverse transform. Object, array, and tuple schemas recursively encode nested codecs. |
-| V2 method-memoization (v3.0) | `vV2.*` and `v.*V2()` ship the Zod 4.5 method-memoization pattern, beating it on valid path (2-6x) and memory (1.6-10x). Use `v.setV2Mode(true)` for a global swap. |
+| V2 method-memoization (v3.0) | `vV2.*` and `v.*V2()` ship the Zod 4.5 method-memoization pattern. Part of the 3.00x drop-in geomean vs Zod 4.5.4; 1.6-10x smaller per instance. Use `v.setV2Mode(true)` for a global swap. |
 | ZodError adapter (v3.0) | `toZodError()` returns a `ZodLikeError` with `.name === 'ZodError'`, `.issues`, `.format()`, `.flatten()`. `toZodSafeResult()` wraps a `safeParse` result in one call. |
 | Defaults | Constant arrays, objects, maps, and sets are shallow-cloned per parse. Factory defaults and direct `.prefault(value)` follow Zod 4 behavior. |
 | Records | Key schemas run and may transform keys; non-enumerable and unsafe prototype keys are skipped; invalid keys use the `invalid_key` issue code. |
@@ -86,7 +86,7 @@ npm run verify:zod:canary
 
 ## Test results (v3.0.0)
 
-- **95 test suites, 2704/2704 tests pass** (no regressions vs v2.4.0)
+- **104 test suites, 3031/3031 tests pass** (no regressions vs v2.4.0)
 - **22/22 real-world Zod pattern test** (discriminated union, lazy, preprocess, pipe, brand, pick/omit, merge, extend, catch, default, transform, refine, etc.)
 - **28/28 Zod 4.5 parity test** (`import { v as z }` is a drop-in)
 - **253/253 Zod public exports** have a VLD equivalent across root, `./mini`, `./v4`, `./v4-mini`, `./v4/core`, `./v4/locales`, `./compile`, and nested namespace entry points

@@ -108,7 +108,7 @@ schema.parse([1, 2, 3]);  // '1,2,3'
 
 // V2 path
 const v2Schema = vV2.coerce.string();
-v2Schema.parse(123); // '123' (2-6x faster)
+v2Schema.parse(123); // '123' (part of the 3.00x drop-in geomean)
 ```
 
 ### Number Coercion
