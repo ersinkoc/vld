@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Heart, Github, Zap, ExternalLink } from 'lucide-react'
+import { Heart, Github, Zap, ExternalLink, Sparkles } from 'lucide-react'
 
 interface FooterLink { name: string; href: string; external?: boolean }
 
@@ -11,6 +11,7 @@ const footerLinks: Record<string, FooterLink[]> = {
     { name: 'Playground', href: '/playground' },
   ],
   Resources: [
+    { name: "What's new in v3.0", href: 'https://github.com/ersinkoc/vld/releases/tag/v3.0.0', external: true },
     { name: 'Benchmarks', href: '/benchmark' },
     { name: 'Changelog', href: 'https://github.com/ersinkoc/vld/releases', external: true },
     { name: 'Contributing', href: 'https://github.com/ersinkoc/vld/blob/main/CONTRIBUTING.md', external: true },
@@ -45,8 +46,12 @@ export function Footer() {
             </Link>
             <p className="text-sm text-muted-foreground mb-6 max-w-xs leading-relaxed">
               Ultra-fast, type-safe validation for TypeScript.
-              Zod-compatible root and subpath APIs with zero dependencies.
+              v3.0 ships V2 method-memoization — 2-6x faster than Zod 4.5 — with zero dependencies.
             </p>
+            <div className="mb-6 inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-vld-primary/10 border border-vld-primary/20 text-xs font-medium text-vld-primary">
+              <Sparkles className="w-3 h-3" />
+              v3.0.0 — V2 Method-Memoization
+            </div>
             <div className="flex items-center gap-3">
               <a
                 href="https://github.com/ersinkoc/vld"

@@ -1,9 +1,11 @@
-# VLD Advanced Features
+# VLD Advanced Features (v3.0.0)
 
-Deep dive into VLD's advanced features and capabilities for complex validation scenarios (v2.1.0 - Zod-compatible package subpaths + Plugin System + CLI Tools).
+Deep dive into VLD's advanced features: V2 method-memoization, ZodError compatibility, type coercion, custom validation, data transformation, preprocessing, complex types, and more.
 
 ## Table of Contents
 
+- [V2 Method-Memoization (v3.0 new)](#v2-method-memoization-v30-new)
+- [ZodError Compatibility (v3.0 new)](#zoderror-compatibility-v30-new)
 - [Type Coercion](#type-coercion)
 - [Custom Validation](#custom-validation)
 - [Data Transformation](#data-transformation)
@@ -16,6 +18,78 @@ Deep dive into VLD's advanced features and capabilities for complex validation s
 - [Internationalization](#internationalization)
 - [Advanced Patterns](#advanced-patterns)
 
+## V2 Method-Memoization (v3.0 new)
+
+VLD 3.0 ships the V2 method-memoization pattern across every chain-heavy validator. The pattern matches Zod 4.5's "method memoization" optimization but ships strictly better numbers across the board.
+
+### Three ways to use V2
+
+**1. vV2 drop-in factory (recommended for new code)**
+```typescript
+import { vV2 } from '@oxog/vld';
+const schema = vV2.string().min(1).email();
+```
+
+**2. v.setV2Mode(true) — global toggle (no source rewrites)**
+```typescript
+import { v } from '@oxog/vld';
+v.setV2Mode(true);
+const schema = v.string().min(1).email(); // Now V2
+v.setV2Mode(false);
+```
+
+**3. z = vV2 — keep the z.* style**
+```typescript
+import { vV2 as z } from '@oxog/vld';
+const schema = z.object({ email: z.string().email() });
+```
+
+### Performance headline
+
+| Schema | v.* (V1) | vV2 | Zod 4.5 | V2 vs Zod |
+|---|---:|---:|---:|---:|
+| `string().min(1).email()` | 22ms | **22ms** | 50ms | 2.3x faster |
+| `number().int().positive().min(1)` | 12ms | **6ms** | 39ms | **6.5x faster** |
+| Realistic API (10 fields) | 276ms | **243ms** | 767ms | **3.2x faster** |
+
+*1M `safeParse` ops, pre-built schemas, Node v24.13.0.*
+
+### V2 design principles
+
+1. **Single-def + check classes**: `__def` is a frozen object built once per chain; checks are class instances, not config blobs
+2. **Check classes return `Issue | null`**: No per-call `{value, issues}` payload allocation
+3. **`isSimple` precomputed in `__def`**: Hot path checks a boolean field, not two array length reads
+4. **Lazy stack capture**: `VLD_CAPTURE_STACK=true` opt-in for debug stack traces (default off)
+5. **Composites stay V1**: V2 wrapper would have 2+10=12 own properties — worse than legacy
+
+## ZodError Compatibility (v3.0 new)
+
+```typescript
+import { v, toZodError, toZodSafeResult, ZodLikeError } from '@oxog/vld';
+
+const result = v.object({ name: v.string().min(2) }).safeParse({ name: 'J' });
+
+if (!result.success) {
+  const zodErr = toZodError(result.error);
+
+  // ZodError shape
+  console.log(zodErr.name);          // 'ZodError'
+  console.log(zodErr.issues[0].code); // 'too_small'
+  console.log(zodErr.issues[0].path); // ['name']
+
+  // Zod 4.5 .format() and .flatten()
+  console.log(zodErr.format());       // Nested tree
+  console.log(zodErr.flatten());      // { formErrors, fieldErrors }
+
+  // instanceof check
+  console.log(zodErr instanceof ZodLikeError); // true
+}
+
+// One-liner safe result conversion
+const zodResult = toZodSafeResult(result);
+// { success: false, error: ZodLikeError }
+```
+
 ## Type Coercion
 
 VLD provides intelligent type coercion that automatically converts input values to the expected type when possible.
@@ -25,22 +99,16 @@ VLD provides intelligent type coercion that automatically converts input values 
 ```typescript
 const schema = v.coerce.string();
 
-// Number to string
-schema.parse(123);        // "123"
-schema.parse(45.67);      // "45.67"
-schema.parse(0);          // "0"
+schema.parse(123);        // '123'
+schema.parse(45.67);      // '45.67'
+schema.parse(0);          // '0'
+schema.parse(true);       // 'true'
+schema.parse(false);      // 'false'
+schema.parse([1, 2, 3]);  // '1,2,3'
 
-// Boolean to string
-schema.parse(true);       // "true"
-schema.parse(false);      // "false"
-
-// Arrays and objects
-schema.parse([1, 2, 3]);  // "1,2,3"
-schema.parse({});         // "[object Object]"
-
-// Special values
-schema.parse(null);       // Error: Cannot coerce null
-schema.parse(undefined);  // Error: Cannot coerce undefined
+// V2 path
+const v2Schema = vV2.coerce.string();
+v2Schema.parse(123); // '123' (2-6x faster)
 ```
 
 ### Number Coercion
@@ -48,18 +116,14 @@ schema.parse(undefined);  // Error: Cannot coerce undefined
 ```typescript
 const schema = v.coerce.number();
 
-// String to number
-schema.parse("42");       // 42
-schema.parse("3.14");     // 3.14
-schema.parse("  10  ");   // 10 (trims whitespace)
-
-// Boolean to number
+schema.parse('42');       // 42
+schema.parse('3.14');     // 3.14
+schema.parse('  10  ');   // 10 (trims whitespace)
 schema.parse(true);       // 1
 schema.parse(false);      // 0
 
-// Invalid strings
-schema.parse("abc");      // Error: Cannot coerce to number
-schema.parse("");         // Error: Cannot coerce to number
+// V2 path
+const v2Schema = vV2.coerce.number();
 ```
 
 ### Boolean Coercion
@@ -67,18 +131,14 @@ schema.parse("");         // Error: Cannot coerce to number
 ```typescript
 const schema = v.coerce.boolean();
 
-// String to boolean
-schema.parse("true");     // true
-schema.parse("false");    // false
-schema.parse("yes");      // true
-schema.parse("no");       // false
-schema.parse("1");        // true
-schema.parse("0");        // false
-
-// Number to boolean
+schema.parse('true');     // true
+schema.parse('false');    // false
+schema.parse('yes');      // true
+schema.parse('no');       // false
+schema.parse('1');        // true
+schema.parse('0');        // false
 schema.parse(1);          // true
 schema.parse(0);          // false
-schema.parse(2);          // Error: Cannot coerce 2 to boolean
 ```
 
 ### Date Coercion
@@ -86,706 +146,318 @@ schema.parse(2);          // Error: Cannot coerce 2 to boolean
 ```typescript
 const schema = v.coerce.date();
 
-// String to date
-schema.parse("2024-01-15");           // Date object
-schema.parse("Jan 15, 2024");         // Date object
-schema.parse("2024-01-15T10:30:00Z"); // Date object
-
-// Number to date (timestamp)
-schema.parse(1704067200000);          // Date object
-schema.parse(Date.now());             // Date object
-
-// Invalid dates
-schema.parse("invalid");              // Error: Invalid date
-```
-
-### BigInt Coercion
-
-```typescript
-const schema = v.coerce.bigint();
-
-// String to bigint
-schema.parse("123");      // 123n
-schema.parse("-456");     // -456n
-
-// Number to bigint (integers only)
-schema.parse(789);        // 789n
-schema.parse(0);          // 0n
-
-// Floats not allowed
-schema.parse(3.14);       // Error: Cannot coerce float to bigint
+schema.parse('2024-01-15');           // Date
+schema.parse('Jan 15, 2024');         // Date
+schema.parse('2024-01-15T10:30:00Z'); // Date
+schema.parse(1704067200000);          // Date
 ```
 
 ## Custom Validation
 
-### Basic Refinements
-
 ```typescript
-// Simple validation
-const ageSchema = v.number()
-  .refine(age => age >= 18, "Must be 18 or older");
+// V1 (default)
+const positiveNumber = v.number()
+  .refine(n => n > 0, 'Number must be positive');
 
-// Multiple refinements
-const passwordSchema = v.string()
-  .min(8)
-  .refine(pwd => /[A-Z]/.test(pwd), "Must contain uppercase")
-  .refine(pwd => /[a-z]/.test(pwd), "Must contain lowercase")
-  .refine(pwd => /\d/.test(pwd), "Must contain number")
-  .refine(pwd => /[!@#$%]/.test(pwd), "Must contain special character");
-```
+// V2 (recommended for hot paths)
+const positiveNumberV2 = vV2.number()
+  .refine(n => n > 0, 'Number must be positive');
 
-### Object-Level Validation
+// Multiple refines chain
+const passwordSchema = vV2.string()
+  .min(8, 'Password too short')
+  .refine(pwd => /[A-Z]/.test(pwd), 'Must contain uppercase letter')
+  .refine(pwd => /[0-9]/.test(pwd), 'Must contain number')
+  .refine(pwd => /[!@#$%^&*]/.test(pwd), 'Must contain special character');
 
-```typescript
-const userSchema = v.object({
-  password: v.string(),
-  confirmPassword: v.string()
-}).refine(
-  data => data.password === data.confirmPassword,
-  "Passwords must match"
-);
-
-const dateRangeSchema = v.object({
-  startDate: v.date(),
-  endDate: v.date()
-}).refine(
-  data => data.startDate < data.endDate,
-  "End date must be after start date"
-);
-```
-
-### Async Validation
-
-```typescript
-const emailSchema = v.string().email().refine(
-  async (email) => {
-    // Check if email exists in database
-    const exists = await checkEmailExists(email);
-    return !exists;
-  },
-  "Email already registered"
-);
-
-// Usage with async/await
-const result = await emailSchema.parseAsync(email);
-```
-
-### Type Predicates
-
-```typescript
-// Type guard refinements
-const stringNumberSchema = v.unknown()
-  .refine((val): val is string | number => 
-    typeof val === 'string' || typeof val === 'number',
-    "Must be string or number"
-  );
-
-// After parsing, TypeScript knows the type
-const result = stringNumberSchema.parse(input);
-// result is typed as string | number
+// SuperRefine for context-aware validation
+vV2.string().superRefine((val, ctx) => {
+  if (val.length < 3) {
+    ctx.addIssue({ code: 'too_small', minimum: 3, type: 'string' });
+  }
+});
 ```
 
 ## Data Transformation
 
-### Simple Transformations
-
 ```typescript
-// String transformations
-const normalizedEmail = v.string()
-  .transform(s => s.toLowerCase())
-  .transform(s => s.trim())
-  .email();
+// V1 (default)
+const upper = v.string().transform(s => s.toUpperCase());
 
-normalizedEmail.parse("  JOHN@EXAMPLE.COM  "); // "john@example.com"
+// V2 (recommended)
+const upperV2 = vV2.string().transform(s => s.toUpperCase());
 
-// Number transformations
-const percentageSchema = v.number()
-  .min(0)
-  .max(100)
-  .transform(n => n / 100);
-
-percentageSchema.parse(50); // 0.5
-```
-
-### Complex Transformations
-
-```typescript
-// Parse and transform CSV data
-const csvRowSchema = v.string()
-  .transform(row => row.split(','))
-  .transform(cells => cells.map(cell => cell.trim()))
-  .transform(cells => ({
-    name: cells[0],
-    email: cells[1],
-    age: parseInt(cells[2])
-  }));
-
-csvRowSchema.parse("John Doe, john@example.com, 30");
-// { name: "John Doe", email: "john@example.com", age: 30 }
-
-// Transform nested objects
+// Object transform
 const userTransformSchema = v.object({
   firstName: v.string(),
-  lastName: v.string(),
-  birthDate: v.date()
+  lastName: v.string()
 }).transform(user => ({
   ...user,
-  fullName: `${user.firstName} ${user.lastName}`,
-  age: Math.floor((Date.now() - user.birthDate.getTime()) / 31536000000)
+  fullName: `${user.firstName} ${user.lastName}`
 }));
-```
 
-### Conditional Transformations
-
-```typescript
-const flexibleIdSchema = v.union(v.string(), v.number())
-  .transform(id => {
-    if (typeof id === 'number') {
-      return `ID_${id}`;
-    }
-    return id.toUpperCase();
-  });
-
-flexibleIdSchema.parse(123);    // "ID_123"
-flexibleIdSchema.parse("abc");  // "ABC"
+// Chain transforms
+const emailNormalization = vV2.string()
+  .transform(email => email.toLowerCase().trim())
+  .refine(email => email.includes('@'), 'Invalid email format')
+  .transform(email => email.replace(/\+.*@/, '@'));
 ```
 
 ## Preprocessing
 
-Transform input before validation with `v.preprocess()`:
-
 ```typescript
-// Trim strings before validation
-const trimmedString = v.preprocess(
-  (val) => typeof val === 'string' ? val.trim() : val,
-  v.string().min(1)
+// Preprocess then validate
+const trimmedEmail = v.preprocess(
+  (input) => typeof input === 'string' ? input.trim().toLowerCase() : input,
+  v.string().email()
 );
 
-trimmedString.parse("  hello  "); // "hello"
+trimmedEmail.parse('  JOHN@EXAMPLE.COM  '); // 'john@example.com'
 
-// Parse JSON strings
-const jsonPreprocess = v.preprocess(
-  (val) => typeof val === 'string' ? JSON.parse(val) : val,
-  v.object({ name: v.string() })
+// V2 path
+const trimmedEmailV2 = vV2.preprocess(
+  (input) => typeof input === 'string' ? input.trim().toLowerCase() : input,
+  vV2.string().email()
 );
-
-// Normalize data structures
-const normalizeArray = v.preprocess(
-  (val) => Array.isArray(val) ? val : [val],
-  v.array(v.string())
-);
-
-normalizeArray.parse("single");    // ["single"]
-normalizeArray.parse(["a", "b"]);  // ["a", "b"]
 ```
 
 ## Complex Types
 
-### Tuple Types
+### Tuple
 
 ```typescript
-// Fixed-length arrays with specific types
-const coordinateSchema = v.tuple(
-  v.number().min(-90).max(90),   // latitude
-  v.number().min(-180).max(180), // longitude
-  v.number().positive().optional() // altitude (optional)
-);
+const coordSchema = v.tuple(v.number(), v.number());
+coordSchema.parse([40.7128, -74.0060]); // [40.7128, -74.0060]
 
-coordinateSchema.parse([40.7128, -74.0060]);       // OK
-coordinateSchema.parse([40.7128, -74.0060, 100]); // OK with altitude
-
-// Named tuple elements
-const rgbSchema = v.tuple(
-  v.number().min(0).max(255), // red
-  v.number().min(0).max(255), // green
-  v.number().min(0).max(255)  // blue
-);
+// Rest tuple
+const restTuple = v.tuple(v.string(), v.number()).rest(v.boolean());
+restTuple.parse(['hi', 1, true, false, true]); // ['hi', 1, true, false, true]
 ```
 
-### Record Types
+### Record
 
 ```typescript
-// Dynamic key-value pairs
-const configSchema = v.record(v.union(v.string(), v.number(), v.boolean()));
+const configSchema = v.record(v.string());
+configSchema.parse({ a: '1', b: '2', c: '3' });
 
-configSchema.parse({
-  apiUrl: "https://api.example.com",
-  timeout: 5000,
-  debug: true,
-  maxRetries: 3
-}); // All valid
-
-// Nested records
-const translationsSchema = v.record(
-  v.record(v.string()) // language -> key -> translation
-);
-
-translationsSchema.parse({
-  en: { hello: "Hello", goodbye: "Goodbye" },
-  es: { hello: "Hola", goodbye: "Adiós" }
-});
+// With specific key type
+const numericKeys = v.record(v.number());
+// Keys are transformed/validated too
 ```
 
-### Set Types
+### Set
 
 ```typescript
-const uniqueTagsSchema = v.set(v.string().min(1).max(20))
-  .refine(set => set.size <= 10, "Maximum 10 tags allowed");
+const tagSchema = v.set(v.string());
+tagSchema.parse(new Set(['javascript', 'typescript']));
 
-const tags = new Set(["javascript", "typescript", "validation"]);
-uniqueTagsSchema.parse(tags); // Valid Set
-
-// Transform array to set
-const arrayToSetSchema = v.array(v.string())
-  .transform(arr => new Set(arr));
-
-arrayToSetSchema.parse(["a", "b", "a", "c"]); // Set {"a", "b", "c"}
+// With size constraints
+const boundedSet = v.set(v.string()).min(1).max(5);
 ```
 
-### Map Types
+### Map
 
 ```typescript
-const userPermissionsSchema = v.map(
-  v.string(), // user ID
-  v.set(v.enum("read", "write", "delete", "admin")) // permissions
-);
-
-const permissions = new Map([
-  ["user1", new Set(["read", "write"])],
-  ["user2", new Set(["read"])],
-  ["admin", new Set(["read", "write", "delete", "admin"])]
-]);
-
-userPermissionsSchema.parse(permissions); // Valid
+const mapSchema = v.map(v.string(), v.number());
+const m = new Map([['a', 1], ['b', 2]]);
+mapSchema.parse(m);
 ```
 
-### Intersection Types
+### Intersection
 
 ```typescript
-// Combine multiple object schemas
-const timestampSchema = v.object({
-  createdAt: v.date(),
-  updatedAt: v.date()
-});
-
-const authorSchema = v.object({
-  authorId: v.string(),
-  authorName: v.string()
-});
-
-const postSchema = v.intersection(
-  v.object({
-    id: v.string(),
-    title: v.string(),
-    content: v.string()
-  }),
-  timestampSchema,
-  authorSchema
-);
-
-// Result has all properties combined
-```
-
-### XOR Types (v1.4.0)
-
-Exactly one validator must match:
-
-```typescript
-// Payment method - exactly one must be provided
-const paymentSchema = v.xor(
-  v.object({ type: v.literal('card'), cardNumber: v.string() }),
-  v.object({ type: v.literal('bank'), iban: v.string() }),
-  v.object({ type: v.literal('crypto'), walletAddress: v.string() })
-);
+const baseUser = v.object({ id: v.string(), name: v.string() });
+const adminUser = v.object({ role: v.literal('admin'), permissions: v.array(v.string()) });
+const adminSchema = v.intersection(baseUser, adminUser);
 ```
 
 ## Discriminated Unions
 
-Efficiently validate unions using a discriminator key (Zod 4 parity):
-
 ```typescript
-// API response handling
-const apiResponseSchema = v.discriminatedUnion('status',
-  v.object({
-    status: v.literal('success'),
-    data: v.object({ id: v.string(), name: v.string() })
-  }),
-  v.object({
-    status: v.literal('error'),
-    code: v.number(),
-    message: v.string()
-  }),
-  v.object({
-    status: v.literal('pending'),
-    retryAfter: v.number()
-  })
+const eventSchema = v.discriminatedUnion('type',
+  v.object({ type: v.literal('click'), x: v.number(), y: v.number() }),
+  v.object({ type: v.literal('scroll'), delta: v.number() }),
+  v.object({ type: v.literal('keypress'), key: v.string() })
 );
 
-// TypeScript narrows the type based on discriminator
-const response = apiResponseSchema.parse(data);
-if (response.status === 'success') {
-  console.log(response.data.name); // TypeScript knows 'data' exists
-} else if (response.status === 'error') {
-  console.log(response.message);   // TypeScript knows 'message' exists
+const event = eventSchema.parse(data);
+// TypeScript narrows the type based on 'type' field
+if (event.type === 'click') {
+  console.log(event.x, event.y);
 }
 ```
 
 ## String Format Validators
 
-VLD v1.4.0 provides standalone string format validators (Zod 4 parity):
-
 ```typescript
-// Email with custom pattern
-const corporateEmail = v.email({ pattern: /^[\w.]+@company\.com$/i });
-
-// UUID versions
-const uuidV4 = v.uuid({ version: 'v4' });
-const uuidAny = v.uuid();  // Any version
-
-// Network formats
-v.ipv4();      // 192.168.1.1
-v.ipv6();      // ::1
-v.cidrv4();    // 192.168.1.0/24
-v.cidrv6();    // ::1/128
-v.mac();       // 00:11:22:33:44:55
-
-// Encoding formats
-v.base64();     // Standard base64
-v.base64url();  // URL-safe base64
-v.hex();        // Hexadecimal
-v.jwt();        // JSON Web Token
-
-// Identifiers
-v.nanoid();    // NanoID
-v.cuid();      // CUID
-v.cuid2();     // CUID2
-v.ulid();      // ULID
-
-// ISO formats
-v.iso.date();      // 2024-01-15
-v.iso.time();      // 14:30:00
-v.iso.dateTime();  // 2024-01-15T14:30:00Z
-v.iso.duration();  // P1Y2M3DT4H5M6S
-
-// Custom format
-const productCode = v.stringFormat('productCode', /^PRD-\d{6}$/);
-```
-
-### Template Literals
-
-Create validators for template literal patterns:
-
-```typescript
-// API versioned paths
-const apiPath = v.templateLiteral('/api/v', v.number(), '/', v.string());
-apiPath.parse('/api/v1/users');  // OK
-apiPath.parse('/api/v2/posts');  // OK
-
-// Email-like patterns
-const emailPattern = v.templateLiteral(v.string(), '@', v.string(), '.', v.string());
+const emailSchema = v.email();
+const uuidSchema = v.uuid({ version: 'v4' });
+const urlSchema = v.url();
+const ipSchema = v.ipv4();
+const ipv6Schema = v.ipv6();
+const cidrv4Schema = v.cidrv4();
+const cidrv6Schema = v.cidrv6();
+const base64Schema = v.base64();
+const nanoidSchema = v.nanoid();
+const ulidSchema = v.ulid();
+const cuidSchema = v.cuid();
+const cuid2Schema = v.cuid2();
+const isoDateSchema = v.iso.date();
+const isoTimeSchema = v.iso.time();
+const isoDatetimeSchema = v.iso.datetime();
+const isoDurationSchema = v.iso.duration();
+const e164Schema = v.e164();
+const emojiSchema = v.emoji();
 ```
 
 ## File and Function Validation
 
-### File Validation (v1.4.0)
-
-Validate file uploads in browser environments:
+### File Validation
 
 ```typescript
 const imageSchema = v.file()
-  .type(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
-  .maxSize(5 * 1024 * 1024);  // 5MB
+  .mime('image/png', 'image/jpeg')
+  .max(5_000_000); // 5 MB
 
-const documentSchema = v.file()
-  .type(['application/pdf', 'application/msword'])
-  .maxSize(10 * 1024 * 1024); // 10MB
-
-// Usage in form handler
-const fileInput = document.querySelector('input[type="file"]');
-const file = fileInput.files[0];
-const result = imageSchema.safeParse(file);
+imageSchema.parse(new File([blob], 'photo.png', { type: 'image/png' }));
 ```
 
-### Function Validation (v1.4.0)
-
-Validate that a value is a function:
+### Function Validation
 
 ```typescript
-const callbackSchema = v.function();
+const adderSchema = v.function()
+  .args(v.number(), v.number())
+  .returns(v.number());
 
-// Validate callbacks
-const config = {
-  onSuccess: () => console.log('Success'),
-  onError: 'not a function'  // Will fail
-};
-
-callbackSchema.parse(config.onSuccess); // OK
-callbackSchema.parse(config.onError);   // Error
-```
-
-### Custom Validators (v1.4.0)
-
-Create fully custom validators with type inference:
-
-```typescript
-// Simple check function
-const positiveEven = v.custom<number>({
-  check: (val) => typeof val === 'number' && val > 0 && val % 2 === 0,
-  message: 'Must be a positive even number'
-});
-
-// With type guard
-const isStringArray = v.custom<string[]>({
-  check: (val): val is string[] =>
-    Array.isArray(val) && val.every(item => typeof item === 'string'),
-  message: 'Must be an array of strings'
-});
+const adder = adderSchema.parse((a, b) => a + b);
+adder(1, 2); // 3
 ```
 
 ## Error Handling
 
-### Error Formatting
-
 ```typescript
-import { treeifyError, prettifyError, flattenError } from '@oxog/vld';
+import { v, prettifyError, flattenError, treeifyError, toZodError } from '@oxog/vld';
 
-const schema = v.object({
-  user: v.object({
-    name: v.string().min(2),
-    email: v.string().email(),
-    age: v.number().positive()
-  }),
-  items: v.array(v.object({
-    id: v.string(),
-    quantity: v.number().positive()
-  }))
-});
-
-const result = schema.safeParse(invalidData);
+const result = schema.safeParse(data);
 
 if (!result.success) {
-  // Tree format - for debugging
-  const tree = treeifyError(result.error);
-  console.log(JSON.stringify(tree, null, 2));
-  
-  // Pretty format - for console output
-  const pretty = prettifyError(result.error);
-  console.log(pretty);
-  
-  // Flat format - for form validation
+  // Pretty console output
+  console.log(prettifyError(result.error));
+
+  // Flat for forms
   const flat = flattenError(result.error);
-  // Use flat.fieldErrors for form field errors
+
+  // Tree for complex UIs
+  const tree = treeifyError(result.error);
+
+  // ZodError shape (v3.0 new)
+  const zodErr = toZodError(result.error);
+  console.log(zodErr.format());
+  console.log(zodErr.flatten());
 }
-```
-
-### Custom Error Classes
-
-```typescript
-class ValidationError extends Error {
-  constructor(public errors: VldError) {
-    super(prettifyError(errors));
-    this.name = 'ValidationError';
-  }
-}
-
-function validateOrThrow(schema: any, data: unknown) {
-  const result = schema.safeParse(data);
-  if (!result.success) {
-    throw new ValidationError(result.error);
-  }
-  return result.data;
-}
-```
-
-### Error Recovery
-
-```typescript
-// Provide defaults for failed validations
-const configSchema = v.object({
-  port: v.number().catch(3000),
-  host: v.string().catch("localhost"),
-  debug: v.boolean().catch(false)
-});
-
-// Invalid input gets defaults
-configSchema.parse({
-  port: "invalid",
-  host: 123,
-  debug: "not-a-boolean"
-});
-// Result: { port: 3000, host: "localhost", debug: false }
 ```
 
 ## Internationalization
 
-### Setting Locale
-
 ```typescript
-import { v, setLocale } from '@oxog/vld';
+import { v, setLocale, setLocaleAsync, getLocale } from '@oxog/vld';
 
-// Set global locale
-setLocale('es'); // Spanish
+setLocale('tr');
+const r = v.string().min(5).safeParse('hi');
+if (!r.success) console.log(r.error.message); // 'Metin en az 5 karakter olmalı'
 
-const schema = v.string().min(5);
-const result = schema.safeParse("Hi");
-// Error message in Spanish: "La cadena debe tener al menos 5 caracteres"
+// Lazy load
+await setLocaleAsync('ja');
+
+// Per-parse locale override
+v.parse(data, { locale: 'fr' });
 ```
 
-### Supported Languages
-
-VLD supports 27+ languages including:
-
-- **Major**: English, Spanish, French, German, Italian, Portuguese, Russian, Japanese, Korean, Chinese, Arabic, Hindi, Turkish
-- **European**: Danish, Swedish, Norwegian, Finnish, Dutch, Polish
-- **Asian**: Thai, Vietnamese, Indonesian, Bengali
-- **African**: Swahili, Afrikaans
-- **Regional**: Portuguese (Brazil), Spanish (Mexico)
-
-### Dynamic Locale Switching
-
-```typescript
-class LocalizedValidator {
-  constructor(private userLocale: string) {
-    setLocale(userLocale);
-  }
-  
-  validate(schema: any, data: unknown) {
-    // Temporarily switch locale
-    const previousLocale = getLocale();
-    setLocale(this.userLocale);
-    
-    const result = schema.safeParse(data);
-    
-    // Restore previous locale
-    setLocale(previousLocale);
-    
-    return result;
-  }
-}
-
-// Per-user validation
-const validator = new LocalizedValidator('fr');
-validator.validate(schema, data); // French error messages
-```
+VLD supports 27+ languages. See `examples/internationalization.js` for the full list.
 
 ## Advanced Patterns
-
-### Recursive Schemas
-
-```typescript
-// Define recursive types for tree structures
-type TreeNode = {
-  value: string;
-  children?: TreeNode[];
-};
-
-const treeNodeSchema: v.ZodType<TreeNode> = v.object({
-  value: v.string(),
-  children: v.lazy(() => v.array(treeNodeSchema).optional())
-});
-
-// Parse nested tree structure
-treeNodeSchema.parse({
-  value: "root",
-  children: [
-    { value: "child1" },
-    { 
-      value: "child2",
-      children: [
-        { value: "grandchild" }
-      ]
-    }
-  ]
-});
-```
-
-### Branded Types
-
-```typescript
-// Create branded types for type safety
-const EmailBrand = Symbol('Email');
-type Email = string & { [EmailBrand]: true };
-
-const emailSchema = v.string()
-  .email()
-  .transform((email): Email => email as Email);
-
-// Functions can require branded types
-function sendEmail(to: Email, subject: string) {
-  // TypeScript ensures 'to' is a validated email
-}
-
-const email = emailSchema.parse("user@example.com");
-sendEmail(email, "Hello"); // Type-safe
-```
 
 ### Schema Composition
 
 ```typescript
-// Build complex schemas from reusable parts
-const addressSchema = v.object({
-  street: v.string(),
-  city: v.string(),
-  country: v.string(),
-  zipCode: v.string()
+const timestampMixin = v.object({
+  createdAt: v.date().default(() => new Date()),
+  updatedAt: v.date().default(() => new Date())
 });
 
-const contactSchema = v.object({
-  email: v.string().email(),
-  phone: v.string().regex(/^\+?[\d\s-()]+$/)
+const auditMixin = v.object({
+  createdBy: v.string(),
+  updatedBy: v.string().optional()
 });
 
-const personSchema = v.object({
-  id: v.string().uuid(),
-  name: v.string()
-});
-
-// Compose into larger schemas
-const customerSchema = personSchema
-  .extend({
-    billingAddress: addressSchema,
-    shippingAddress: addressSchema.optional(),
-    contact: contactSchema,
-    customerSince: v.date()
-  });
-
-const employeeSchema = personSchema
-  .extend({
-    employeeId: v.string(),
-    department: v.string(),
-    officeAddress: addressSchema,
-    workContact: contactSchema
-  });
+const auditableSchema = v.intersection(
+  v.intersection(userSchema, timestampMixin),
+  auditMixin
+);
 ```
 
-### Discriminated Unions
+### Lazy Schemas (recursive types)
 
 ```typescript
-// Type-safe discriminated unions
-const shapeSchema = v.union(
+type Category = { name: string; subcategories: Category[] };
+
+const categorySchema: v.ZodType<Category> = v.lazy(() =>
   v.object({
-    type: v.literal("circle"),
-    radius: v.number().positive()
-  }),
-  v.object({
-    type: v.literal("rectangle"),
-    width: v.number().positive(),
-    height: v.number().positive()
-  }),
-  v.object({
-    type: v.literal("triangle"),
-    base: v.number().positive(),
-    height: v.number().positive()
+    name: v.string(),
+    subcategories: v.array(categorySchema)
   })
 );
-
-// TypeScript narrows type based on discriminator
-const shape = shapeSchema.parse(data);
-if (shape.type === "circle") {
-  console.log(shape.radius); // TypeScript knows about radius
-}
 ```
 
----
+### Brand Types
 
-For more information, see the [API Reference](./api.md) or [Getting Started Guide](./GETTING_STARTED.md).
+```typescript
+const userIdSchema = v.string().uuid().brand<'UserId'>();
+type UserId = v.Infer<typeof userIdSchema>;
+```
+
+### Plugin System
+
+```typescript
+import { v, plugin } from '@oxog/vld';
+
+const slugPlugin = plugin({
+  name: 'slug',
+  apply: (validator) => {
+    return validator.refine(s => /^[a-z0-9-]+$/.test(s), 'Must be a slug');
+  }
+});
+
+const slugSchema = slugPlugin.apply(v.string());
+slugSchema.parse('hello-world'); // OK
+slugSchema.parse('Hello World'); // throws 'Must be a slug'
+```
+
+### Event System
+
+```typescript
+import { v, onParseStart, onParseEnd } from '@oxog/vld';
+
+onParseStart((event) => {
+  console.log('Validating:', event.schema, event.input);
+});
+
+onParseEnd((event) => {
+  console.log('Result:', event.success, event.data ?? event.error);
+});
+```
+
+### CLI Tools
+
+```bash
+# Validate a JSON file
+npx vld validate --schema ./schema.ts ./data.json
+
+# Benchmark
+npx vld bench ./schema.ts
+
+# Generate TypeScript types from a schema
+npx vld types ./schema.ts > types.d.ts
+```
+
+See [API Reference](./api.md) for complete documentation of all features.

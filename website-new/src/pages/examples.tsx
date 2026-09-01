@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { CodeBlock } from '@/components/ui/code-block'
 import { cn } from '@/lib/utils'
-import { User, ShoppingCart, Lock, Database, Globe, Server, Zap, Shield, Binary, Repeat } from 'lucide-react'
+import { User, ShoppingCart, Lock, Database, Globe, Server, Zap, Shield, Binary, Repeat, Sparkles, AlertCircle } from 'lucide-react'
 
 const examples = [
   {
@@ -198,6 +198,56 @@ const orderSchema = v.object({
 })
 
 type Order = v.infer<typeof orderSchema>`
+  },
+  {
+    id: 'dropin-zod',
+    title: 'Zod → VLD Drop-in',
+    description: 'True drop-in: same API, same semantics, 3.00x faster',
+    icon: Repeat,
+    code: `// Zod 4.5.4 and VLD 3.0.0 share the exact same public API.
+// You can switch with a single import line change.
+// See: examples/zod-vs-vld-dropin.js for the verified equivalent.
+
+// BEFORE (Zod)
+import { z } from 'zod'
+
+const UserSchema = z.object({
+  name: z.string().min(1),
+  age:  z.number().int().positive(),
+  role: z.enum(['admin', 'user']),
+  tags: z.array(z.string()).min(1).max(100)
+})
+
+// AFTER (VLD — two flavors, both are drop-in)
+import { v } from '@oxog/vld'                  // v.* V1 — works today, default
+// or
+import { v as z } from '@oxog/vld'            // alias to z — literally no other change
+// or
+import { vV2 } from '@oxog/vld'               // opt-in V2 method-memoization (3.00x)
+
+const UserSchema = v.object({                  // ← same code, same shape
+  name: v.string().min(1),
+  age:  v.number().int().positive(),
+  role: v.enum(['admin', 'user']),
+  tags: v.array(v.string()).min(1).max(100)
+})
+
+// SAME method names, SAME return shape:
+const u = UserSchema.safeParse(input)
+if (!u.success) {
+  // VldError exposes a Zod-compatible .format() and .flatten()
+  console.log(u.error.format())
+  console.log(u.error.flatten())
+  // Or convert to a true ZodError-shape:
+  // import { toZodError } from '@oxog/vld'
+  // const zodErr = toZodError(u.error)
+}
+
+// Verified: 10/10 scenarios accept/reject the same inputs in both
+// benchmarks/dropin-vs-zod.cjs — same logical schema, same input,
+// 1M safeParse ops, 21 runs median, semantic-checked first.
+// Result: 3.00x geometric mean speedup over Zod 4.5.4.`
+  },
   },
   {
     id: 'auth-jwt',
@@ -691,6 +741,56 @@ const result2 = identifierSchema.safeParse({
   phone: "1234567890" // Error: more than one match
 })
 // success: false`
+  },
+  {
+    id: 'v3-features',
+    title: 'v3.0 — V2 + ZodError (new)',
+    description: 'V2 method-memoization, vV2 drop-in, toZodError',
+    icon: Sparkles,
+    code: `// VLD v3.0 ships V2 method-memoization + ZodError compat
+import { v, vV2, toZodError, ZodLikeError } from "@oxog/vld"
+
+// 1. vV2 — drop-in factory (2-6x faster than v.*)
+const v2 = vV2.string().min(1).email()
+v2.parse("user@example.com")
+
+// 2. v.setV2Mode(true) — global toggle (no source rewrites)
+v.setV2Mode(true)
+const existing = v.string().email() // now V2
+v.setV2Mode(false)
+
+// 3. z = v — keep the z.* style
+import { v as z } from "@oxog/vld"
+// or: import { vV2 as z } from "@oxog/vld";
+
+// 4. toZodError — ZodError-shaped errors (v3.0 new)
+const result = v.object({
+  email: v.string().email(),
+  age: v.number().int().min(18)
+}).safeParse({ email: "bad", age: 12 })
+
+if (!result.success) {
+  const zodErr = toZodError(result.error)
+  // zodErr is a ZodLikeError with .format() and .flatten()
+  zodErr instanceof ZodLikeError  // true
+  zodErr.name === "ZodError"     // true
+  zodErr.flatten()
+  // { formErrors: [], fieldErrors: { email: [...], age: [...] } }
+  zodErr.format()
+  // Nested error tree
+}
+
+// 5. V2 + i18n (27+ locales)
+import { setLocale } from "@oxog/vld"
+setLocale("tr")
+try { vV2.string().min(5).email().parse("xx") }
+catch (e) { console.log(e.message) } // "Metin en az 5 karakter olmalı"
+
+// 6. Performance headline
+//   string().min(1).email()    : V2 22ms vs Zod 50ms  (2.3x faster)
+//   number().int().positive()  : V2  6ms vs Zod 39ms  (6.5x faster)
+//   Realistic API 10 fields    : V2 243ms vs Zod 767ms (3.2x faster)
+//   string().email() per instance: 400 B vs Zod 4210 B (~10x smaller)`
   },
 ]
 

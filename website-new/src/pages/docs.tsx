@@ -26,6 +26,17 @@ const sidebarSections: SidebarSection[] = [
     ],
   },
   {
+    title: 'V3.0 New',
+    icon: Sparkles,
+    items: [
+      { title: 'V2 Method-Memoization', slug: 'v2-method-memoization' },
+      { title: 'vV2 Drop-in Factory', slug: 'vv2-factory' },
+      { title: 'setV2Mode Global Toggle', slug: 'setv2mode' },
+      { title: 'ZodError Compatibility', slug: 'zod-error' },
+      { title: 'Migration from v2.x', slug: 'v3-migration' },
+    ],
+  },
+  {
     title: 'Basic Types',
     icon: Code2,
     items: [

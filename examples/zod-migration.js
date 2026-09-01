@@ -1,10 +1,12 @@
-// VLD Zod Migration Example
-// Shows how to migrate from Zod to VLD with identical syntax
+// VLD v3.0 — Zod Migration Example
+// Shows how to migrate from Zod to VLD with identical syntax, plus how to
+// opt into the V2 method-memoization pattern (2-6x faster than Zod 4.5) and
+// the ZodError compatibility layer (toZodError / ZodLikeError).
 
-import { v } from '../dist/index.js';
+import { v, vV2, z, toZodError, setLocale } from '../dist/index.js';
 
-console.log('🔄 VLD Zod Migration Examples\n');
-console.log('All Zod syntax works identically in VLD!\n');
+console.log('VLD v3.0 Zod Migration Examples\n');
+console.log('Zod syntax works identically in VLD, plus 2-6x faster V2 chains\n');
 
 // 1. Basic schemas - identical to Zod
 console.log('1. Basic Schemas (identical to Zod):');
@@ -14,8 +16,8 @@ const numberSchema = v.number();
 const booleanSchema = v.boolean();
 const dateSchema = v.date();
 
-console.log('   String:', stringSchema.parse("hello"));
-console.log('   Number:', numberSchema.parse(42)); 
+console.log('   String:', stringSchema.parse('hello'));
+console.log('   Number:', numberSchema.parse(42));
 console.log('   Boolean:', booleanSchema.parse(true));
 console.log('   Date:', dateSchema.parse(new Date()));
 
@@ -26,10 +28,10 @@ const emailSchema = v.string().email();
 const minLengthSchema = v.string().min(5);
 const urlSchema = v.string().url();
 
-console.log('   Email validation works:', emailSchema.parse('test@example.com'));
-console.log('   Min length works:', minLengthSchema.parse('hello world'));
+console.log('   Email:', emailSchema.parse('test@example.com'));
+console.log('   Min length:', minLengthSchema.parse('hello world'));
 
-// 3. Number validations - identical to Zod  
+// 3. Number validations - identical to Zod
 console.log('\n3. Number Validations (identical to Zod):');
 
 const positiveSchema = v.number().positive();
@@ -74,10 +76,10 @@ console.log('\n6. Union and Optional (identical to Zod):');
 const unionSchema = v.union(v.string(), v.number());
 const optionalSchema = v.optional(v.string());
 
-console.log('   Union string:', unionSchema.parse("hello"));
+console.log('   Union string:', unionSchema.parse('hello'));
 console.log('   Union number:', unionSchema.parse(42));
 console.log('   Optional undefined:', optionalSchema.parse(undefined));
-console.log('   Optional string:', optionalSchema.parse("test"));
+console.log('   Optional string:', optionalSchema.parse('test'));
 
 // 7. Literal and Enum - identical to Zod
 console.log('\n7. Literal and Enum (identical to Zod):');
@@ -98,7 +100,7 @@ if (!result.success) {
   console.log('   safeParse success:', result.data);
 }
 
-const validResult = v.string().safeParse("hello");
+const validResult = v.string().safeParse('hello');
 if (validResult.success) {
   console.log('   safeParse valid:', validResult.data);
 }
@@ -122,11 +124,7 @@ const PersonSchema = v.object({
 const person = {
   name: 'Alice Smith',
   age: 28,
-  address: {
-    street: '123 Main St',
-    city: 'Anytown',
-    zipCode: '12345'
-  },
+  address: { street: '123 Main St', city: 'Anytown', zipCode: '12345' },
   hobbies: ['reading', 'hiking']
 };
 
@@ -161,45 +159,66 @@ try {
   console.log('   Strict schema error:', e.message);
 }
 
-// 12. VLD ENHANCEMENTS - Additional features beyond Zod
-console.log('\n🌟 VLD ENHANCEMENTS beyond Zod:');
+// ===========================================================================
+// VLD 3.0 ENHANCEMENTS — beyond Zod
+// ===========================================================================
+console.log('\nVLD v3.0 ENHANCEMENTS beyond Zod:');
 
-// Coercion - VLD has more comprehensive coercion
-console.log('\n12. Enhanced Coercion:');
+// 12. z — direct Zod-style alias
+console.log('\n12. z = v — keep the z.* style:');
+
+const zUser = z.object({
+  email: z.string().email(),
+  age: z.number().int().positive()
+});
+console.log('   z.object(...) parse:', zUser.parse({ email: 'ada@lovelace.dev', age: 36 }));
+
+// 13. vV2 — drop-in V2 factory (2-6x faster than Zod 4.5)
+console.log('\n13. vV2 — V2 method-memoization (2-6x faster than Zod 4.5):');
+
+const v2SearchSchema = vV2.string().min(1).max(200).email();
+console.log('   vV2 string().min().max().email():', v2SearchSchema.parse('user@example.com'));
+
+// 14. toZodError — ZodError compatibility layer
+console.log('\n14. toZodError — ZodError-shaped errors:');
+
+const failed = v.object({ name: v.string().min(3), age: v.number().positive() })
+  .safeParse({ name: 'Jo', age: -1 });
+if (!failed.success) {
+  const zodErr = toZodError(failed.error);
+  console.log('   ZodError instance.name:', zodErr.name); // "ZodError"
+  console.log('   ZodError.issues[0].code:', zodErr.issues[0].code);
+  console.log('   ZodError.issues[0].path:', JSON.stringify(zodErr.issues[0].path));
+  console.log('   ZodError.flatten():', JSON.stringify(zodErr.flatten()));
+}
+
+// 15. setV2Mode(true) — global V2 toggle (no source rewrites)
+console.log('\n15. setV2Mode(true) — global V2 toggle:');
+
+v.setV2Mode(true);
+const vGlobalSchema = v.string().email();
+console.log('   v.string().email() under V2 mode:', vGlobalSchema.parse('global@example.com'));
+v.setV2Mode(false);
+
+// 16. Coercion - VLD has more comprehensive coercion
+console.log('\n16. Enhanced Coercion:');
 const coerceSchema = v.coerce.number();
-console.log('   Coerce "123" to number:', coerceSchema.parse("123")); // 123
+console.log('   Coerce "123" to number:', coerceSchema.parse('123')); // 123
 console.log('   Coerce true to number:', coerceSchema.parse(true)); // 1
 
-// Internationalization - VLD exclusive feature
-console.log('\n13. Internationalization (VLD Exclusive):');
-const { setLocale } = require('../dist/index.js');
+// 17. Internationalization - VLD exclusive feature
+console.log('\n17. Internationalization (VLD Exclusive):');
 
 setLocale('en');
-try {
-  v.string().parse(123);
-} catch (e) {
-  console.log('   English error:', e.message);
-}
-
+try { v.string().parse(123); } catch (e) { console.log('   English error:', e.message); }
 setLocale('es');
-try {
-  v.string().parse(123);
-} catch (e) {
-  console.log('   Spanish error:', e.message);
-}
-
+try { v.string().parse(123); } catch (e) { console.log('   Spanish error:', e.message); }
 setLocale('tr');
-try {
-  v.string().parse(123);
-} catch (e) {
-  console.log('   Turkish error:', e.message);
-}
-
-// Reset to English
+try { v.string().parse(123); } catch (e) { console.log('   Turkish error:', e.message); }
 setLocale('en');
 
-// Advanced types - VLD has more types than Zod
-console.log('\n14. Advanced Types (Enhanced in VLD):');
+// 18. Advanced types - VLD has more types than Zod
+console.log('\n18. Advanced Types (Enhanced in VLD):');
 
 const bigintSchema = v.bigint();
 const symbolSchema = v.symbol();
@@ -211,10 +230,10 @@ const mapSchema = v.map(v.string(), v.number());
 console.log('   BigInt:', bigintSchema.parse(123n));
 console.log('   Symbol:', symbolSchema.parse(Symbol('test')).toString());
 console.log('   Tuple:', tupleSchema.parse(['hello', 42]));
-console.log('   Record:', recordSchema.parse({a: '1', b: '2'}));
+console.log('   Record:', recordSchema.parse({ a: '1', b: '2' }));
 
-// Object methods - VLD enhancements
-console.log('\n15. Object Methods (VLD Enhanced):');
+// 19. Object methods - VLD enhancements
+console.log('\n19. Object Methods (VLD Enhanced):');
 
 const baseUserSchema = v.object({
   name: v.string(),
@@ -223,22 +242,17 @@ const baseUserSchema = v.object({
   role: v.string()
 });
 
-// Pick specific fields
 const publicUserSchema = baseUserSchema.pick('name', 'age');
-console.log('   Pick name, age:', publicUserSchema.parse({name: 'John', age: 30}));
+console.log('   Pick name, age:', publicUserSchema.parse({ name: 'John', age: 30 }));
 
-// Omit sensitive fields
 const safeUserSchema = baseUserSchema.omit('email');
 console.log('   Omit email works');
 
-// Extend with new fields
-const extendedUserSchema = baseUserSchema.extend({
-  isVerified: v.boolean()
-});
+const extendedUserSchema = baseUserSchema.extend({ isVerified: v.boolean() });
 console.log('   Extended schema works');
 
-// Default and catch - VLD enhancements
-console.log('\n16. Default and Catch (VLD Enhanced):');
+// 20. Default and catch - VLD enhancements
+console.log('\n20. Default and Catch (VLD Enhanced):');
 
 const withDefaultSchema = v.string().default('fallback');
 console.log('   Default value:', withDefaultSchema.parse(undefined));
@@ -246,6 +260,7 @@ console.log('   Default value:', withDefaultSchema.parse(undefined));
 const withCatchSchema = v.number().catch(-1);
 console.log('   Catch invalid input:', withCatchSchema.parse('invalid'));
 
-console.log('\n✅ Migration Complete!');
-console.log('💡 VLD provides 100% Zod compatibility + additional features');
-console.log('🚀 Simply replace "z" with "v" and enjoy enhanced performance & i18n!');
+console.log('\nMigration Complete!');
+console.log('VLD provides 100% Zod compatibility + V2 chains (2-6x faster)');
+console.log('Plus: toZodError, vV2 drop-in, 27+ locales, codecs, i18n, plugin system');
+console.log('Tip: replace z with v (or import { v as z }) and run as-is.');

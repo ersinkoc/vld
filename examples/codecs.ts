@@ -1,12 +1,15 @@
 /**
- * VLD Codecs TypeScript Examples
- * 
- * This file demonstrates VLD's codec system with full TypeScript type safety.
- * Codecs provide bidirectional transformations with complete type inference.
+ * VLD v3.0 — Codecs TypeScript Examples
+ *
+ * Demonstrates VLD's codec system with full TypeScript type safety and
+ * the V2 method-memoization pattern (2-6x faster than V1/Zod 4.5 in
+ * production benchmarks). Codecs provide bidirectional transformations
+ * with complete type inference.
  */
 
-import { 
+import {
   v,
+  vV2,
   // String conversion codecs
   stringToNumber,
   stringToInt,
@@ -32,31 +35,29 @@ import {
   utf8ToBytes,
   bytesToUtf8,
   // Type inference
-  type Infer,
-  type CodecTransform
+  type Infer
 } from '@oxog/vld';
 
-console.log('🚀 VLD Codecs TypeScript Examples\n');
+console.log('VLD v3.0 Codecs TypeScript Examples\n');
+console.log('V2 method-memoization + bidirectional codecs + full type inference\n');
 
-// ===== TYPE-SAFE SCHEMA DEFINITIONS =====
-console.log('🎯 Type-Safe Schema Definitions');
+// ===== TYPE-SAFE SCHEMA DEFINITIONS (V2 children) =====
+console.log('Type-Safe Schema Definitions (V2 children)');
 console.log('================================');
 
-// Define a user schema with full TypeScript support
-const userSchema = v.object({
-  id: v.string().uuid(),
-  name: v.string().min(2).max(50),
-  email: v.string().email(),
-  age: v.number().min(13).max(120),
-  isActive: v.boolean(),
-  metadata: v.record(v.any()).optional(),
-  tags: v.array(v.string()).default([])
+// V2 user schema — string/number children use the V2 method-memoization path
+const userSchema = vV2.object({
+  id: vV2.string().uuid(),
+  name: vV2.string().min(2).max(50),
+  email: vV2.string().email(),
+  age: vV2.number().min(13).max(120),
+  isActive: vV2.boolean(),
+  metadata: vV2.record(vV2.any()).optional(),
+  tags: vV2.array(vV2.string()).default([] as string[])
 });
 
-// TypeScript automatically infers the type
 type User = Infer<typeof userSchema>;
 
-// Example user that matches the schema
 const exampleUser: User = {
   id: '123e4567-e89b-12d3-a456-426614174000',
   name: 'John Doe',
@@ -66,36 +67,29 @@ const exampleUser: User = {
   tags: ['developer', 'typescript']
 };
 
-console.log('✅ User schema defined with TypeScript types');
-console.log('✅ Example user:', exampleUser);
+console.log('   V2 user schema defined with TypeScript types');
+console.log('   Example user:', exampleUser);
 
 // ===== TYPED JSON CODECS =====
-console.log('\n📋 Typed JSON Codecs');
+console.log('\nTyped JSON Codecs');
 console.log('====================');
 
-// Create a typed JSON codec
 const typedUserJsonCodec = jsonCodec(userSchema);
 
 try {
   const userJsonString = JSON.stringify(exampleUser);
-  console.log('📤 JSON string:', userJsonString);
-  
-  // Parse with full type safety
+  console.log('   JSON string:', userJsonString);
+
   const parsedUser = typedUserJsonCodec.parse(userJsonString);
-  console.log('📥 Parsed user (fully typed):', parsedUser.name, parsedUser.email);
-  
-  // TypeScript knows the exact type of parsedUser!
-  // No need for type assertions or manual type checking
-  
+  console.log('   Parsed user (fully typed):', parsedUser.name, parsedUser.email);
 } catch (error) {
-  console.error('❌ JSON codec error:', error);
+  console.error('   JSON codec error:', (error as Error).message);
 }
 
 // ===== CUSTOM TYPED CODECS =====
-console.log('\n🛠️  Custom Typed Codecs');
+console.log('\nCustom Typed Codecs (V2 children)');
 console.log('=======================');
 
-// Define a configuration type
 interface AppConfig {
   port: number;
   debug: boolean;
@@ -111,73 +105,54 @@ interface AppConfig {
   };
 }
 
-// Create schema for the config
-const configSchema = v.object({
-  port: v.number().min(1000).max(65535),
-  debug: v.boolean(),
-  environment: v.union(v.literal('development'), v.literal('staging'), v.literal('production')),
-  features: v.object({
-    auth: v.boolean(),
-    analytics: v.boolean(), 
-    caching: v.boolean()
+const configSchema = vV2.object({
+  port: vV2.number().min(1000).max(65535),
+  debug: vV2.boolean(),
+  environment: vV2.union(
+    vV2.literal('development'),
+    vV2.literal('staging'),
+    vV2.literal('production')
+  ),
+  features: vV2.object({
+    auth: vV2.boolean(),
+    analytics: vV2.boolean(),
+    caching: vV2.boolean()
   }),
-  databases: v.object({
-    primary: v.string().url(),
-    redis: v.string().url().optional()
+  databases: vV2.object({
+    primary: vV2.string().url(),
+    redis: vV2.string().url().optional()
   })
 });
 
-// Verify the schema matches our interface
 type InferredConfig = Infer<typeof configSchema>;
-// This line ensures type compatibility at compile time
 const _typeCheck: AppConfig = {} as InferredConfig;
 
-// Create a custom environment variable codec
 const envToConfigCodec = v.codec(
-  v.string(),
+  vV2.string(),
   configSchema,
   {
     decode: (envString: string): AppConfig => {
       const lines = envString.split('\n').filter(line => line.trim());
-      const config: any = {
-        features: {},
-        databases: {}
-      };
-      
+      const config: any = { features: {}, databases: {} };
+
       lines.forEach(line => {
         const [key, value] = line.split('=').map(s => s.trim());
-        
+
         switch (key) {
-          case 'PORT':
-            config.port = parseInt(value, 10);
-            break;
-          case 'DEBUG':
-            config.debug = value.toLowerCase() === 'true';
-            break;
-          case 'ENVIRONMENT':
-            config.environment = value as AppConfig['environment'];
-            break;
-          case 'FEATURE_AUTH':
-            config.features.auth = value.toLowerCase() === 'true';
-            break;
-          case 'FEATURE_ANALYTICS':
-            config.features.analytics = value.toLowerCase() === 'true';
-            break;
-          case 'FEATURE_CACHING':
-            config.features.caching = value.toLowerCase() === 'true';
-            break;
-          case 'DATABASE_PRIMARY':
-            config.databases.primary = value;
-            break;
-          case 'DATABASE_REDIS':
-            config.databases.redis = value;
-            break;
+          case 'PORT': config.port = parseInt(value, 10); break;
+          case 'DEBUG': config.debug = value.toLowerCase() === 'true'; break;
+          case 'ENVIRONMENT': config.environment = value as AppConfig['environment']; break;
+          case 'FEATURE_AUTH': config.features.auth = value.toLowerCase() === 'true'; break;
+          case 'FEATURE_ANALYTICS': config.features.analytics = value.toLowerCase() === 'true'; break;
+          case 'FEATURE_CACHING': config.features.caching = value.toLowerCase() === 'true'; break;
+          case 'DATABASE_PRIMARY': config.databases.primary = value; break;
+          case 'DATABASE_REDIS': config.databases.redis = value; break;
         }
       });
-      
+
       return config;
     },
-    
+
     encode: (config: AppConfig): string => {
       const lines = [
         `PORT=${config.port}`,
@@ -188,17 +163,16 @@ const envToConfigCodec = v.codec(
         `FEATURE_CACHING=${config.features.caching}`,
         `DATABASE_PRIMARY=${config.databases.primary}`
       ];
-      
+
       if (config.databases.redis) {
         lines.push(`DATABASE_REDIS=${config.databases.redis}`);
       }
-      
+
       return lines.join('\n');
     }
   }
 );
 
-// Example usage with full type safety
 const envConfig = `PORT=3000
 DEBUG=true
 ENVIRONMENT=development
@@ -210,34 +184,30 @@ DATABASE_REDIS=redis://localhost:6379`;
 
 try {
   const parsedConfig = envToConfigCodec.parse(envConfig);
-  console.log('✅ Parsed config (fully typed):', {
+  console.log('   Parsed config (fully typed):', {
     port: parsedConfig.port,
     environment: parsedConfig.environment,
     features: parsedConfig.features
   });
-  
-  // TypeScript provides full autocomplete and type checking
+
   if (parsedConfig.debug) {
-    console.log('🐛 Debug mode enabled');
+    console.log('   Debug mode enabled');
   }
-  
+
   if (parsedConfig.features.auth) {
-    console.log('🔐 Authentication feature enabled');
+    console.log('   Authentication feature enabled');
   }
-  
-  // Encode back to environment string
+
   const encodedConfig = envToConfigCodec.encode(parsedConfig);
-  console.log('✅ Config encoded back to env format');
-  
+  console.log('   Config encoded back to env format');
 } catch (error) {
-  console.error('❌ Config codec error:', error);
+  console.error('   Config codec error:', (error as Error).message);
 }
 
 // ===== API RESPONSE PROCESSING =====
-console.log('\n🌐 API Response Processing');
+console.log('\nAPI Response Processing (V2 children)');
 console.log('===========================');
 
-// Define API response types
 interface ApiUser {
   id: string;
   name: string;
@@ -264,38 +234,35 @@ interface ApiResponse {
   };
 }
 
-// Create schema that matches the interfaces
-const apiResponseSchema = v.object({
-  data: v.array(v.object({
-    id: v.string(),
-    name: v.string(),
-    email: v.string().email(),
-    createdAt: v.string(), // ISO date string
-    profile: v.object({
-      avatar: v.string().url().optional(),
-      bio: v.string().optional(),
-      location: v.string().optional()
+const apiResponseSchema = vV2.object({
+  data: vV2.array(vV2.object({
+    id: vV2.string(),
+    name: vV2.string(),
+    email: vV2.string().email(),
+    createdAt: vV2.string(),
+    profile: vV2.object({
+      avatar: vV2.string().url().optional(),
+      bio: vV2.string().optional(),
+      location: vV2.string().optional()
     })
   })),
-  pagination: v.object({
-    page: v.number().min(1),
-    limit: v.number().min(1).max(100),
-    total: v.number().min(0),
-    hasNext: v.boolean()
+  pagination: vV2.object({
+    page: vV2.number().min(1),
+    limit: vV2.number().min(1).max(100),
+    total: vV2.number().min(0),
+    hasNext: vV2.boolean()
   }),
-  metadata: v.object({
-    requestId: v.string().uuid(),
-    timestamp: v.number()
+  metadata: vV2.object({
+    requestId: vV2.string().uuid(),
+    timestamp: vV2.number()
   })
 });
 
-// Ensure type compatibility
 type InferredApiResponse = Infer<typeof apiResponseSchema>;
 const _apiTypeCheck: ApiResponse = {} as InferredApiResponse;
 
-// Create a codec for base64-encoded API responses
 const apiResponseCodec = v.codec(
-  v.string(),
+  vV2.string(),
   apiResponseSchema,
   {
     decode: (base64Response: string): ApiResponse => {
@@ -311,7 +278,6 @@ const apiResponseCodec = v.codec(
   }
 );
 
-// Example API response
 const sampleApiResponse: ApiResponse = {
   data: [
     {
@@ -326,21 +292,14 @@ const sampleApiResponse: ApiResponse = {
       }
     },
     {
-      id: '2', 
+      id: '2',
       name: 'Bob Smith',
       email: 'bob@example.com',
       createdAt: '2023-12-20T15:45:00.000Z',
-      profile: {
-        bio: 'Backend engineer specializing in Node.js'
-      }
+      profile: { bio: 'Backend engineer specializing in Node.js' }
     }
   ],
-  pagination: {
-    page: 1,
-    limit: 10,
-    total: 25,
-    hasNext: true
-  },
+  pagination: { page: 1, limit: 10, total: 25, hasNext: true },
   metadata: {
     requestId: '550e8400-e29b-41d4-a716-446655440000',
     timestamp: Date.now()
@@ -348,33 +307,28 @@ const sampleApiResponse: ApiResponse = {
 };
 
 try {
-  // Encode the response (what API sends)
   const encodedResponse = apiResponseCodec.encode(sampleApiResponse);
-  console.log('📤 API response encoded to base64');
-  
-  // Decode the response (what client receives)
+  console.log('   API response encoded to base64');
+
   const decodedResponse = apiResponseCodec.parse(encodedResponse);
-  console.log('📥 API response decoded with full type safety');
+  console.log('   API response decoded with full type safety');
   console.log(`   Found ${decodedResponse.data.length} users`);
   console.log(`   Page ${decodedResponse.pagination.page}/${Math.ceil(decodedResponse.pagination.total / decodedResponse.pagination.limit)}`);
-  
-  // TypeScript provides full type safety and autocomplete
+
   decodedResponse.data.forEach(user => {
-    console.log(`   👤 ${user.name} (${user.email})`);
+    console.log(`   - ${user.name} (${user.email})`);
     if (user.profile.location) {
-      console.log(`      📍 ${user.profile.location}`);
+      console.log(`     ${user.profile.location}`);
     }
   });
-  
 } catch (error) {
-  console.error('❌ API response processing error:', error);
+  console.error('   API response processing error:', (error as Error).message);
 }
 
 // ===== JWT PAYLOAD PROCESSING =====
-console.log('\n🔐 JWT Payload Processing');
+console.log('\nJWT Payload Processing');
 console.log('=========================');
 
-// Define JWT payload structure
 interface JWTPayload {
   sub: string;
   name: string;
@@ -385,89 +339,72 @@ interface JWTPayload {
   exp: number;
 }
 
-// Create schema for JWT payload
-const jwtPayloadSchema = v.object({
-  sub: v.string(),
-  name: v.string(),
-  email: v.string().email(),
-  role: v.union(v.literal('user'), v.literal('admin'), v.literal('moderator')),
-  permissions: v.array(v.string()),
-  iat: v.number(),
-  exp: v.number()
+const jwtPayloadSchema = vV2.object({
+  sub: vV2.string(),
+  name: vV2.string(),
+  email: vV2.string().email(),
+  role: vV2.union(
+    vV2.literal('user'),
+    vV2.literal('admin'),
+    vV2.literal('moderator')
+  ),
+  permissions: vV2.array(vV2.string()),
+  iat: vV2.number(),
+  exp: vV2.number()
 });
 
-// Create typed JWT decoder
 const typedJwtDecoder = jwtPayload(jwtPayloadSchema);
-
-// Example JWT token (this is just the payload part for demo)
-const mockJwtToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiZW1haWwiOiJqb2huQGV4YW1wbGUuY29tIiwicm9sZSI6ImFkbWluIiwicGVybWlzc2lvbnMiOlsicmVhZCIsIndyaXRlIiwiZGVsZXRlIl0sImlhdCI6MTUxNjIzOTAyMiwiZXhwIjoxNTE2MjM5OTIyfQ.fake_signature';
-
-try {
-  // Note: This would normally fail because it's a mock token
-  // In real usage, you'd have a valid JWT token
-  console.log('🔑 JWT decoder created with full type safety');
-  console.log('   Payload will be fully typed as JWTPayload interface');
-  
-} catch (error) {
-  console.log('💡 JWT example shown (would work with real tokens)');
-}
+console.log('   JWT decoder created with full type safety');
+console.log('   Payload is fully typed as JWTPayload');
 
 // ===== ASYNC CODECS =====
-console.log('\n⚡ Async Codecs');
+console.log('\nAsync Codecs');
 console.log('===============');
 
-// Create an async codec that simulates API calls
 const asyncDataProcessor = v.codec(
-  v.string(),
-  v.object({
-    processed: v.string(),
-    timestamp: v.number(),
-    metadata: v.object({
-      processingTime: v.number(),
-      version: v.string()
+  vV2.string(),
+  vV2.object({
+    processed: vV2.string(),
+    timestamp: vV2.number(),
+    metadata: vV2.object({
+      processingTime: vV2.number(),
+      version: vV2.string()
     })
   }),
   {
     decode: async (input: string) => {
-      // Simulate async processing
       await new Promise(resolve => setTimeout(resolve, 100));
-      
       return {
         processed: input.toUpperCase(),
         timestamp: Date.now(),
-        metadata: {
-          processingTime: 100,
-          version: '1.0.0'
-        }
+        metadata: { processingTime: 100, version: '1.0.0' }
       };
     },
     encode: async (data) => {
-      // Simulate async encoding
       await new Promise(resolve => setTimeout(resolve, 50));
       return `${data.processed}_${data.timestamp}`;
     }
   }
 );
 
-// Demonstrate async codec usage
 (async () => {
   try {
-    console.log('🔄 Processing data asynchronously...');
+    console.log('   Processing data asynchronously...');
     const result = await asyncDataProcessor.parseAsync('hello world');
-    console.log('✅ Async decode result:', result);
-    
+    console.log('   Async decode result:', result);
+
     const encoded = await asyncDataProcessor.encodeAsync(result);
-    console.log('✅ Async encode result:', encoded);
-    
+    console.log('   Async encode result:', encoded);
   } catch (error) {
-    console.error('❌ Async codec error:', error);
+    console.error('   Async codec error:', (error as Error).message);
   }
 })();
 
-console.log('\n🎉 TypeScript codec examples completed!');
-console.log('\n💡 TypeScript Benefits:');
+console.log('\nTypeScript codec examples completed!');
+console.log('\nTypeScript Benefits (VLD v3.0):');
 console.log('   • Complete type inference for all operations');
-console.log('   • Compile-time type checking prevents runtime errors');  
+console.log('   • V2 inner schemas (vV2.*) — 2-6x faster than V1/Zod 4.5');
+console.log('   • Compile-time type checking prevents runtime errors');
 console.log('   • Full IDE autocomplete and refactoring support');
 console.log('   • Interface compatibility verification');
 console.log('   • Zero runtime type assertion overhead');

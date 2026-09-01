@@ -1,16 +1,17 @@
 /**
- * VLD Codecs Examples
- * 
- * This file demonstrates VLD's powerful codec system for bidirectional
- * data transformations. Codecs can both decode (input → output) and
- * encode (output → input) with full type safety.
+ * VLD v3.0 — Codecs Example
+ *
+ * Demonstrates VLD's codec system for bidirectional data transformations
+ * with V2 method-memoization chains (2-6x faster than V1/Zod 4.5 in
+ * production benchmarks). All built-in codecs are Zod-compatible.
  */
 
-const { 
+const {
   v,
+  vV2,
   // String conversion codecs
   stringToNumber,
-  stringToInt, 
+  stringToInt,
   stringToBigInt,
   numberToBigInt,
   stringToBoolean,
@@ -34,208 +35,187 @@ const {
   bytesToUtf8
 } = require('@oxog/vld');
 
-console.log('🚀 VLD Codecs Examples\n');
+console.log('VLD v3.0 Codecs Examples\n');
+console.log('V2 method-memoization + bidirectional codecs\n');
 
 // ===== STRING CONVERSION CODECS =====
-console.log('📝 String Conversion Codecs');
+console.log('String Conversion Codecs');
 console.log('==========================');
 
 try {
-  // String to number with validation
   const age = stringToNumber.parse('25');
-  console.log('✅ String to number:', age, typeof age); // 25 number
-  
+  console.log('   String to number:', age, typeof age);
+
   const price = stringToNumber.encode(99.99);
-  console.log('✅ Number to string:', price, typeof price); // "99.99" string
-  
-  // String to integer (validates integer constraint) 
+  console.log('   Number to string:', price, typeof price);
+
   const count = stringToInt.parse('42');
-  console.log('✅ String to int:', count); // 42
-  
-  // This will fail because it's not an integer
+  console.log('   String to int:', count);
+
   const invalidInt = stringToInt.safeParse('42.5');
-  console.log('❌ Invalid int result:', invalidInt.success); // false
-  
-  // String to BigInt for large numbers
+  console.log('   Invalid int result:', invalidInt.success);
+
   const bigNumber = stringToBigInt.parse('123456789012345678901234567890');
-  console.log('✅ String to BigInt:', bigNumber); // 123456789012345678901234567890n
-  
-  // Flexible boolean parsing
-  console.log('✅ Boolean parsing examples:');
-  console.log('  "true" →', stringToBoolean.parse('true'));   // true
-  console.log('  "1" →', stringToBoolean.parse('1'));         // true
-  console.log('  "yes" →', stringToBoolean.parse('yes'));     // true
-  console.log('  "on" →', stringToBoolean.parse('on'));       // true
-  console.log('  "false" →', stringToBoolean.parse('false')); // false
-  console.log('  "0" →', stringToBoolean.parse('0'));         // false
-  
+  console.log('   String to BigInt:', bigNumber);
+
+  console.log('   Boolean parsing examples:');
+  console.log('     "true" ->', stringToBoolean.parse('true'));
+  console.log('     "1" ->', stringToBoolean.parse('1'));
+  console.log('     "yes" ->', stringToBoolean.parse('yes'));
+  console.log('     "on" ->', stringToBoolean.parse('on'));
+  console.log('     "false" ->', stringToBoolean.parse('false'));
+  console.log('     "0" ->', stringToBoolean.parse('0'));
 } catch (error) {
-  console.error('❌ String conversion error:', error.message);
+  console.error('String conversion error:', error.message);
 }
 
 console.log('\n');
 
 // ===== DATE CONVERSION CODECS =====
-console.log('📅 Date Conversion Codecs');
+console.log('Date Conversion Codecs');
 console.log('=========================');
 
 try {
-  // ISO datetime string to Date
   const isoDate = isoDatetimeToDate.parse('2023-12-25T10:30:00.000Z');
-  console.log('✅ ISO to Date:', isoDate);
-  console.log('✅ Date to ISO:', isoDatetimeToDate.encode(isoDate));
-  
-  // Unix epoch seconds to Date
+  console.log('   ISO to Date:', isoDate);
+  console.log('   Date to ISO:', isoDatetimeToDate.encode(isoDate));
+
   const epochDate = epochSecondsToDate.parse(1703505000);
-  console.log('✅ Epoch seconds to Date:', epochDate);
-  console.log('✅ Date to epoch seconds:', epochSecondsToDate.encode(epochDate));
-  
-  // Unix epoch milliseconds to Date
+  console.log('   Epoch seconds to Date:', epochDate);
+  console.log('   Date to epoch seconds:', epochSecondsToDate.encode(epochDate));
+
   const epochMillisDate = epochMillisToDate.parse(1703505000000);
-  console.log('✅ Epoch millis to Date:', epochMillisDate);
-  
+  console.log('   Epoch millis to Date:', epochMillisDate);
 } catch (error) {
-  console.error('❌ Date conversion error:', error.message);
+  console.error('Date conversion error:', error.message);
 }
 
 console.log('\n');
 
 // ===== JSON AND COMPLEX DATA =====
-console.log('📋 JSON and Complex Data Codecs');
+console.log('JSON and Complex Data Codecs');
 console.log('================================');
 
 try {
-  // Generic JSON codec
   const genericJson = jsonCodec();
   const userData = genericJson.parse('{"name":"John","age":30,"active":true}');
-  console.log('✅ Parsed JSON:', userData);
-  
+  console.log('   Parsed JSON:', userData);
+
   const jsonString = genericJson.encode({ name: 'Jane', age: 25, role: 'admin' });
-  console.log('✅ Encoded JSON:', jsonString);
-  
-  // Typed JSON codec with schema validation
-  const userSchema = v.object({
-    name: v.string().min(2),
-    age: v.number().min(0).max(150),
-    email: v.string().email().optional()
+  console.log('   Encoded JSON:', jsonString);
+
+  // V2 user schema — V2 string/number children are 2-6x faster
+  const userSchema = vV2.object({
+    name: vV2.string().min(2),
+    age: vV2.number().min(0).max(150),
+    email: vV2.string().email().optional()
   });
-  
+
   const typedJson = jsonCodec(userSchema);
   const validUser = typedJson.parse('{"name":"Alice","age":30,"email":"alice@example.com"}');
-  console.log('✅ Typed JSON parse:', validUser);
-  
-  // Base64-encoded JSON
+  console.log('   Typed JSON parse (V2 children):', validUser);
+
   const b64Json = base64Json(userSchema);
   const user = { name: 'Bob', age: 40, email: 'bob@company.com' };
   const encoded = b64Json.encode(user);
-  console.log('✅ Base64 encoded JSON:', encoded);
-  
+  console.log('   Base64 encoded JSON (V2 children):', encoded);
+
   const decoded = b64Json.parse(encoded);
-  console.log('✅ Base64 decoded JSON:', decoded);
-  
+  console.log('   Base64 decoded JSON (V2 children):', decoded);
 } catch (error) {
-  console.error('❌ JSON codec error:', error.message);
+  console.error('JSON codec error:', error.message);
 }
 
 console.log('\n');
 
 // ===== URL AND WEB CODECS =====
-console.log('🌐 URL and Web Codecs');
+console.log('URL and Web Codecs');
 console.log('=====================');
 
 try {
-  // String to URL object
   const url = stringToURL.parse('https://example.com/api/users?page=1&limit=10');
-  console.log('✅ URL parsing:');
-  console.log('  Protocol:', url.protocol);  // https:
-  console.log('  Hostname:', url.hostname);  // example.com
-  console.log('  Pathname:', url.pathname);  // /api/users
-  console.log('  Search params:', Object.fromEntries(url.searchParams));
-  
-  // HTTP/HTTPS only URLs
+  console.log('   URL parsing:');
+  console.log('     Protocol:', url.protocol);
+  console.log('     Hostname:', url.hostname);
+  console.log('     Pathname:', url.pathname);
+  console.log('     Search params:', Object.fromEntries(url.searchParams));
+
   const httpUrl = stringToHttpURL.parse('https://api.example.com/v1/data');
-  console.log('✅ HTTP URL parsed:', httpUrl.href);
-  
-  // URI component encoding/decoding
-  const originalText = 'Hello World! 🚀 Special chars: @#$%';
+  console.log('   HTTP URL parsed:', httpUrl.href);
+
+  const originalText = 'Hello World! Special chars: @#$%';
   const encodedUri = uriComponent.parse(originalText);
-  console.log('✅ URI encoded:', encodedUri);
-  
+  console.log('   URI encoded:', encodedUri);
+
   const decodedUri = uriComponent.encode(encodedUri);
-  console.log('✅ URI decoded:', decodedUri);
-  
+  console.log('   URI decoded:', decodedUri);
 } catch (error) {
-  console.error('❌ URL codec error:', error.message);
+  console.error('URL codec error:', error.message);
 }
 
 console.log('\n');
 
 // ===== BINARY DATA CODECS =====
-console.log('💾 Binary Data Codecs');
+console.log('Binary Data Codecs');
 console.log('=====================');
 
 try {
-  // Base64 to Uint8Array
   const base64String = 'SGVsbG8gV29ybGQ='; // "Hello World"
   const bytes1 = base64ToBytes.parse(base64String);
-  console.log('✅ Base64 to bytes:', bytes1);
-  console.log('✅ Bytes back to base64:', base64ToBytes.encode(bytes1));
-  
-  // Hex to Uint8Array
+  console.log('   Base64 to bytes:', bytes1);
+  console.log('   Bytes back to base64:', base64ToBytes.encode(bytes1));
+
   const hexString = '48656c6c6f20566c64'; // "Hello Vld"
   const bytes2 = hexToBytes.parse(hexString);
-  console.log('✅ Hex to bytes:', bytes2);
-  console.log('✅ Bytes back to hex:', hexToBytes.encode(bytes2));
-  
-  // UTF-8 string to bytes and back
-  const originalText2 = 'Hello VLD! 🎉 支持中文';
+  console.log('   Hex to bytes:', bytes2);
+  console.log('   Bytes back to hex:', hexToBytes.encode(bytes2));
+
+  const originalText2 = 'Hello VLD! Supports CJK: 中文';
   const utf8Bytes = utf8ToBytes.parse(originalText2);
-  console.log('✅ UTF-8 to bytes:', utf8Bytes);
-  
+  console.log('   UTF-8 to bytes:', utf8Bytes);
+
   const backToText = bytesToUtf8.parse(utf8Bytes);
-  console.log('✅ Bytes back to UTF-8:', backToText);
-  console.log('✅ Round-trip successful:', originalText2 === backToText);
-  
-  // Base64URL (URL-safe base64)
-  const base64UrlString = 'SGVsbG9fV29ybGQ'; // URL-safe, no padding
+  console.log('   Bytes back to UTF-8:', backToText);
+  console.log('   Round-trip successful:', originalText2 === backToText);
+
+  const base64UrlString = 'SGVsbG9fV29ybGQ';
   const urlBytes = base64urlToBytes.parse(base64UrlString);
-  console.log('✅ Base64URL to bytes:', urlBytes);
-  
+  console.log('   Base64URL to bytes:', urlBytes);
 } catch (error) {
-  console.error('❌ Binary data codec error:', error.message);
+  console.error('Binary data codec error:', error.message);
 }
 
 console.log('\n');
 
-// ===== CUSTOM CODECS =====
-console.log('🛠️  Custom Codecs');
+// ===== CUSTOM CODECS WITH V2 INNER SCHEMAS =====
+console.log('Custom Codecs (VLD v3.0 — V2 inner schemas)');
 console.log('==================');
 
 try {
-  // Custom CSV to array codec
+  // CSV codec with V2 string inner schema (faster hot path)
   const csvToArray = v.codec(
-    v.string(),
-    v.array(v.string()),
+    vV2.string().min(1),
+    vV2.array(vV2.string()),
     {
       decode: (csv) => csv.split(',').map(s => s.trim()),
       encode: (arr) => arr.join(', ')
     }
   );
-  
+
   const tags = csvToArray.parse('react, typescript, nodejs, vld');
-  console.log('✅ CSV parsed to array:', tags);
-  
+  console.log('   V2 CSV parsed to array:', tags);
+
   const csvString = csvToArray.encode(['express', 'mongodb', 'jwt', 'api']);
-  console.log('✅ Array encoded to CSV:', csvString);
-  
-  // Custom configuration codec
+  console.log('   V2 CSV encoded:', csvString);
+
+  // Custom configuration codec with V2 children
   const configCodec = v.codec(
-    v.string(),
-    v.object({
-      port: v.number(),
-      debug: v.boolean(),
-      environment: v.string(),
-      maxConnections: v.number().optional()
+    vV2.string(),
+    vV2.object({
+      port: vV2.number(),
+      debug: vV2.boolean(),
+      environment: vV2.string(),
+      maxConnections: vV2.number().optional()
     }),
     {
       decode: (configString) => {
@@ -262,90 +242,89 @@ try {
       }
     }
   );
-  
+
   const configString = `PORT=3000
 DEBUG=true
 ENVIRONMENT=development
 MAX_CONNECTIONS=100`;
-  
+
   const parsedConfig = configCodec.parse(configString);
-  console.log('✅ Parsed config:', parsedConfig);
-  
+  console.log('   V2 Parsed config:', parsedConfig);
+
   const encodedConfig = configCodec.encode({
     port: 8080,
-    debug: false, 
+    debug: false,
     environment: 'production',
     maxConnections: 200
   });
-  console.log('✅ Encoded config:\n' + encodedConfig);
-  
+  console.log('   V2 Encoded config:\n' + encodedConfig);
 } catch (error) {
-  console.error('❌ Custom codec error:', error.message);
+  console.error('Custom codec error:', error.message);
 }
 
 console.log('\n');
 
 // ===== ERROR HANDLING =====
-console.log('🚨 Error Handling');
+console.log('Error Handling (with toZodError)');
 console.log('=================');
 
-// Safe parsing examples
+const { toZodError } = require('@oxog/vld');
+
 const safeResults = [
   stringToNumber.safeParse('not-a-number'),
-  stringToInt.safeParse('42.5'), // Should fail integer validation
+  stringToInt.safeParse('42.5'),
   stringToBoolean.safeParse('maybe'),
   epochSecondsToDate.safeParse('invalid-timestamp')
 ];
 
 safeResults.forEach((result, index) => {
   if (result.success) {
-    console.log(`✅ Result ${index + 1}: Success -`, result.data);
+    console.log(`   Result ${index + 1}: Success -`, result.data);
   } else {
-    console.log(`❌ Result ${index + 1}: Failed -`, result.error.message);
+    const zodErr = toZodError(result.error);
+    console.log(`   Result ${index + 1}: Failed (ZodError) -`,
+      zodErr.issues[0]?.code, '-', zodErr.issues[0]?.message);
   }
 });
 
 console.log('\n');
 
 // ===== REAL-WORLD EXAMPLE =====
-console.log('🌟 Real-World Example: API Response Processing');
+console.log('Real-World Example: API Response Processing');
 console.log('===============================================');
 
 try {
-  // Simulate processing an API response that comes as a base64-encoded JSON
+  // Use V2 children for the inner API response shape
   const apiResponseCodec = v.codec(
-    v.string(), // Base64-encoded response
-    v.object({
-      users: v.array(v.object({
-        id: v.string(),
-        name: v.string(),
-        email: v.string().email(),
-        createdAt: v.string(), // ISO date string
-        isActive: v.boolean()
+    vV2.string(),
+    vV2.object({
+      users: vV2.array(vV2.object({
+        id: vV2.string(),
+        name: vV2.string(),
+        email: vV2.string().email(),
+        createdAt: vV2.string(),
+        isActive: vV2.boolean()
       })),
-      pagination: v.object({
-        page: v.number(),
-        total: v.number(),
-        hasNext: v.boolean()
+      pagination: vV2.object({
+        page: vV2.number(),
+        total: vV2.number(),
+        hasNext: vV2.boolean()
       })
     }),
     {
       decode: (base64Response) => {
-        // Decode base64 to JSON
         const jsonBytes = base64ToBytes.parse(base64Response);
         const jsonString = bytesToUtf8.parse(jsonBytes);
         return JSON.parse(jsonString);
       },
       encode: (responseData) => {
-        // Encode JSON to base64
         const jsonString = JSON.stringify(responseData);
         const jsonBytes = utf8ToBytes.parse(jsonString);
         return base64ToBytes.encode(jsonBytes);
       }
     }
   );
-  
-  // Sample API response data
+
   const apiData = {
     users: [
       {
@@ -357,38 +336,34 @@ try {
       },
       {
         id: '2',
-        name: 'Jane Smith', 
+        name: 'Jane Smith',
         email: 'jane@example.com',
         createdAt: '2023-12-20T15:45:00.000Z',
         isActive: false
       }
     ],
-    pagination: {
-      page: 1,
-      total: 50,
-      hasNext: true
-    }
+    pagination: { page: 1, total: 50, hasNext: true }
   };
-  
-  // Encode the response (simulate what API would send)
+
   const encodedResponse = apiResponseCodec.encode(apiData);
-  console.log('📤 Encoded API response (base64):', encodedResponse.substring(0, 50) + '...');
-  
-  // Decode the response (simulate what client would receive)
+  console.log('   Encoded API response (base64):',
+    encodedResponse.substring(0, 50) + '...');
+
   const decodedResponse = apiResponseCodec.parse(encodedResponse);
-  console.log('📥 Decoded API response:');
-  console.log(`  Found ${decodedResponse.users.length} users`);
-  console.log(`  Page ${decodedResponse.pagination.page} of ${Math.ceil(decodedResponse.pagination.total / 10)}`);
-  console.log('  Users:', decodedResponse.users.map(u => `${u.name} (${u.email})`));
-  
+  console.log('   Decoded API response (V2 children):');
+  console.log(`     Found ${decodedResponse.users.length} users`);
+  console.log(`     Page ${decodedResponse.pagination.page}`);
+  console.log('     Users:',
+    decodedResponse.users.map(u => `${u.name} (${u.email})`));
 } catch (error) {
-  console.error('❌ Real-world example error:', error.message);
+  console.error('Real-world example error:', error.message);
 }
 
-console.log('\n🎉 All codec examples completed successfully!');
-console.log('\n💡 Key Takeaways:');
+console.log('\nAll codec examples completed successfully!');
+console.log('\nKey Takeaways (VLD v3.0):');
 console.log('   • Codecs provide bidirectional transformations');
 console.log('   • All built-in codecs are Zod-compatible');
-console.log('   • Custom codecs enable domain-specific conversions');
+console.log('   • V2 inner schemas (vV2.*) are 2-6x faster than V1');
+console.log('   • toZodError converts VldError to ZodError shape');
 console.log('   • Full type safety with TypeScript inference');
 console.log('   • Perfect for API boundaries and data serialization');

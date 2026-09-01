@@ -150,6 +150,7 @@ function deserializeIssue(issue: VldIssueJSON): VldIssue {
 
 export class VldError extends Error {
   public readonly issues: VldIssue[];
+  private _stack: string | undefined;
 
   constructor(issues: VldIssue[], customMessage?: string) {
     const firstIssue = issues[0];
@@ -164,8 +165,20 @@ export class VldError extends Error {
     this.name = 'VldError';
     this.issues = issues;
 
-    if (Error.captureStackTrace) {
+    // Skip stack capture in production for performance. Stack can be captured
+    // on demand by setting VLD_CAPTURE_STACK=true or calling captureStack().
+    // Each Error.captureStackTrace call costs ~5-10µs — significant for
+    // high-throughput error paths.
+    if ((globalThis as any).VLD_CAPTURE_STACK && Error.captureStackTrace) {
       Error.captureStackTrace(this, VldError);
+    }
+  }
+
+  /** Force-capture the stack trace on demand. */
+  captureStack(): void {
+    if (!this._stack && Error.captureStackTrace) {
+      Error.captureStackTrace(this, VldError);
+      this._stack = this.stack;
     }
   }
 

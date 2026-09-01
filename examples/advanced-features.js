@@ -1,66 +1,56 @@
-// VLD Advanced Features Examples
-// Demonstrates new Zod-compatible features like coercion, intersections, transforms, etc.
+// VLD v3.0 — Advanced features
+// Demonstrates V2 method-memoization chains, type coercion, intersections,
+// transforms, refinements, and the vV2 drop-in factory.
 
-import { v } from '../dist/index.js';
+import { v, vV2 } from '../dist/index.js';
 
-console.log('🚀 VLD Advanced Features Examples\n');
+console.log('VLD v3.0 Advanced Features Examples\n');
 
-// 1. Type Coercion Examples
+// 1. Type Coercion (V2 path: vV2.coerce.* for 2-6x faster hot path)
 console.log('1. Type Coercion:');
 
-// String coercion
-const stringSchema = v.coerce.string();
-console.log('   v.coerce.string().parse(123):', stringSchema.parse(123)); // "123"
-console.log('   v.coerce.string().parse(true):', stringSchema.parse(true)); // "true"
+const stringSchema = vV2.coerce.string();
+console.log('   vV2.coerce.string().parse(123):', stringSchema.parse(123)); // "123"
+console.log('   vV2.coerce.string().parse(true):', stringSchema.parse(true)); // "true"
 
-// Number coercion  
-const numberSchema = v.coerce.number();
-console.log('   v.coerce.number().parse("123"):', numberSchema.parse("123")); // 123
-console.log('   v.coerce.number().parse(true):', numberSchema.parse(true)); // 1
+const numberSchema = vV2.coerce.number();
+console.log('   vV2.coerce.number().parse("123"):', numberSchema.parse('123')); // 123
+console.log('   vV2.coerce.number().parse(true):', numberSchema.parse(true)); // 1
 
-// Boolean coercion
 const boolSchema = v.coerce.boolean();
-console.log('   v.coerce.boolean().parse("true"):', boolSchema.parse("true")); // true
-console.log('   v.coerce.boolean().parse("0"):', boolSchema.parse("0")); // false
+console.log('   v.coerce.boolean().parse("true"):', boolSchema.parse('true')); // true
+console.log('   v.coerce.boolean().parse("0"):', boolSchema.parse('0')); // false
 
-// BigInt coercion
 const bigintSchema = v.coerce.bigint();
-console.log('   v.coerce.bigint().parse("999"):', bigintSchema.parse("999")); // 999n
+console.log('   v.coerce.bigint().parse("999"):', bigintSchema.parse('999')); // 999n
 
-// Date coercion
 const dateSchema = v.coerce.date();
-console.log('   v.coerce.date().parse("2023-01-01"):', dateSchema.parse("2023-01-01")); // Date object
+console.log('   v.coerce.date().parse("2023-01-01"):', dateSchema.parse('2023-01-01')); // Date
 
 console.log('\n');
 
 // 2. Advanced Types
 console.log('2. Advanced Types:');
 
-// Tuple validation
 const coordSchema = v.tuple(v.number(), v.number());
-console.log('   Tuple [1, 2]:', coordSchema.parse([1, 2])); // [1, 2]
+console.log('   Tuple [1, 2]:', coordSchema.parse([1, 2]));
 
-// Record validation
 const configSchema = v.record(v.string());
-console.log('   Record {a: "1", b: "2"}:', configSchema.parse({a: "1", b: "2"}));
+console.log('   Record {a: "1", b: "2"}:', configSchema.parse({ a: '1', b: '2' }));
 
-// Set validation
 const tagSchema = v.set(v.string());
-console.log('   Set ["a", "b"]:', Array.from(tagSchema.parse(new Set(["a", "b"]))));
+console.log('   Set ["a", "b"]:', Array.from(tagSchema.parse(new Set(['a', 'b']))));
 
-// Map validation  
 const mapSchema = v.map(v.string(), v.number());
-const testMap = new Map([["a", 1], ["b", 2]]);
+const testMap = new Map([['a', 1], ['b', 2]]);
 console.log('   Map entries:', Array.from(mapSchema.parse(testMap).entries()));
 
-// BigInt validation
 const bigIntSchema = v.bigint();
-console.log('   BigInt 123n:', bigIntSchema.parse(123n)); // 123n
+console.log('   BigInt 123n:', bigIntSchema.parse(123n));
 
-// Symbol validation
 const symSchema = v.symbol();
 const testSymbol = Symbol('test');
-console.log('   Symbol:', symSchema.parse(testSymbol).toString()); // Symbol(test)
+console.log('   Symbol:', symSchema.parse(testSymbol).toString());
 
 console.log('\n');
 
@@ -82,20 +72,18 @@ const adminSchema = v.intersection(baseUser, adminUser);
 const admin = {
   id: '123',
   name: 'John Admin',
-  role: 'admin', 
+  role: 'admin',
   permissions: ['read', 'write', 'delete']
 };
 
 console.log('   Admin user:', adminSchema.parse(admin));
 console.log('\n');
 
-// 4. Custom Validation with refine()
-console.log('4. Custom Validation (refine):');
+// 4. Custom Validation (V2 path: vV2 for the 2-6x speedup)
+console.log('4. Custom Validation (V2):');
 
-const positiveNumberSchema = v.number()
-  .refine(n => n > 0, "Number must be positive");
-
-console.log('   Positive 5:', positiveNumberSchema.parse(5)); // 5
+const positiveNumberSchema = vV2.number().refine(n => n > 0, 'Number must be positive');
+console.log('   vV2 number refine positive 5:', positiveNumberSchema.parse(5));
 
 try {
   positiveNumberSchema.parse(-1);
@@ -103,21 +91,19 @@ try {
   console.log('   Negative error:', e.message);
 }
 
-const emailSchema = v.string()
+const emailSchema = vV2.string()
   .refine(s => s.includes('@'), 'Must contain @')
   .refine(s => s.includes('.'), 'Must contain domain');
 
-console.log('   Email test@example.com:', emailSchema.parse('test@example.com'));
+console.log('   V2 chained refine:', emailSchema.parse('test@example.com'));
 
 console.log('\n');
 
-// 5. Data Transformation
-console.log('5. Data Transformation (transform):');
+// 5. Data Transformation (V2)
+console.log('5. Data Transformation (V2):');
 
-const upperCaseSchema = v.string()
-  .transform(s => s.toUpperCase());
-
-console.log('   "hello" -> uppercase:', upperCaseSchema.parse('hello')); // "HELLO"
+const upperCaseSchema = vV2.string().transform(s => s.toUpperCase());
+console.log('   vV2 transform uppercase:', upperCaseSchema.parse('hello'));
 
 const userTransformSchema = v.object({
   firstName: v.string(),
@@ -128,7 +114,7 @@ const userTransformSchema = v.object({
 }));
 
 const user = { firstName: 'John', lastName: 'Doe' };
-console.log('   User with fullName:', userTransformSchema.parse(user));
+console.log('   Object transform:', userTransformSchema.parse(user));
 
 console.log('\n');
 
@@ -136,8 +122,8 @@ console.log('\n');
 console.log('6. Default Values:');
 
 const withDefaultSchema = v.string().default('fallback');
-console.log('   undefined -> default:', withDefaultSchema.parse(undefined)); // "fallback"
-console.log('   "actual" -> actual:', withDefaultSchema.parse('actual')); // "actual"
+console.log('   undefined -> default:', withDefaultSchema.parse(undefined));
+console.log('   "actual" -> actual:', withDefaultSchema.parse('actual'));
 
 const userWithDefaultsSchema = v.object({
   name: v.string(),
@@ -150,20 +136,20 @@ console.log('   User with defaults:', userWithDefaultsSchema.parse(partialUser))
 
 console.log('\n');
 
-// 7. Catch for Error Recovery  
+// 7. Catch for Error Recovery
 console.log('7. Catch for Error Recovery:');
 
 const safeNumberSchema = v.number().catch(-1);
-console.log('   Valid number 42:', safeNumberSchema.parse(42)); // 42
-console.log('   Invalid "abc" -> fallback:', safeNumberSchema.parse("abc")); // -1
+console.log('   Valid 42:', safeNumberSchema.parse(42));
+console.log('   Invalid "abc" -> -1:', safeNumberSchema.parse('abc'));
 
 const complexCatchSchema = v.string()
   .min(5)
   .transform(s => s.toUpperCase())
   .catch('ERROR');
 
-console.log('   Valid "hello":', complexCatchSchema.parse('hello')); // "HELLO"
-console.log('   Invalid "hi" -> catch:', complexCatchSchema.parse('hi')); // "ERROR"
+console.log('   Valid "hello":', complexCatchSchema.parse('hello'));
+console.log('   Invalid "hi" -> "ERROR":', complexCatchSchema.parse('hi'));
 
 console.log('\n');
 
@@ -177,15 +163,12 @@ const fullUserSchema = v.object({
   role: v.string()
 });
 
-// Pick specific fields
 const publicSchema = fullUserSchema.pick('name', 'age');
-console.log('   Picked schema fields:', Object.keys(publicSchema.shape || {}));
+console.log('   Pick name, age:', publicSchema.parse({ name: 'John', age: 30 }));
 
-// Omit sensitive fields
 const safeSchema = fullUserSchema.omit('email', 'role');
-console.log('   Omitted schema parse:', safeSchema.parse({ name: 'John', age: 30 }));
+console.log('   Omit email, role:', safeSchema.parse({ name: 'John', age: 30 }));
 
-// Extend with new fields
 const extendedSchema = fullUserSchema.extend({
   isActive: v.boolean(),
   metadata: v.record(v.any())
@@ -193,52 +176,51 @@ const extendedSchema = fullUserSchema.extend({
 
 const extendedUser = {
   name: 'Jane',
-  email: 'jane@example.com', 
+  email: 'jane@example.com',
   age: 25,
   role: 'admin',
   isActive: true,
   metadata: { theme: 'dark' }
 };
-
 console.log('   Extended schema:', extendedSchema.parse(extendedUser));
 
 console.log('\n');
 
-// 9. Method Chaining
-console.log('9. Advanced Method Chaining:');
+// 9. V2 Method Chaining (recommended for new code)
+console.log('9. V2 Method Chaining (vV2 chains):');
 
-const complexSchema = v.string()
+const complexV2Schema = vV2.string()
   .min(3)
   .transform(s => s.trim().toLowerCase())
   .refine(s => s.includes('test'), 'Must contain "test"')
   .default('default-test')
   .catch('error-fallback');
 
-console.log('   Valid "  HELLO-TEST  ":', complexSchema.parse('  HELLO-TEST  '));
-console.log('   undefined -> default:', complexSchema.parse(undefined));
-console.log('   Invalid "hi" -> catch:', complexSchema.parse('hi'));
+console.log('   vV2 valid "  HELLO-TEST  ":', complexV2Schema.parse('  HELLO-TEST  '));
+console.log('   vV2 undefined -> default:', complexV2Schema.parse(undefined));
+console.log('   vV2 invalid "hi" -> catch:', complexV2Schema.parse('hi'));
 
 console.log('\n');
 
-// 10. Real-world Complex Example
-console.log('10. Real-world API Schema:');
+// 10. Real-world complex example using V2 children under a V1 object
+console.log('10. Real-world API Schema (V2 children under object):');
 
 const apiUserSchema = v.object({
-  id: v.coerce.string(),
-  username: v.string()
+  id: vV2.coerce.string(),
+  username: vV2.string()
     .min(3)
     .max(20)
     .refine(s => /^[a-zA-Z0-9_]+$/.test(s), 'Invalid username format'),
-  email: v.coerce.string()
+  email: vV2.coerce.string()
     .transform(s => s.toLowerCase().trim()),
-  age: v.coerce.number()
+  age: vV2.coerce.number()
     .min(13)
     .max(120)
     .catch(null),
   preferences: v.record(v.any()).default({}),
   roles: v.set(v.enum('user', 'admin', 'moderator'))
     .default(new Set(['user'])),
-  createdAt: v.coerce.date(),
+  createdAt: vV2.coerce.date(),
   profile: v.object({
     bio: v.string().max(500).default(''),
     location: v.optional(v.tuple(v.number(), v.number()))
@@ -246,13 +228,13 @@ const apiUserSchema = v.object({
 });
 
 const apiInput = {
-  id: 123, // Will be coerced to string
+  id: 123,
   username: 'johndoe',
-  email: '  JOHN@EXAMPLE.COM  ', // Will be transformed
-  age: '25', // Will be coerced to number
+  email: '  JOHN@EXAMPLE.COM  ',
+  age: '25',
   createdAt: '2023-01-01',
   profile: {
-    location: [40.7128, -74.0060] // NYC coordinates
+    location: [40.7128, -74.0060]
   }
 };
 
@@ -266,4 +248,5 @@ console.log('   API User Result:', {
   hasProfile: !!result.profile
 });
 
-console.log('\n✅ All advanced features demonstrated successfully!');
+console.log('\nAll advanced features demonstrated successfully.');
+console.log('Tip: enable v.setV2Mode(true) to swap the entire v.* factory to V2.');

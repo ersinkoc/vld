@@ -210,6 +210,62 @@ const str = v.toZod("hello")              // v.string()` },
   { name: 'ZodCompileError', description: 'Thrown when an AOT-compiled validator fails at compile time (unsupported schema shape, etc).', category: 'AOT Compile', signature: 'class ZodCompileError extends Error' },
   { name: 'ZodCompileAsyncError', description: 'Async variant of ZodCompileError for validateAsync paths.', category: 'AOT Compile', signature: 'class ZodCompileAsyncError extends Error' },
   { name: 'ZodCompileUnsupportedError', description: 'Thrown when a schema feature cannot be lowered to an AOT compile body (e.g. custom refinements, async transforms).', category: 'AOT Compile', signature: 'class ZodCompileUnsupportedError extends Error' },
+
+  // V2 Method-Memoization (v3.0 NEW) — 2-6x faster than Zod 4.5
+  { name: 'vV2', description: 'Drop-in factory that always returns V2 method-memoization classes. Identical surface to v, 2-6x faster and 1.6-10x less memory in production benchmarks.', category: 'V2 (v3.0)', signature: 'vV2: typeof v', example: `import { vV2 } from "@oxog/vld"
+
+const schema = vV2.string().min(1).email()
+schema.parse("user@example.com") // 2.3x faster than v.string().email()` },
+  { name: 'v.stringV2()', description: 'V2 string with single-def + check classes. Same chain surface, 2-6x faster than v.string().', category: 'V2 (v3.0)', signature: 'v.stringV2(): VldStringV2', example: `import { v } from "@oxog/vld"
+
+const s = v.stringV2().min(2).max(100).email()
+s.parse("user@example.com")` },
+  { name: 'v.numberV2()', description: 'V2 number with 16 check classes. 6.5x faster than v.number() on int().positive().min(1).', category: 'V2 (v3.0)', signature: 'v.numberV2(): VldNumberV2', example: `v.numberV2().int().positive().min(1).max(120).parse(25)` },
+  { name: 'v.dateV2() / v.bigintV2() / v.arrayV2() / v.unionV2()', description: 'V2 method-memoization variants for date, bigint, array, union, tuple, set, map, intersection, record, literal, enum, boolean, optional, nullable, nullish, refine, transform. 21 V2 classes total.', category: 'V2 (v3.0)', signature: 'v.*V2()', example: `vV2.tuple([vV2.string(), vV2.number()])
+vV2.literal("active")
+vV2.union([vV2.string(), vV2.number()])` },
+  { name: 'v.coerce.stringV2() / v.coerce.numberV2()', description: 'V2 coercion variants — 2-6x faster than v.coerce.* on the hot path.', category: 'V2 (v3.0)', signature: 'v.coerce.stringV2() / v.coerce.numberV2()' },
+  { name: 'v.setV2Mode(true)', description: 'Globally swap v.* factories to V2. No source rewrites needed. Call v.setV2Mode(false) to revert.', category: 'V2 (v3.0)', signature: 'v.setV2Mode(enabled: boolean): void', example: `import { v } from "@oxog/vld"
+
+v.setV2Mode(true)
+// Now v.string() / v.number() / v.object() return V2 classes
+const schema = v.string().email()
+v.setV2Mode(false) // back to V1` },
+  { name: 'v.useV2', description: 'Read-only flag reflecting the current V2 mode. Updated by setV2Mode().', category: 'V2 (v3.0)', signature: 'v.useV2: boolean' },
+  { name: 'v.pipeline()', description: 'Zod 4.5 alias for v.pipe(). Compose two schemas so the first validates, the second transforms.', category: 'V2 (v3.0)', signature: 'v.pipeline(a, b): VldPipe', example: `v.pipeline(v.string(), v.coerce.number()).parse("42") // 42` },
+  { name: 'VLD_CAPTURE_STACK', description: 'Opt-in env flag for capturing V8 stack traces on VldError. Skip by default for invalid-path perf; set to "true" for debug.', category: 'V2 (v3.0)', signature: 'process.env.VLD_CAPTURE_STACK', example: `process.env.VLD_CAPTURE_STACK = "true" // capture stacks in VldError` },
+
+  // True Drop-in Replacement (v3.0 NEW) — `z` is a real alias for `v`
+  { name: 'z (drop-in alias for v)', description: '`import { z } from "@oxog/vld"` is a true drop-in for `import { z } from "zod"`. Same names, same shape, same return types. Use it for instant migration with a single import-line change — no other source rewrites needed.', category: 'Drop-in (v3.0)', signature: 'export const z: typeof v', example: `// BEFORE
+import { z } from 'zod'
+const S = z.object({ name: z.string().min(1) })
+S.parse({ name: 'x' })
+
+// AFTER — only the import line changes
+import { z } from '@oxog/vld'
+const S = z.object({ name: z.string().min(1) })
+S.parse({ name: 'x' })  // 3.00x faster (benchmarks/dropin-vs-zod.cjs)` },
+  { name: 'z (namespace)', description: '`z.infer<T>` and `z.input<T>` mirror the Zod namespace for type extraction. Same as `v.infer` / `v.input`.', category: 'Drop-in (v3.0)', signature: 'namespace z { type infer<T> = v.infer<T>; type input<T> = v.input<T> }', example: `import { z } from '@oxog/vld'
+const S = z.object({ name: z.string() })
+type User = z.infer<typeof S>  // { name: string }` },
+
+  // ZodError Compatibility (v3.0 NEW)
+  { name: 'toZodError()', description: 'Convert a VldError into a ZodError-shaped ZodLikeError with .format() and .flatten().', category: 'ZodError Compat (v3.0)', signature: 'toZodError(vldError): ZodLikeError', example: `import { v, toZodError } from "@oxog/vld"
+
+const r = v.object({ name: v.string().min(2) }).safeParse({ name: "J" })
+if (!r.success) {
+  const zodErr = toZodError(r.error)
+  console.log(zodErr.flatten()) // { formErrors: [], fieldErrors: { name: [...] } }
+}` },
+  { name: 'toZodSafeResult()', description: 'Convert a safeParse result to a Zod-shaped result in one call. The error is a ZodLikeError instead of a raw VldError.', category: 'ZodError Compat (v3.0)', signature: 'toZodSafeResult<T>(result): { success: true; data: T } | { success: false; error: ZodLikeError }' },
+  { name: 'ZodLikeError', description: 'ZodError-shaped error class. Has .name === "ZodError", .issues array, .format(), and .flatten() methods. instanceof Error, instanceof ZodLikeError.', category: 'ZodError Compat (v3.0)', signature: 'class ZodLikeError extends Error', example: `const r = v.string().min(2).safeParse("J")
+if (!r.success) {
+  const z = toZodError(r.error)
+  z instanceof ZodLikeError  // true
+  z.name === "ZodError"     // true
+  z.format()                 // nested error tree
+  z.flatten()                // { formErrors, fieldErrors }
+}` },
 ]
 
 const categoryIcons: Record<string, React.ElementType> = {

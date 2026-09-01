@@ -1,17 +1,22 @@
-import { v, Infer } from '@oxog/vld';
+// VLD v3.0 — TypeScript-first usage
+// vV2 is the V2 method-memoization factory (2-6x faster than Zod 4.5, 1.6-10x
+// less memory in production benchmarks). v.setV2Mode(true) swaps v.* to V2
+// globally. toZodError returns ZodError-shaped errors for downstream tooling.
 
-// Define enhanced schema with new VLD features
+import { v, vV2, z, type Infer, toZodError } from '@oxog/vld';
+
+// V2 child schemas under a V1 object — same surface, faster hot path
 const userSchema = v.object({
-  id: v.coerce.string(), // Auto-coerce to string
-  name: v.string().min(2).max(100),
-  email: v.string().email(),
-  age: v.coerce.number().int().positive().catch(18), // Coerce and fallback
+  id: vV2.coerce.string(),
+  name: vV2.string().min(2).max(100),
+  email: vV2.string().email(),
+  age: vV2.coerce.number().int().positive().catch(18),
   role: v.enum('admin', 'user', 'guest').default('user'),
   isActive: v.boolean().default(true),
-  userId: v.bigint().optional(), // BigInt support
-  tags: v.set(v.string()).default(new Set()), // Set instead of array
-  metadata: v.record(v.any()).default({}), // Key-value metadata
-  coordinates: v.tuple(v.number(), v.number()).optional(), // Tuple for coordinates
+  userId: v.bigint().optional(),
+  tags: v.set(v.string()).default(new Set<string>()),
+  metadata: v.record(v.any()).default({} as Record<string, unknown>),
+  coordinates: v.tuple(v.number(), v.number()).optional(),
   preferences: v.object({
     theme: v.enum('light', 'dark', 'auto').default('light'),
     notifications: v.boolean().default(true),
@@ -19,10 +24,9 @@ const userSchema = v.object({
   }).optional()
 });
 
-// Infer TypeScript type
+// Inferred TypeScript type
 type User = Infer<typeof userSchema>;
 
-// TypeScript knows the exact shape!
 const user: User = {
   id: '550e8400-e29b-41d4-a716-446655440000',
   name: 'John Doe',
@@ -31,16 +35,11 @@ const user: User = {
   role: 'admin',
   isActive: true,
   metadata: {
-    lastLogin: new Date(),
-    preferences: {
-      theme: 'dark',
-      notifications: true
-    }
+    lastLogin: new Date()
   },
   tags: ['developer', 'typescript']
 };
 
-// Function with validated input
 function createUser(input: unknown): User {
   return userSchema.parse(input);
 }
@@ -49,14 +48,14 @@ function createUser(input: unknown): User {
 const notificationSchema = v.union(
   v.object({
     type: v.literal('email'),
-    to: v.string().email(),
+    to: vV2.string().email(),
     subject: v.string(),
     body: v.string()
   }),
   v.object({
     type: v.literal('sms'),
     phoneNumber: v.string(),
-    message: v.string().max(160)
+    message: vV2.string().max(160)
   }),
   v.object({
     type: v.literal('push'),
@@ -68,7 +67,7 @@ const notificationSchema = v.union(
 
 type Notification = Infer<typeof notificationSchema>;
 
-function sendNotification(notification: Notification) {
+function sendNotification(notification: Notification): void {
   switch (notification.type) {
     case 'email':
       console.log(`Email to ${notification.to}: ${notification.subject}`);
@@ -82,7 +81,7 @@ function sendNotification(notification: Notification) {
   }
 }
 
-// API response validation
+// API response validation with toZodError
 const apiResponseSchema = v.object({
   success: v.boolean(),
   data: v.optional(v.unknown()),
@@ -96,21 +95,26 @@ type ApiResponse = Infer<typeof apiResponseSchema>;
 
 async function fetchUser(id: string): Promise<User> {
   const response = await fetch(`/api/users/${id}`);
-  const json = await response.json();
-  
+  const json: unknown = await response.json();
+
   const apiResult = apiResponseSchema.parse(json);
-  
   if (!apiResult.success) {
-    throw new Error(apiResult.error?.message || 'Unknown error');
+    throw new Error(apiResult.error?.message ?? 'Unknown error');
   }
-  
   return userSchema.parse(apiResult.data);
 }
 
-// Form validation
+// ZodError compatibility
+function safeCreateUser(input: unknown): { ok: true; data: User } | { ok: false; zodError: ReturnType<typeof toZodError> } {
+  const result = userSchema.safeParse(input);
+  if (result.success) return { ok: true, data: result.data };
+  return { ok: false, zodError: toZodError(result.error) };
+}
+
+// Form validation (V2 children)
 const loginFormSchema = v.object({
-  username: v.string().min(3).max(20),
-  password: v.string().min(8),
+  username: vV2.string().min(3).max(20),
+  password: vV2.string().min(8),
   rememberMe: v.optional(v.boolean())
 });
 
@@ -124,9 +128,6 @@ function validateLoginForm(formData: FormData): LoginForm {
   });
 }
 
-// Advanced VLD TypeScript Features
-console.log('🚀 Advanced VLD TypeScript Features Demo\n');
-
 // Object schema methods with TypeScript
 const baseUserSchema = v.object({
   name: v.string(),
@@ -135,72 +136,56 @@ const baseUserSchema = v.object({
   role: v.string()
 });
 
-// Pick creates new schema with selected fields
 const publicUserSchema = baseUserSchema.pick('name', 'age');
-type PublicUser = Infer<typeof publicUserSchema>; // { name: string; age: number }
+type PublicUser = Infer<typeof publicUserSchema>;
 
-// Omit creates new schema without specified fields  
 const safeUserSchema = baseUserSchema.omit('email', 'role');
-type SafeUser = Infer<typeof safeUserSchema>; // { name: string; age: number }
+type SafeUser = Infer<typeof safeUserSchema>;
 
-// Extend adds new fields to existing schema
 const extendedUserSchema = baseUserSchema.extend({
   isVerified: v.boolean().default(false),
   lastLogin: v.date().optional(),
-  metadata: v.record(v.any()).default({})
+  metadata: v.record(v.any()).default({} as Record<string, unknown>)
 });
 type ExtendedUser = Infer<typeof extendedUserSchema>;
 
-// Intersection combines multiple schemas
+// Intersection (V1 stays optimal; V2 children plug in transparently)
 const adminRoleSchema = v.object({
   permissions: v.array(v.string()),
   adminLevel: v.number().min(1).max(5)
 });
 
 const adminUserSchema = v.intersection(baseUserSchema, adminRoleSchema);
-type AdminUser = Infer<typeof adminUserSchema>; // Combined type
+type AdminUser = Infer<typeof adminUserSchema>;
 
-// Advanced validation with refine and transform
-const passwordSchema = v.string()
+// V2 chain — full method memoization path
+const passwordSchema = vV2.string()
   .min(8, 'Password too short')
   .refine(pwd => /[A-Z]/.test(pwd), 'Must contain uppercase letter')
   .refine(pwd => /[0-9]/.test(pwd), 'Must contain number')
   .refine(pwd => /[!@#$%^&*]/.test(pwd), 'Must contain special character');
 
-const emailNormalizationSchema = v.string()
+const emailNormalizationSchema = vV2.string()
   .transform(email => email.toLowerCase().trim())
   .refine(email => email.includes('@'), 'Invalid email format')
   .transform(email => email.replace(/\+.*@/, '@')); // Remove plus addressing
 
-// Complex API schema with all features
+// V2 + V1 mix in a real-world schema
 const complexApiSchema = v.object({
-  // Basic fields with coercion
-  userId: v.coerce.bigint(),
-  username: v.coerce.string()
+  userId: vV2.coerce.bigint(),
+  username: vV2.coerce.string()
     .transform(s => s.trim().toLowerCase())
     .refine(s => /^[a-z0-9_]+$/.test(s), 'Invalid username format'),
-  
-  // Email with normalization
   email: emailNormalizationSchema,
-  
-  // Password with validation
   password: passwordSchema,
-  
-  // Age with fallback
-  age: v.coerce.number()
+  age: vV2.coerce.number()
     .min(13, 'Too young')
-    .max(120, 'Too old')  
+    .max(120, 'Too old')
     .catch(null),
-    
-  // Collections with advanced types
   roles: v.set(v.enum('user', 'admin', 'moderator')).default(new Set(['user'])),
-  preferences: v.record(v.union(v.string(), v.number(), v.boolean())).default({}),
+  preferences: v.record(v.union(v.string(), v.number(), v.boolean())).default({} as Record<string, string | number | boolean>),
   tags: v.array(v.string()).max(10).default([]),
-  
-  // Tuple for coordinates
   location: v.tuple(v.number(), v.number()).optional(),
-  
-  // Nested object with defaults
   profile: v.object({
     bio: v.string().max(500).default(''),
     website: v.string().url().optional(),
@@ -213,17 +198,23 @@ const complexApiSchema = v.object({
 
 type ComplexApiUser = Infer<typeof complexApiSchema>;
 
-// Type-safe API handler
 async function createComplexUser(input: unknown): Promise<ComplexApiUser> {
   try {
     return complexApiSchema.parse(input);
   } catch (error) {
-    console.error('Validation failed:', error.message);
+    console.error('Validation failed:', (error as Error).message);
     throw error;
   }
 }
 
-// Schema composition patterns
+// z = v — keep the z.* style for codebases that use Zod naming
+const zUserSchema = z.object({
+  email: z.string().email(),
+  age: z.number().int().positive()
+});
+type ZUser = Infer<typeof zUserSchema>;
+
+// Mixins with intersection
 const timestampMixin = v.object({
   createdAt: v.date().default(() => new Date()),
   updatedAt: v.date().default(() => new Date())
@@ -234,54 +225,35 @@ const auditMixin = v.object({
   updatedBy: v.string().optional()
 });
 
-// Combine mixins with intersection
 const auditableUserSchema = v.intersection(
   v.intersection(userSchema, timestampMixin),
   auditMixin
 );
-
 type AuditableUser = Infer<typeof auditableUserSchema>;
 
-// Real-world e-commerce product schema
+// E-commerce product schema
 const productSchema = v.object({
-  id: v.coerce.string(),
-  name: v.string().min(1).max(200),
-  description: v.string().max(2000).default(''),
-  price: v.coerce.number().positive(),
+  id: vV2.coerce.string(),
+  name: vV2.string().min(1).max(200),
+  description: vV2.string().max(2000).default(''),
+  price: vV2.coerce.number().positive(),
   currency: v.enum('USD', 'EUR', 'GBP').default('USD'),
-  
-  // Categories as a set for uniqueness
   categories: v.set(v.string()).min(1),
-  
-  // Tags as array
   tags: v.array(v.string()).max(20).default([]),
-  
-  // Variants using record
   variants: v.record(v.object({
     price: v.number().positive(),
     stock: v.number().nonnegative(),
     sku: v.string()
-  })).default({}),
-  
-  // Dimensions as tuple
+  })).default({} as Record<string, { price: number; stock: number; sku: string }>),
   dimensions: v.tuple(v.number(), v.number(), v.number()).optional(),
-  
-  // Weight in grams as BigInt for precision
-  weightGrams: v.coerce.bigint().positive().optional(),
-  
-  // Availability with fallback
+  weightGrams: vV2.coerce.bigint().positive().optional(),
   isAvailable: v.boolean().default(true),
-  
-  // Stock with coercion and fallback
-  stock: v.coerce.number().nonnegative().catch(0),
-  
-  // Metadata as flexible record
-  metadata: v.record(v.any()).default({})
+  stock: vV2.coerce.number().nonnegative().catch(0),
+  metadata: v.record(v.any()).default({} as Record<string, unknown>)
 });
 
 type Product = Infer<typeof productSchema>;
 
-// Product management schemas using pick/omit/extend
 const createProductSchema = productSchema.omit('id', 'metadata');
 const updateProductSchema = createProductSchema.partial();
 const productListSchema = productSchema.pick('id', 'name', 'price', 'isAvailable');
@@ -310,17 +282,16 @@ function createApiResponseSchema<T>(dataSchema: T) {
   });
 }
 
-// Type-safe API responses
 const userResponseSchema = createApiResponseSchema(userSchema);
 const productListResponseSchema = createApiResponseSchema(v.array(productListSchema));
 
 type UserResponse = Infer<typeof userResponseSchema>;
 type ProductListResponse = Infer<typeof productListResponseSchema>;
 
-export { 
-  User, 
-  Notification, 
-  ApiResponse, 
+export {
+  User,
+  Notification,
+  ApiResponse,
   LoginForm,
   PublicUser,
   SafeUser,
@@ -333,5 +304,6 @@ export {
   UpdateProduct,
   ProductListItem,
   UserResponse,
-  ProductListResponse
+  ProductListResponse,
+  ZUser
 };

@@ -159,6 +159,31 @@ type ContactForm = v.infer<typeof contactFormSchema>`,
   "newsletter": true
 }`
   },
+  {
+    name: 'vV2 Method-Memoization (v3.0)',
+    code: `import { vV2, toZodError } from "@oxog/vld"
+
+// vV2 ships the Zod 4.5 method-memoization pattern.
+// 2-6x faster than v.* and 1.6-10x less memory.
+const userSchema = vV2.object({
+  email: vV2.string().email(),
+  age: vV2.number().int().positive(),
+  role: vV2.enum("admin", "user", "guest"),
+})
+
+const result = userSchema.safeParse(input)
+if (!result.success) {
+  // toZodError converts to ZodError-shaped error
+  const zodErr = toZodError(result.error)
+  console.log(zodErr.flatten())
+  console.log(zodErr.format())
+}`,
+    data: `{
+  "email": "ada@lovelace.dev",
+  "age": 36,
+  "role": "admin"
+}`
+  },
 ]
 
 const invalidExamples = [

@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { Moon, Sun, Github, Menu, X, Zap, ExternalLink } from 'lucide-react'
+import { Moon, Sun, Github, Menu, X, Zap, ExternalLink, Sparkles } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useTheme } from '@/hooks/theme-context'
 import { Button } from '@/components/ui/button'
@@ -12,6 +12,8 @@ const navigation = [
   { name: 'Playground', href: '/playground' },
   { name: 'Benchmark', href: '/benchmark' },
 ]
+
+const versionBadge = { label: 'v3.0', href: 'https://github.com/ersinkoc/vld/releases/tag/v3.0.0' }
 
 export function Header() {
   const { theme, setTheme, resolvedTheme } = useTheme()
@@ -86,6 +88,16 @@ export function Header() {
                   </Link>
                 )
               })}
+              <a
+                href={versionBadge.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ml-1 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-vld-primary/10 text-vld-primary border border-vld-primary/20 hover:bg-vld-primary/20 transition-colors"
+                title="What's new in v3.0 — V2 Method-Memoization"
+              >
+                <Sparkles className="w-3 h-3" />
+                {versionBadge.label}
+              </a>
             </div>
           </nav>
 
