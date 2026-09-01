@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BookOpen, Code2, Boxes, Settings, Layers, ChevronRight, Search, Plug, AlertCircle } from 'lucide-react'
+import { BookOpen, Code2, Boxes, Settings, Layers, ChevronRight, Search, Plug, AlertCircle, Sparkles } from 'lucide-react'
 import { CodeBlock } from '@/components/ui/code-block'
 import { cn } from '@/lib/utils'
 
@@ -129,11 +129,12 @@ if (result.success) {
 }`,
     lang: 'typescript',
     tips: [
-      'VLD v2.4.0 is checked against Zod 4.5.4 (253/253 exports)',
+      'VLD v3.0.0 is checked against Zod 4.5.4 (253/253 exports)',
+      '`import { z } from "@oxog/vld"` is a true drop-in for `import { z } from "zod"` — 3.00x faster (10/10 wins, semantic-checked)',
       'Root, mini, v4, v4-mini, v4/core, v4/locales, and compile entry points are covered',
       'AOT compile (v.compile / v.validate) is release-gated at 1.46x / 2.36x geomean vs z.compile',
       'Full TypeScript inference',
-      '2502 tests with 100% statement, branch, function, and line coverage',
+      '3031 tests with 99.98% statement, 99.79% branch, 100% function and line coverage',
     ],
   },
   installation: {
@@ -194,6 +195,12 @@ if (result.success) {
     title: 'Why VLD?',
     description: 'VLD was built to address performance limitations while maintaining an ergonomic API and practical Zod replacement paths.',
     code: `// VLD advantages over alternatives:
+
+// 0. TRUE DROP-IN for Zod 4.5.4 (v3.0) — only the import line changes
+import { z } from "@oxog/vld"   // <- same as: import { z } from "zod"
+//    3.00x faster, 10/10 honest wins, semantic-checked
+//    benchmarks/dropin-vs-zod.cjs
+const schema = z.object({ name: z.string().min(2) })
 
 // 1. AOT Compile performance - release-gated against Zod 4.5.4
 import { v, compile } from "@oxog/vld"

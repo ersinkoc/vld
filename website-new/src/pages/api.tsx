@@ -211,20 +211,20 @@ const str = v.toZod("hello")              // v.string()` },
   { name: 'ZodCompileAsyncError', description: 'Async variant of ZodCompileError for validateAsync paths.', category: 'AOT Compile', signature: 'class ZodCompileAsyncError extends Error' },
   { name: 'ZodCompileUnsupportedError', description: 'Thrown when a schema feature cannot be lowered to an AOT compile body (e.g. custom refinements, async transforms).', category: 'AOT Compile', signature: 'class ZodCompileUnsupportedError extends Error' },
 
-  // V2 Method-Memoization (v3.0 NEW) — 2-6x faster than Zod 4.5
-  { name: 'vV2', description: 'Drop-in factory that always returns V2 method-memoization classes. Identical surface to v, 2-6x faster and 1.6-10x less memory in production benchmarks.', category: 'V2 (v3.0)', signature: 'vV2: typeof v', example: `import { vV2 } from "@oxog/vld"
+  // V2 Method-Memoization (v3.0 NEW) — part of the 3.00x drop-in story
+  { name: 'vV2', description: 'Drop-in factory that always returns V2 method-memoization classes. Identical surface to v; vV2 contributes to the 3.00x geomean over Zod 4.5.4 in benchmarks/dropin-vs-zod.cjs.', category: 'V2 (v3.0)', signature: 'vV2: typeof v', example: `import { vV2 } from "@oxog/vld"
 
 const schema = vV2.string().min(1).email()
-schema.parse("user@example.com") // 2.3x faster than v.string().email()` },
-  { name: 'v.stringV2()', description: 'V2 string with single-def + check classes. Same chain surface, 2-6x faster than v.string().', category: 'V2 (v3.0)', signature: 'v.stringV2(): VldStringV2', example: `import { v } from "@oxog/vld"
+schema.parse("user@example.com") // part of the 3.00x drop-in geomean` },
+  { name: 'v.stringV2()', description: 'V2 string with single-def + check classes. Same chain surface as v.string().', category: 'V2 (v3.0)', signature: 'v.stringV2(): VldStringV2', example: `import { v } from "@oxog/vld"
 
 const s = v.stringV2().min(2).max(100).email()
 s.parse("user@example.com")` },
-  { name: 'v.numberV2()', description: 'V2 number with 16 check classes. 6.5x faster than v.number() on int().positive().min(1).', category: 'V2 (v3.0)', signature: 'v.numberV2(): VldNumberV2', example: `v.numberV2().int().positive().min(1).max(120).parse(25)` },
+  { name: 'v.numberV2()', description: 'V2 number with 16 check classes. Up to 6.22x faster than v.number() on int().positive().min(1) in the head-to-head benchmark.', category: 'V2 (v3.0)', signature: 'v.numberV2(): VldNumberV2', example: `v.numberV2().int().positive().min(1).max(120).parse(25)` },
   { name: 'v.dateV2() / v.bigintV2() / v.arrayV2() / v.unionV2()', description: 'V2 method-memoization variants for date, bigint, array, union, tuple, set, map, intersection, record, literal, enum, boolean, optional, nullable, nullish, refine, transform. 21 V2 classes total.', category: 'V2 (v3.0)', signature: 'v.*V2()', example: `vV2.tuple([vV2.string(), vV2.number()])
 vV2.literal("active")
 vV2.union([vV2.string(), vV2.number()])` },
-  { name: 'v.coerce.stringV2() / v.coerce.numberV2()', description: 'V2 coercion variants — 2-6x faster than v.coerce.* on the hot path.', category: 'V2 (v3.0)', signature: 'v.coerce.stringV2() / v.coerce.numberV2()' },
+  { name: 'v.coerce.stringV2() / v.coerce.numberV2()', description: 'V2 coercion variants — same surface as v.coerce.*, included in the 3.00x geomean.', category: 'V2 (v3.0)', signature: 'v.coerce.stringV2() / v.coerce.numberV2()' },
   { name: 'v.setV2Mode(true)', description: 'Globally swap v.* factories to V2. No source rewrites needed. Call v.setV2Mode(false) to revert.', category: 'V2 (v3.0)', signature: 'v.setV2Mode(enabled: boolean): void', example: `import { v } from "@oxog/vld"
 
 v.setV2Mode(true)

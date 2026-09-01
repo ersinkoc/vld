@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { CodeBlock } from '@/components/ui/code-block'
 import { cn } from '@/lib/utils'
-import { User, ShoppingCart, Lock, Database, Globe, Server, Zap, Shield, Binary, Repeat, Sparkles, AlertCircle } from 'lucide-react'
+import { User, ShoppingCart, Lock, Database, Globe, Server, Zap, Shield, Binary, Repeat, Sparkles } from 'lucide-react'
 
 const examples = [
   {
@@ -247,7 +247,6 @@ if (!u.success) {
 // benchmarks/dropin-vs-zod.cjs — same logical schema, same input,
 // 1M safeParse ops, 21 runs median, semantic-checked first.
 // Result: 3.00x geometric mean speedup over Zod 4.5.4.`
-  },
   },
   {
     id: 'auth-jwt',
@@ -750,7 +749,7 @@ const result2 = identifierSchema.safeParse({
     code: `// VLD v3.0 ships V2 method-memoization + ZodError compat
 import { v, vV2, toZodError, ZodLikeError } from "@oxog/vld"
 
-// 1. vV2 — drop-in factory (2-6x faster than v.*)
+// 1. vV2 — drop-in factory (part of the 3.00x geomean over Zod 4.5.4)
 const v2 = vV2.string().min(1).email()
 v2.parse("user@example.com")
 

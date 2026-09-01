@@ -191,8 +191,8 @@ const v2MemoryFootprint = [
 ]
 
 const features = [
-  { icon: Layers, title: 'V2 Method-Memoization', description: 'vV2.* ships the Zod 4.5 method-memoization pattern — 2-6x faster and 1.6-10x less memory in production benchmarks (v3.0)', color: 'text-amber-500', bg: 'bg-amber-500/10' },
-  { icon: Zap, title: '1.46x Compile Parse', description: 'AOT-compiled parse is 1.46x faster than z.compile().parse() on Moltar ParseSafe (geometric mean, 5/6 wins)', color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
+  { icon: Layers, title: 'V2 Method-Memoization', description: 'vV2.* ships the Zod 4.5 method-memoization pattern — part of the 3.00x drop-in geomean (10/10 honest wins, semantic-checked)', color: 'text-amber-500', bg: 'bg-amber-500/10' },
+  { icon: Zap, title: '1.46x Compile Parse', description: 'AOT-compiled parse is 1.46x faster than z.compile().parse() on Moltar ParseSafe (5/6 wins, kept for context alongside the 3.00x drop-in headline)', color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
   { icon: Cpu, title: '2.36x Compile Validate', description: 'AOT-compiled validate is 2.36x faster than z.validate() on the same harness (6/6 wins)', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
   { icon: HardDrive, title: '253/253 Zod Parity', description: 'Root, mini, v4, v4-mini, v4/core, v4/locales, compile, and nested exports verified against Zod 4.5.4', color: 'text-blue-500', bg: 'bg-blue-500/10' },
   { icon: Clock, title: 'Zero Dependencies', description: 'No runtime dependencies. V2 single-def + check classes; AOT compile emits a flat `if/typeof` chain that V8 inlines to a single guard', color: 'text-purple-500', bg: 'bg-purple-500/10' },
@@ -316,7 +316,7 @@ export function BenchmarkPage() {
             </div>
             <h1 className="font-display text-4xl lg:text-5xl font-bold mb-4">Performance Benchmarks</h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              v3.0.0 V2 method-memoization guard against Zod 4.5.4. <code className="text-vld-primary font-mono">vV2</code> ships the Zod 4.5 method-memoization pattern and beats it on both throughput (2-6x) and memory (1.6-10x). The <code className="text-vld-primary font-mono">v.compile()</code> body is a flat <code className="text-vld-primary font-mono">if/typeof</code> chain emitted via <code className="text-vld-primary font-mono">new Function()</code>.
+              v3.0.0 honest head-to-head against Zod 4.5.4. <strong>10 scenarios, same logical schema, same input, semantic-checked</strong> — <strong>3.00x geometric mean</strong> speedup with <strong>10/10 wins</strong>. The AOT compile guard below (1.46x / 2.36x) is a separate harness on Moltar ParseSafe — kept for context, not the headline.
             </p>
           </div>
 
@@ -368,7 +368,7 @@ export function BenchmarkPage() {
                   <Layers className="w-5 h-5 text-vld-primary" />
                   V2 Method-Memoization — vV2 vs Zod 4.5.4
                 </h2>
-                <p className="text-sm text-muted-foreground">vV2 ships the Zod 4.5 method-memoization pattern, 2-6x faster on the valid path</p>
+                <p className="text-sm text-muted-foreground">vV2 ships the Zod 4.5 method-memoization pattern, contributing to the 3.00x drop-in geomean</p>
               </div>
               <div className="hidden sm:flex items-center gap-4 text-xs">
                 <div className="flex items-center gap-1.5">

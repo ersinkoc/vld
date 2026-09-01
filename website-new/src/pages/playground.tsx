@@ -164,7 +164,7 @@ type ContactForm = v.infer<typeof contactFormSchema>`,
     code: `import { vV2, toZodError } from "@oxog/vld"
 
 // vV2 ships the Zod 4.5 method-memoization pattern.
-// 2-6x faster than v.* and 1.6-10x less memory.
+// Part of the 3.00x drop-in geomean (benchmarks/dropin-vs-zod.cjs, 10/10 wins).
 const userSchema = vV2.object({
   email: vV2.string().email(),
   age: vV2.number().int().positive(),

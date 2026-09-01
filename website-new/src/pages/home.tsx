@@ -6,14 +6,14 @@ import { CodeBlock, CommandLine } from '@/components/ui/code-block'
 const features = [
   {
     icon: Zap,
-    title: 'V2 Method-Memoization',
-    description: '2-6x faster than Zod 4.5 and 1.6-10x less memory in production benchmarks. Opt-in via `vV2`, `v.setV2Mode(true)`, or `v.*V2()`.',
+    title: '3.00x Faster Drop-in',
+    description: '`import { z } from "@oxog/vld"` is a true drop-in for Zod 4.5.4. 3.00x geomean (10/10 honest wins, semantic-checked).',
     color: 'from-amber-500 to-orange-500',
   },
   {
     icon: Layers,
-    title: 'vV2 Drop-in Factory',
-    description: '`import { vV2 as v } from "@oxog/vld"` — every chain call goes through the V2 path. Same surface, 2-6x faster.',
+    title: 'V2 Method-Memoization',
+    description: 'Opt into the V2 path via `vV2`, `v.setV2Mode(true)`, or `v.*V2()`. Same surface, 1.6-10x less memory per instance.',
     color: 'from-cyan-500 to-blue-500',
   },
   {
@@ -54,47 +54,57 @@ const features = [
   },
 ]
 
-const quickExample = `import { v, vV2, toZodError } from "@oxog/vld"
+const quickExample = `// v3.0.0 — true drop-in for Zod 4.5.4
+//   import { z } from "@oxog/vld"   // literally the same as import { z } from "zod"
+//   benchmarks/dropin-vs-zod.cjs  — 10/10 wins, 3.00x geomean (semantic-checked)
 
-// V2 method-memoization: 2-6x faster than Zod 4.5
-const userSchema = vV2.object({
-  name: vV2.string().min(2).max(100),
-  email: vV2.string().email(),
-  age: vV2.number().int().positive().optional(),
-  role: vV2.enum("admin", "user", "guest"),
-  tags: vV2.array(vV2.string()).min(1),
+import { z } from "@oxog/vld"
+import { toZodError } from "@oxog/vld"
+
+const userSchema = z.object({
+  name:  z.string().min(2).max(100),
+  email: z.string().email(),
+  age:   z.number().int().positive().optional(),
+  role:  z.enum("admin", "user", "guest"),
+  tags:  z.array(z.string()).min(1),
 })
 
 // Infer TypeScript type from schema
 type User = typeof userSchema extends { _output: infer O } ? O : never
 
-// Validate with ZodError-shaped errors (v3.0)
+// ZodError-shaped errors (v3.0)
 const result = userSchema.safeParse(data)
 if (!result.success) {
   const zodErr = toZodError(result.error)
-  console.log(zodErr.format())
-  console.log(zodErr.flatten())
+  console.log(zodErr.format())    // { name: { _errors: ['...'] } }
+  console.log(zodErr.flatten())  // { formErrors: [], fieldErrors: {...} }
 } else {
   console.log(result.data) // Fully typed!
 }`
 
-const zodComparison = `// Zod 4.5
+const zodComparison = `// Zod 4.5.4
 import { z } from "zod"
 const schema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
 })
 
-// VLD v3.0 — V2 method-memoization, 2-6x faster
-import { vV2 as v } from "@oxog/vld"
-const schema = v.object({
-  name: v.string().min(2),
-  email: v.string().email(),
-})`
+// VLD v3.0.0 — true drop-in: only the import line changes
+//   3.00x faster (benchmarks/dropin-vs-zod.cjs, 10/10 wins, semantic-checked)
+import { z } from "@oxog/vld"   // <- THAT'S IT
+const schema = z.object({        // <- same code, 3.00x faster
+  name: z.string().min(2),
+  email: z.string().email(),
+})
+
+// Or opt into V2 method-memoization explicitly:
+import { vV2 as z } from "@oxog/vld"
+const schema = z.object({ name: z.string().min(2) })`
 
 const resultPatternExample = `import { Ok, Err, match, tryCatch } from "@oxog/vld"
 
 // Result Pattern - Functional error handling
+// (unchanged from v3.0 — same surface)
 const result = tryCatch(() => JSON.parse(data))
 const value = match(result, {
   ok: (data) => data.name,
@@ -110,20 +120,21 @@ const myPlugin = definePlugin({
 })`
 
 const stats = [
-  { value: '2-6x', label: 'V2 Faster', sublabel: 'vs Zod 4.5.4' },
-  { value: '1.6-10x', label: 'V2 Less Memory', sublabel: 'per instance' },
+  { value: '3.00x', label: 'Drop-in Faster', sublabel: '10/10 vs Zod 4.5.4' },
+  { value: '10/10', label: 'Honest Wins', sublabel: 'semantic-checked' },
   { value: '0', label: 'Dependencies', sublabel: 'zero bloat' },
-  { value: '100%', label: 'Zod Parity', sublabel: '28/28 tests pass' },
+  { value: '3031', label: 'Tests Passing', sublabel: '104 test suites' },
 ]
 
 const comparisons = [
-  { feature: 'V2 Method-Memoization', vld: '2-6x faster (4/4)', zod: 'baseline', winner: 'vld' },
-  { feature: 'V2 Memory Footprint', vld: '1.6-10x smaller', zod: 'baseline', winner: 'vld' },
+  { feature: 'Drop-in Replacement', vld: '3.00x faster (10/10)', zod: 'baseline', winner: 'vld' },
+  { feature: 'True z Alias', vld: 'import { z } from "@oxog/vld"', zod: 'native', winner: 'tie' },
+  { feature: 'V2 Method-Memoization', vld: 'opt-in via vV2 / setV2Mode', zod: 'baseline', winner: 'vld' },
   { feature: 'AOT Compile (parse)', vld: '1.46x faster (5/6)', zod: 'baseline', winner: 'vld' },
   { feature: 'AOT Compile (validate)', vld: '2.36x faster (6/6)', zod: 'baseline', winner: 'vld' },
-  { feature: 'Startup Guard', vld: '1.5x+ faster', zod: 'baseline', winner: 'vld' },
+  { feature: 'V2 Memory Footprint', vld: '1.6-10x smaller', zod: 'baseline', winner: 'vld' },
   { feature: 'Zod 4.5.4 Parity', vld: '253/253 exports', zod: 'reference', winner: 'vld' },
-  { feature: 'ZodError Adapter', vld: 'toZodError() + .format()', zod: 'native', winner: 'tie' },
+  { feature: 'ZodError Adapter', vld: 'toZodError() + .format() + .flatten()', zod: 'native', winner: 'tie' },
   { feature: 'Built-in i18n', vld: '27+ langs', zod: 'None', winner: 'vld' },
   { feature: 'Built-in Codecs', vld: '19 codecs', zod: 'None', winner: 'vld' },
 ]
@@ -145,7 +156,7 @@ export function HomePage() {
               <div className="animate-fade-in">
                 <div className="tag mb-6">
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>v3.0.0 — V2 Method-Memoization, 2-6x faster than Zod 4.5.4</span>
+                  <span>v3.0.0 — true Zod 4.5.4 drop-in, 3.00x faster (10/10 honest head-to-head)</span>
                 </div>
               </div>
 
@@ -155,7 +166,7 @@ export function HomePage() {
               </h1>
 
               <p className="animate-fade-in stagger-2 text-lg text-muted-foreground mb-8 leading-relaxed">
-                A lightning-fast, type-safe validation library with zero dependencies. V3.0 ships the V2 method-memoization pattern — 2-6x faster and 1.6-10x less memory than Zod 4.5.4 in production benchmarks. Drop-in replacement with `vV2 as v`, `v.setV2Mode(true)`, and `toZodError()` for ZodError-shaped errors.
+                A lightning-fast, type-safe validation library with zero dependencies. V3.0.0 is a <strong>true drop-in replacement for Zod 4.5.4</strong> — just change <code className="font-mono text-vld-primary">import {'{ z }'}</code> from <code className="font-mono">"zod"</code> to <code className="font-mono text-vld-primary">"@oxog/vld"</code> and you&apos;re done. <strong>3.00x faster</strong> geometric mean (10/10 scenarios, 1M safeParse ops × 21 runs, semantic-checked). <code className="font-mono text-vld-primary">toZodError()</code> returns ZodError-shaped errors with <code className="font-mono">.format()</code> and <code className="font-mono">.flatten()</code>.
               </p>
 
               <div className="animate-fade-in stagger-3 flex flex-wrap items-center gap-4 mb-10">
