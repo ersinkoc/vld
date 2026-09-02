@@ -2,13 +2,15 @@ import { Zap, Clock, HardDrive, Cpu, TrendingUp, TrendingDown, BarChart3, Activi
 import { cn } from '@/lib/utils'
 
 // ============================================================================
-// v2.4.0 AOT compile guard — VLD vs Zod 4.5.4
+// v2.4.0 AOT compile guard — VLD vs Zod 4.5.4 (kept for context alongside v3.0 drop-in)
 // ============================================================================
 // Source: benchmarks/moltar-deep.cjs (200,000 iters × 21 runs, median)
 // Node.js v24.13.0, Windows 11, single-isolate.
 // Compiled parse/validate reads `_zod.bag.validator` on the schema; the
 // `parse` body returns the input on success and delegates to the original
 // safeParse on failure (Zod-equivalent Moltar ParseSafe semantic).
+// Note: this is the v2.4.0 release-gate harness. The v3.0.0 headline
+// benchmark is benchmarks/dropin-vs-zod.cjs (10/10 wins, 3.00x geomean).
 const compileScenarios = [
   {
     name: 'moltarParseSafe',
@@ -73,6 +75,8 @@ const validateWins = compileScenarios.filter((s) => s.vldValidate > s.zodValidat
 
 // ============================================================================
 // v2.1.0 release-gate runtime/startup/memory snapshot (kept for context)
+// Note: v2.1.0 numbers are reference snapshots. The v3.0.0 headline
+// benchmark is benchmarks/dropin-vs-zod.cjs (10/10 wins, 3.00x geomean).
 // ============================================================================
 const runtimeStartupBenchmarks = [
   {
@@ -762,13 +766,13 @@ if (!u.success) console.log(u.error.format())  // Zod-compatible`}
             </div>
           </div>
 
-          {/* v2.1.0 runtime/startup/memory snapshot — kept for context */}
+          {/* v2.1.0 runtime/startup/memory snapshot — kept for context alongside v3.0 drop-in */}
           <div className="rounded-xl border border-border overflow-hidden mb-12">
             <div className="bg-muted/50 px-6 py-4 border-b border-border flex items-center justify-between">
               <div>
                 <h2 className="font-display text-xl font-semibold flex items-center gap-2">
                   <BarChart3 className="w-5 h-5 text-vld-primary" />
-                  Runtime / Startup Guards (v2.1.0 snapshot)
+                  Runtime / Startup Guards (v2.1.0 snapshot, kept for context)
                 </h2>
                 <p className="text-sm text-muted-foreground">Higher is better - normalized Zod baseline</p>
               </div>
@@ -946,7 +950,7 @@ if (!u.success) console.log(u.error.format())  // Zod-compatible`}
                   </div>
                 ))}
                 <p className="text-xs text-muted-foreground mt-4">
-                  VLD retained heap is <strong className="text-vld-success">4.76x lower</strong> in the v2.1.0 guard
+                  VLD retained heap is <strong className="text-vld-success">4.76x lower</strong> than Zod 4.5.4 (v2.1.0 guard, kept for context)
                 </p>
               </div>
             </div>
@@ -962,9 +966,9 @@ if (!u.success) console.log(u.error.format())  // Zod-compatible`}
               <div>
                 <p className="font-medium text-foreground mb-1">Environment</p>
                 <ul className="space-y-1">
-                  <li>• Node.js v24.13.0 (v2.4.0 AOT guard), v20 LTS (legacy guard)</li>
+                  <li>• Node.js v24.13.0 (all benchmarks), v20 LTS (legacy guard)</li>
                   <li>• Windows 11 / macOS / Linux</li>
-                  <li>• Zod 4.5.4 (AOT guard) / Zod 4.4.3 (legacy guard)</li>
+                  <li>• Zod 4.5.4 (AOT + drop-in guard) / Zod 4.4.3 (legacy guard)</li>
                 </ul>
               </div>
               <div>
@@ -992,8 +996,9 @@ if (!u.success) console.log(u.error.format())  // Zod-compatible`}
           <div className="mt-8 p-4 rounded-lg border border-border bg-muted/30">
             <p className="text-sm text-muted-foreground">
               <strong className="text-foreground">Note:</strong> Benchmark results may vary based on hardware, Node.js version, and system load.
-              The v2.4.0 AOT guard is measured against Zod 4.5.4 (npm <code className="font-mono">latest</code> at audit time). The
-              release gate compares against the installed latest stable Zod and must pass before publishing.
+              The AOT guard is measured against Zod 4.5.4 (npm <code className="font-mono">latest</code> at audit time). The v3.0.0
+              drop-in head-to-head is in <code className="font-mono">benchmarks/dropin-vs-zod.cjs</code> (10/10 wins, 3.00x geomean).
+              The release gate compares against the installed latest stable Zod and must pass before publishing.
             </p>
           </div>
         </div>

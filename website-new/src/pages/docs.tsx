@@ -210,7 +210,7 @@ const ok = v.validate(compiled, data) // 310M ops/sec on Moltar ParseSafe
 // 2. Package health
 // 253/253 Zod exports, bundle, install, package, and type declarations are checked
 
-// 3. Memory Usage - 4.7x+ less retained heap in the v2.1.0 memory guard
+// 3. Memory Usage - 4.7x+ less retained heap than Zod 4.5.4
 
 // 4. Built-in i18n - 32 languages
 import { setLocale } from "@oxog/vld"

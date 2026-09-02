@@ -180,7 +180,7 @@ const apiMethods: ApiMethod[] = [
   { name: 'enableDebug()', description: 'Enable debug logging', category: 'Logger', signature: 'enableDebug(): void' },
   { name: 'disableLogging()', description: 'Disable all logging', category: 'Logger', signature: 'disableLogging(): void' },
 
-  // AOT Compile (v2.4.0) — Zod 4.5.4 parity
+  // AOT Compile — Zod 4.5.4 parity, release-gated 1.46x parse / 2.36x validate
   { name: 'v.compile()', description: 'AOT-compile a schema to a flat if/typeof guard. Returns the same schema with _zod.bag.validator set. Pass { JITless: true } to skip the compile step.', category: 'AOT Compile', signature: 'v.compile(schema, options?): T', example: `import { v, compile } from "@oxog/vld"
 
 const schema = v.object({ name: v.string(), age: v.number() })
