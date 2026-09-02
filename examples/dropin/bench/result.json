@@ -5,75 +5,75 @@
   "iter": 1000000,
   "runs": 21,
   "warmup": 10000,
-  "zod_total_ms": 1408.2746000000002,
-  "vld_total_ms": 673.9016,
-  "geometric_mean_speedup": 2.4587424792175367,
+  "zod_total_ms": 1633.4567,
+  "vld_total_ms": 789.5164,
+  "geometric_mean_speedup": 2.527571070866485,
   "results": [
     {
       "name": "string().min(1).email()",
-      "zod_ms": 61.7159,
-      "vld_ms": 31.439,
-      "speedup": 1.9630363561181972
+      "zod_ms": 124.0358,
+      "vld_ms": 57.4581,
+      "speedup": 2.158717395806683
     },
     {
       "name": "number().int().positive().min(1)",
-      "zod_ms": 48.3561,
-      "vld_ms": 14.4996,
-      "speedup": 3.334995448150294
+      "zod_ms": 81.1612,
+      "vld_ms": 20.2855,
+      "speedup": 4.000946488871361
     },
     {
       "name": "object({ a: string, b: number })",
-      "zod_ms": 24.1673,
-      "vld_ms": 11.6935,
-      "speedup": 2.0667293795698467
+      "zod_ms": 34.0715,
+      "vld_ms": 18.7628,
+      "speedup": 1.8159070074828918
     },
     {
       "name": "tuple([string, number, boolean])",
-      "zod_ms": 60.3628,
-      "vld_ms": 19.4126,
-      "speedup": 3.10946498665815
+      "zod_ms": 85.6089,
+      "vld_ms": 20.9982,
+      "speedup": 4.076963739749122
     },
     {
       "name": "array(string).min(1).max(100)",
-      "zod_ms": 114.6306,
-      "vld_ms": 19.3158,
-      "speedup": 5.93455098934551
+      "zod_ms": 142.3503,
+      "vld_ms": 22.4239,
+      "speedup": 6.34815085689822
     },
     {
       "name": "union([string, number])",
-      "zod_ms": 28.112,
-      "vld_ms": 11.3347,
-      "speedup": 2.4801715087298297
+      "zod_ms": 33.7364,
+      "vld_ms": 13.9099,
+      "speedup": 2.425351727906024
     },
     {
       "name": "discriminatedUnion (cat | dog)",
-      "zod_ms": 43.755,
-      "vld_ms": 33.2633,
-      "speedup": 1.3154136841504
+      "zod_ms": 56.809,
+      "vld_ms": 42.1544,
+      "speedup": 1.3476410528912757
     },
     {
       "name": "nested object (3 levels)",
-      "zod_ms": 153.366,
-      "vld_ms": 109.5836,
-      "speedup": 1.399534236874861
+      "zod_ms": 175.5401,
+      "vld_ms": 120.7839,
+      "speedup": 1.4533402216686164
     },
     {
       "name": "record(string)",
-      "zod_ms": 268.5665,
-      "vld_ms": 62.6172,
-      "speedup": 4.28902122739439
+      "zod_ms": 306.6459,
+      "vld_ms": 73.942,
+      "speedup": 4.147113954180304
     },
     {
       "name": "literal(\"active\")",
-      "zod_ms": 27.4747,
-      "vld_ms": 11.1838,
-      "speedup": 2.456651585328779
+      "zod_ms": 33.9803,
+      "vld_ms": 14.7156,
+      "speedup": 2.3091345239066023
     },
     {
       "name": "composite (User with nested address + array)",
-      "zod_ms": 577.7677,
-      "vld_ms": 349.5585,
-      "speedup": 1.6528498091163568
+      "zod_ms": 559.5173,
+      "vld_ms": 384.0821,
+      "speedup": 1.4567648427250317
     }
   ]
 }
