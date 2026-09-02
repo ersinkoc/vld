@@ -419,11 +419,11 @@ export function BenchmarkPage() {
           </div>
 
           {/* v3.0 Drop-in Head-to-Head — HONEST, semantic-checked */}
-          <div className="rounded-xl border-2 border-vld-primary/40 overflow-hidden mb-12 relative shadow-lg">
+          <div className="rounded-xl border-2 border-vld-primary/40 mb-12 relative shadow-lg">
             <div className="absolute -top-3 left-6 px-3 py-0.5 bg-vld-primary text-primary-foreground text-xs font-bold rounded-full z-10">
               HONEST HEAD-TO-HEAD
             </div>
-            <div className="bg-gradient-to-r from-vld-primary/15 to-emerald-500/10 px-6 py-5 border-b border-vld-primary/20">
+            <div className="bg-gradient-to-r from-vld-primary/15 to-emerald-500/10 px-6 py-5 border-b border-vld-primary/20 rounded-t-xl">
               <h2 className="font-display text-2xl font-semibold flex items-center gap-2 mb-2">
                 <CheckCircle2 className="w-6 h-6 text-vld-primary" />
                 Same schema, same input — VLD vV2 vs Zod 4.5.4
@@ -538,7 +538,7 @@ if (!u.success) console.log(u.error.format())  // Zod-compatible`}
               </div>
             </div>
 
-            <div className="bg-vld-primary/5 border-t border-vld-primary/20 px-6 py-3 text-sm text-muted-foreground">
+            <div className="bg-vld-primary/5 border-t border-vld-primary/20 px-6 py-3 text-sm text-muted-foreground rounded-b-xl">
               <CheckCircle2 className="w-4 h-4 inline mr-1.5 text-vld-success" />
               <strong>Run it yourself:</strong> <code className="font-mono text-vld-primary">node benchmarks/dropin-vs-zod.cjs</code> — full output, both libraries installed, semantic check per scenario.
             </div>
