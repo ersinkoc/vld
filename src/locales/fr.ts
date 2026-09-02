@@ -33,6 +33,7 @@ export const fr: LocaleMessages = {
   dateMax: (date: Date) => `La date doit être antérieure à ${date.toISOString()}`,
   invalidObject: 'Objet invalide',
   unexpectedKeys: (keys: string[]) => `Clés inattendues: ${keys.join(', ')}`,
+  requiredField: (field: string) => `Required field "${field}" is missing`,
   invalidArray: 'Tableau invalide',
   arrayMin: (min: number) => `Le tableau doit contenir au moins ${min} éléments`,
   arrayMax: (max: number) => `Le tableau doit contenir au maximum ${max} éléments`,

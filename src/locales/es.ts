@@ -33,6 +33,7 @@ export const es: LocaleMessages = {
   dateMax: (date: Date) => `La fecha debe ser anterior a ${date.toISOString()}`,
   invalidObject: 'Objeto inválido',
   unexpectedKeys: (keys: string[]) => `Claves inesperadas: ${keys.join(', ')}`,
+  requiredField: (field: string) => `Required field "${field}" is missing`,
   invalidArray: 'Array inválido',
   arrayMin: (min: number) => `El array debe tener al menos ${min} elementos`,
   arrayMax: (max: number) => `El array debe tener como máximo ${max} elementos`,

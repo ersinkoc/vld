@@ -42,6 +42,7 @@ export const id: LocaleMessages = {
   // Object validation messages
   invalidObject: 'Object tidak valid',
   unexpectedKeys: (keys: string[]) => `Kunci yang tidak diharapkan: ${keys.join(', ')}`,
+  requiredField: (field: string) => `Required field "${field}" is missing`,
 
   // Array validation messages
   invalidArray: 'Array tidak valid',

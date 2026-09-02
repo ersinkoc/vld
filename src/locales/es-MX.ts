@@ -42,6 +42,7 @@ export const esMX: LocaleMessages = {
   // Object validation messages
   invalidObject: 'Objeto inválido',
   unexpectedKeys: (keys: string[]) => `Claves inesperadas: ${keys.join(', ')}`,
+  requiredField: (field: string) => `Required field "${field}" is missing`,
 
   // Array validation messages
   invalidArray: 'Array inválido',

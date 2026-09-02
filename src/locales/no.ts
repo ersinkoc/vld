@@ -42,6 +42,7 @@ export const no: LocaleMessages = {
   // Object validation messages
   invalidObject: 'Ugyldig objekt',
   unexpectedKeys: (keys: string[]) => `Uventede nøkler: ${keys.join(', ')}`,
+  requiredField: (field: string) => `Required field "${field}" is missing`,
 
   // Array validation messages
   invalidArray: 'Ugyldig array',

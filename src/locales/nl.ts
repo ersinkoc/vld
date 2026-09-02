@@ -42,6 +42,7 @@ export const nl: LocaleMessages = {
   // Object validation messages
   invalidObject: 'Ongeldig object',
   unexpectedKeys: (keys: string[]) => `Onverwachte sleutels: ${keys.join(', ')}`,
+  requiredField: (field: string) => `Required field "${field}" is missing`,
 
   // Array validation messages
   invalidArray: 'Ongeldige array',

@@ -326,6 +326,17 @@ function runLatestBehaviorSuite(z) {
       'safeEncode',
       'safeEncodeAsync',
     ].every((key) => typeof z.string()[key] === 'function'),
+    // 3.0.2 regression: required any/unknown/undefined fields must be enforced
+    requiredAnyFieldMissingRejects: !z.object({ a: z.any() }).safeParse({}).success,
+    requiredUnknownFieldMissingRejects: !z.object({ a: z.unknown() }).safeParse({}).success,
+    requiredUndefinedFieldMissingRejects: !z.object({ a: z.undefined() }).safeParse({}).success,
+    requiredAnyAcceptsExplicitUndefined: z.object({ a: z.any() }).safeParse({ a: undefined }).success,
+    mixedRequiredAnyMissingRejects: !z.object({ a: z.any(), b: z.string() }).safeParse({ b: 'x' }).success,
+    nestedRequiredAnyMissingRejects: !z.object({ a: z.object({ b: z.any() }) }).safeParse({ a: {} }).success,
+    discriminatedUnionRequiredAnyMissingRejects:
+      !z.discriminatedUnion('type', [
+        z.object({ type: z.literal('x'), data: z.any() })
+      ]).safeParse({ type: 'x' }).success,
   };
 }
 

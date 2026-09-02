@@ -42,6 +42,7 @@ export const zh: LocaleMessages = {
   // Object validation messages
   invalidObject: '无效对象',
   unexpectedKeys: (keys: string[]) => `意外的键: ${keys.join(', ')}`,
+  requiredField: (field: string) => `Required field "${field}" is missing`,
 
   // Array validation messages
   invalidArray: '无效数组',

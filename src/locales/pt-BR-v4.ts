@@ -36,6 +36,7 @@ export const ptBR: LocaleMessages = {
   dateMax: (date: Date) => `A data deve ser anterior a ${date.toISOString()}`,
   invalidObject: 'Objeto inválido',
   unexpectedKeys: (keys: string[]) => `Chaves inesperadas: ${keys.join(', ')}`,
+  requiredField: (field: string) => `Required field "${field}" is missing`,
   invalidArray: 'Array inválido',
   arrayMin: (min: number) => `O array deve ter no mínimo ${min} elementos`,
   arrayMax: (max: number) => `O array deve ter no máximo ${max} elementos`,

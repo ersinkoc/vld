@@ -42,6 +42,7 @@ export const sw: LocaleMessages = {
   // Object validation messages
   invalidObject: 'Kitu si sahihi',
   unexpectedKeys: (keys: string[]) => `Funguo zisizotarajiwa: ${keys.join(', ')}`,
+  requiredField: (field: string) => `Required field "${field}" is missing`,
 
   // Array validation messages
   invalidArray: 'Safu si sahihi',

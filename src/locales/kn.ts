@@ -34,6 +34,7 @@ export const kn: LocaleMessages = {
   dateMax: (date: Date) => `ದಿನಾಂಕ ${date.toISOString()} ಕ್ಕಿಂತ ಮೊದಲಿರಬೇಕು`,
   invalidObject: 'ಅಮಾನ್ಯ ವಸ್ತು',
   unexpectedKeys: (keys: string[]) => `ಅನಿರೀಕ್ಷಿತ ಕೀಲಿಗಳು: ${keys.join(', ')}`,
+  requiredField: (field: string) => `Required field "${field}" is missing`,
   invalidArray: 'ಅಮಾನ್ಯ ಶ್ರೇಣಿ',
   arrayMin: (min: number) => `ಶ್ರೇಣಿಯಲ್ಲಿ ಕನಿಷ್ಠ ${min} ಅಂಶಗಳಿರಬೇಕು`,
   arrayMax: (max: number) => `ಶ್ರೇಣಿಯಲ್ಲಿ ಗರಿಷ್ಠ ${max} ಅಂಶಗಳಿರಬೇಕು`,

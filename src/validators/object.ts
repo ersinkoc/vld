@@ -420,6 +420,13 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
           result[key] = null;
           break;
         case 'undefinedValue':
+          if (!Object.prototype.hasOwnProperty.call(obj, key)) {
+            throw new VldError([{
+              code: 'invalid_type',
+              path: [key],
+              message: getMessages().objectField(key, getMessages().requiredField(key))
+            }]);
+          }
           if (fieldValue !== undefined) {
             throw new Error(getMessages().objectField(key, getMessages().expectedUndefined));
           }
@@ -439,6 +446,13 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
           result[key] = this._simpleFieldValues[i];
           break;
         case 'passthrough':
+          if (!Object.prototype.hasOwnProperty.call(obj, key)) {
+            throw new VldError([{
+              code: 'invalid_type',
+              path: [key],
+              message: getMessages().objectField(key, getMessages().requiredField(key))
+            }]);
+          }
           result[key] = fieldValue;
           break;
         default:
@@ -578,8 +592,11 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
               result[currentKey] = null;
               continue;
             case 'undefinedValue':
+              if (!Object.prototype.hasOwnProperty.call(obj, currentKey)) {
+                throw new Error(getMessages().objectField(currentKey, getMessages().requiredField(currentKey)));
+              }
               if (fieldValue !== undefined) {
-                throw new Error(getMessages().expectedUndefined);
+                throw new Error(getMessages().objectField(currentKey, getMessages().expectedUndefined));
               }
               result[currentKey] = undefined;
               continue;
@@ -590,6 +607,9 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
               result[currentKey] = this._simpleFieldValues[i];
               continue;
             case 'passthrough':
+              if (!Object.prototype.hasOwnProperty.call(obj, currentKey)) {
+                throw new Error(getMessages().objectField(currentKey, getMessages().requiredField(currentKey)));
+              }
               result[currentKey] = fieldValue;
               continue;
           }
@@ -705,6 +725,20 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
       const fieldValue = obj[key];
       const simpleMode = this._simpleFieldModes[i];
       if (simpleMode !== undefined) {
+        // Required-field check: a missing key must not be silently accepted for
+        // any() / unknown() / undefined() (the simpleMode cases that otherwise
+        // treat `fieldValue === undefined` as valid). Bug fix: 3.0.1 -> 3.0.2.
+        if (
+          (simpleMode === 'passthrough' || simpleMode === 'undefinedValue') &&
+          !Object.prototype.hasOwnProperty.call(obj, key)
+        ) {
+          issues.push({
+            code: 'invalid_type',
+            path: [key],
+            message: getMessages().objectField(key, getMessages().requiredField(key))
+          });
+          continue;
+        }
         if (
           (simpleMode === 'string' && typeof fieldValue === 'string') ||
           (simpleMode === 'number' && typeof fieldValue === 'number' && !isNaN(fieldValue)) ||

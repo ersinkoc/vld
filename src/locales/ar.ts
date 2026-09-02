@@ -42,6 +42,7 @@ export const ar: LocaleMessages = {
   // Object validation messages
   invalidObject: 'كائن غير صحيح',
   unexpectedKeys: (keys: string[]) => `مفاتيح غير متوقعة: ${keys.join(', ')}`,
+  requiredField: (field: string) => `Required field "${field}" is missing`,
 
   // Array validation messages
   invalidArray: 'مصفوفة غير صحيحة',

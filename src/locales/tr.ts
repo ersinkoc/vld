@@ -42,6 +42,7 @@ export const tr: LocaleMessages = {
   // Object validation messages
   invalidObject: 'Geçersiz nesne',
   unexpectedKeys: (keys: string[]) => `Beklenmeyen anahtarlar: ${keys.join(', ')}`,
+  requiredField: (field: string) => `"${field}" alanı zorunludur ancak eksik`,
 
   // Array validation messages
   invalidArray: 'Geçersiz dizi',

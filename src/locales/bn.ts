@@ -42,6 +42,7 @@ export const bn: LocaleMessages = {
   // Object validation messages
   invalidObject: 'অবৈধ অবজেক্ট',
   unexpectedKeys: (keys: string[]) => `অপ্রত্যাশিত কী: ${keys.join(', ')}`,
+  requiredField: (field: string) => `Required field "${field}" is missing`,
 
   // Array validation messages
   invalidArray: 'অবৈধ অ্যারে',

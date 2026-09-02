@@ -42,6 +42,7 @@ export const ru: LocaleMessages = {
   // Object validation messages
   invalidObject: 'Некорректный объект',
   unexpectedKeys: (keys: string[]) => `Неожиданные ключи: ${keys.join(', ')}`,
+  requiredField: (field: string) => `Required field "${field}" is missing`,
 
   // Array validation messages
   invalidArray: 'Некорректный массив',

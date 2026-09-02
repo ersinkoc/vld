@@ -42,6 +42,7 @@ export const fi: LocaleMessages = {
   // Object validation messages
   invalidObject: 'Virheellinen objekti',
   unexpectedKeys: (keys: string[]) => `Odottamattomat avaimet: ${keys.join(', ')}`,
+  requiredField: (field: string) => `Required field "${field}" is missing`,
 
   // Array validation messages
   invalidArray: 'Virheellinen taulukko',

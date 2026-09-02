@@ -42,6 +42,7 @@ export const ko: LocaleMessages = {
   // Object validation messages
   invalidObject: '유효하지 않은 객체',
   unexpectedKeys: (keys: string[]) => `예상치 못한 키: ${keys.join(', ')}`,
+  requiredField: (field: string) => `Required field "${field}" is missing`,
 
   // Array validation messages
   invalidArray: '유효하지 않은 배열',

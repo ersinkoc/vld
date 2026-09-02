@@ -42,6 +42,7 @@ export const af: LocaleMessages = {
   // Object validation messages
   invalidObject: 'Ongeldige objek',
   unexpectedKeys: (keys: string[]) => `Onverwagte sleutels: ${keys.join(', ')}`,
+  requiredField: (field: string) => `Required field "${field}" is missing`,
 
   // Array validation messages
   invalidArray: 'Ongeldige skikking',

@@ -42,6 +42,7 @@ export const pl: LocaleMessages = {
   // Object validation messages
   invalidObject: 'Nieprawidłowy obiekt',
   unexpectedKeys: (keys: string[]) => `Nieoczekiwane klucze: ${keys.join(', ')}`,
+  requiredField: (field: string) => `Required field "${field}" is missing`,
 
   // Array validation messages
   invalidArray: 'Nieprawidłowa tablica',

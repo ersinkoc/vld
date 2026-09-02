@@ -1,0 +1,79 @@
+{
+  "zod_version": "zod@4.5.4",
+  "vld_version": "@oxog/vld@3.0.1",
+  "node": "v24.13.0",
+  "iter": 1000000,
+  "runs": 21,
+  "warmup": 10000,
+  "zod_total_ms": 1408.2746000000002,
+  "vld_total_ms": 673.9016,
+  "geometric_mean_speedup": 2.4587424792175367,
+  "results": [
+    {
+      "name": "string().min(1).email()",
+      "zod_ms": 61.7159,
+      "vld_ms": 31.439,
+      "speedup": 1.9630363561181972
+    },
+    {
+      "name": "number().int().positive().min(1)",
+      "zod_ms": 48.3561,
+      "vld_ms": 14.4996,
+      "speedup": 3.334995448150294
+    },
+    {
+      "name": "object({ a: string, b: number })",
+      "zod_ms": 24.1673,
+      "vld_ms": 11.6935,
+      "speedup": 2.0667293795698467
+    },
+    {
+      "name": "tuple([string, number, boolean])",
+      "zod_ms": 60.3628,
+      "vld_ms": 19.4126,
+      "speedup": 3.10946498665815
+    },
+    {
+      "name": "array(string).min(1).max(100)",
+      "zod_ms": 114.6306,
+      "vld_ms": 19.3158,
+      "speedup": 5.93455098934551
+    },
+    {
+      "name": "union([string, number])",
+      "zod_ms": 28.112,
+      "vld_ms": 11.3347,
+      "speedup": 2.4801715087298297
+    },
+    {
+      "name": "discriminatedUnion (cat | dog)",
+      "zod_ms": 43.755,
+      "vld_ms": 33.2633,
+      "speedup": 1.3154136841504
+    },
+    {
+      "name": "nested object (3 levels)",
+      "zod_ms": 153.366,
+      "vld_ms": 109.5836,
+      "speedup": 1.399534236874861
+    },
+    {
+      "name": "record(string)",
+      "zod_ms": 268.5665,
+      "vld_ms": 62.6172,
+      "speedup": 4.28902122739439
+    },
+    {
+      "name": "literal(\"active\")",
+      "zod_ms": 27.4747,
+      "vld_ms": 11.1838,
+      "speedup": 2.456651585328779
+    },
+    {
+      "name": "composite (User with nested address + array)",
+      "zod_ms": 577.7677,
+      "vld_ms": 349.5585,
+      "speedup": 1.6528498091163568
+    }
+  ]
+}

@@ -42,6 +42,7 @@ export const vi: LocaleMessages = {
   // Object validation messages
   invalidObject: 'Đối tượng không hợp lệ',
   unexpectedKeys: (keys: string[]) => `Khóa không mong muốn: ${keys.join(', ')}`,
+  requiredField: (field: string) => `Required field "${field}" is missing`,
 
   // Array validation messages
   invalidArray: 'Mảng không hợp lệ',

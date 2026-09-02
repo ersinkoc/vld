@@ -54,6 +54,7 @@ export interface LocaleMessages {
   // Object validation messages
   invalidObject: string;
   unexpectedKeys: (keys: string[]) => string;
+  requiredField: (field: string) => string;
 
   // Array validation messages
   invalidArray: string;

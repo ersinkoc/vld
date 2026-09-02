@@ -42,6 +42,7 @@ export const ja: LocaleMessages = {
   // Object validation messages
   invalidObject: '無効なオブジェクト',
   unexpectedKeys: (keys: string[]) => `予期しないキー: ${keys.join(', ')}`,
+  requiredField: (field: string) => `Required field "${field}" is missing`,
 
   // Array validation messages
   invalidArray: '無効な配列',

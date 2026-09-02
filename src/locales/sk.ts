@@ -34,6 +34,7 @@ export const sk: LocaleMessages = {
   dateMax: (date: Date) => `Dátum musí byť pred ${date.toISOString()}`,
   invalidObject: 'Neplatný objekt',
   unexpectedKeys: (keys: string[]) => `Neočakávané kľúče: ${keys.join(', ')}`,
+  requiredField: (field: string) => `Required field "${field}" is missing`,
   invalidArray: 'Neplatné pole',
   arrayMin: (min: number) => `Pole musí mať aspoň ${min} prvkov`,
   arrayMax: (max: number) => `Pole musí mať nanajvýš ${max} prvkov`,

@@ -362,11 +362,11 @@ export function BenchmarkPage() {
           </div>
 
           {/* V2 method-memoization — v3.0 NEW (the new headline) */}
-          <div className="rounded-xl border-2 border-vld-primary/30 overflow-hidden mb-12 relative">
-            <div className="absolute -top-3 left-6 px-3 py-0.5 bg-vld-primary text-primary-foreground text-xs font-bold rounded-full">
+          <div className="rounded-xl border-2 border-vld-primary/30 mb-12 relative">
+            <div className="absolute -top-3 left-6 px-3 py-0.5 bg-vld-primary text-primary-foreground text-xs font-bold rounded-full z-10">
               v3.0 NEW
             </div>
-            <div className="bg-gradient-to-r from-vld-primary/10 to-cyan-500/10 px-6 py-4 border-b border-vld-primary/20 flex items-center justify-between">
+            <div className="bg-gradient-to-r from-vld-primary/10 to-cyan-500/10 px-6 py-4 border-b border-vld-primary/20 rounded-t-xl flex items-center justify-between">
               <div>
                 <h2 className="font-display text-xl font-semibold flex items-center gap-2">
                   <Layers className="w-5 h-5 text-vld-primary" />
@@ -385,7 +385,7 @@ export function BenchmarkPage() {
                 </div>
               </div>
             </div>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-b-xl">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border bg-muted/30">

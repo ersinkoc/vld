@@ -34,6 +34,7 @@ export const ne: LocaleMessages = {
   dateMax: (date: Date) => `मिति ${date.toISOString()} अगाडिको हुनुपर्छ`,
   invalidObject: 'अमान्य वस्तु',
   unexpectedKeys: (keys: string[]) => `अप्रत्याशित कुञ्जीहरू: ${keys.join(', ')}`,
+  requiredField: (field: string) => `Required field "${field}" is missing`,
   invalidArray: 'अमान्य एरे',
   arrayMin: (min: number) => `एरेमा कम्तीमा ${min} तत्वहरू हुनुपर्छ`,
   arrayMax: (max: number) => `एरेमा बढीमा ${max} तत्वहरू हुनुपर्छ`,

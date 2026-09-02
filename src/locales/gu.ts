@@ -36,6 +36,7 @@ export const gu: LocaleMessages = {
   dateMax: (date: Date) => `તારીખ ${date.toISOString()} પહેલાંની હોવી જોઈએ`,
   invalidObject: 'અમાન્ય ઑબ્જેક્ટ',
   unexpectedKeys: (keys: string[]) => `અનપેક્ષિત કીલીઓ: ${keys.join(', ')}`,
+  requiredField: (field: string) => `Required field "${field}" is missing`,
   invalidArray: 'અમાન્ય એરે',
   arrayMin: (min: number) => `એરેમાં ઓછામાં ઓછા ${min} તત્વો હોવા જોઈએ`,
   arrayMax: (max: number) => `એરેમાં વધુમાં વધુ ${max} તત્વો હોવા જોઈએ`,

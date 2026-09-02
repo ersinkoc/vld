@@ -42,6 +42,7 @@ export const pt: LocaleMessages = {
   // Object validation messages
   invalidObject: 'Objecto inválido',
   unexpectedKeys: (keys: string[]) => `Chaves inesperadas: ${keys.join(', ')}`,
+  requiredField: (field: string) => `Required field "${field}" is missing`,
 
   // Array validation messages
   invalidArray: 'Array inválido',

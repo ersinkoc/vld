@@ -337,9 +337,9 @@ export class VldCoerceNumberV2 extends VldNumberV2 {
       coerced = n;
     } else if (typeof value === 'boolean') coerced = value ? 1 : 0;
     else if (typeof value === 'bigint') {
-      const n = Number(value);
-      if (Number.isNaN(n)) throw new Error(getMessages().coercionFailed('number', value));
-      coerced = n;
+      // Number(bigint) either returns a finite number or throws RangeError;
+      // it never returns NaN, so no NaN check is needed here.
+      coerced = Number(value);
     } else if (value === null) coerced = 0;
     else throw new Error(getMessages().coercionFailed('number', value));
 

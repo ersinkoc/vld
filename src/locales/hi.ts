@@ -42,6 +42,7 @@ export const hi: LocaleMessages = {
   // Object validation messages
   invalidObject: 'अमान्य ऑब्जेक्ट',
   unexpectedKeys: (keys: string[]) => `अनपेक्षित कुंजियां: ${keys.join(', ')}`,
+  requiredField: (field: string) => `Required field "${field}" is missing`,
 
   // Array validation messages
   invalidArray: 'अमान्य सरणी',

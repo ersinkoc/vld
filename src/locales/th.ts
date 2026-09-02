@@ -42,6 +42,7 @@ export const th: LocaleMessages = {
   // Object validation messages
   invalidObject: 'Object ไม่ถูกต้อง',
   unexpectedKeys: (keys: string[]) => `Key ที่ไม่คาดหวัง: ${keys.join(', ')}`,
+  requiredField: (field: string) => `Required field "${field}" is missing`,
 
   // Array validation messages
   invalidArray: 'Array ไม่ถูกต้อง',
