@@ -5,6 +5,16 @@ All notable changes to VLD will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.8] - 2026-09-13
+
+### Changed
+
+- **Standard Schema `'~standard'` now returns full issue objects** (`code`,
+  `path`, `expected`, `message`, ...) on failure, matching Zod's surface.
+  Previously it collapsed everything into `[{ message }]`. Consumers reading
+  only `.message` are unaffected; the last known intentional drop-in
+  difference besides the email pattern is now closed.
+
 ## [3.0.7] - 2026-09-13
 
 ### Fixed

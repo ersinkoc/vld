@@ -35,7 +35,8 @@ export class VldPromise<T> extends VldBase<unknown, Promise<T>> {
         if (result.success) {
           return { value: result.data };
         }
-        return { issues: [{ message: result.error.message }] };
+        // Full issue objects, matching the base Standard Schema surface.
+        return { issues: result.error.issues };
       },
       types: undefined as unknown as StandardTypedV1Types<unknown, any>
     };

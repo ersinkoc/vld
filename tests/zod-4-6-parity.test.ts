@@ -326,6 +326,27 @@ describe('Zod 4.6 parity', () => {
     });
   });
 
+  describe('Standard Schema issue shape (v3.0.6 alignment)', () => {
+    it('returns full issue objects like zod, not a single joined message', () => {
+      const vResult = v.z.object({ name: v.z.string() })['~standard'].validate({ name: 5 });
+      const zResult = zod.object({ name: zod.string() })['~standard'].validate({ name: 5 });
+      expect('issues' in vResult).toBe('issues' in zResult);
+      const vIssues = (vResult as { issues: Array<{ code: string; path: unknown[]; message: string }> }).issues;
+      const zIssues = (zResult as { issues: Array<{ code: string; path: unknown[]; message: string }> }).issues;
+      expect(vIssues[0]!.code).toBe(zIssues[0]!.code);
+      expect(vIssues[0]!.path).toEqual(zIssues[0]!.path);
+      expect(typeof vIssues[0]!.message).toBe('string');
+      expect(vIssues[0]!.message.length).toBeGreaterThan(0);
+    });
+
+    it('promise schemas surface issues asynchronously with the same shape', async () => {
+      const result = await v.z.promise(v.z.string())['~standard'].validate('not a promise');
+      expect('issues' in result).toBe(true);
+      const issues = (result as { issues: Array<{ message: string }> }).issues;
+      expect(issues[0]!.message).toBe('Expected a Promise value');
+    });
+  });
+
   describe('drop-in smoke: z.* surface used by typical applications', () => {
     it('parses an API payload identically through zod and vld', () => {
       const payload = {

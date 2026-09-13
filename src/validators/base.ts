@@ -388,7 +388,9 @@ export abstract class VldBase<TInput, TOutput = TInput> {
         if (result.success) {
           return { value: result.data };
         }
-        return { issues: [{ message: result.error.message }] };
+        // Full issue objects (code/path/expected/message), matching Zod's
+        // Standard Schema surface - consumers may read more than `.message`.
+        return { issues: result.error.issues };
       },
       types: undefined as unknown as StandardTypedV1Types<unknown, TOutput>
     };
