@@ -155,9 +155,32 @@ try {
 
 console.log('');
 console.log(`Created commit + tag v${newVersion}.`);
-console.log('Publishing to npm...');
 
-// Publish to npm (prepublishOnly hook runs release:check automatically)
+// NOTE: the repo .npmrc sets ignore-scripts=true, which also disables npm's
+// prepublishOnly/prepack lifecycle hooks on publish. The release gate and a
+// fresh dist must therefore run explicitly - never rely on `npm publish` to
+// trigger them (this shipped a stale dist once already, see v3.0.6).
+console.log('Running the release gate (release:check)...');
+try {
+  execFileCompat('npm', ['run', 'release:check'], {
+    cwd: rootDir,
+    stdio: 'inherit',
+  });
+} catch (error) {
+  console.error('release:check failed - aborting the release.');
+  process.exit(1);
+}
+console.log('Building a fresh dist for packaging...');
+try {
+  execFileCompat('npm', ['run', 'build'], {
+    cwd: rootDir,
+    stdio: 'inherit',
+  });
+} catch (error) {
+  console.error('build failed - aborting the release.');
+  process.exit(1);
+}
+console.log('Publishing to npm...');
 try {
   execFileCompat('npm', ['publish', '--access', 'public'], {
     cwd: rootDir,
