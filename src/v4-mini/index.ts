@@ -29,6 +29,7 @@ export {
   ZodFile as ZodMiniFile,
   ZodFunction as ZodMiniFunction,
   ZodGUID as ZodMiniGUID,
+  ZodIBAN as ZodMiniIBAN,
   ZodIPv4 as ZodMiniIPv4,
   ZodIPv6 as ZodMiniIPv6,
   ZodISODate as ZodMiniISODate,

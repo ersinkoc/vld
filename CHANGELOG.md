@@ -5,7 +5,69 @@ All notable changes to VLD will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.0.5] - 2026-09-13
+
+### Added — Zod 4.6 parity
+
+VLD now tracks Zod 4.6 (`devDependency` bumped to `^4.6.4`;
+`npm run verify:zod` passes against all 259 public zod exports).
+
+- **`.validate()` / `.validateAsync()` on every schema.** Boolean validation
+  without result objects, short-circuiting on the first failed check, with the
+  same three-tier fast path Zod 4.6 uses: an explicitly compiled validator
+  (`z.compile` / `z.withParser`), a lazily AOT-compiled validator memoized on
+  first call, then a bound runtime `safeParse`. Measured against
+  `zod@4.6.4 .validate()` (500k ops, median of 15): string 2.8x, wide object
+  30x, nested object 9.3x, array-of-objects 30x, defaults/optionals 33x,
+  iban 1.5x. New guard: `npm run benchmark:validate`.
+- **`z.iban()`** — electronic IBAN format: pattern `/^[A-Z]{2}(?!00|01|99)\d{2}[A-Z0-9]{11,30}$/`
+  plus the ISO 7064 MOD 97-10 checksum (no BigInt), matching zod's accept/reject
+  set. Also exported top-level, as `ZodIBAN`/`ZodMiniIBAN` aliases, and via
+  `isValidIBAN` / `regexes.iban`.
+- **`z.instanceof(Cls).properties(shape)`** — validates the instance's fields
+  in place and returns the same instance (prototype preserved). Field errors
+  carry the field name at the head of the path. Backed by the new `VldInstance`
+  class (`$ZodCheckProperties` core alias).
+- **`z.withParser(schema, parser)`** — installs an externally generated parser
+  as a schema's fast path (clone semantics; `INVALID` hands the value to the
+  runtime parser). The escape hatch for build-time compilers in CSP
+  environments where `new Function` is unavailable.
+- **`fromJSONSchema` gained the six Zod 4.6 keywords**: `minProperties`,
+  `maxProperties` (counted on the raw input, like zod), `uniqueItems`,
+  `contains`, `minContains`, `maxContains`; `minItems`/`maxItems` are now
+  wired for plain arrays too.
+- **Behavior parity with 4.6**: `emoji` rejects component-only strings while
+  keeping keycaps/regional indicators (official 4.6 regex byte-for-byte in
+  both `z.emoji()` and `.emoji()`); numeric-enum `.options` verified; full
+  4.6 regex namespace (`currencyCode`, `anyString`, `iban`); `tg` (Tajik)
+  locale messages.
+- New differential suite `tests/zod-4-6-parity.test.ts` (29 cases) compares
+  observable behavior against the installed zod.
+
+### Fixed — AOT compiler correctness (exposed by lazy `.validate()`)
+
+- `z.compile()` on a string schema **silently skipped email/url/uuid/ip format
+  checks** — a compiled `z.string().email()` accepted garbage. Formats are now
+  lowered as pre-built regex checks (flags preserved); composite formats such
+  as `ip` refuse compilation and fall back to the runtime.
+- Chained `.regex()` patterns were emitted as regex literals with their flags
+  stripped; patterns now go through a shared regex table built once per
+  compiled function.
+- String transforms (`.trim()` etc.) were ignored by the compiler — a compiled
+  `z.string().trim().min(3)` could disagree with the runtime parser. Transform
+  schemas now fall back instead of mis-validating.
+- `strict` / `passthrough` / `catchall` objects were compiled without modeling
+  unknown-key handling; the compiler now refuses them (they keep working via
+  the runtime parser).
+- Array-level `minLength` / `maxLength` / `exactLength` are now modeled by the
+  compiler; `unique` arrays fall back.
+
+### Changed
+
+- `memory-guard` total-memory floor moved 1.5x → 1.4x: Zod 4.6 shrank its own
+  retained heap (metadata members became lazy getters), moving the measured
+  aggregate to ~1.46x. VLD still retains ~1.45x less heap and parses ~2.9x
+  faster in aggregate; the per-case floors are unchanged.
 
 ## [3.0.4] - 2026-09-02
 

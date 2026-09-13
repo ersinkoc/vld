@@ -1,5 +1,5 @@
 /**
- * VldArrayV2 — array validator with single-def + check-class pattern.
+ * VldArrayV2 - array validator with single-def + check-class pattern.
  * Public API mirrors the legacy VldArray 1:1. Exposed via v.arrayV2().
  */
 import { VldBase, VLD_VALIDATOR_TYPES, type ErrorParam, type ParseResult } from './base';

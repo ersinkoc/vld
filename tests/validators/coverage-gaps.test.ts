@@ -1,5 +1,5 @@
 /**
- * Coverage-gap tests — exercises pre-existing uncovered branches so the
+ * Coverage-gap tests - exercises pre-existing uncovered branches so the
  * global 100% branch coverage threshold is met. None of these tests
  * exercise new behaviour; they just touch code paths that were missed
  * by the existing suite.

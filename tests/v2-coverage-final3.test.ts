@@ -1,5 +1,5 @@
 /**
- * V2 Coverage — Factory Surface (index.ts 1344-1346, 1366-1367)
+ * V2 Coverage - Factory Surface (index.ts 1344-1346, 1366-1367)
  *
  * Targets the vV2 factory branches that were never exercised:
  *   vV2.record, vV2.union, vV2.intersection, vV2.transformV2, vV2.refineV2
@@ -62,7 +62,7 @@ describe('vV2 factory surface: transformV2 / refineV2', () => {
 // ============================================================================
 describe('zod-error.ts uncovered branches', () => {
   it('format() with 3-level path covers line 74 (last-level node creation)', () => {
-    // 3-level path: a/b/c — middle nodes, then 'c' is last-level (no children)
+    // 3-level path: a/b/c - middle nodes, then 'c' is last-level (no children)
     const vldErr = new VldError([{ code: 'custom', path: ['a', 'b', 'c'], message: 'deep' }]);
     const zodErr = toZodError(vldErr);
     const fmt = zodErr.format() as any;
@@ -70,7 +70,7 @@ describe('zod-error.ts uncovered branches', () => {
   });
 
   it('toZodError handles issue with no expected and no received (default fallbacks)', () => {
-    // Pure custom issue with only code + path + message — minimal fields
+    // Pure custom issue with only code + path + message - minimal fields
     const vldErr = new VldError([{ code: 'custom', path: [], message: 'bare' }]);
     const zodErr = toZodError(vldErr);
     expect(zodErr.issues[0]?.message).toBe('bare');
@@ -99,7 +99,7 @@ describe('zod-error.ts uncovered branches', () => {
   });
 
   it('toZodError default fallbacks: missing code/path/message (lines 111-117)', () => {
-    // No code → defaults to 'custom'; no path → []; no message → 'Invalid value'.
+    // No code -> defaults to 'custom'; no path -> []; no message -> 'Invalid value'.
     // Also exercises the `vldError?.issues ?? []` fallback by passing issues inline.
     const vldErr = { issues: [{ /* everything missing */ }] } as any;
     const zodErr = toZodError(vldErr);
@@ -110,7 +110,7 @@ describe('zod-error.ts uncovered branches', () => {
   });
 
   it('toZodError handles vldError with no issues array (line 111 fallback)', () => {
-    // Pass object with no `issues` field → uses `?? []` empty fallback
+    // Pass object with no `issues` field -> uses `?? []` empty fallback
     const zodErr = toZodError({} as any);
     expect(zodErr.issues).toEqual([]);
   });

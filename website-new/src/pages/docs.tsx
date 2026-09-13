@@ -129,7 +129,7 @@ if (result.success) {
 }`,
     lang: 'typescript',
     tips: [
-      'VLD v3.0.0 is checked against Zod 4.5.4 (253/253 exports)',
+      'VLD v3.0.5 is checked against Zod 4.6.4 (259/259 exports)',
       '`import { z } from "@oxog/vld"` is a true drop-in for `import { z } from "zod"` — 3.00x faster (10/10 wins, semantic-checked)',
       'Root, mini, v4, v4-mini, v4/core, v4/locales, and compile entry points are covered',
       'AOT compile (v.compile / v.validate) is release-gated at 1.46x / 2.36x geomean vs z.compile',
@@ -196,13 +196,13 @@ if (result.success) {
     description: 'VLD was built to address performance limitations while maintaining an ergonomic API and practical Zod replacement paths.',
     code: `// VLD advantages over alternatives:
 
-// 0. TRUE DROP-IN for Zod 4.5.4 (v3.0) — only the import line changes
+// 0. TRUE DROP-IN for Zod 4.6.4 (v3.0.5) — only the import line changes
 import { z } from "@oxog/vld"   // <- same as: import { z } from "zod"
 //    3.00x faster, 10/10 honest wins, semantic-checked
 //    benchmarks/dropin-vs-zod.cjs
 const schema = z.object({ name: z.string().min(2) })
 
-// 1. AOT Compile performance - release-gated against Zod 4.5.4
+// 1. AOT Compile performance - release-gated against Zod 4.6.4
 import { v, compile } from "@oxog/vld"
 const compiled = compile(schema) // 1.46x parse, 2.36x validate vs z.compile
 const ok = v.validate(compiled, data) // 310M ops/sec on Moltar ParseSafe
@@ -210,7 +210,7 @@ const ok = v.validate(compiled, data) // 310M ops/sec on Moltar ParseSafe
 // 2. Package health
 // 253/253 Zod exports, bundle, install, package, and type declarations are checked
 
-// 3. Memory Usage - 4.7x+ less retained heap than Zod 4.5.4
+// 3. Memory Usage - less retained heap than Zod 4.6.4
 
 // 4. Built-in i18n - 32 languages
 import { setLocale } from "@oxog/vld"

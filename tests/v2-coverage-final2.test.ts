@@ -1,5 +1,5 @@
 /**
- * V2 Coverage — Last 0.5%
+ * V2 Coverage - Last 0.5%
  *
  * Targets remaining branches that istanbul tracks as separate edges.
  */
@@ -50,7 +50,7 @@ describe('leaf-v2 final branches', () => {
     const r1 = VldRecordV2.create(vV2.string()).safeParse(null);
     expect(r1.success).toBe(false);
     // Second branch: when the parse itself throws something that's not a VldError
-    // Use a VldRecordV2 with simpleMode='string' (via direct constructor) — then a
+    // Use a VldRecordV2 with simpleMode='string' (via direct constructor) - then a
     // non-string field value triggers `throw new Error(...)` (plain Error) which
     // falls into the `e instanceof VldError` FALSE branch and gets wrapped.
     const { VldRecordV2: VldRecordV2Ctor } = require('../src/validators/leaf-v2') as typeof import('../src/validators/leaf-v2');
@@ -112,16 +112,16 @@ describe('zod-error.ts final branches', () => {
     const fmt = zodErr.format() as any;
     expect(fmt['user']['name']['_errors']).toEqual(['m']);
   });
-  it('received default ternary: raw.received undefined + raw.expected truthy → unknown', () => {
-    // raw.received is undefined (so we reach line 137) and raw.expected='string' (truthy) → 'unknown'
+  it('received default ternary: raw.received undefined + raw.expected truthy -> unknown', () => {
+    // raw.received is undefined (so we reach line 137) and raw.expected='string' (truthy) -> 'unknown'
     const vldErr = new VldError([{
       code: 'invalid_type', path: ['x'], message: 'm', expected: 'string'
     }]);
     const zodErr = toZodError(vldErr);
     expect(zodErr.issues[0]!.received).toBe('unknown');
   });
-  it('received default ternary: raw.received undefined + raw.expected falsy → undefined', () => {
-    // raw.received is undefined and raw.expected is '' (falsy string) → undefined
+  it('received default ternary: raw.received undefined + raw.expected falsy -> undefined', () => {
+    // raw.received is undefined and raw.expected is '' (falsy string) -> undefined
     const vldErr = new VldError([{
       code: 'invalid_type', path: ['x'], message: 'm', expected: ''
     }]);
@@ -135,7 +135,7 @@ describe('zod-error.ts final branches', () => {
 // ============================================================================
 describe('wrapper-2 final branches', () => {
   it('VldRefineV2 with no message uses default (line 128)', () => {
-    // 3-arg overload with no message → uses 'Refinement check failed' default
+    // 3-arg overload with no message -> uses 'Refinement check failed' default
     const r = VldRefineV2.create(vV2.string(), (s: string) => s.length > 5);
     const safe = r.safeParse('short');
     expect(safe.success).toBe(false);

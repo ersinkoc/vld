@@ -1,5 +1,5 @@
 /**
- * VLD v3.0 — Honest Drop-in Replacement Benchmark vs Zod 4.5
+ * VLD v3.0 - Honest Drop-in Replacement Benchmark vs Zod 4.5
  *
  * Each scenario builds the SAME logical schema in both libraries
  * using their public API, then runs the same input through both
@@ -46,7 +46,7 @@ const PLATFORM = `${process.platform} ${process.arch}`;
 const ZOD_VER = require('zod/package.json').version;
 const VLD_VER = require('../package.json').version;
 
-console.log('VLD v3.0 — Drop-in Replacement Benchmark');
+console.log('VLD v3.0 - Drop-in Replacement Benchmark');
 console.log('==========================================');
 console.log(`Node ${NODE} on ${PLATFORM}`);
 console.log(`VLD ${VLD_VER}  vs  Zod ${ZOD_VER}`);

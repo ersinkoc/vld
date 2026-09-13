@@ -1,5 +1,5 @@
 /**
- * VldNumberV2 — OPTIMIZED: check returns Issue | null, no per-call payload.
+ * VldNumberV2 - OPTIMIZED: check returns Issue | null, no per-call payload.
  * Same public API as legacy VldNumber.
  */
 import { VldBase, VLD_VALIDATOR_TYPES, type ErrorParam, type ParseResult } from './base';

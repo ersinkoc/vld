@@ -258,7 +258,7 @@ describe('VldStringV2 chains', () => {
   });
 
   it('normalize() and slugify()', () => {
-    expect(v.stringV2().normalize('NFC').parse('cafe\u0301')).toBe('café');
+    expect(v.stringV2().normalize('NFC').parse('cafe\u0301')).toBe('caf\u00e9');
     expect(v.stringV2().slugify().parse('Hello World!')).toBe('hello-world');
   });
 
@@ -285,7 +285,7 @@ describe('VldStringV2 chains', () => {
     expect(() => v.stringV2().uuidv4().parse('12345678-1234-1234-1234-123456789012')).toThrow();
     expect(() => v.stringV2().uuidv6().parse('12345678-1234-1234-1234-123456789012')).toThrow();
     expect(() => v.stringV2().uuidv7().parse('12345678-1234-1234-1234-123456789012')).toThrow();
-    expect(v.stringV2().emoji().parse('😀')).toBe('😀');
+    expect(v.stringV2().emoji().parse('\uD83D\uDE00')).toBe('\uD83D\uDE00');
     expect(() => v.stringV2().emoji().parse('not-emoji')).toThrow();
     expect(v.stringV2().base64().parse('SGVsbG8=')).toBe('SGVsbG8=');
     expect(() => v.stringV2().base64().parse('not base64!')).toThrow();

@@ -308,7 +308,67 @@ const isoDatetimeSchema = v.iso.datetime();
 const isoDurationSchema = v.iso.duration();
 const e164Schema = v.e164();
 const emojiSchema = v.emoji();
+const ibanSchema = v.iban();          // Zod 4.6: ISO 7064 MOD 97-10 checksum
+const currencyCodeSchema = v.currencyCode(); // Zod 4.6: ISO 4217 codes
 ```
+
+## Zod 4.6: Boolean Validation, Class Properties, External Parsers (v3.0.5 new)
+
+### `.validate()` — boolean checks without result objects
+
+```typescript
+const UserSchema = v.object({ name: v.string(), age: v.number().int() });
+
+UserSchema.validate({ name: 'ada', age: 36 });  // true
+UserSchema.validate({ name: 'ada', age: -1 });  // false - no error object built
+
+// Type-guard narrowing
+const input: unknown = 'hello';
+if (v.string().validate(input)) {
+  input.length; // narrowed to string
+}
+
+// Async refinements
+const unique = v.string().refine(async (s) => await checkDb(s));
+await unique.validateAsync('value'); // Promise<boolean>
+```
+
+The first `.validate()` call lazily AOT-compiles the schema and memoizes the
+compiled validator (the same machinery as `z.compile()`), so hot loops run on
+flat machine-code-like checks. In CSP environments where `new Function` is
+unavailable it transparently falls back to the runtime parser.
+
+### `.properties()` — validate class instances in place
+
+```typescript
+class Bucket {
+  constructor(public name: string, public volume: number) {}
+}
+
+const BucketSchema = v.instanceof(Bucket).properties({
+  name: v.string(),
+  volume: v.number(),
+});
+
+const bucket = new Bucket('sand', 20);
+BucketSchema.parse(bucket) instanceof Bucket; // true - same instance, prototype preserved
+BucketSchema.validate(new Bucket(1, 2));      // false, path-prefixed field errors
+```
+
+### `.withParser()` — install an externally generated parser
+
+For build-time or native compilers in environments where `new Function` is
+blocked by CSP:
+
+```typescript
+const fast = v.withParser(UserSchema, (input) => {
+  if (isMyBuildTimeValid(input)) return normalize(input);
+  return v.INVALID; // hand the value to the runtime parser
+});
+```
+
+The original schema is untouched; the returned clone routes every `parse`,
+`safeParse`, and `.validate()` call through your parser first.
 
 ## File and Function Validation
 

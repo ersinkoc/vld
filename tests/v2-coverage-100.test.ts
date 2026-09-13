@@ -161,7 +161,7 @@ describe('number-v2 full branch coverage', () => {
     expect(s.maxValue).toBeNull();
   });
   it('VldCoerceNumberV2 with bigint overflow', () => {
-    // 2^1024 → Infinity after Number coercion
+    // 2^1024 -> Infinity after Number coercion
     const huge = BigInt('2') ** BigInt('1024');
     expect(() => VldCoerceNumberV2.create().parse(huge)).toThrow();
   });
@@ -174,7 +174,7 @@ describe('date-v2 full branch coverage', () => {
   it('VldDateCheckGt return null (value > threshold)', () => {
     expect(new VldDateCheckGt(new Date('2024-01-15')).check(new Date('2024-06-01'))).toBeNull();
   });
-  it('VldDateCheckGt return null (value === threshold — actually fails on <=)', () => {
+  it('VldDateCheckGt return null (value === threshold - actually fails on <=)', () => {
     // VldDateCheckGt fails if value <= threshold
     expect(new VldDateCheckGt(new Date('2024-01-15')).check(new Date('2024-01-16'))).toBeNull();
   });
@@ -285,7 +285,7 @@ describe('array-v2 full branch coverage', () => {
 // ============================================================================
 describe('wrapper-v2 full branch coverage', () => {
   it('VldRefineV2 default message when no message provided (line 128)', () => {
-    // Predicate returns false → refines fails → uses default 'Refinement check failed' message
+    // Predicate returns false -> refines fails -> uses default 'Refinement check failed' message
     const r = VldRefineV2.create(vV2.string(), (s: string) => s.length > 5);
     const safe = r.safeParse('short');
     expect(safe.success).toBe(false);

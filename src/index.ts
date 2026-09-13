@@ -59,7 +59,7 @@ import { VldDiscriminatedUnion } from './validators/discriminated-union';
 import { VldXor } from './validators/xor';
 import { VldJson } from './validators/json';
 import { VldTemplateLiteral, templateLiteral as createTemplateLiteral } from './validators/template-literal';
-import { VldCustom, custom as customFn } from './validators/custom';
+import { VldCustom, VldInstance, custom as customFn } from './validators/custom';
 import { VldFile, file as fileFn } from './validators/file';
 import { VldFunction, functionValidator as functionFn } from './validators/function';
 import {
@@ -108,6 +108,8 @@ import {
   getDiscriminatedOption as getDiscriminatedOptionFn,
   memoizer as memoizerFn,
   toZod as toZodFn,
+  withParser as withParserFn,
+  COMPILE_INVALID,
   ZodCompileError as ZodCompileErrorClass,
   ZodCompileAsyncError as ZodCompileAsyncErrorClass,
   ZodCompileUnsupportedError as ZodCompileUnsupportedErrorClass
@@ -379,6 +381,7 @@ export {
   VldFile as ZodFile,
   VldFunction as ZodFunction,
   VldIntersection as ZodIntersection,
+  VldInstance as ZodInstanceOf,
   VldJson as ZodJSON,
   VldLazy as ZodLazy,
   VldLiteral as ZodLiteral,
@@ -424,6 +427,7 @@ export {
   VldStringFormat as ZodEmail,
   VldStringFormat as ZodEmoji,
   VldStringFormat as ZodGUID,
+  VldStringFormat as ZodIBAN,
   VldStringFormat as ZodIPv4,
   VldStringFormat as ZodIPv6,
   VldStringFormat as ZodISODate,
@@ -870,7 +874,7 @@ export function output<T extends AnySchema>(schema: T): T {
  */
 export const v = {
   // Primitive validators (legacy default for backwards compatibility)
-  // V2 versions available as `v.stringV2()`, `v.numberV2()`, etc. — opt-in.
+  // V2 versions available as `v.stringV2()`, `v.numberV2()`, etc. - opt-in.
   string: () => VldString.create(),
   stringLegacy: () => VldString.create(),
   stringV2: () => VldStringV2.create(),
@@ -1022,14 +1026,7 @@ export const v = {
     : createSuperRefinement(schemaOrRefinement),
   property: propertyCheck,
   instanceof: <T>(constructor: Constructor<T>, message?: RefinementMessage) =>
-    customFn<T>({
-      parse: (value: unknown) => {
-        if (!(value instanceof constructor)) {
-          throw new Error(messageFromRefinementParam(message) || `Expected instance of ${constructor.name || 'provided constructor'}`);
-        }
-        return value;
-      }
-    }),
+    new VldInstance<T>(constructor, messageFromRefinementParam(message)),
   config: configure,
   setErrorMap: setGlobalErrorMap,
   getErrorMap: getGlobalErrorMap,
@@ -1101,6 +1098,8 @@ export const v = {
   cidrv4: () => stringFormats.cidrv4(),
   cidrv6: () => stringFormats.cidrv6(),
   creditCard: (params?: { message?: string }) => stringFormats.creditCard(params),
+  iban: (params?: { message?: string }) => stringFormats.iban(params),
+  currencyCode: (params?: { message?: string }) => stringFormats.currencyCode(params),
   e164: () => stringFormats.e164(),
   hash: (algorithm: 'md5' | 'sha1' | 'sha256' | 'sha384' | 'sha512') =>
     stringFormats.hash(algorithm),
@@ -1161,6 +1160,10 @@ export const v = {
   // Zod 4.5 AOT compilation (compile/validate/properties/getDiscriminatedOption/memoizer/toZod)
   compile: <T extends VldBase<any, any>>(schema: T, options?: { JITless?: boolean }) =>
     compileFn(schema, options) as T,
+  // Zod 4.6 parser installation for CSP environments without `new Function`
+  withParser: <T extends VldBase<any, any>>(schema: T, parser: (input: unknown) => unknown) =>
+    withParserFn(schema, parser) as T,
+  INVALID: COMPILE_INVALID,
   validate: validateFn,
   validateAsync: validateAsyncFn,
   properties: propertiesFn,
@@ -1315,7 +1318,7 @@ export const v = {
 };
 
 /**
- * v3.0: vV2 — drop-in factory that uses V2 validators everywhere.
+ * v3.0: vV2 - drop-in factory that uses V2 validators everywhere.
  * Recommended for new code and migrations from Zod 4.5.
  *
  *   import { vV2 as v } from '@oxog/vld';
@@ -1426,7 +1429,7 @@ export type { SafeParseSuccess, SafeParseError, SafeParseReturnType, CustomError
  */
 export const z = v;
 
-// ZodError compatibility — drop-in support for error.issues, .format(), .flatten()
+// ZodError compatibility - drop-in support for error.issues, .format(), .flatten()
 export { toZodError, toZodSafeResult, ZodLikeError } from './zod-error';
 export type { ZodLikeIssue } from './zod-error';
 
@@ -1561,6 +1564,14 @@ export const {
   memoizer,
   toZod
 } = v;
+
+// Zod 4.6 additions that are not part of the destructured `v` namespace above.
+export { withParserFn as withParser };
+export { COMPILE_INVALID, COMPILE_INVALID as INVALID };
+// Zod 4.6 public factories
+export const iban = (params?: { message?: string }) => stringFormats.iban(params);
+export const currencyCode = (params?: { message?: string }) => stringFormats.currencyCode(params);
+export { isValidIBAN } from './validators/string-formats';
 
 const catchFactory = v.catch;
 const enumFactory = v.enum;

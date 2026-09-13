@@ -7,7 +7,7 @@ const features = [
   {
     icon: Zap,
     title: '3.00x Faster Drop-in',
-    description: '`import { z } from "@oxog/vld"` is a true drop-in for Zod 4.5.4. 3.00x geomean (10/10 honest wins, semantic-checked).',
+    description: '`import { z } from "@oxog/vld"` is a true drop-in for Zod 4.6.4. 3.03x geomean (10/10 honest wins, semantic-checked).',
     color: 'from-amber-500 to-orange-500',
   },
   {
@@ -54,7 +54,7 @@ const features = [
   },
 ]
 
-const quickExample = `// v3.0.0 — true drop-in for Zod 4.5.4
+const quickExample = `// v3.0.5 — true drop-in for Zod 4.6.4
 //   import { z } from "@oxog/vld"   // literally the same as import { z } from "zod"
 //   benchmarks/dropin-vs-zod.cjs  — 10/10 wins, 3.00x geomean (semantic-checked)
 
@@ -120,7 +120,7 @@ const myPlugin = definePlugin({
 })`
 
 const stats = [
-  { value: '3.00x', label: 'Drop-in Faster', sublabel: '10/10 vs Zod 4.5.4' },
+  { value: '3.03x', label: 'Drop-in Faster', sublabel: '10/10 vs Zod 4.6.4' },
   { value: '10/10', label: 'Honest Wins', sublabel: 'semantic-checked' },
   { value: '0', label: 'Dependencies', sublabel: 'zero bloat' },
   { value: '3031', label: 'Tests Passing', sublabel: '104 test suites' },

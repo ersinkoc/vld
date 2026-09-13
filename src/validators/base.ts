@@ -23,6 +23,47 @@ export function ensureVldError(error: unknown): VldError {
   return new VldError([{ code: 'custom', path: [], message }]);
 }
 
+/**
+ * Shared invalid sentinel of the AOT compiler (src/compile.ts). Resolved
+ * through the symbol registry so base.ts never imports compile.ts - that
+ * cycle would break the CJS build.
+ */
+const COMPILE_INVALID_SYMBOL = Symbol.for('@oxog/vld/compile-invalid');
+
+type LazyValidateCompiler = (schema: VldBase<any, any>) => ((input: unknown) => unknown) | null;
+
+/**
+ * Read the AOT compiler installed by src/compile.ts through the global
+ * registry (see compile.ts for why this is not a direct import).
+ */
+function getLazyValidateCompiler(): LazyValidateCompiler | undefined {
+  return (globalThis as unknown as Record<string, unknown> | undefined)?.[
+    '@oxog/vld/lazy-validate-compiler'
+  ] as LazyValidateCompiler | undefined;
+}
+
+/**
+ * Build and memoize the compiled validator used by `.validate()` fast path.
+ * Returns `null` (also memoized) when the schema cannot be lowered or when
+ * `new Function` is unavailable (CSP) - callers then use the runtime parser.
+ */
+function buildLazyValidator(self: VldBase<any, any>): ((input: unknown) => unknown) | null {
+  let fast: ((input: unknown) => unknown) | null = null;
+  try {
+    const compiler = getLazyValidateCompiler();
+    const compiled = compiler ? compiler(self) : null;
+    fast = compiled ?? null;
+  } catch {
+    fast = null;
+  }
+  Object.defineProperty(self, '__vldValidateFn', {
+    value: fast,
+    enumerable: false,
+    configurable: true,
+  });
+  return fast;
+}
+
 export interface StandardTypedV1<Input = unknown, Output = Input> {
   readonly '~standard': StandardTypedV1Props<Input, Output>;
 }
@@ -428,6 +469,85 @@ export abstract class VldBase<TInput, TOutput = TInput> {
     return this.safeParseAsync(value);
   }
 
+  /**
+   * Zod 4.6 boolean validation. Returns `true` when the value is valid,
+   * `false` otherwise, without allocating a result object or an error.
+   * Short-circuits on the first failed check.
+   *
+   * Fast-path ladder (mirrors Zod 4.6):
+   *  1. an explicitly compiled validator (z.compile / z.withParser),
+   *  2. a lazily AOT-compiled validator, memoized on first call
+   *     (skipped in CSP environments where `new Function` is blocked),
+   *  3. the runtime safeParse, bound once so the call site stays stable.
+   *
+   * The hot path is a single memoized property read - never the `_zod`
+   * getter, which allocates. Schemas whose validation is asynchronous
+   * (z.promise) throw, matching Zod's $ZodAsyncError behavior; use
+   * validateAsync for those.
+   */
+  validate(data: unknown): data is TInput {
+    const memo = (this as any).__vldValidateFn;
+    if (memo !== undefined) {
+      if (memo !== null) {
+        return memo(data) !== COMPILE_INVALID_SYMBOL;
+      }
+      return this.validateWithRuntimeParser(data);
+    }
+    return this.initValidate(data);
+  }
+
+  /**
+   * Runtime fallback shared by the cold and hot paths. The bound safeParse
+   * is memoized per schema so the call site stays stable for V8.
+   */
+  private validateWithRuntimeParser(data: unknown): boolean {
+    let safe = (this as any).__vldSafeFn;
+    if (safe === undefined) {
+      safe = (this as any).__vldSafeFn = this.safeParse.bind(this);
+    }
+    return Boolean(safe(data).success);
+  }
+
+  /**
+   * Cold path of `.validate()`: resolve the fastest validator available
+   * (explicitly compiled, else lazily compiled), memoize it, and run it.
+   */
+  private initValidate(data: unknown): boolean {
+    const self = this as any;
+    const bag = self._zod?.bag;
+    const compiled = bag?.validatorValidate ?? bag?.validator;
+    if (compiled !== undefined) {
+      Object.defineProperty(self, '__vldValidateFn', {
+        value: compiled,
+        enumerable: false,
+        configurable: true,
+      });
+      return compiled(data) !== COMPILE_INVALID_SYMBOL;
+    }
+    const fast = buildLazyValidator(self);
+    if (fast !== null) {
+      return fast(data) !== COMPILE_INVALID_SYMBOL;
+    }
+    return this.validateWithRuntimeParser(data);
+  }
+
+  /** Zod 4.6 async boolean validation. */
+  async validateAsync(data: unknown): Promise<boolean> {
+    const memo = (this as any).__vldValidateFn;
+    if (memo !== undefined && memo !== null) {
+      return memo(data) !== COMPILE_INVALID_SYMBOL;
+    }
+    if (memo === undefined) {
+      this.initValidate(data);
+      const memoized = (this as any).__vldValidateFn;
+      if (memoized !== undefined && memoized !== null) {
+        return memoized(data) !== COMPILE_INVALID_SYMBOL;
+      }
+    }
+    const result = await this.safeParseAsync(data);
+    return result.success;
+  }
+
   /** Compatibility helpers retained by Zod 4. */
   isOptional(): boolean {
     return this.safeParse(undefined).success;
@@ -448,7 +568,7 @@ export abstract class VldBase<TInput, TOutput = TInput> {
    * @returns True if valid, false otherwise
    */
   isValid(value: unknown): boolean {
-    return this.safeParse(value).success;
+    return this.validate(value);
   }
   
   /**

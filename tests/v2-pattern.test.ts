@@ -222,7 +222,7 @@ describe('vV2 drop-in factory', () => {
   });
 
   it('vV2.object delegates to v.object (V1 composite with V2 children)', () => {
-    // vV2 doesn't have object() — use v.object with vV2 children
+    // vV2 doesn't have object() - use v.object with vV2 children
     const obj = v.object({ a: vV2.string(), b: vV2.number() });
     expect(obj.safeParse({ a: 'x', b: 1 }).success).toBe(true);
   });

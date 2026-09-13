@@ -1,5 +1,5 @@
 /**
- * Real-world Zod usage pattern tests — drop-in replacement validation.
+ * Real-world Zod usage pattern tests - drop-in replacement validation.
  *
  * Each test pairs a VLD schema with its Zod 4.5 equivalent and asserts
  * they produce the same success/failure outcomes for the same inputs.
@@ -9,7 +9,7 @@ import { z as v, vV2 } from '../src';
 import { z as zod } from 'zod';
 import { toZodError } from '../src';
 
-describe('Real-world Zod patterns — VLD drop-in compatibility', () => {
+describe('Real-world Zod patterns - VLD drop-in compatibility', () => {
   it('discriminated union on common pet example', () => {
     const vldCat = v.discriminatedUnion('type', [
       v.object({ type: v.literal('cat'), meow: v.string() }),

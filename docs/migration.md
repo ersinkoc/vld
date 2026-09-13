@@ -2,7 +2,7 @@
 
 A complete guide for migrating your codebase to VLD 3.0 with minimal changes, Zod-compatible package subpaths, and release-gated parity checks.
 
-**VLD 3.0 is a non-breaking major bump.** Existing `v.*` factories stay V1 by default (backward compatible); use `vV2` or `v.setV2Mode(true)` for the V2 method-memoization path. **3.00x faster** vs Zod 4.5.4 on the honest head-to-head benchmark (`benchmarks/dropin-vs-zod.cjs`, 10/10 wins, semantic-checked).
+**VLD 3.0 is a non-breaking major bump.** Existing `v.*` factories stay V1 by default (backward compatible); use `vV2` or `v.setV2Mode(true)` for the V2 method-memoization path. **3.03x faster** vs Zod 4.6.4 on the honest head-to-head benchmark (`benchmarks/dropin-vs-zod.cjs`, 10/10 wins, semantic-checked). Zod 4.6 APIs (`.validate()`, `z.iban()`, `z.instanceof().properties()`, `z.withParser()`, new `fromJSONSchema` keywords) are fully supported; `.validate()` wins every scenario head-to-head at up to 35.5x.
 
 ## Table of Contents
 
@@ -23,10 +23,10 @@ A complete guide for migrating your codebase to VLD 3.0 with minimal changes, Zo
 
 ### Performance Benefits (v3.0 — V2 method-memoization)
 
-- **3.00x faster** than Zod 4.5.4 on the honest head-to-head (10/10 wins, semantic-checked, `benchmarks/dropin-vs-zod.cjs`)
-- **1.6-10x less memory** than Zod 4.5 (per-instance retained heap)
-- **6.5x faster** than Zod 4.5 on `number().int().positive().min(1)`
-- **3.2x faster** than Zod 4.5 on a realistic 10-field API schema
+- **3.03x faster** than Zod 4.6.4 on the honest head-to-head (10/10 wins, semantic-checked, `benchmarks/dropin-vs-zod.cjs`)
+- **1.6-10x less memory** than Zod (per-instance retained heap)
+- **10.3x faster** than Zod 4.6.4 on `number().int().positive().min(1)`
+- **2.0x faster** than Zod 4.6.4 on `string().min(1).email()`
 - **Zero dependencies** for smaller bundle size
 - **30-40% smaller** than VLD 2.x (V2 single-def layout)
 
@@ -37,7 +37,7 @@ A complete guide for migrating your codebase to VLD 3.0 with minimal changes, Zo
 - **Built-in i18n**: 27+ languages supported out of the box
 - **Better error formatting**: Tree, pretty, flatten, plus ZodError `.format()` / `.flatten()`
 - **Immutable validators**: Prevent memory leaks
-- **3031/3031 unit tests pass**, 22/22 real-world Zod test, 28/28 Zod 4.5 parity
+- **3113/3113 unit tests pass**, 22/22 real-world Zod test, 29/29 Zod 4.6 differential test
 - **100% statement, branch, function, and line coverage**
 - **Plugin system**: Extend VLD with custom validators
 - **CLI tools**: Command-line validation and benchmarking
@@ -96,7 +96,7 @@ const User = z.object({ name: z.string() });
 const User = v.object({ name: v.string() });
 ```
 
-That's it. VLD is a drop-in replacement for Zod 4.5. All public API surface, including `z.pipe`, `z.codec`, `z.preprocess`, `z.discriminatedUnion`, `z.brand`, `z.lazy`, and the Zod 4 issue structure, has VLD equivalents.
+That's it. VLD is a drop-in replacement for Zod 4.6 (and 4.5). All public API surface, including `z.pipe`, `z.codec`, `z.preprocess`, `z.discriminatedUnion`, `z.brand`, `z.lazy`, and the Zod 4 issue structure, has VLD equivalents.
 
 ## V2 vs V1 (v3.0 new)
 

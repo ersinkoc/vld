@@ -1,5 +1,5 @@
 /**
- * V2 Pattern Coverage — Edge Cases
+ * V2 Pattern Coverage - Edge Cases
  *
  * Targets remaining coverage gaps in V2 files (catch branches, default
  * switch cases, multi-level path formatting in ZodError adapter, etc.)
@@ -224,7 +224,7 @@ describe('V2 bigint check classes (full coverage)', () => {
 // ============================================================================
 // zod-error.ts coverage (lines 64-65, 69-71, 89-90, 133)
 // ============================================================================
-describe('ZodError adapter — format() with deep paths', () => {
+describe('ZodError adapter - format() with deep paths', () => {
   it('format() builds nested _errors tree for multi-level path', () => {
     // Build a VldError with multi-level path issues
     const issues: VldIssue[] = [
@@ -249,7 +249,7 @@ describe('ZodError adapter — format() with deep paths', () => {
   });
 });
 
-describe('ZodError adapter — flatten() with form + field errors', () => {
+describe('ZodError adapter - flatten() with form + field errors', () => {
   it('flatten() puts empty-path issues in formErrors', () => {
     const issues: VldIssue[] = [
       { code: 'custom', path: [], message: 'form error 1' },
@@ -267,7 +267,7 @@ describe('ZodError adapter — flatten() with form + field errors', () => {
   });
 });
 
-describe('ZodError adapter — invalid_type with origin fills expected', () => {
+describe('ZodError adapter - invalid_type with origin fills expected', () => {
   it('toZodError fills expected from origin for invalid_type', () => {
     const issues: VldIssue[] = [
       { code: 'invalid_type', path: ['x'], message: 'm', origin: 'string' as any }
@@ -299,9 +299,9 @@ describe('ZodError adapter — invalid_type with origin fills expected', () => {
 });
 
 // ============================================================================
-// errors-core.ts coverage (lines 173-181) — VLD_CAPTURE_STACK + captureStack()
+// errors-core.ts coverage (lines 173-181) - VLD_CAPTURE_STACK + captureStack()
 // ============================================================================
-describe('errors-core — VldError.captureStack + VLD_CAPTURE_STACK', () => {
+describe('errors-core - VldError.captureStack + VLD_CAPTURE_STACK', () => {
   it('captureStack() populates stack when not yet captured', () => {
     const err = new VldError([{ code: 'custom', path: [], message: 'x' }]);
     err.captureStack();
@@ -334,7 +334,7 @@ describe('errors-core — VldError.captureStack + VLD_CAPTURE_STACK', () => {
 });
 
 // ============================================================================
-// index.ts coverage — VLD public surface
+// index.ts coverage - VLD public surface
 // ============================================================================
 describe('VLD public API surface (index.ts uncovered lines)', () => {
   it('v.stringLegacy / numberLegacy / stringV2 / numberV2 (legacy aliases)', () => {

@@ -22,7 +22,9 @@ const REGEX_PATTERNS = {
   uuidv4: /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
   uuidv6: /^[0-9a-f]{8}-[0-9a-f]{4}-6[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
   uuidv7: /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
-  emoji: /^(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F)(?:\u200D(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F))*$/u,
+  // Zod 4.6 emoji source: requires at least one pictographic/indicator/keycap
+  // character, so component-only strings are rejected.
+  emoji: /^(?=[\s\S]*[\p{Extended_Pictographic}\p{Regional_Indicator}\u20E3])[\p{Extended_Pictographic}\p{Emoji_Component}]+$/u,
   base64: /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/,
   base64url: /^[A-Za-z0-9_-]*$/,
   jwt: /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*$/,
@@ -43,6 +45,17 @@ const REGEX_PATTERNS = {
 };
 
 // BUG-NEW-001 FIX: IPv6 validation moved to shared utility (src/utils/ip-validation.ts)
+
+/**
+ * String formats the AOT compiler (src/compile.ts) can inline as regex
+ * checks, with their exact source and flags so compiled validators agree
+ * with the runtime parser.
+ */
+export const COMPILABLE_FORMATS: Record<'email' | 'url' | 'uuid', { source: string; flags: string }> = {
+  email: { source: FAST_EMAIL_REGEX.source, flags: FAST_EMAIL_REGEX.flags },
+  url: { source: REGEX_PATTERNS.url.source, flags: REGEX_PATTERNS.url.flags },
+  uuid: { source: REGEX_PATTERNS.uuid.source, flags: REGEX_PATTERNS.uuid.flags },
+};
 // to eliminate code duplication between string.ts and coercion/string.ts
 
 /**
@@ -71,6 +84,7 @@ interface StringCheckMeta {
   readonly value?: number;
   readonly format?: string;
   readonly pattern?: string;
+  readonly flags?: string;
   readonly message: string | undefined;
 }
 
@@ -384,7 +398,7 @@ export class VldString extends VldBase<string, string> {
       transforms: this.config.transforms,
       errorMessage: resolveErrorMessage(message, `Invalid ${formatName}`),
       jsonSchema: { ...this.config.jsonSchema, format: formatName, pattern: pattern.source },
-      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'format', format: formatName, pattern: pattern.source, message: resolveErrorMessage(message, `Invalid ${formatName}`) }]
+      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'format', format: formatName, pattern: pattern.source, flags: pattern.flags, message: resolveErrorMessage(message, `Invalid ${formatName}`) }]
     });
   }
 
@@ -419,7 +433,7 @@ export class VldString extends VldBase<string, string> {
       transforms: this.config.transforms,
       errorMessage: resolveErrorMessage(message, getMessages().stringRegex),
       jsonSchema: { ...this.config.jsonSchema, pattern: pattern.source },
-      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'regex', pattern: pattern.source, message: resolveErrorMessage(message, getMessages().stringRegex) }]
+      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'regex', pattern: pattern.source, flags: pattern.flags, message: resolveErrorMessage(message, getMessages().stringRegex) }]
     });
   }
   

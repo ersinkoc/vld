@@ -3,8 +3,9 @@
  * Provides conversion between VLD schemas and JSON Schema
  */
 
-import { VldBase, VLD_VALIDATOR_TYPES, type SchemaMetadata } from '../validators/base';
+import { VldBase, VldPreprocess, VLD_VALIDATOR_TYPES, type SchemaMetadata } from '../validators/base';
 import { globalRegistry, type SchemaRegistry } from '../registry';
+import { VldError, type VldIssue } from '../errors-core';
 import { VldAny } from '../validators/any';
 import { VldArray } from '../validators/array';
 import { VldBoolean } from '../validators/boolean';
@@ -53,6 +54,10 @@ export type JSONSchemaDefinition = {
   items?: JSONSchemaDefinition | JSONSchemaDefinition[] | false;
   prefixItems?: JSONSchemaDefinition[];
   contains?: JSONSchemaDefinition;
+  minContains?: number;
+  maxContains?: number;
+  minProperties?: number;
+  maxProperties?: number;
   minItems?: number;
   maxItems?: number;
   uniqueItems?: boolean;
@@ -859,6 +864,68 @@ function buildExactOptionalSchema(schema: any, options: ToJSONSchemaOptions): JS
 /**
  * Internal function to convert JSON Schema to VLD schema
  */
+/**
+ * Zod 4.6 JSON Schema keywords that aggregate over the array's items:
+ * uniqueItems, contains, minContains and maxContains. Also wires the
+ * previously-ignored minItems/maxItems bounds onto plain arrays.
+ */
+function applyJSONArrayConstraints(arraySchema: any, json: JSONSchemaDefinition): any {
+  let result = arraySchema;
+  if (json.minItems !== undefined && typeof result.min === 'function') {
+    result = result.min(json.minItems);
+  }
+  if (json.maxItems !== undefined && typeof result.max === 'function') {
+    result = result.max(json.maxItems);
+  }
+  if (json.uniqueItems === true && typeof result.unique === 'function') {
+    result = result.unique();
+  }
+  if (json.contains) {
+    const containsSchema = jsonSchemaToVLD(json.contains);
+    const minContains = json.minContains ?? 1;
+    const maxContains = json.maxContains;
+    result = result.refine((items: unknown[]) => {
+      if (!Array.isArray(items)) return false;
+      let matches = 0;
+      for (const item of items) {
+        if (containsSchema.safeParse(item).success) {
+          matches++;
+          if (maxContains !== undefined && matches > maxContains) return false;
+        }
+      }
+      return matches >= minContains;
+    });
+  }
+  return result;
+}
+
+/**
+ * Zod 4.6 JSON Schema keywords: minProperties and maxProperties.
+ * Enforced via preprocess so the count runs on the raw input - matching
+ * Zod, where unknown keys are counted even though object parsing strips them.
+ */
+function applyObjectConstraints(objectSchema: any, json: JSONSchemaDefinition): any {
+  const min = json.minProperties;
+  const max = json.maxProperties;
+  if (min === undefined && max === undefined) return objectSchema;
+  return VldPreprocess.create((value: unknown) => {
+    const count = value !== null && typeof value === 'object'
+      ? Object.keys(value as Record<string, unknown>).length
+      : 0;
+    if ((min !== undefined && count < min) || (max !== undefined && count > max)) {
+      const issues: VldIssue[] = [{
+        code: min !== undefined ? 'too_small' : 'too_big',
+        path: [],
+        message: min !== undefined
+          ? `Too small: expected object to have >=${min} properties`
+          : `Too big: expected object to have <=${max} properties`
+      }];
+      throw new VldError(issues);
+    }
+    return value;
+  }, objectSchema);
+}
+
 function jsonSchemaToVLD(json: JSONSchemaDefinition): AnyVldSchema {
   return applyJSONSchemaMetadata(jsonSchemaToVLDInner(json), json);
 }
@@ -962,20 +1029,19 @@ function jsonSchemaToVLDInner(json: JSONSchemaDefinition): AnyVldSchema {
   }
 
   if (type === 'array') {
+    let arraySchema: any;
     if (json.prefixItems && json.prefixItems.length > 0) {
       const validators = json.prefixItems.map((item) => jsonSchemaToVLD(item));
-      return VldTuple.create(...validators as any);
-    }
-
-    if (Array.isArray(json.items)) {
+      arraySchema = VldTuple.create(...validators as any);
+    } else if (Array.isArray(json.items)) {
       const validators = json.items.map((item) => jsonSchemaToVLD(item));
-      return VldTuple.create(...validators as any);
+      arraySchema = VldTuple.create(...validators as any);
+    } else if (json.items && !Array.isArray(json.items)) {
+      arraySchema = VldArray.create(jsonSchemaToVLD(json.items));
+    } else {
+      arraySchema = VldArray.create(VldAny.create());
     }
-
-    if (json.items && !Array.isArray(json.items)) {
-      return VldArray.create(jsonSchemaToVLD(json.items));
-    }
-    return VldArray.create(VldAny.create());
+    return applyJSONArrayConstraints(arraySchema, json);
   }
 
   if (type === 'object') {
@@ -997,13 +1063,13 @@ function jsonSchemaToVLDInner(json: JSONSchemaDefinition): AnyVldSchema {
       } else if (json.additionalProperties) {
         // additionalProperties is a schema
         const valueSchema = jsonSchemaToVLD(json.additionalProperties as JSONSchemaDefinition);
-        return VldRecord.create(valueSchema);
+        return applyObjectConstraints(VldRecord.create(valueSchema), json);
       }
 
-      return obj;
+      return applyObjectConstraints(obj, json);
     }
     // Empty object schema
-    return VldObject.create({});
+    return applyObjectConstraints(VldObject.create({}), json);
   }
 
   if (type === 'null') {

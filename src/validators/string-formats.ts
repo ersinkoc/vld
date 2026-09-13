@@ -85,9 +85,9 @@ function macRegex(delimiter = ':'): RegExp {
 }
 
 type StaticRegexName =
-  | 'base64' | 'base64url' | 'bigint' | 'boolean' | 'browserEmail' | 'cidrv4' | 'cidrv6'
-  | 'creditCard' | 'cuid' | 'cuid2' | 'date' | 'domain' | 'duration' | 'e164' | 'email' | 'extendedDuration'
-  | 'guid' | 'hex' | 'hostname' | 'html5Email' | 'httpProtocol' | 'httpUrl' | 'idnEmail'
+  | 'anyString' | 'base64' | 'base64url' | 'bigint' | 'boolean' | 'browserEmail' | 'cidrv4' | 'cidrv6'
+  | 'creditCard' | 'currencyCode' | 'cuid' | 'cuid2' | 'date' | 'domain' | 'duration' | 'e164' | 'email' | 'extendedDuration'
+  | 'guid' | 'hex' | 'hostname' | 'html5Email' | 'httpProtocol' | 'httpUrl' | 'iban' | 'idnEmail'
   | 'integer' | 'ipv4' | 'ipv6' | 'jwt' | 'ksuid' | 'lowercase' | 'md5' | 'md5_base64'
   | 'md5_base64url' | 'md5_hex' | 'nanoid' | 'null' | 'number' | 'rfc5322Email'
   | 'sha1' | 'sha1_base64' | 'sha1_base64url' | 'sha1_hex' | 'sha256' | 'sha256_base64'
@@ -117,6 +117,12 @@ const REGEXES: RegexNamespace = {
   duration: /^P(?:(\d+W)|(?!.*W)(?=\d|T\d)(\d+Y)?(\d+M)?(\d+D)?(T(?=\d)(\d+H)?(\d+M)?(\d+([.,]\d+)?S)?)?)$/,
   extendedDuration: /^[-+]?P(?!$)(?:(?:[-+]?\d+Y)|(?:[-+]?\d+[.,]\d+Y$))?(?:(?:[-+]?\d+M)|(?:[-+]?\d+[.,]\d+M$))?(?:(?:[-+]?\d+W)|(?:[-+]?\d+[.,]\d+W$))?(?:(?:[-+]?\d+D)|(?:[-+]?\d+[.,]\d+D$))?(?:T(?=[\d+-])(?:(?:[-+]?\d+H)|(?:[-+]?\d+[.,]\d+H$))?(?:(?:[-+]?\d+M)|(?:[-+]?\d+[.,]\d+M$))?(?:[-+]?\d+(?:[.,]\d+)?S)?)??$/,
   guid: /^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$/,
+  // Zod 4.6 IBAN electronic format: 2-letter country, check digits 02-98, 11-30 bban chars.
+  // The ISO 7064 MOD 97-10 checksum is not expressible as a pattern and runs in code.
+  iban: /^[A-Z]{2}(?!00|01|99)\d{2}[A-Z0-9]{11,30}$/,
+  // Zod 4.6 additions to the regex namespace.
+  currencyCode: /^(?:AED|AFN|ALL|AMD|AOA|ARS|AUD|AWG|AZN|BAM|BBD|BDT|BHD|BIF|BMD|BND|BOB|BOV|BRL|BSD|BTN|BWP|BYN|BZD|CAD|CDF|CHE|CHF|CHW|CLF|CLP|CNY|COP|COU|CRC|CUP|CVE|CZK|DJF|DKK|DOP|DZD|EGP|ERN|ETB|EUR|FJD|FKP|GBP|GEL|GHS|GIP|GMD|GNF|GTQ|GYD|HKD|HNL|HTG|HUF|IDR|ILS|INR|IQD|IRR|ISK|JMD|JOD|JPY|KES|KGS|KHR|KMF|KPW|KRW|KWD|KYD|KZT|LAK|LBP|LKR|LRD|LSL|LYD|MAD|MDL|MGA|MKD|MMK|MNT|MOP|MRU|MUR|MVR|MWK|MXN|MXV|MYR|MZN|NAD|NGN|NIO|NOK|NPR|NZD|OMR|PAB|PEN|PGK|PHP|PKR|PLN|PYG|QAR|RON|RSD|RUB|RWF|SAR|SBD|SCR|SDG|SEK|SGD|SHP|SLE|SOS|SRD|SSP|STN|SVC|SYP|SZL|THB|TJS|TMT|TND|TOP|TRY|TTD|TWD|TZS|UAH|UGX|USD|USN|UYI|UYU|UYW|UZS|VED|VES|VND|VUV|WST|XAD|XAF|XAG|XAU|XBA|XBB|XBC|XBD|XCD|XCG|XDR|XOF|XPD|XPF|XPT|XSU|XTS|XUA|XXX|YER|ZAR|ZMW|ZWG)$/,
+  anyString: /^[\s\S]{0,}$/,
   creditCard: /^\d(?:[ -]?\d){11,18}$/,
   uuid: uuidRegex,
   uuid4: uuidRegex(4),
@@ -130,7 +136,9 @@ const REGEXES: RegexNamespace = {
   unicodeEmail: /^[^\s@"]{1,64}@[^\s@]{1,255}$/u,
   idnEmail: /^[^\s@"]{1,64}@[^\s@]{1,255}$/u,
   browserEmail: /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/,
-  emoji: () => /^(\p{Extended_Pictographic}|\p{Emoji_Component})+$/u,
+  // Zod 4.6 source byte-for-byte: the lookahead rejects component-only strings
+  // (e.g. "123", U+25AB with a text VS) while keycaps and flags stay accepted.
+  emoji: () => /^(?=[\s\S]*[\p{Extended_Pictographic}\p{Regional_Indicator}\u20E3])[\p{Extended_Pictographic}\p{Emoji_Component}]+$/u,
   ipv4: /^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$/,
   ipv6: /^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))$/,
   mac: macRegex,
@@ -336,6 +344,53 @@ export const creditCard = (params?: { message?: string }): VldStringFormat =>
     undefined,
     REGEXES.creditCard.source
   );
+
+// ISO 7064 MOD 97-10 checksum without BigInt, matching the Zod 4.6 contract.
+function isIso7064Mod97(iban: string): boolean {
+  let remainder = 0;
+  const len = iban.length;
+  // Rearranged form: BBAN first, then country + check digits.
+  for (let i = 4; i < len; i++) {
+    const code = iban.charCodeAt(i);
+    remainder = (code >= 65 ? remainder * 100 + (code - 55) : remainder * 10 + (code - 48)) % 97;
+  }
+  for (let i = 0; i < 4; i++) {
+    const code = iban.charCodeAt(i);
+    remainder = (code >= 65 ? remainder * 100 + (code - 55) : remainder * 10 + (code - 48)) % 97;
+  }
+  return remainder === 1;
+}
+
+export function isValidIBAN(input: string): boolean {
+  if (!REGEXES.iban.test(input)) return false;
+  return isIso7064Mod97(input);
+}
+
+export const iban = (params?: { message?: string }): VldStringFormat =>
+  VldStringFormat.create(
+    'iban',
+    isValidIBAN,
+    params?.message,
+    undefined,
+    REGEXES.iban.source
+  );
+
+// Zod 4.6 currency-code format: ISO 4217 three-letter codes.
+export const currencyCode = (params?: { message?: string }): VldStringFormat =>
+  VldStringFormat.create(
+    'currency_code',
+    value => testRegex(REGEXES.currencyCode, value),
+    params?.message,
+    undefined,
+    REGEXES.currencyCode.source
+  );
+
+/**
+ * Zod 4.6 base64 charset regexes: the 4.6 base64 check validates the
+ * character set with these patterns and enforces length/padding in code.
+ */
+export const base64Charset = /^[0-9a-zA-Z+/]*={0,2}$/;
+export const base64urlCharset = /^[A-Za-z0-9_-]*$/;
 
 export const iso = {
   ZodISODate: VldStringFormat,

@@ -153,6 +153,8 @@ All validators extend `VldBase<TInput, TOutput>` and provide:
 - `.catch(value)` — Error recovery
 - `.pipe(schema)` — Schema pipeline (Zod 4.5 alias for `z.pipe`)
 - `.isValid(value)` — Boolean check
+- `.validate(data)` — Zod 4.6 boolean check with no result objects; short-circuits on the first failure and lazily AOT-compiles on first call (type-guard: `data is TInput`)
+- `.validateAsync(data)` — Async variant for schemas with async refinements
 
 ## Primitive Types
 
@@ -288,6 +290,7 @@ v.string().length(10);
 v.string().email();
 v.string().url();
 v.string().uuid({ version: 'v4' });
+v.string().emoji();                 // Zod 4.6 pattern
 v.string().regex(/pattern/);
 v.string().startsWith('prefix');
 v.string().endsWith('suffix');
@@ -305,6 +308,50 @@ v.number().multipleOf(5);
 v.array(v.string()).min(1).max(10);
 v.array(v.string()).nonempty();
 v.array(v.string()).length(5);
+```
+
+## Zod 4.6 APIs
+
+```typescript
+// Boolean validation with no result objects (Zod 4.6)
+const ok = v.string().email().validate('user@site.com');   // true | false
+await v.array(v.string()).validateAsync(['a']);            // Promise<boolean>
+
+// IBAN with ISO 7064 MOD 97-10 checksum (Zod 4.6)
+const ibanSchema = v.z.iban();
+ibanSchema.validate('GB82WEST12345698765432');             // true (checksum verified)
+
+// Currency code (ISO 4217)
+v.z.currencyCode().validate('TRY');                        // true
+
+// Class-instance properties: prototype survives parsing (Zod 4.6)
+class Bucket { constructor(public name: string, public volume: number) {} }
+const BucketSchema = v.z.instanceof(Bucket).properties({
+  name: v.z.string(),
+  volume: v.z.number(),
+});
+BucketSchema.parse(new Bucket('sand', 20)) instanceof Bucket; // true
+
+// Install an externally generated parser (CSP-friendly, Zod 4.6)
+const fast = v.z.withParser(v.z.object({ a: v.z.number() }), (input) => {
+  if (typeof input === 'object' && input !== null && typeof input.a === 'number') {
+    return { a: input.a };
+  }
+  return v.INVALID; // hand the value back to the runtime parser
+});
+
+// fromJSONSchema: Zod 4.6 keywords
+v.z.fromJSONSchema({
+  type: 'object',
+  properties: { a: { type: 'string' } },
+  minProperties: 2,
+  maxProperties: 5,
+});
+v.z.fromJSONSchema({ type: 'array', items: { type: 'number' }, uniqueItems: true });
+v.z.fromJSONSchema({
+  type: 'array', items: { type: 'number' },
+  contains: { type: 'number', const: 5 }, minContains: 1, maxContains: 2,
+});
 ```
 
 ## Transformation Methods

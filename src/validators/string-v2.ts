@@ -1,5 +1,5 @@
 /**
- * VldStringV2 — OPTIMIZED: check classes return Issue | null (no per-call
+ * VldStringV2 - OPTIMIZED: check classes return Issue | null (no per-call
  * payload allocation), hot path uses early-return, isSimple is precomputed.
  *
  * Same public API as the legacy VldString.
@@ -11,7 +11,7 @@ import { isValidIPv6 } from '../utils/ip-validation';
 import { resolveErrorMessage } from './base';
 
 // --------------------------------------------------------------------------
-// Check hierarchy — each check returns Issue | null directly (no payload
+// Check hierarchy - each check returns Issue | null directly (no payload
 // allocation). This is the key performance fix over the previous version.
 // --------------------------------------------------------------------------
 
@@ -221,7 +221,7 @@ export class VldCheckIpv6 extends VldStringCheck {
 }
 
 // --------------------------------------------------------------------------
-// Def shape — precomputes isSimple for hot-path branching
+// Def shape - precomputes isSimple for hot-path branching
 // --------------------------------------------------------------------------
 
 export interface VldStringDef {
@@ -252,7 +252,7 @@ function buildDef(checks: ReadonlyArray<VldStringCheck>, transforms: ReadonlyArr
 }
 
 // --------------------------------------------------------------------------
-// VldStringV2 — public class with optimized hot path
+// VldStringV2 - public class with optimized hot path
 // --------------------------------------------------------------------------
 
 export class VldStringV2 extends VldBase<string, string> {
@@ -282,7 +282,7 @@ export class VldStringV2 extends VldBase<string, string> {
     return this.parseKnownString(value);
   }
 
-  /** Hot path — early-return, no payload allocation. */
+  /** Hot path - early-return, no payload allocation. */
   parseKnownString(value: string): string {
     const def = this.__def;
     const transforms = def.transforms;

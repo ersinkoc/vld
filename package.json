@@ -169,6 +169,7 @@
     "benchmark:stable": "npm run build && node benchmarks/stable-bench.cjs",
     "benchmark:guard": "npm run build && npm run benchmark:guard:built",
     "benchmark:guard:built": "node benchmarks/performance-guard.cjs",
+    "benchmark:validate": "node benchmarks/validate-vs-zod.cjs",
     "benchmark:startup:guard": "node benchmarks/startup-guard.cjs",
     "benchmark:memory:guard": "node benchmarks/memory-guard.cjs",
     "benchmark:truth": "npm run build && node benchmarks/performance.cjs",
@@ -180,7 +181,7 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "prepack": "npm run build",
     "release": "node scripts/release.cjs",
-    "release:check": "npm run lint && npm run test:types && npm test -- --runInBand && npm run build && npm run verify:ascii && npm run verify:docs && npm run verify:exports && npm run verify:bundle && npm run verify:types && npm run verify:package && npm run verify:install && npm run verify:security && npm run verify:drop-in && npm run benchmark:guard:built && npm run benchmark:startup:guard && npm run benchmark:memory:guard",
+    "release:check": "npm run lint && npm run test:types && npm test -- --runInBand && npm run build && npm run verify:ascii && npm run verify:docs && npm run verify:exports && npm run verify:bundle && npm run verify:types && npm run verify:package && npm run verify:install && npm run verify:security && npm run verify:drop-in && npm run benchmark:guard:built && npm run benchmark:validate && npm run benchmark:startup:guard && npm run benchmark:memory:guard",
     "prepublishOnly": "npm run release:check"
   },
   "keywords": [
@@ -235,7 +236,7 @@
     "ts-jest": "^29.4.11",
     "tslib": "^2.8.1",
     "typescript": "^5.3.3",
-    "zod": "^4.5.4"
+    "zod": "^4.6.4"
   },
   "overrides": {
     "@babel/core": "^7.29.7",
@@ -243,4 +244,3 @@
     "js-yaml": "^4.2.1"
   }
 }
-

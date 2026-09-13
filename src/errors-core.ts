@@ -167,7 +167,7 @@ export class VldError extends Error {
 
     // Skip stack capture in production for performance. Stack can be captured
     // on demand by setting VLD_CAPTURE_STACK=true or calling captureStack().
-    // Each Error.captureStackTrace call costs ~5-10µs — significant for
+    // Each Error.captureStackTrace call costs ~5-10us - significant for
     // high-throughput error paths.
     if ((globalThis as any).VLD_CAPTURE_STACK && Error.captureStackTrace) {
       Error.captureStackTrace(this, VldError);

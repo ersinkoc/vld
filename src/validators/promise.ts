@@ -111,6 +111,20 @@ export class VldPromise<T> extends VldBase<unknown, Promise<T>> {
   override safeParseAsync(value: unknown): Promise<ParseResult<Promise<T>>> {
     return this.safeParse(value);
   }
+
+  /**
+   * Promise schemas validate asynchronously by nature, so the synchronous
+   * Zod 4.6 `.validate()` throws (Zod throws $ZodAsyncError in this case).
+   * Use `.validateAsync()`.
+   */
+  override validate(_data: unknown): _data is unknown {
+    throw new Error('Promise schemas validate asynchronously; use validateAsync instead');
+  }
+
+  override async validateAsync(value: unknown): Promise<boolean> {
+    const result = await this.safeParseAsync(value);
+    return result.success;
+  }
 }
 
 /**

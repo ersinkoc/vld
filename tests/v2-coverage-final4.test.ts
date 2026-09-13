@@ -1,5 +1,5 @@
 /**
- * V2 Coverage — Transform chain & remaining branches
+ * V2 Coverage - Transform chain & remaining branches
  *
  * Targets the V2 string transform switch (case 2, default) and the rest
  * of the small V2 leaf/composite branches that istanbul tracks.
@@ -27,7 +27,7 @@ describe('string-v2 transform switch case 2 / default', () => {
       .trim()
       .toLowerCase()
       .toUpperCase()      // 3rd transform
-      .trim();            // 4th transform — triggers default
+      .trim();            // 4th transform - triggers default
     const r = s.safeParse('  hello  ');
     expect(r.success).toBe(true);
   });
@@ -87,7 +87,7 @@ describe('wrapper-v2 VldRefineV2 default message', () => {
     }
   });
 
-  it('VldRefineV2 constructor with no message — triggers default param (line 128 true branch)', () => {
+  it('VldRefineV2 constructor with no message - triggers default param (line 128 true branch)', () => {
     // Bypass static create: call constructor directly with only 2 args so the
     // default `message: string = 'Refinement check failed'` on line 128 is used.
     const r = new VldRefineV2(vV2.string(), (s: string) => s.length > 5);
@@ -154,7 +154,7 @@ describe('array-v2 VldArrayCheck default branches', () => {
   });
 
   it('VldArrayV2.safeParse catches plain Error (simpleItemMode non-VldError path, line 196)', () => {
-    // simpleItemMode='string' + non-string item → throws plain Error via parseKnownArray
+    // simpleItemMode='string' + non-string item -> throws plain Error via parseKnownArray
     const a = vV2.array(vV2.string());
     const r = a.safeParse([1, 2, 3]); // non-string items
     expect(r.success).toBe(false);
@@ -205,7 +205,7 @@ describe('date-v2 branches', () => {
     const inner = { safeParse: () => { throw new TypeError('bad date'); } } as any;
     const d = VldDateV2.create();
     (d as any).__def = { ...d.__def, _innerFallback: inner };
-    // Direct call to safeParse with valid Date — should not throw
+    // Direct call to safeParse with valid Date - should not throw
     const r = d.safeParse(new Date('2024-01-01'));
     expect(r.success).toBe(true);
   });

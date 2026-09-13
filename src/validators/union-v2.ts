@@ -1,5 +1,5 @@
 /**
- * VldUnionV2 — single-def union validator.
+ * VldUnionV2 - single-def union validator.
  * The legacy VldUnion has 5 own properties (validators, errorMessage,
  * typeCheckers, simpleModes, simpleValues). V2 collapses them into a
  * single `__def`, reducing per-instance shape size and letting V8 use

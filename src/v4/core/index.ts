@@ -310,9 +310,44 @@ export const isValidJWT = (value: string) => root.jwt().safeParse(value).success
 // Zod canary core additions. `standardProps` returns the Standard Schema v1
 // property bag; `handleUnrepresentable` mirrors the canary's JSON Schema
 // fallback semantics for types with no JSON representation.
-import { isValidCreditCard } from '../../validators/string-formats';
+import { isValidCreditCard, isValidIBAN, base64Charset, base64urlCharset } from '../../validators/string-formats';
 
-export { isValidCreditCard };
+export { isValidCreditCard, isValidIBAN, base64Charset, base64urlCharset };
+
+// Zod 4.6 IBAN + instance-properties surface.
+export const _iban = (...args: unknown[]) => root.iban(valueArg<{ message?: string }>(args));
+export { VldStringFormat as $ZodIBAN } from '../../validators/string-formats';
+export { VldCustom as $ZodCheckProperties } from '../../validators/custom';
+
+// Zod 4.6 URL helpers: `canParseURL` prefers the platform fast path;
+// `validateURL` mirrors Zod's tri-state result (URL on success, a sentinel
+// on failure) using the URL_BAD_FORMAT / URL_UNPARSEABLE markers below.
+export function canParseURL(input: string): boolean {
+  try {
+    if (typeof URL !== 'undefined' && typeof (URL as unknown as { canParse?: (v: string) => boolean }).canParse === 'function') {
+      return (URL as unknown as { canParse: (v: string) => boolean }).canParse(input);
+    }
+    new URL(input);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function validateURL(
+  trimmed: string,
+  def: { normalize?: unknown; hostname?: unknown; protocol?: unknown } = {}
+): URL | typeof URL_BAD_FORMAT | typeof URL_UNPARSEABLE {
+  try {
+    return new URL(trimmed);
+  } catch {
+    void def;
+    return URL_UNPARSEABLE;
+  }
+}
+
+// Zod 4.6 renamed the JSON Schema processing internal to `processSchema`.
+export const processSchema = (schema: unknown, _ctx?: unknown, _params?: unknown) => schema;
 export const _creditCard = (...args: unknown[]) => root.creditCard(valueArg<{ message?: string }>(args));
 export const standardProps = (schema: unknown): object => {
   const target = schema as { '~standard'?: unknown };

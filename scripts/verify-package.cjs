@@ -28,17 +28,19 @@ const packageLock = fs.existsSync(packageLockPath)
   : undefined;
 
 const errors = [];
-const MAX_TARBALL_BYTES = Number(process.env.VLD_MAX_TARBALL_BYTES || 321_000);
+const MAX_TARBALL_BYTES = Number(process.env.VLD_MAX_TARBALL_BYTES || 330_000);
 // Current full compatibility declarations still keep VLD well below half of
 // Zod 4.4.3's unpacked package size (~4.56 MB). Retain a narrow local ceiling.
 const MAX_UNPACKED_BYTES = Number(process.env.VLD_MAX_UNPACKED_BYTES || 1_805_000);
-const MAX_PACKED_FILE_COUNT = Number(process.env.VLD_MAX_PACKED_FILE_COUNT || 320);
+// Zod 4.6 parity added per-locale modules and the IBAN/currencyCode/validate
+// surface; the packed count moved 320 -> 351 and index.d.ts 100 KiB -> ~106 KiB.
+const MAX_PACKED_FILE_COUNT = Number(process.env.VLD_MAX_PACKED_FILE_COUNT || 360);
 const FILE_SIZE_BUDGETS = {
   'dist/index.js': Number(process.env.VLD_MAX_ESM_INDEX_BYTES || 75_000),
   'dist/cjs/index.cjs': Number(process.env.VLD_MAX_CJS_INDEX_BYTES || 90_000),
   'dist/mini.js': Number(process.env.VLD_MAX_ESM_MINI_BYTES || 10_000),
   'dist/cjs/mini.cjs': Number(process.env.VLD_MAX_CJS_MINI_BYTES || 14_000),
-  'dist/index.d.ts': Number(process.env.VLD_MAX_INDEX_TYPES_BYTES || 100_000),
+  'dist/index.d.ts': Number(process.env.VLD_MAX_INDEX_TYPES_BYTES || 112_000),
 };
 const REQUIRED_FILES = ['dist', 'README.md', 'LICENSE', 'CHANGELOG.md'];
 const RUNTIME_DEPENDENCY_FIELDS = [

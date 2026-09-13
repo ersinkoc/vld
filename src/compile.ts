@@ -15,7 +15,7 @@
  */
 import { VldBase } from './validators/base';
 import type { LiteralValue } from './validators/literal';
-import { VldString } from './validators/string';
+import { VldString, COMPILABLE_FORMATS } from './validators/string';
 import { VldNumber } from './validators/number';
 import { VldBoolean } from './validators/boolean';
 import { VldBigInt } from './validators/bigint';
@@ -96,6 +96,14 @@ interface Compiler {
   skipOutAssign?: boolean;    // when true, suppress `outParam = input` writes
   throwOnFail?: boolean;      // when true, `throw ${invalid}` instead of `return ${invalid}`
   validateOnly?: boolean;     // when true, emit only type checks; no result allocation
+  regexTable: Array<{ source: string; flags: string }>;  // regexes shared with the emitted function
+}
+
+/** Register a RegExp with the emitted function and return its local name. */
+function addRegex(c: Compiler, source: string, flags: string): string {
+  const id = `__re${c.regexTable.length}`;
+  c.regexTable.push({ source, flags });
+  return id;
 }
 
 function temp(c: Compiler, kind: string): string {
@@ -118,7 +126,10 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
 
   if (kindOf(schema) === 'VldString') {
     const checks = (schema as any)._checks as Array<(v: any) => boolean> | undefined;
-    const metas = (schema as any)._checkMetas as Array<{ kind: string; value?: number | RegExp | string }> | undefined;
+    const metas = (schema as any)._checkMetas as Array<{ kind: string; value?: number | RegExp | string; pattern?: string; flags?: string; format?: string }> | undefined;
+    // Transforms rewrite the string before checks run (trim, lowercase, ...),
+    // so validating the raw input would disagree with the runtime parser.
+    if ((schema as any)._transforms?.length) { c.failed = true; return; }
     const extra: string[] = [];
     if (metas) {
       for (const m of metas) {
@@ -127,14 +138,12 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
           case 'max': extra.push(`__v.length <= ${m.value}`); break;
           case 'length': extra.push(`__v.length === ${m.value}`); break;
           case 'regex': {
-            // VldString stores the regex pattern as a string under `pattern`,
-            // not under `value` as a RegExp instance. Escape the source for a
-            // RegExp literal, then emit `.test(__v)`.
+            // Emit through the shared regex table so flags survive and the
+            // pattern is built once per compiled function, not per call.
             const source = (m as { pattern?: string }).pattern
               ?? (m.value as RegExp)?.source
               ?? String(m.value);
-            const escaped = source.replace(/\\/g, '\\\\').replace(/\//g, '\\/');
-            extra.push(`/${escaped}/.test(__v)`);
+            extra.push(`${addRegex(c, source, (m as { flags?: string }).flags ?? '')}.test(__v)`);
             break;
           }
           case 'startsWith': extra.push(`__v.startsWith(${JSON.stringify(m.value)})`); break;
@@ -142,12 +151,28 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
           case 'includes': extra.push(`__v.includes(${JSON.stringify(m.value)})`); break;
           case 'email':
           case 'url':
-          case 'uuid':
-          case 'ip':
-            // format checks are slow regexes  -  skip in AOT path for speed
+          case 'uuid': {
+            const fmt = COMPILABLE_FORMATS[m.kind];
+            extra.push(`${addRegex(c, fmt.source, fmt.flags)}.test(__v)`);
             break;
+          }
+          case 'format': {
+            if (m.format === 'email' || m.format === 'url' || m.format === 'uuid') {
+              const fmt = COMPILABLE_FORMATS[m.format];
+              extra.push(`${addRegex(c, fmt.source, fmt.flags)}.test(__v)`);
+            } else if (m.pattern !== undefined) {
+              extra.push(`${addRegex(c, m.pattern, m.flags ?? '')}.test(__v)`);
+            } else {
+              // Composite formats (e.g. `ip` mixes regex and code) cannot be
+              // inlined; refuse to compile rather than skipping the check.
+              c.failed = true;
+              return;
+            }
+            break;
+          }
           default:
-            if (checks && checks.length > 0) { c.failed = true; return; }
+            c.failed = true;
+            return;
         }
       }
     } else if (checks && checks.length > 0) {
@@ -278,9 +303,41 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
     c.hoist.push(`}`);
     return;
   }
+  if (kindOf(schema) === 'VldDefault') {
+    // Validate-only: an absent key is filled by the schema's default, so it
+    // is always valid - same contract Zod uses. Parse-mode lowering is not
+    // supported (the default value cannot be inlined), so only accept this
+    // node when compiling validators.
+    if (!c.validateOnly) { c.failed = true; return; }
+    const inner = (schema as any).baseValidator as VldBase<any, any>;
+    c.hoist.push(`if (${input} === undefined) { ${c.outParam} = true; } else {`);
+    lower(inner, input, c);
+    c.hoist.push(`}`);
+    return;
+  }
   if (kindOf(schema) === 'VldArray') {
-    const element = ((schema as any).config?.itemValidator ?? (schema as any).config?.element) as VldBase<any, any> | undefined;
+    const cfg = (schema as any).config as {
+      itemValidator?: VldBase<any, any>;
+      minLength?: number | undefined;
+      maxLength?: number | undefined;
+      exactLength?: number;
+      unique?: boolean;
+    } | undefined;
+    // unique needs per-element comparisons the compiler does not model.
+    if (cfg?.unique) { c.failed = true; return; }
+    const element = (cfg?.itemValidator ?? (schema as any).config?.element) as VldBase<any, any> | undefined;
     if (!element) { c.failed = true; return; }
+    const bounds: string[] = [];
+    if (typeof cfg?.exactLength === 'number') {
+      bounds.push(`if (${input}.length !== ${cfg.exactLength}) ${c.throwOnFail ? "throw" : "return"} ${c.invalid};`);
+    } else {
+      if (typeof cfg?.minLength === 'number') {
+        bounds.push(`if (${input}.length < ${cfg.minLength}) ${c.throwOnFail ? "throw" : "return"} ${c.invalid};`);
+      }
+      if (typeof cfg?.maxLength === 'number') {
+        bounds.push(`if (${input}.length > ${cfg.maxLength}) ${c.throwOnFail ? "throw" : "return"} ${c.invalid};`);
+      }
+    }
     const outName = temp(c, 'arr');
     const idxName = temp(c, 'i');
     // For object elements we inline the build directly into the array slot
@@ -292,7 +349,8 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
       // shadow variable. We use an independent sub-compiler so its scratch
       // counter and outParam are isolated from the parent.
       c.hoist.push(
-        `if (!Array.isArray(${input})) ${c.throwOnFail ? "throw" : "return"} ${c.invalid};`
+        `if (!Array.isArray(${input})) ${c.throwOnFail ? "throw" : "return"} ${c.invalid};`,
+        ...bounds
       );
       if (c.validateOnly) {
         // No allocation, no slot  -  just emit the per-element check inline.
@@ -304,7 +362,7 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
         return;
       }
       c.hoist.push(`const ${outName} = new Array(${input}.length);`);
-      const subC: Compiler = { invalid: c.invalid, outParam: `__slot`, scratch: 0, hoist: [], failed: false, skipOutAssign: true };
+      const subC: Compiler = { invalid: c.invalid, outParam: `__slot`, scratch: 0, hoist: [], failed: false, skipOutAssign: true, regexTable: c.regexTable };
       subC.hoist.push(
         `for (let ${idxName} = 0; ${idxName} < ${input}.length; ${idxName}++) {`,
         `  let __slot;`
@@ -326,7 +384,8 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
     // it in the output array.
     const itemName = temp(c, 'it');
     c.hoist.push(
-      `if (!Array.isArray(${input})) ${c.throwOnFail ? "throw" : "return"} ${c.invalid};`
+      `if (!Array.isArray(${input})) ${c.throwOnFail ? "throw" : "return"} ${c.invalid};`,
+      ...bounds
     );
     if (c.validateOnly) {
       c.hoist.push(
@@ -409,6 +468,11 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
   if (kindOf(schema) === 'VldObject') {
     const shape = (schema as any)._config?.shape as Record<string, VldBase<any, any>> | undefined;
     if (!shape) { c.failed = true; return; }
+    // strict/passthrough/catchall objects validate or transform unknown keys,
+    // which the compiler does not model. Refuse to compile so callers fall
+    // back to the runtime parser instead of mis-validating extra keys.
+    const objectMode = (schema as any)._config as { strict?: boolean; passthrough?: boolean; catchall?: unknown } | undefined;
+    if (objectMode?.strict || objectMode?.passthrough || objectMode?.catchall) { c.failed = true; return; }
     const outName = temp(c, 'o');
     c.hoist.push(
       `if (typeof ${input} !== "object" || ${input} === null || Array.isArray(${input})) ${c.throwOnFail ? "throw" : "return"} ${c.invalid};`
@@ -534,7 +598,7 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
       }
       // Complex options (object/array)  -  fall back to IIFE pattern.
       // V8 inlines small IIFEs well when the body fits the inlining budget.
-      const subC: Compiler = { invalid: c.invalid, outParam: slot, scratch: 0, hoist: [], failed: false, skipOutAssign: true };
+      const subC: Compiler = { invalid: c.invalid, outParam: slot, scratch: 0, hoist: [], failed: false, skipOutAssign: true, regexTable: c.regexTable };
       lower(opt, 'value', subC);
       if (subC.failed) { c.failed = true; return; }
       c.hoist.push(
@@ -565,6 +629,7 @@ export function compileFn(schema: VldBase<any, any>, options?: { validateOnly?: 
     hoist: [],
     failed: false,
     validateOnly,
+    regexTable: [],
   };
   c.hoist.push(
     validateOnly ? 'let __ok;' : 'let __out;'
@@ -578,9 +643,17 @@ export function compileFn(schema: VldBase<any, any>, options?: { validateOnly?: 
     return null;
   }
   c.hoist.push(validateOnly ? 'return __ok;' : 'return __out;');
-  const body = c.hoist.join('\n');
-  const factory = new Function('value', c.invalid, body) as (value: unknown, inv: unknown) => unknown;
-  const compiled = ((input: unknown) => factory(input, COMPILE_INVALID)) as CompiledValidator;
+  // Hoist the shared regex table to the top of the emitted body so every
+  // pattern is built once per compiled function, never per call.
+  const prelude = c.regexTable.map((_, i) => `const __re${i} = __re[${i}];`);
+  const body = [...prelude, ...c.hoist].join('\n');
+  const factory = new Function('value', c.invalid, '__re', body) as (
+    value: unknown,
+    inv: unknown,
+    re: RegExp[]
+  ) => unknown;
+  const regexTable = c.regexTable.map((r) => new RegExp(r.source, r.flags));
+  const compiled = ((input: unknown) => factory(input, COMPILE_INVALID, regexTable)) as CompiledValidator;
   Object.defineProperty(compiled, '__vld_compiled', { value: true, enumerable: false });
   return compiled;
 }
@@ -670,6 +743,49 @@ export function compile<T extends VldBase<any, any>>(
   return applyCompiled(clone, validator, validator);
 }
 
+/**
+ * Zod 4.6 `z.withParser()`: install an externally generated parser as a
+ * schema's fast path. Returns a clone; the original schema is unchanged.
+ *
+ * The parser takes the input and returns the parsed value, or `INVALID`
+ * (the exported sentinel) to hand the parse to the runtime. It must be
+ * synchronous and forward-direction, and it must build fresh output rather
+ * than return its input - vld cannot check either, and a wrong *success*
+ * is returned to the caller as-is.
+ *
+ * This is the escape hatch for build-time or native compilers in CSP
+ * environments where `new Function` (and therefore `z.compile()`) is
+ * unavailable.
+ */
+export function withParser<T extends VldBase<any, any>>(
+  schema: T,
+  parser: (input: unknown) => unknown
+): T {
+  const clone = shallowCloneSchema(schema);
+  const originalParse = (clone as any).parse.bind(clone);
+  const originalSafeParse = (clone as any).safeParse.bind(clone);
+  (clone as any).parse = (input: unknown) => {
+    const fast = parser(input);
+    if (fast === COMPILE_INVALID) {
+      return originalParse(input);
+    }
+    return fast;
+  };
+  (clone as any).safeParse = (input: unknown) => {
+    const fast = parser(input);
+    if (fast === COMPILE_INVALID) {
+      return originalSafeParse(input);
+    }
+    return { success: true, data: fast };
+  };
+  Object.defineProperty(clone, '_zod', {
+    value: { bag: { validator: parser as CompiledValidator } },
+    enumerable: false,
+    configurable: true,
+  });
+  return clone;
+}
+
 export function validate(schema: VldBase<any, any>, value: unknown): boolean {
   const compiled = (schema as any)?._zod?.bag?.validatorValidate as CompiledValidator | undefined
     ?? (schema as any)?._zod?.bag?.validator as CompiledValidator | undefined;
@@ -745,3 +861,13 @@ export function toZod(value: unknown): VldBase<any, any> {
 }
 
 export { COMPILE_INVALID };
+
+/**
+ * Cross-module registry so validators/base.ts can lazily AOT-compile schemas
+ * for `.validate()` without importing this module (a circular import would
+ * break the CJS build). The key is global so dual ESM+CJS instances share it.
+ */
+const LAZY_VALIDATE_COMPILER_KEY = '@oxog/vld/lazy-validate-compiler';
+(globalThis as unknown as Record<string, unknown>)[LAZY_VALIDATE_COMPILER_KEY] = (
+  schema: VldBase<any, any>
+): CompiledValidator | null => compileFnValidate(schema);

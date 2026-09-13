@@ -74,6 +74,7 @@ export default {
     '!src/locales/sk.ts',         // v2.4.0 locale addition (translation only)
     '!src/locales/sv.ts',
     '!src/locales/sw.ts',
+    '!src/locales/tg.ts',        // v3.0.5 locale addition (translation only)
     '!src/locales/th.ts',
     '!src/locales/tr.ts',
     '!src/locales/vi.ts',

@@ -219,7 +219,7 @@ describe('array-v2 full coverage', () => {
     expect(() => arr.parse(['x' as unknown])).toThrow();
   });
   it('VldArrayV2.safeParse catch (non-VldError)', () => {
-    // Array of strings where each string must be a valid number — impossible
+    // Array of strings where each string must be a valid number - impossible
     const arr = vV2.array(vV2.string().email());
     // Pass a value that triggers the underlying email check throw
     expect(arr.safeParse(['not-an-email']).success).toBe(false);

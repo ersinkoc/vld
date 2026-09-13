@@ -43,6 +43,7 @@ import { gu } from './gu';
 import { kn } from './kn';
 import { ne } from './ne';
 import { sk } from './sk';
+import { tg } from './tg';
 
 // African Languages
 import { sw } from './sw';
@@ -58,6 +59,7 @@ const translatedLocaleCodes = [
   'th', 'vi', 'id', 'bn',
   'gu', 'kn', 'ne', 'sk',
   'sw', 'af',
+  'tg',
   'pt-BR', 'es-MX'
 ] as const satisfies readonly Locale[];
 
@@ -65,7 +67,7 @@ const fallbackLocaleCodes = [
   'is', 'cs', 'hu', 'ro', 'bg', 'hr', 'sl', 'lv', 'lt', 'et',
   'el', 'mk', 'sq', 'sr', 'bs', 'me', 'mt', 'ga', 'cy', 'eu', 'ca',
   'ms', 'tl', 'ur', 'fa', 'he', 'ka', 'am', 'hy', 'az', 'kk', 'ky',
-  'uz', 'tg', 'mn', 'my', 'km', 'lo', 'si', 'ta', 'te', 'ml',
+  'uz', 'mn', 'my', 'km', 'lo', 'si', 'ta', 'te', 'ml',
   'pa', 'or', 'as', 'mr', 'sd', 'dv',
   'ha', 'yo', 'ig', 'zu', 'xh', 'st', 'tn', 'ts', 've', 'nr', 'ss',
   'es-AR', 'fr-CA', 'qu', 'gn', 'ay'
@@ -83,6 +85,9 @@ const translatedLocales: Record<typeof translatedLocaleCodes[number], LocaleMess
 
   // African Languages
   sw, af,
+
+  // Tajik
+  tg,
 
   // American Languages
   'pt-BR': ptBR,

@@ -1,5 +1,5 @@
 /**
- * V2 Coverage — Last push
+ * V2 Coverage - Last push
  *
  * Targets the remaining V2 branches that istanbul tracks:
  *   - bigint-v2 VldBigIntCheck.check() default message branches
@@ -46,7 +46,7 @@ describe('bigint-v2 VldBigIntCheck default message branches', () => {
 // ============================================================================
 describe('composite-v2 VldSetV2 / VldMapV2 default branches', () => {
   it('VldSetV2 with plain Error throw (line 102 false branch)', () => {
-    // Non-simple validator that throws plain TypeError → catches the
+    // Non-simple validator that throws plain TypeError -> catches the
     // `e instanceof VldError` FALSE branch and wraps in new VldError.
     const throwing = { parse: () => { throw new TypeError('plain'); }, isSimple: false } as any;
     const s = new VldSetV2(throwing);
@@ -78,7 +78,7 @@ describe('date-v2 VldDateCheck + safeParse catch', () => {
     // Use fixed past/future dates to ensure deterministic behavior
     expect(new dateMod.VldDateCheckPast().check(new Date('2099-01-01'))?.message).toContain('past');
     expect(new dateMod.VldDateCheckFuture().check(new Date('1999-01-01'))?.message).toContain('future');
-    // Today check — pick a date that's not today
+    // Today check - pick a date that's not today
     expect(new dateMod.VldDateCheckToday().check(new Date('1999-01-01'))?.message).toContain('today');
     // Weekday: pick a Saturday (day 6)
     expect(new dateMod.VldDateCheckWeekday().check(new Date('2024-01-06'))?.message).toContain('weekday');

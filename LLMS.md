@@ -2,7 +2,7 @@
 
 > Ultra-fast TypeScript-first schema validation with zero dependencies and 27+ language support
 
-**Version:** 1.4.0
+**Version:** 3.0.5
 **License:** MIT
 **Repository:** https://github.com/ersinkoc/vld
 **Author:** Ersin Koc
@@ -50,6 +50,28 @@ if (result.success) {
 } else {
   console.log('Validation error:', result.error);
 }
+```
+
+### Zod 4.6 API Additions (v3.0.5)
+
+```typescript
+// Boolean validation without result objects - short-circuits, lazily AOT-compiled
+v.string().email().validate('user@site.com');  // true
+await schema.validateAsync(data);              // Promise<boolean>
+
+// IBAN (ISO 7064 MOD 97-10 checksum) and ISO 4217 currency codes
+v.iban().validate('GB82WEST12345698765432');   // true
+v.currencyCode().validate('TRY');              // true
+
+// Class-instance properties: prototype preserved
+v.instanceof(Bucket).properties({ name: v.string(), volume: v.number() }).parse(bucket);
+
+// Install an externally generated parser (CSP-safe); v.INVALID falls back to runtime
+v.withParser(schema, (input) => isBuildTimeValid(input) ? transform(input) : v.INVALID);
+
+// fromJSONSchema Zod 4.6 keywords
+v.fromJSONSchema({ type: 'object', properties: { a: { type: 'string' } }, minProperties: 2 });
+v.fromJSONSchema({ type: 'array', uniqueItems: true, contains: { type: 'string' }, minContains: 1, maxContains: 2 });
 ```
 
 ---
@@ -1487,7 +1509,7 @@ type SchemaType = Infer<typeof schema>;
 
 ## Document Metadata
 
-- **Generated:** 2026-01-02
-- **Package Version:** 1.4.0
+- **Generated:** 2026-09-13
+- **Package Version:** 3.0.5
 - **Documentation Version:** 1.0
 - **Format:** LLM-Optimized Markdown

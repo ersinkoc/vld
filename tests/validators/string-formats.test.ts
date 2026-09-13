@@ -92,9 +92,14 @@ describe('String Format Validators', () => {
       expect(emojiValidator.safeParse('❤️').success).toBe(true);
     });
 
-    it('should reject text while matching Zod emoji-component behavior', () => {
+    it('should reject component-only strings while matching Zod 4.6 emoji behavior', () => {
       expect(emojiValidator.safeParse('hello').success).toBe(false);
-      expect(emojiValidator.safeParse('123').success).toBe(true);
+      expect(emojiValidator.safeParse('123').success).toBe(false);
+      expect(emojiValidator.safeParse('\u25AB\uFE0E').success).toBe(false);
+      // Keycaps, regional indicators and VS16 forms stay accepted in Zod 4.6.
+      expect(emojiValidator.safeParse('1️⃣').success).toBe(true);
+      expect(emojiValidator.safeParse('🇹🇷').success).toBe(true);
+      expect(emojiValidator.safeParse('\u25AB\uFE0F').success).toBe(true);
     });
   });
 

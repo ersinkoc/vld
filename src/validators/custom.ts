@@ -1,4 +1,5 @@
 import { VldBase, ParseResult, VLD_VALIDATOR_TYPES, ensureVldError, type ErrorParam, resolveErrorMessage } from './base';
+import { VldError, type VldIssue } from '../errors-core';
 
 /**
  * Type-safe custom validator options
@@ -38,7 +39,7 @@ export class VldCustom<TOutput = unknown> extends VldBase<unknown, TOutput> {
   private readonly _safeParseFn: (value: unknown) => ParseResult<TOutput>;
   private readonly _safeParseAsyncFn: (value: unknown) => Promise<ParseResult<TOutput>>;
 
-  private constructor(options: CustomValidatorOptions<TOutput>) {
+  protected constructor(options: CustomValidatorOptions<TOutput>) {
     super(VLD_VALIDATOR_TYPES.CUSTOM);
     this._parseFn = options.parse;
     this._parseAsyncFn = options.parseAsync || ((value: unknown) => Promise.resolve(this._parseFn(value)));
@@ -131,4 +132,70 @@ export function custom<TOutput = unknown>(
     });
   }
   return VldCustom.create(optionsOrPredicate);
+}
+export { custom as customFn };
+
+/**
+ * Zod 4.6 `z.instanceof(Class)` schema. Keeps the constructor around so
+ * `.properties(shape)` can validate the instance's fields in place (Zod 4.6
+ * `ZodInstanceOf.properties`) while the prototype survives parsing.
+ */
+export class VldInstance<T> extends VldCustom<T> {
+  private readonly _cls: abstract new (...args: any[]) => T;
+  private readonly _instanceMessage: string | undefined;
+
+  constructor(cls: abstract new (...args: any[]) => T, message?: string) {
+    super({
+      parse: (value: unknown) => {
+        if (!(value instanceof cls)) {
+          throw new VldError([{
+            code: 'custom',
+            path: [],
+            message: message || `Expected instance of ${cls.name || 'provided constructor'}`
+          }]);
+        }
+        return value as T;
+      }
+    });
+    this._cls = cls;
+    this._instanceMessage = message;
+  }
+
+  /**
+   * Zod 4.6 instance properties: validate the given fields of the class
+   * instance in place. The instance itself is the parse output - the
+   * prototype is preserved (unlike z.object, which builds a plain object).
+   * Field errors are reported with the field name prepended to the path.
+   */
+  properties<Shape extends Record<string, VldBase<any, any>>>(
+    shape: Shape,
+    params?: { message?: string }
+  ): VldCustom<T> {
+    const cls = this._cls;
+    const failMessage = params?.message ?? this._instanceMessage;
+    const entries = Object.entries(shape);
+    return VldCustom.create<T>({
+      parse: (value: unknown) => {
+        if (!(value instanceof cls)) {
+          throw new VldError([{
+            code: 'custom',
+            path: [],
+            message: failMessage || `Expected instance of ${cls.name || 'provided constructor'}`
+          }]);
+        }
+        for (const [key, fieldSchema] of entries) {
+          const res = fieldSchema.safeParse((value as Record<string, unknown>)[key]);
+          if (!res.success) {
+            const issues: VldIssue[] = (res.error as VldError).issues ?? [];
+            throw new VldError(
+              issues.length > 0
+                ? issues.map((issue) => ({ ...issue, path: [key, ...issue.path] }))
+                : [{ code: 'custom', path: [key], message: res.error.message }]
+            );
+          }
+        }
+        return value;
+      }
+    });
+  }
 }

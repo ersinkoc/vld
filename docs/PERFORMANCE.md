@@ -1,11 +1,12 @@
-# VLD Performance Guide (v3.0.0)
+# VLD Performance Guide (v3.0.5)
 
-Comprehensive guide to understanding and optimizing VLD's performance in your applications. VLD 3.0 is a true drop-in replacement for Zod 4.5.4 — 3.00x geomean on the honest head-to-head (10/10 wins, semantic-checked). V2 method-memoization is opt-in via `vV2` or `v.setV2Mode(true)` and contributes to the same 3.00x geomean; 1.6-10x smaller per instance.
+Comprehensive guide to understanding and optimizing VLD's performance in your applications. VLD 3.0.5 is a true drop-in replacement for Zod 4.6.4 — 3.03x geomean on the honest head-to-head (10/10 wins, semantic-checked). On top of that, Zod 4.6's `.validate()` boolean API is covered by a dedicated head-to-head where VLD wins every scenario at up to 35.5x. V2 method-memoization is opt-in via `vV2` or `v.setV2Mode(true)`; 1.6-10x smaller per instance.
 
 ## Table of Contents
 
 - [Performance Overview](#performance-overview)
-- [V2 vs V1 vs Zod 4.5 — Headline Numbers](#v2-vs-v1-vs-zod-45--headline-numbers)
+- [V2 vs V1 vs Zod 4.6 — Headline Numbers](#v2-vs-v1-vs-zod-46--headline-numbers)
+- [`.validate()` vs Zod 4.6 `.validate()`](#validate-vs-zod-46-validate)
 - [Benchmark Results](#benchmark-results)
 - [V2 Method-Memoization Internals](#v2-method-memoization-internals)
 - [Optimization Techniques](#optimization-techniques)
@@ -16,7 +17,7 @@ Comprehensive guide to understanding and optimizing VLD's performance in your ap
 
 ## Performance Overview
 
-VLD 3.0 is built from the ground up with performance as a primary goal. The release gate compares VLD against Zod 4.5.4 across runtime throughput, startup behavior, retained heap, packaging, installability, type declarations, and real app drop-in behavior.
+VLD 3.0 is built from the ground up with performance as a primary goal. The release gate compares VLD against Zod 4.6.4 across runtime throughput, startup behavior, retained heap, packaging, installability, type declarations, and real app drop-in behavior.
 
 ### Key Performance Features
 
@@ -29,16 +30,18 @@ VLD 3.0 is built from the ground up with performance as a primary goal. The rele
 - **Lazy Stack Capture**: `VLD_CAPTURE_STACK=true` opt-in for debug stack traces
 - **Release Guards**: `npm run release:check` blocks releases that fall below runtime, startup, memory, docs, exports, package, install, type, security, Zod parity, and drop-in app thresholds
 
-## V2 vs V1 vs Zod 4.5 — Headline Numbers
+## V2 vs V1 vs Zod 4.6 — Headline Numbers
 
 ### Runtime (1M `safeParse` operations, pre-built schemas)
 
-| Schema | v.* (V1) | vV2 | Zod 4.5 | V2 vs Zod |
+| Schema | v.* (V1) | vV2 | Zod 4.6.4 | V2 vs Zod |
 |---|---:|---:|---:|---:|
-| `string().min(1).email()` | 22ms | **22ms** | 50ms | 2.3x faster |
-| `number().int().positive().min(1)` | 12ms | **6ms** | 39ms | **6.5x faster** |
-| `object({a:str, b:num})` | 12ms | **11ms** | 18ms | 1.6x faster |
-| Realistic API (10 fields) | 276ms | **243ms** | 767ms | **3.2x faster** |
+| `string().min(1).email()` | 33ms | **25ms** | 51ms | 2.0x faster |
+| `number().int().positive().min(1)` | 13ms | **7ms** | 74ms | **10.3x faster** |
+| `object({a:str, b:num})` | 21ms | **19ms** | 43ms | 2.3x faster |
+| `array(string()).min(1).max(100)` | 25ms | **32ms** | 168ms | **5.2x faster** |
+| `record(string())` | 93ms | **72ms** | 472ms | **6.5x faster** |
+| `literal("active")` | 17ms | **14ms** | 40ms | **2.8x faster** |
 
 *1M `safeParse` operations, pre-built schemas, Node v24.13.0. Lower is better.*
 
@@ -53,9 +56,24 @@ VLD 3.0 is built from the ground up with performance as a primary goal. The rele
 
 ### Test Coverage
 
-- **104 test suites, 3031/3031 tests pass** (no regressions vs v2.4.0)
+- **109 test suites, 3113/3113 tests pass** (no regressions)
 - **22/22 real-world Zod pattern test** (discriminated union, lazy, preprocess, pipe, brand, pick/omit, merge, extend, catch, default, transform, refine, etc.)
-- **28/28 Zod 4.5 parity test** (`import { v as z }` is a drop-in)
+- **29/29 Zod 4.6 differential test** compared against the installed zod (`tests/zod-4-6-parity.test.ts`)
+
+### `.validate()` vs Zod 4.6 `.validate()`
+
+Zod 4.6 introduced `.validate()` — boolean validation without building result objects. VLD ships the same API with a lazily AOT-compiled fast path, and wins every scenario head-to-head (`npm run benchmark:validate`):
+
+| Schema | Zod validate | VLD validate | VLD vs Zod |
+|---|---:|---:|---:|
+| `string().min(3).max(64).regex()` | 25ms | 9ms | **2.8x faster** |
+| Wide object (12 string fields) | 306ms | 11ms | **28x faster** |
+| Nested object (3 levels) | 205ms | 21ms | **9.6x faster** |
+| Array of 50 objects | 2357ms | 66ms | **35.5x faster** |
+| Config object (defaults/optionals) | 95ms | 3ms | **27.6x faster** |
+| `z.iban()` checksum | 87ms | 58ms | **1.5x faster** |
+
+*500k ops, median of 15 runs, 10k warmup, Node v24.13.0.*
 
 ## Benchmark Results
 
@@ -63,10 +81,11 @@ VLD 3.0 is built from the ground up with performance as a primary goal. The rele
 
 | Guard | v3.0 Snapshot | Release Threshold |
 |-------|------------------|-------------------|
-| Runtime throughput (drop-in) | **3.00x faster than Zod 4.5.4** (10/10 wins, semantic-checked) | Must stay faster |
-| Memory (V2) | **1.6-10x less than Zod 4.5** | Must stay below |
+| Runtime throughput (drop-in) | **3.03x faster than Zod 4.6.4** (10/10 wins, semantic-checked) | Must stay faster |
+| `.validate()` head-to-head | **Faster than `zod.validate()` on every scenario**, up to 35.5x | Must stay faster |
+| Memory (V2) | **1.6-10x less than Zod 4.6** | Must stay below |
 | Startup | **1.5x+ faster** | >= 1.10x |
-| 3031 unit tests | **PASS** | No regressions |
+| 3113 unit tests | **PASS** | No regressions |
 | 22/22 real-world Zod test | **PASS** | All must pass |
 | Bundle size | **53.0 KiB minified root** | Release-gated |
 
@@ -418,7 +437,7 @@ This runs linting, TypeScript checks, the full Jest suite (3031 tests), build, A
 
 1. **Reuse schemas** — Create once, use many times
 2. **Use safeParse** — Avoid exception overhead
-3. **Use vV2 for hot paths** — part of the 3.00x drop-in geomean vs Zod 4.5.4
+3. **Use vV2 for hot paths** — part of the 3.03x drop-in geomean vs Zod 4.6.4
 4. **Use v.setV2Mode(true)** — One-line global V2 swap
 5. **Optimize unions** — Most common types first
 6. **Flatten structures** — Avoid deep nesting

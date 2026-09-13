@@ -20,7 +20,7 @@
 import { v } from '../../src/index';
 
 describe('required field enforcement (bug fix 3.0.1 -> 3.0.2)', () => {
-  describe('plain object — passthrough (any/unknown) and undefinedValue modes', () => {
+  describe('plain object - passthrough (any/unknown) and undefinedValue modes', () => {
     test('object({a: any()}) with {} rejects (required any missing)', () => {
       const s = v.object({ a: v.any() });
       const r = s.safeParse({});
@@ -127,7 +127,7 @@ describe('required field enforcement (bug fix 3.0.1 -> 3.0.2)', () => {
     });
   });
 
-  describe('exhaustive — every SimpleFieldMode exercises the required check', () => {
+  describe('exhaustive - every SimpleFieldMode exercises the required check', () => {
     // These are the modes the bug affected. Each one goes through a slightly
     // different code path, so we need a separate test per mode.
     const modes = [

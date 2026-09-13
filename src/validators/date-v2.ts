@@ -1,5 +1,5 @@
 /**
- * VldDateV2 — OPTIMIZED: check returns Issue | null.
+ * VldDateV2 - OPTIMIZED: check returns Issue | null.
  */
 import { VldBase, VLD_VALIDATOR_TYPES, type ErrorParam, type ParseResult } from './base';
 import { VldError, createInvalidTypeIssue, getTypeName, type VldIssue } from '../errors-core';

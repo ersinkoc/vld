@@ -42,7 +42,7 @@ VLD provides a simple, chainable API for building validation schemas. The core c
 2. **Composable**: Build complex schemas from simple primitives
 3. **Performant**: Release-gated against the latest stable Zod for runtime, startup, and memory behavior
 4. **Drop-in Focused**: Root, v4, v4-mini, v4/core, and v4/locales entry points are checked against Zod
-5. **V2 Method-Memoization (v3.0)**: 3.00x drop-in geomean vs Zod 4.5.4 (10/10 honest wins, semantic-checked); 1.6-10x less memory per instance
+5. **V2 Method-Memoization (v3.0)**: 3.03x drop-in geomean vs Zod 4.6.4 (10/10 honest wins, semantic-checked); 1.6-10x less memory per instance
 6. **ZodError Compatible (v3.0)**: `toZodError()` produces ZodError-shaped errors with `.format()` and `.flatten()`
 7. **Developer-Friendly**: Clear error messages and intuitive API
 
@@ -118,7 +118,7 @@ const schema = z.object({
 });
 ```
 
-The release gate compares VLD exports against Zod 4.5.4 and runs the same TypeScript fixture once with `zod` and once with the built `@oxog/vld` package.
+The release gate compares VLD exports against Zod 4.6.4 and runs the same TypeScript fixture once with `zod` and once with the built `@oxog/vld` package.
 
 ## Your First Schema
 

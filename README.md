@@ -313,12 +313,13 @@ await preloadLocales(['en', 'de', 'ja']);
 
 ---
 
-## V3 Migration Guide — V2 Method-Memoization Pattern
+## V3 Migration Guide - V2 Method-Memoization Pattern
 
 VLD 3.0 ships the **V2 pattern** (single-def + check classes) for every chain-heavy
 validator. This matches Zod 4.5's "method memoization" optimization and is
-**3.00x faster** on the honest head-to-head (10/10 wins, semantic-checked, see
-`benchmarks/dropin-vs-zod.cjs`) and **1.6-10x smaller** in memory.
+**3.03x faster** than Zod 4.6.4 on the honest head-to-head (10/10 wins,
+semantic-checked, see `benchmarks/dropin-vs-zod.cjs`) and **1.6-10x smaller**
+in memory.
 
 ### What changed
 
@@ -346,7 +347,7 @@ compatibility.
 
 ### Migration paths
 
-**Option 1 — Drop-in via `vV2` (recommended for new code):**
+**Option 1 - Drop-in via `vV2` (recommended for new code):**
 
 ```ts
 // Old (still works, V1):
@@ -354,12 +355,12 @@ import { v } from '@oxog/vld';
 const schema = v.object({ email: v.string().email() });
 
 // New (V3, drop-in):
-import { vV2 as v } from '@oxog/vld';   // ← just change the import
+import { vV2 as v } from '@oxog/vld';   // just change the import
 const schema = v.object({ email: v.string().email() });
 // All v.* calls now return V2 internally. v.object() composes them transparently.
 ```
 
-**Option 2 — Global V2 toggle (for existing codebases):**
+**Option 2 - Global V2 toggle (for existing codebases):**
 
 ```ts
 import { v } from '@oxog/vld';
@@ -367,10 +368,10 @@ import { v } from '@oxog/vld';
 // Switch all v.* factories to V2 once at app start
 v.setV2Mode(true);
 
-const s = v.string().email();   // ← now returns VldStringV2
+const s = v.string().email();   // now returns VldStringV2
 ```
 
-**Option 3 — Selective V2 (keep V1 by default, opt in where it matters):**
+**Option 3 - Selective V2 (keep V1 by default, opt in where it matters):**
 
 ```ts
 import { v } from '@oxog/vld';
@@ -381,7 +382,7 @@ const s1 = v.boolean();
 // Use V2 for the hot path
 const s2 = v.stringV2().min(1).email();   // V2
 const s3 = v.arrayV2(v.stringV2());       // V2
-const s4 = v.object({ a: v.numberV2().int() });   // mixed — V2 child, V1 object
+const s4 = v.object({ a: v.numberV2().int() });   // mixed - V2 child, V1 object
 ```
 
 ### Performance impact (V2 vs V1, same machine, 1M `safeParse` ops)
@@ -396,15 +397,31 @@ const s4 = v.object({ a: v.numberV2().int() });   // mixed — V2 child, V1 obje
 ### API compatibility
 
 - **28/28 Zod 4.5 parity tests pass.** `import { vV2 as z }` is a drop-in for Zod 4.5.
+- **Zod 4.6 parity is verified per-release** (`npm run verify:zod` checks every public
+  `zod@4.6` export - 259 as of 4.6.4) and `tests/zod-4-6-parity.test.ts` compares behavior against the installed zod.
 - V1 is the default; existing code works unchanged.
 - V2 validators can be children of V1 composites and vice-versa (mixed schemas work).
+
+### Zod 4.6 support
+
+| Zod 4.6 API | VLD | Notes |
+|---|---|---|
+| `schema.validate(data)` | yes | Boolean check, no result object; lazily AOT-compiles on first call - **2.8-33x faster than `zod.validate()`** (`node benchmarks/validate-vs-zod.cjs`) |
+| `schema.validateAsync(data)` | yes | Async refinements supported |
+| `z.iban()` | yes | ISO 7064 MOD 97-10 checksum in code, pattern inlined for JSON Schema |
+| `z.instanceof(Cls).properties({...})` | yes | Validates instance fields in place; the prototype survives parsing |
+| `z.withParser(schema, parser)` | yes | Install an externally generated parser (`v.INVALID` hands back to the runtime) - the CSP-friendly path when `new Function` is unavailable |
+| `fromJSONSchema` new keywords | yes | `minProperties`, `maxProperties`, `uniqueItems`, `contains`, `minContains`, `maxContains` |
+| `z.emoji()` component rejection | yes | 4.6 regex byte-for-byte; keycaps and flags stay valid |
+| `z.regexes.currencyCode` / `anyString` / `iban` | yes | Full 4.6 regex namespace |
+| `tg` locale | yes | Tajik messages |
 
 ### Internal V2 pattern (for contributors)
 
 Each V2 class follows this shape:
 - A single `__def: Object` field on the instance (the only data).
-- Chain methods create a new `__def` via `withDef({...})` — no per-instance field shadowing.
-- Constraints are class instances (`VldCheckMin`, `VldCheckEmail`, ...) with a `check(value): Issue | null` method — no per-call payload allocation.
+- Chain methods create a new `__def` via `withDef({...})` - no per-instance field shadowing.
+- Constraints are class instances (`VldCheckMin`, `VldCheckEmail`, ...) with a `check(value): Issue | null` method - no per-call payload allocation.
 - `isSimple` is precomputed in `__def` for the parse hot path.
 
 The pattern is exactly Zod 4.5's "method memoization via prototype getters" but

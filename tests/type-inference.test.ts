@@ -1,5 +1,5 @@
 /**
- * TypeScript type inference tests — verifies that VLD's v.infer<>, v.input<>, v.output<>
+ * TypeScript type inference tests - verifies that VLD's v.infer<>, v.input<>, v.output<>
  * produce the same types as Zod's z.infer<>, z.input<>, z.output<>.
  *
  * If this test file compiles, the types are correct.
@@ -33,7 +33,7 @@ describe('TypeScript type inference', () => {
       role: v.literal('admin'),
     });
     type T = Infer<typeof schema>;
-    // Real data — type assertions verify TypeScript inference
+    // Real data - type assertions verify TypeScript inference
     const valid: T = { name: 'Ada', age: 36, email: 'ada@x.dev', role: 'admin' };
     const name: string = valid.name;
     const age: number = valid.age;

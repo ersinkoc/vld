@@ -1,5 +1,5 @@
 /**
- * V2 Coverage — Last mile
+ * V2 Coverage - Last mile
  *
  * Targets the last remaining V2 branches:
  *   - union-v2 OBJECT typeChecker (line 52)
@@ -34,7 +34,7 @@ describe('union-v2 OBJECT typeChecker + remaining branches', () => {
   });
 
   it('VldUnionV2 catch non-Error fallback (line 117)', () => {
-    // Validator that throws a non-Error (a string) → line 117 fallback
+    // Validator that throws a non-Error (a string) -> line 117 fallback
     const throwing = { parse: () => { throw 'string-not-error'; } } as any;
     const u = VldUnionV2.create(throwing);
     const r = u.safeParse('x');
@@ -42,7 +42,7 @@ describe('union-v2 OBJECT typeChecker + remaining branches', () => {
   });
 
   it('VldUnionV2 safeParse VldError branch (line 127 true)', () => {
-    // VldError thrown from a non-matching inner → wraps correctly
+    // VldError thrown from a non-matching inner -> wraps correctly
     const u = VldUnionV2.create(vV2.string());
     const r = u.safeParse(42);
     expect(r.success).toBe(false);
@@ -68,7 +68,7 @@ describe('bigint-v2 safeParse catch + withDef ?? branches', () => {
   });
 
   it('VldBigIntCheck.meta() default message branches (line 131 ??-checks)', () => {
-    // meta() is called when we use a check with no message — exercises the
+    // meta() is called when we use a check with no message - exercises the
     // `??` fallback branches in buildBigIntDef path
     expect(new bigintMod.VldBigIntCheckMin(10n).meta().message).toBeUndefined();
     expect(new bigintMod.VldBigIntCheckMin(10n, 'custom').meta().message).toBe('custom');
