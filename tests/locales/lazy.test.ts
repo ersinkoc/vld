@@ -281,7 +281,7 @@ describe('Lazy Locale System', () => {
       const majorLocales: Locale[] = [
         'tr', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'ja', 'ko', 'zh',
         'ar', 'hi', 'nl', 'pl', 'da', 'sv', 'no', 'fi', 'th', 'vi',
-        'id', 'bn', 'sw', 'af'
+        'id', 'bn', 'sw', 'af', 'tg', 'sk', 'gu', 'kn', 'ne'
       ];
 
       for (const locale of majorLocales) {
