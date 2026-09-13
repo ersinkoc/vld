@@ -5,6 +5,17 @@ All notable changes to VLD will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.6] - 2026-09-13
+
+### Fixed
+
+- **Lazy locale loader registry was missing `tg`** - `setLocaleAsync('tg')` threw in
+  the shipped 3.0.5 even though the eager locale index and `zod/v4/locales` parity
+  export advertised Tajik. The loader now dynamic-imports `./tg`.
+- The same registry was silently missing `sk`, `gu`, `kn` and `ne` since their
+  v2.4.0 additions; `isLocaleSupported()`/`getSupportedLocales()` now list all
+  31 translated locales consistently between the eager and lazy entry points.
+
 ## [3.0.5] - 2026-09-13
 
 ### Added — Zod 4.6 parity

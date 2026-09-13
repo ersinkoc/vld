@@ -62,6 +62,12 @@ describe('Lazy Locale System', () => {
     test('returns true for supported locale', () => {
       expect(isLocaleSupported('tr')).toBe(true);
       expect(isLocaleSupported('de')).toBe(true);
+      // v3.0.5: tg joins the lazy registry; sk/gu/kn/ne were missing before
+      expect(isLocaleSupported('tg')).toBe(true);
+      expect(isLocaleSupported('sk')).toBe(true);
+      expect(isLocaleSupported('gu')).toBe(true);
+      expect(isLocaleSupported('kn')).toBe(true);
+      expect(isLocaleSupported('ne')).toBe(true);
       expect(isLocaleSupported('fr')).toBe(true);
     });
 
