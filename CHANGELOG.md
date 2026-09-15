@@ -5,6 +5,21 @@ All notable changes to VLD will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.9] - 2026-09-13
+
+### Changed
+
+- **`base64url` now enforces Zod 4.6's mod-4 length rule** (RFC 4648 unpadded,
+  official 4.6 regex): strings like `"a"` or `"abcde"` that are charset-valid
+  but not valid base64url encodings are rejected by both `.base64url()` and
+  `z.base64url()`. Aligns with Zod 4.6's base64 pattern rework.
+- Known-differences documentation now lists the `z.lowercase()`/`z.uppercase()`
+  API semantics (VLD ships them as transform aliases; Zod treats them as
+  checks) alongside the email pattern difference.
+- A 1400-case differential sweep (every string format, primitive type, and
+  composite schema, vld vs zod@4.6.4) shows no accept/reject divergence left
+  on the `z.*` drop-in surface beyond the two documented items.
+
 ## [3.0.8] - 2026-09-13
 
 ### Changed

@@ -117,9 +117,13 @@ describe('String Format Validators', () => {
       expect(base64Validator.safeParse('Not @ base64!').success).toBe(false);
     });
 
-    it('should validate URL-safe base64', () => {
-      expect(base64urlValidator.safeParse('SGVsbG8gV29ybGQ').success).toBe(true);
+    it('should validate URL-safe base64 (mod-4 length, Zod 4.6)', () => {
+      expect(base64urlValidator.safeParse('SGVsbG8gV29ybG').success).toBe(true);
       expect(base64urlValidator.safeParse('abc123-_').success).toBe(true);
+      expect(base64urlValidator.safeParse('').success).toBe(true);
+      // 1-char and 5-char strings violate the mod-4 rule.
+      expect(base64urlValidator.safeParse('a').success).toBe(false);
+      expect(base64urlValidator.safeParse('abcde').success).toBe(false);
     });
   });
 

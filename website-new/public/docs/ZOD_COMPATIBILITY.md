@@ -19,7 +19,12 @@ VLD 3.0.5 is a **drop-in replacement for Zod 4.6** (and remains a drop-in for 4.
 | Area | VLD | Zod 4.6 | Why |
 | --- | --- | --- | --- |
 | `z.string().email()` | Fast simplified pattern - accepts more inputs (unicode locals, `a..b@c.de`) | RFC-oriented pattern | VLD's speed identity; rejects nothing Zod accepts |
-| `'~standard'` issues | `[{ message }]` | `[{ code, path, expected, message }]` | Consumers reading only `.message` are unaffected |
+| `z.lowercase()` / `z.uppercase()` | Transform aliases (`.toLowerCase()` / `.toUpperCase()`) - accept any string and rewrite it | Checks - accept only lowercase / uppercase strings | VLD predates them as transforms; existing VLD users depend on the rewrite behavior |
+
+Closed in 3.0.8/3.0.9: `'~standard'` now returns full issue objects, and `base64url`
+enforces Zod 4.6's mod-4 length rule (RFC 4648 unpadded). A 1400-case differential
+sweep across every string format, primitive type, and composite schema finds no
+further accept/reject divergence.
 
 ## v3.0 highlights
 

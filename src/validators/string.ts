@@ -26,7 +26,8 @@ const REGEX_PATTERNS = {
   // character, so component-only strings are rejected.
   emoji: /^(?=[\s\S]*[\p{Extended_Pictographic}\p{Regional_Indicator}\u20E3])[\p{Extended_Pictographic}\p{Emoji_Component}]+$/u,
   base64: /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/,
-  base64url: /^[A-Za-z0-9_-]*$/,
+  // Zod 4.6 base64url source: charset + mod-4 length (RFC 4648 unpadded).
+  base64url: /^(?:[A-Za-z0-9_-]{4})*(?:[A-Za-z0-9_-]{2,3})?$/,
   jwt: /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*$/,
   nanoid: /^[A-Za-z0-9_-]{21}$/,
   cuid: /^c[^\s-]{8,}$/i,
