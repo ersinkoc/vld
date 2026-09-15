@@ -180,7 +180,7 @@ const apiMethods: ApiMethod[] = [
   { name: 'enableDebug()', description: 'Enable debug logging', category: 'Logger', signature: 'enableDebug(): void' },
   { name: 'disableLogging()', description: 'Disable all logging', category: 'Logger', signature: 'disableLogging(): void' },
 
-  // AOT Compile — Zod 4.5.4 parity, release-gated 1.46x parse / 2.36x validate
+  // AOT Compile — mirrors Zod 4.5 z.compile(); lazy-compiled since v3.0.9
   { name: 'v.compile()', description: 'AOT-compile a schema to a flat if/typeof guard. Returns the same schema with _zod.bag.validator set. Pass { JITless: true } to skip the compile step.', category: 'AOT Compile', signature: 'v.compile(schema, options?): T', example: `import { v, compile } from "@oxog/vld"
 
 const schema = v.object({ name: v.string(), age: v.number() })
@@ -211,7 +211,42 @@ const str = v.toZod("hello")              // v.string()` },
   { name: 'ZodCompileAsyncError', description: 'Async variant of ZodCompileError for validateAsync paths.', category: 'AOT Compile', signature: 'class ZodCompileAsyncError extends Error' },
   { name: 'ZodCompileUnsupportedError', description: 'Thrown when a schema feature cannot be lowered to an AOT compile body (e.g. custom refinements, async transforms).', category: 'AOT Compile', signature: 'class ZodCompileUnsupportedError extends Error' },
 
-  // V2 Method-Memoization (v3.0 NEW) — part of the 3.00x drop-in story
+  // Zod 4.6 parity (v3.0.5+ NEW) — boolean validate, IBAN, instance properties, external parsers
+  { name: 'schema.validate()', description: 'Zod 4.6 boolean validation with no result objects. Short-circuits on the first failed check, lazily AOT-compiles the schema on first call, and narrows via a type predicate. VLD wins every scenario head-to-head, up to 35.5x.', category: 'Zod 4.6 (v3.0.5+)', signature: 'schema.validate(data): data is TInput', example: `import { v } from "@oxog/vld"
+
+const User = v.object({ name: v.string(), age: v.number().int() })
+User.validate({ name: "ada", age: 36 }) // true
+User.validate({ name: "ada", age: -1 }) // false - no error object built
+
+// Type-guard narrowing
+const input: unknown = "hello"
+if (v.string().validate(input)) input.length // narrowed to string` },
+  { name: 'schema.validateAsync()', description: 'Async boolean validation for schemas with async refinements. Resolves to true/false.', category: 'Zod 4.6 (v3.0.5+)', signature: 'schema.validateAsync(data): Promise<boolean>', example: `const unique = v.string().refine(async (s) => await checkDb(s))
+await unique.validateAsync("value") // Promise<boolean>` },
+  { name: 'v.iban()', description: 'Zod 4.6 electronic IBAN format: pattern check plus the ISO 7064 MOD 97-10 checksum (no BigInt). Byte-compatible accept/reject set with zod.iban().', category: 'Zod 4.6 (v3.0.5+)', signature: 'v.iban(params?): VldStringFormat', example: `v.iban().validate("GB82WEST12345698765432") // true
+v.iban().validate("GB82WEST12345698765433") // false - bad checksum` },
+  { name: 'v.currencyCode()', description: 'Zod 4.6 ISO 4217 three-letter currency-code format.', category: 'Zod 4.6 (v3.0.5+)', signature: 'v.currencyCode(params?): VldStringFormat', example: `v.currencyCode().validate("TRY") // true
+v.currencyCode().validate("try") // false` },
+  { name: 'v.instanceof(Cls).properties(shape)', description: 'Zod 4.6 instance properties: validates the class instance fields in place and returns the same instance - the prototype survives parsing. Field errors carry the field name at the head of the path.', category: 'Zod 4.6 (v3.0.5+)', signature: 'v.instanceof(Cls).properties(shape): VldCustom<Cls>', example: `class Bucket { constructor(public name: string, public volume: number) {} }
+
+const BucketSchema = v.instanceof(Bucket).properties({
+  name: v.string(),
+  volume: v.number(),
+})
+BucketSchema.parse(new Bucket("sand", 20)) instanceof Bucket // true` },
+  { name: 'v.withParser(schema, parser)', description: 'Zod 4.6 parser installation for CSP environments: install an externally generated parser as the schema fast path. Return v.INVALID to hand the value to the runtime parser. Returns a clone; the original is untouched.', category: 'Zod 4.6 (v3.0.5+)', signature: 'v.withParser(schema, parser): T', example: `const fast = v.withParser(UserSchema, (input) => {
+  if (isMyBuildTimeValid(input)) return normalize(input)
+  return v.INVALID
+})` },
+  { name: 'v.INVALID', description: 'The sentinel a withParser() parser returns to delegate a value back to the runtime parser.', category: 'Zod 4.6 (v3.0.5+)', signature: 'v.INVALID: symbol' },
+  { name: 'fromJSONSchema: 4.6 keywords', description: 'fromJSONSchema now enforces the six Zod 4.6 keywords: minProperties, maxProperties (counted on the raw input like Zod), uniqueItems, contains, minContains and maxContains. minItems/maxItems also bind plain arrays.', category: 'Zod 4.6 (v3.0.5+)', signature: 'v.fromJSONSchema(json)', example: `v.fromJSONSchema({
+  type: "array", items: { type: "number" },
+  uniqueItems: true,
+  contains: { type: "number", const: 5 },
+  minContains: 1, maxContains: 2,
+})` },
+
+  // V2 Method-Memoization (v3.0 NEW) — part of the 3.03x drop-in story
   { name: 'vV2', description: 'Drop-in factory that always returns V2 method-memoization classes. Identical surface to v; vV2 contributes to the 3.00x geomean over Zod 4.5.4 in benchmarks/dropin-vs-zod.cjs.', category: 'V2 (v3.0)', signature: 'vV2: typeof v', example: `import { vV2 } from "@oxog/vld"
 
 const schema = vV2.string().min(1).email()

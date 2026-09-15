@@ -6,7 +6,7 @@ import { CodeBlock, CommandLine } from '@/components/ui/code-block'
 const features = [
   {
     icon: Zap,
-    title: '3.00x Faster Drop-in',
+    title: '3.03x Faster Drop-in',
     description: '`import { z } from "@oxog/vld"` is a true drop-in for Zod 4.6.4. 3.03x geomean (10/10 honest wins, semantic-checked).',
     color: 'from-amber-500 to-orange-500',
   },
@@ -15,6 +15,12 @@ const features = [
     title: 'V2 Method-Memoization',
     description: 'Opt into the V2 path via `vV2`, `v.setV2Mode(true)`, or `v.*V2()`. Same surface, 1.6-10x less memory per instance.',
     color: 'from-cyan-500 to-blue-500',
+  },
+  {
+    icon: Sparkles,
+    title: 'Zod 4.6 Built-in',
+    description: '`.validate()` boolean checks (lazily AOT-compiled, wins every scenario), `z.iban()`, `z.instanceof().properties()`, and `z.withParser()` ship out of the box.',
+    color: 'from-violet-500 to-purple-500',
   },
   {
     icon: AlertCircle,
@@ -56,7 +62,7 @@ const features = [
 
 const quickExample = `// v3.0.5 — true drop-in for Zod 4.6.4
 //   import { z } from "@oxog/vld"   // literally the same as import { z } from "zod"
-//   benchmarks/dropin-vs-zod.cjs  — 10/10 wins, 3.00x geomean (semantic-checked)
+//   benchmarks/dropin-vs-zod.cjs  — 10/10 wins, 3.03x geomean (semantic-checked)
 
 import { z } from "@oxog/vld"
 import { toZodError } from "@oxog/vld"
@@ -82,17 +88,18 @@ if (!result.success) {
   console.log(result.data) // Fully typed!
 }`
 
-const zodComparison = `// Zod 4.5.4
+const zodComparison = `// Zod 4.6
 import { z } from "zod"
 const schema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
 })
 
-// VLD v3.0.0 — true drop-in: only the import line changes
-//   3.00x faster (benchmarks/dropin-vs-zod.cjs, 10/10 wins, semantic-checked)
+// VLD v3.0.11 — true drop-in: only the import line changes
+//   3.03x faster (benchmarks/dropin-vs-zod.cjs, 10/10 wins, semantic-checked)
+//   + Zod 4.6 APIs: .validate(), z.iban(), z.instanceof().properties(), z.withParser()
 import { z } from "@oxog/vld"   // <- THAT'S IT
-const schema = z.object({        // <- same code, 3.00x faster
+const schema = z.object({        // <- same code, 3.03x faster
   name: z.string().min(2),
   email: z.string().email(),
 })
@@ -123,17 +130,17 @@ const stats = [
   { value: '3.03x', label: 'Drop-in Faster', sublabel: '10/10 vs Zod 4.6.4' },
   { value: '10/10', label: 'Honest Wins', sublabel: 'semantic-checked' },
   { value: '0', label: 'Dependencies', sublabel: 'zero bloat' },
-  { value: '3031', label: 'Tests Passing', sublabel: '104 test suites' },
+  { value: '3116', label: 'Tests Passing', sublabel: '110 test suites' },
 ]
 
 const comparisons = [
-  { feature: 'Drop-in Replacement', vld: '3.00x faster (10/10)', zod: 'baseline', winner: 'vld' },
+  { feature: 'Drop-in Replacement', vld: '3.03x faster (10/10)', zod: 'baseline', winner: 'vld' },
   { feature: 'True z Alias', vld: 'import { z } from "@oxog/vld"', zod: 'native', winner: 'tie' },
   { feature: 'V2 Method-Memoization', vld: 'opt-in via vV2 / setV2Mode', zod: 'baseline', winner: 'vld' },
-  { feature: 'AOT Compile (parse, v2.4.0)', vld: '1.46x faster (5/6, context)', zod: 'baseline', winner: 'vld' },
-  { feature: 'AOT Compile (validate, v2.4.0)', vld: '2.36x faster (6/6, context)', zod: 'baseline', winner: 'vld' },
+  { feature: '.validate() (Zod 4.6 API)', vld: 'faster in every scenario, up to 35.5x', zod: 'baseline', winner: 'vld' },
+  { feature: 'Zod 4.6 API surface', vld: 'validate / iban / properties / withParser', zod: 'native', winner: 'tie' },
   { feature: 'V2 Memory Footprint', vld: '1.6-10x smaller', zod: 'baseline', winner: 'vld' },
-  { feature: 'Zod 4.5.4 Parity', vld: '253/253 exports', zod: 'reference', winner: 'vld' },
+  { feature: 'Zod 4.6 Parity', vld: '259/259 exports + 1400-case behavior sweep', zod: 'reference', winner: 'vld' },
   { feature: 'ZodError Adapter', vld: 'toZodError() + .format() + .flatten()', zod: 'native', winner: 'tie' },
   { feature: 'Built-in i18n', vld: '27+ langs', zod: 'None', winner: 'vld' },
   { feature: 'Built-in Codecs', vld: '19 codecs', zod: 'None', winner: 'vld' },
@@ -156,7 +163,7 @@ export function HomePage() {
               <div className="animate-fade-in">
                 <div className="tag mb-6">
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>v3.0.0 — true Zod 4.5.4 drop-in, 3.00x faster (10/10 honest head-to-head)</span>
+                  <span>v3.0.11 — true Zod 4.6 drop-in, 3.03x faster (10/10 honest head-to-head)</span>
                 </div>
               </div>
 
@@ -166,7 +173,7 @@ export function HomePage() {
               </h1>
 
               <p className="animate-fade-in stagger-2 text-lg text-muted-foreground mb-8 leading-relaxed">
-                A lightning-fast, type-safe validation library with zero dependencies. V3.0.0 is a <strong>true drop-in replacement for Zod 4.5.4</strong> — just change <code className="font-mono text-vld-primary">import {'{ z }'}</code> from <code className="font-mono">"zod"</code> to <code className="font-mono text-vld-primary">"@oxog/vld"</code> and you&apos;re done. <strong>3.00x faster</strong> geometric mean (10/10 scenarios, 1M safeParse ops × 21 runs, semantic-checked). <code className="font-mono text-vld-primary">toZodError()</code> returns ZodError-shaped errors with <code className="font-mono">.format()</code> and <code className="font-mono">.flatten()</code>.
+                A lightning-fast, type-safe validation library with zero dependencies. V3.0.11 is a <strong>true drop-in replacement for Zod 4.6</strong> — just change <code className="font-mono text-vld-primary">import {'{ z }'}</code> from <code className="font-mono">"zod"</code> to <code className="font-mono text-vld-primary">"@oxog/vld"</code> and you&apos;re done. <strong>3.03x faster</strong> geometric mean (10/10 scenarios, 1M safeParse ops × 21 runs, semantic-checked), and the Zod 4.6 <strong>.validate()</strong> boolean API wins every scenario head-to-head (up to 35.5x). <code className="font-mono text-vld-primary">toZodError()</code> returns ZodError-shaped errors with <code className="font-mono">.format()</code> and <code className="font-mono">.flatten()</code>.
               </p>
 
               <div className="animate-fade-in stagger-3 flex flex-wrap items-center gap-4 mb-10">

@@ -37,6 +37,16 @@ const sidebarSections: SidebarSection[] = [
     ],
   },
   {
+    title: 'Zod 4.6',
+    icon: Sparkles,
+    items: [
+      { title: 'Boolean .validate()', slug: 'boolean-validate' },
+      { title: 'IBAN & Currency Codes', slug: 'iban-currency' },
+      { title: 'Instance Properties', slug: 'instance-properties' },
+      { title: 'withParser (CSP-safe)', slug: 'with-parser' },
+    ],
+  },
+  {
     title: 'Basic Types',
     icon: Code2,
     items: [
@@ -100,6 +110,100 @@ interface DocContent {
 }
 
 const docContent: Record<string, DocContent> = {
+  'boolean-validate': {
+    title: 'Boolean .validate()',
+    description: 'Zod 4.6 boolean validation: check validity without building result objects or errors. VLD lazily AOT-compiles each schema on its first .validate() call and wins every scenario head-to-head (up to 35.5x).',
+    code: `import { v } from "@oxog/vld"
+
+const User = v.object({ name: v.string(), age: v.number().int() })
+
+User.validate({ name: "ada", age: 36 }) // true
+User.validate({ name: "ada", age: -1 }) // false
+
+// Type-guard narrowing works like Zod:
+const input: unknown = "hello"
+if (v.string().validate(input)) {
+  input.length // narrowed to string
+}
+
+// Async refinements
+const unique = v.string().refine(async (s) => await checkDb(s))
+await unique.validateAsync("value") // Promise<boolean>`,
+    lang: 'typescript',
+    tips: [
+      'Short-circuits on the first failed check - no issue accumulation',
+      'The compiled validator is memoized per schema; CSP environments (no new Function) transparently fall back to the runtime parser',
+      'z.promise schemas throw on sync .validate() like Zod - use .validateAsync()',
+    ],
+  },
+  'iban-currency': {
+    title: 'IBAN & Currency Codes',
+    description: 'Zod 4.6 string formats: electronic IBAN with the ISO 7064 MOD 97-10 checksum, and ISO 4217 currency codes. Accept/reject sets are byte-compatible with zod.',
+    code: `import { v } from "@oxog/vld"
+
+// IBAN: pattern + checksum (no BigInt)
+v.iban().validate("GB82WEST12345698765432") // true
+v.iban().validate("GB82WEST12345698765433") // false - checksum fails
+v.iban().validate("TR330006100519786457841326") // true
+
+// Currency codes
+v.currencyCode().validate("TRY") // true
+v.currencyCode().validate("try") // false
+
+// Also available as string methods and regexes
+v.string().iban()
+v.regexes.iban
+v.regexes.currencyCode`,
+    lang: 'typescript',
+    tips: [
+      'Check digits 00, 01 and 99 are rejected by the pattern before the checksum runs',
+      'isValidIBAN() is exported for reuse without a schema',
+    ],
+  },
+  'instance-properties': {
+    title: 'Instance Properties',
+    description: 'Zod 4.6 z.instanceof(Class).properties(shape): validate the fields of a class instance in place. The parse output is the same instance - the prototype survives.',
+    code: `import { v } from "@oxog/vld"
+
+class Bucket {
+  constructor(public name: string, public volume: number) {}
+}
+
+const BucketSchema = v.instanceof(Bucket).properties({
+  name: v.string(),
+  volume: v.number(),
+})
+
+const bucket = new Bucket("sand", 20)
+BucketSchema.parse(bucket) instanceof Bucket // true - same instance
+BucketSchema.validate(new Bucket(1, 2)) // false
+// Field errors carry the field name: path: ["name"]`,
+    lang: 'typescript',
+    tips: [
+      'Unlike v.object(), no plain-object copy is built - the class prototype is preserved',
+      'Non-instances fail with the constructor name in the message',
+    ],
+  },
+  'with-parser': {
+    title: 'withParser (CSP-safe)',
+    description: 'Zod 4.6 z.withParser(schema, parser): install an externally generated parser as the schema fast path. For build-time or native compilers in environments where new Function is blocked by CSP.',
+    code: `import { v } from "@oxog/vld"
+
+const fast = v.withParser(UserSchema, (input) => {
+  if (isMyBuildTimeValid(input)) return normalize(input)
+  return v.INVALID // hand the value to the runtime parser
+})
+
+fast.parse(payload)                 // routed through your parser
+fast.safeParse(badPayload)          // INVALID -> runtime safeParse
+UserSchema.validate(payload)        // original schema untouched`,
+    lang: 'typescript',
+    tips: [
+      'Returns a clone; the original schema is unchanged',
+      'The parser must be synchronous and forward-direction, and must build fresh output',
+      'Pairs naturally with a build-time compiler that emits plain JS in a CI step',
+    ],
+  },
   introduction: {
     title: 'Introduction',
     description: 'VLD is an ultra-fast, type-safe validation library for TypeScript. It provides Zod-compatible root and subpath APIs with release-gated runtime, startup, memory, package, and drop-in app checks.',
@@ -129,10 +233,10 @@ if (result.success) {
 }`,
     lang: 'typescript',
     tips: [
-      'VLD v3.0.5 is checked against Zod 4.6.4 (259/259 exports)',
-      '`import { z } from "@oxog/vld"` is a true drop-in for `import { z } from "zod"` — 3.00x faster (10/10 wins, semantic-checked)',
+      'VLD v3.0.11 is checked against Zod 4.6.5 (259/259 exports + a 1400-case behavior sweep)',
+      '`import { z } from "@oxog/vld"` is a true drop-in for `import { z } from "zod"` — 3.03x faster (10/10 wins, semantic-checked)',
       'Root, mini, v4, v4-mini, v4/core, v4/locales, and compile entry points are covered',
-      'AOT compile (v.compile / v.validate) is release-gated at 1.46x / 2.36x geomean vs z.compile',
+      'Zod 4.6 APIs ship built-in: .validate(), .validateAsync(), z.iban(), z.currencyCode(), z.instanceof().properties(), z.withParser()',
       'Full TypeScript inference',
       '3031 tests with 99.98% statement, 99.79% branch, 100% function and line coverage',
     ],
@@ -198,7 +302,7 @@ if (result.success) {
 
 // 0. TRUE DROP-IN for Zod 4.6.4 (v3.0.5) — only the import line changes
 import { z } from "@oxog/vld"   // <- same as: import { z } from "zod"
-//    3.00x faster, 10/10 honest wins, semantic-checked
+//    3.03x faster, 10/10 honest wins, semantic-checked
 //    benchmarks/dropin-vs-zod.cjs
 const schema = z.object({ name: z.string().min(2) })
 
@@ -208,7 +312,7 @@ const compiled = compile(schema) // 1.46x parse, 2.36x validate vs z.compile
 const ok = v.validate(compiled, data) // 310M ops/sec on Moltar ParseSafe
 
 // 2. Package health
-// 253/253 Zod exports, bundle, install, package, and type declarations are checked
+// 259/259 Zod exports, bundle, install, package, and type declarations are checked
 
 // 3. Memory Usage - less retained heap than Zod 4.6.4
 

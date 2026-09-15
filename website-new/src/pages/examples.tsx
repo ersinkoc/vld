@@ -202,9 +202,9 @@ type Order = v.infer<typeof orderSchema>`
   {
     id: 'dropin-zod',
     title: 'Zod → VLD Drop-in',
-    description: 'True drop-in: same API, same semantics, 3.00x faster',
+    description: 'True drop-in: same API, same semantics, 3.03x faster',
     icon: Repeat,
-    code: `// Zod 4.5.4 and VLD 3.0.0 share the exact same public API.
+    code: `// Zod 4.6 and VLD 3.0.11 share the exact same public API.
 // You can switch with a single import line change.
 // See: examples/zod-vs-vld-dropin.js for the verified equivalent.
 
@@ -246,7 +246,7 @@ if (!u.success) {
 // Verified: 10/10 scenarios accept/reject the same inputs in both
 // benchmarks/dropin-vs-zod.cjs — same logical schema, same input,
 // 1M safeParse ops, 21 runs median, semantic-checked first.
-// Result: 3.00x geometric mean speedup over Zod 4.5.4.`
+// Result: 3.03x geometric mean speedup over Zod 4.6.`
   },
   {
     id: 'auth-jwt',
@@ -749,7 +749,7 @@ const result2 = identifierSchema.safeParse({
     code: `// VLD v3.0 ships V2 method-memoization + ZodError compat
 import { v, vV2, toZodError, ZodLikeError } from "@oxog/vld"
 
-// 1. vV2 — drop-in factory (part of the 3.00x geomean over Zod 4.5.4)
+// 1. vV2 — drop-in factory (part of the 3.03x geomean over Zod 4.6)
 const v2 = vV2.string().min(1).email()
 v2.parse("user@example.com")
 

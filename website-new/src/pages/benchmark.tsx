@@ -15,50 +15,50 @@ const compileScenarios = [
   {
     name: 'moltarParseSafe',
     description: 'Moltar ParseSafe object (7 keys, nested 3-key object)',
-    vldParse: 310_366_232,
-    zodParse: 161_147_369,
-    vldValidate: 127_877_238,
-    zodValidate: 53_255_226,
+    vldParse: 283_848_992,
+    zodParse: 181_323_663,
+    vldValidate: 140_726_147,
+    zodValidate: 197_083_169,
   },
   {
     name: 'wideObject',
     description: '20-key flat object',
-    vldParse: 14_965_243,
-    zodParse: 7_926_788,
-    vldValidate: 15_310_184,
-    zodValidate: 6_843_152,
+    vldParse: 16_062_967,
+    zodParse: 13_080_274,
+    vldValidate: 16_517_186,
+    zodValidate: 16_215_077,
   },
   {
     name: 'arrayOfObjects',
-    description: 'Array of 100 × 3-key objects',
-    vldParse: 3_487_930,
-    zodParse: 1_128_920,
-    vldValidate: 3_543_272,
-    zodValidate: 3_298_164,
+    description: 'Array of 100 x 3-key objects',
+    vldParse: 4_052_537,
+    zodParse: 2_047_804,
+    vldValidate: 4_034_894,
+    zodValidate: 3_830_288,
   },
   {
     name: 'tuple',
     description: '5-item tuple of mixed types',
-    vldParse: 46_221_401,
-    zodParse: 29_823_149,
-    vldValidate: 69_864_114,
-    zodValidate: 16_314_544,
+    vldParse: 52_873_685,
+    zodParse: 55_447_741,
+    vldValidate: 77_101_002,
+    zodValidate: 53_873_505,
   },
   {
     name: 'union',
     description: 'Union of string, number, boolean',
-    vldParse: 48_224_146,
-    zodParse: 98_092_108,
-    vldValidate: 74_016_506,
-    zodValidate: 23_644_295,
+    vldParse: 83_934_867,
+    zodParse: 98_058_443,
+    vldValidate: 97_789_947,
+    zodValidate: 55_645_206,
   },
   {
     name: 'nested',
     description: '3-level nested object (3 + 3 + 3 keys)',
-    vldParse: 46_254_539,
-    zodParse: 44_448_395,
-    vldValidate: 55_035_773,
-    zodValidate: 24_949_789,
+    vldParse: 42_634_833,
+    zodParse: 57_188_608,
+    vldValidate: 58_685_446,
+    zodValidate: 52_353_280,
   },
 ]
 
@@ -161,30 +161,30 @@ const v2MethodMemoization = [
   {
     name: 'string().min(1).email()',
     description: 'Email chain (string V2 with min + email checks)',
-    vldV2Ms: 22,
-    zodMs: 50,
-    speedup: '2.3x',
+    vldV2Ms: 25,
+    zodMs: 51,
+    speedup: '2.0x',
   },
   {
     name: 'number().int().positive().min(1)',
     description: 'Number chain (number V2 with 4 numeric checks)',
-    vldV2Ms: 6,
-    zodMs: 39,
-    speedup: '6.5x',
+    vldV2Ms: 7,
+    zodMs: 74,
+    speedup: '10.3x',
   },
   {
     name: 'object({a:string, b:number})',
     description: 'Small 2-key object with V2 children',
-    vldV2Ms: 11,
-    zodMs: 18,
-    speedup: '1.6x',
+    vldV2Ms: 19,
+    zodMs: 43,
+    speedup: '2.3x',
   },
   {
-    name: 'Realistic API (10 fields)',
-    description: 'Real-world 10-field API schema with V2 children',
-    vldV2Ms: 243,
-    zodMs: 767,
-    speedup: '3.2x',
+    name: 'array(string()).min(1).max(100)',
+    description: 'Bounded array of V2 strings',
+    vldV2Ms: 32,
+    zodMs: 168,
+    speedup: '5.2x',
   },
 ]
 
@@ -195,10 +195,10 @@ const v2MemoryFootprint = [
 ]
 
 const features = [
-  { icon: Layers, title: 'V2 Method-Memoization', description: 'vV2.* ships the Zod 4.5 method-memoization pattern — part of the 3.00x drop-in geomean (10/10 honest wins, semantic-checked)', color: 'text-amber-500', bg: 'bg-amber-500/10' },
-  { icon: Zap, title: '1.46x Compile Parse', description: 'AOT-compiled parse is 1.46x faster than z.compile().parse() on Moltar ParseSafe (5/6 wins, kept for context alongside the 3.00x drop-in headline)', color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
-  { icon: Cpu, title: '2.36x Compile Validate', description: 'AOT-compiled validate is 2.36x faster than z.validate() on the same harness (6/6 wins)', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
-  { icon: HardDrive, title: '253/253 Zod Parity', description: 'Root, mini, v4, v4-mini, v4/core, v4/locales, compile, and nested exports verified against Zod 4.5.4', color: 'text-blue-500', bg: 'bg-blue-500/10' },
+  { icon: Layers, title: 'V2 Method-Memoization', description: 'vV2.* ships the Zod 4.5 method-memoization pattern — part of the 3.03x drop-in geomean over Zod 4.6 (10/10 honest wins, semantic-checked)', color: 'text-amber-500', bg: 'bg-amber-500/10' },
+  { icon: Zap, title: 'Up to 35x .validate()', description: 'The Zod 4.6 boolean .validate() API is covered by a dedicated head-to-head: VLD wins every scenario, up to 35.5x on arrays and 28x on wide objects', color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
+  { icon: Cpu, title: '3.03x Drop-in safeParse', description: 'Honest head-to-head geomean over Zod 4.6 on 10 scenarios — the same import-line swap, measured with 1M safeParse ops x 21 runs', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+  { icon: HardDrive, title: '259/259 Zod Parity', description: 'Root, mini, v4, v4-mini, v4/core, v4/locales, compile, and nested exports verified against Zod 4.6.5 - plus a 1400-case behavioral differential sweep', color: 'text-blue-500', bg: 'bg-blue-500/10' },
   { icon: Clock, title: 'Zero Dependencies', description: 'No runtime dependencies. V2 single-def + check classes; AOT compile emits a flat `if/typeof` chain that V8 inlines to a single guard', color: 'text-purple-500', bg: 'bg-purple-500/10' },
 ]
 
@@ -208,8 +208,8 @@ const bundleComparison = [
 ]
 
 const memoryOverall = [
-  { library: 'VLD', heap: '1.00x', percentage: 21 },
-  { library: 'Zod 4.5.4', heap: '4.76x', percentage: 100 },
+  { library: 'VLD', heap: '1.00x', percentage: 28 },
+  { library: 'Zod 4.6.5', heap: '3.56x', percentage: 100 },
 ]
 
 // ============================================================================
@@ -221,16 +221,16 @@ const memoryOverall = [
 // to produce identical accept/reject in both libraries before timing.
 // This is the "I just changed `import { z }` to `import { v }`" benchmark.
 const dropinScenarios = [
-  { name: '1. string().min(1).email()',            vV2Ms: 27.39, v1Ms: 29.03, zodMs: 68.05 },
-  { name: '2. number().int().positive().min(1)',   vV2Ms: 11.62, v1Ms: 15.09, zodMs: 72.34 },
-  { name: '3. object({ a: string, b: number })',   vV2Ms: 16.74, v1Ms: 16.48, zodMs: 42.35 },
-  { name: '4. tuple([string, number, boolean])',   vV2Ms: 41.11, v1Ms: 21.96, zodMs: 90.51 },
-  { name: '5. array(string()).min(1).max(100)',    vV2Ms: 27.59, v1Ms: 24.41, zodMs: 157.98 },
-  { name: '6. union([string, number])',            vV2Ms: 15.70, v1Ms: 16.79, zodMs: 42.84 },
-  { name: '7. discriminatedUnion (cat | dog)',     vV2Ms: 40.99, v1Ms: 52.04, zodMs: 74.50 },
-  { name: '8. nested object (3 levels)',           vV2Ms: 56.21, v1Ms: 60.10, zodMs: 75.20 },
-  { name: '9. record(string())',                   vV2Ms: 14.85, v1Ms: 18.50, zodMs: 94.20 },
-  { name: '10. literal("active")',                 vV2Ms: 10.20, v1Ms: 11.50, zodMs: 30.10 },
+  { name: '1. string().min(1).email()',            vV2Ms: 25.14, v1Ms: 32.75, zodMs: 51.27 },
+  { name: '2. number().int().positive().min(1)',   vV2Ms: 7.23,  v1Ms: 13.27, zodMs: 74.09 },
+  { name: '3. object({ a: string, b: number })',   vV2Ms: 18.82, v1Ms: 20.91, zodMs: 43.35 },
+  { name: '4. tuple([string, number, boolean])',   vV2Ms: 40.75, v1Ms: 22.52, zodMs: 96.63 },
+  { name: '5. array(string()).min(1).max(100)',    vV2Ms: 32.26, v1Ms: 24.78, zodMs: 168.24 },
+  { name: '6. union([string, number])',            vV2Ms: 17.73, v1Ms: 19.48, zodMs: 41.16 },
+  { name: '7. discriminatedUnion (cat | dog)',     vV2Ms: 43.40, v1Ms: 53.18, zodMs: 64.04 },
+  { name: '8. nested object (3 levels)',           vV2Ms: 159.57, v1Ms: 170.35, zodMs: 255.42 },
+  { name: '9. record(string())',                   vV2Ms: 72.24, v1Ms: 93.01, zodMs: 472.08 },
+  { name: '10. literal("active")',                 vV2Ms: 14.13, v1Ms: 17.09, zodMs: 40.15 },
 ]
 
 // Compute the geometric mean speedup over Zod
@@ -243,25 +243,40 @@ const dropinGeoV1 = Math.exp(
 const dropinV2Wins = dropinScenarios.filter((s) => s.vV2Ms < s.zodMs).length
 
 // ============================================================================
+// v3.0.9 Zod 4.6 `.validate()` head-to-head — boolean validation, no result objects
+// ============================================================================
+// Source: benchmarks/validate-vs-zod.cjs
+// Same call on both libraries: schema.validate(input). 500k ops, median of 15
+// runs, 10k warmup. Both libraries must agree on accept/reject before timing.
+const validateScenarios = [
+  { name: 'string().min(3).max(64).regex()',      zodMs: 24.53, vldMs: 8.88,  speedup: '2.8x' },
+  { name: 'wide object (12 string fields)',       zodMs: 306.13, vldMs: 10.91, speedup: '28.1x' },
+  { name: 'nested object (3 levels)',             zodMs: 204.66, vldMs: 21.37, speedup: '9.6x' },
+  { name: 'array of 50 objects',                  zodMs: 2356.67, vldMs: 66.33, speedup: '35.5x' },
+  { name: 'config object (defaults/optionals)',   zodMs: 94.94, vldMs: 3.44,  speedup: '27.6x' },
+  { name: 'z.iban() checksum (Zod 4.6 format)',   zodMs: 86.83, vldMs: 57.65, speedup: '1.5x' },
+]
+
+// ============================================================================
 // Reproducible benchmark scripts (root /benchmarks directory)
 // ============================================================================
 const benchmarkScripts = [
   {
     name: 'dropin-vs-zod.cjs (v3.0 HONEST head-to-head)',
     path: 'benchmarks/dropin-vs-zod.cjs',
-    description: '10 scenarios where the SAME logical schema is built in BOTH VLD vV2 and Zod 4.5.4. 1M safeParse ops × 21 runs median. Every input is semantic-checked to ensure identical accept/reject before timing. NO fake wins.',
+    description: '10 scenarios where the SAME logical schema is built in BOTH VLD vV2 and Zod 4.6. 1M safeParse ops x 21 runs median. Every input is semantic-checked to ensure identical accept/reject before timing. NO fake wins.',
     command: 'node benchmarks/dropin-vs-zod.cjs',
   },
   {
     name: 'performance.cjs (v3.0 V2)',
     path: 'benchmarks/performance.cjs',
-    description: 'vV2 vs Zod 4.5.4 on 4 schema shapes (email, number chain, small object, realistic 10-field API). 1M safeParse ops.',
+    description: 'vV2 vs Zod 4.6 on 4 schema shapes (email, number chain, small object, bounded array). 1M safeParse ops.',
     command: 'node benchmarks/performance.cjs',
   },
   {
     name: 'moltar-deep.cjs',
     path: 'benchmarks/moltar-deep.cjs',
-    description: '6-scenario VLD vs Zod 4.5.4 guard. 200k iters × 21 runs median.',
+    description: '6-scenario compiled VLD vs compiled Zod guard. 100k iters x 11 runs median.',
     command: 'ITER=200000 RUNS=21 node benchmarks/moltar-deep.cjs',
   },
   {
@@ -320,7 +335,7 @@ export function BenchmarkPage() {
             </div>
             <h1 className="font-display text-4xl lg:text-5xl font-bold mb-4">Performance Benchmarks</h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              v3.0.0 honest head-to-head against Zod 4.5.4. <strong>10 scenarios, same logical schema, same input, semantic-checked</strong> — <strong>3.00x geometric mean</strong> speedup with <strong>10/10 wins</strong>. The AOT compile guard below (1.46x / 2.36x) is a separate harness on Moltar ParseSafe — kept for context, not the headline.
+              v3.0.11 honest head-to-head against Zod 4.6. <strong>10 scenarios, same logical schema, same input, semantic-checked</strong> — <strong>3.03x geometric mean</strong> speedup with <strong>10/10 wins</strong>. A dedicated <strong>.validate()</strong> boolean head-to-head follows below, where VLD wins every scenario.
             </p>
           </div>
 
@@ -338,7 +353,7 @@ export function BenchmarkPage() {
             </div>
             <div className="p-6 rounded-xl bg-card border border-border">
               <div className="text-4xl font-bold text-vld-accent mb-1">253</div>
-              <div className="text-sm text-muted-foreground">Zod 4.5.4 Exports</div>
+              <div className="text-sm text-muted-foreground">Zod 4.6 Exports</div>
               <div className="text-xs text-vld-success mt-1">100% parity</div>
             </div>
             <div className="p-6 rounded-xl bg-card border border-border">
@@ -370,9 +385,9 @@ export function BenchmarkPage() {
               <div>
                 <h2 className="font-display text-xl font-semibold flex items-center gap-2">
                   <Layers className="w-5 h-5 text-vld-primary" />
-                  V2 Method-Memoization — vV2 vs Zod 4.5.4
+                  V2 Method-Memoization - vV2 vs Zod 4.6
                 </h2>
-                <p className="text-sm text-muted-foreground">vV2 ships the Zod 4.5 method-memoization pattern, contributing to the 3.00x drop-in geomean</p>
+                <p className="text-sm text-muted-foreground">vV2 ships the Zod 4.5 method-memoization pattern, contributing to the 3.03x drop-in geomean</p>
               </div>
               <div className="hidden sm:flex items-center gap-4 text-xs">
                 <div className="flex items-center gap-1.5">
@@ -381,7 +396,7 @@ export function BenchmarkPage() {
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="w-3 h-3 rounded bg-zinc-400 dark:bg-zinc-500" />
-                  <span>Zod 4.5.4</span>
+                  <span>Zod 4.6</span>
                 </div>
               </div>
             </div>
@@ -392,7 +407,7 @@ export function BenchmarkPage() {
                     <th className="text-left px-6 py-4 font-medium">Schema</th>
                     <th className="text-left px-6 py-4 font-medium">Description</th>
                     <th className="text-right px-4 py-4 font-medium text-vld-primary">vV2</th>
-                    <th className="text-right px-4 py-4 font-medium">Zod 4.5.4</th>
+                    <th className="text-right px-4 py-4 font-medium">Zod 4.6</th>
                     <th className="text-right px-4 py-4 font-medium">Speedup</th>
                   </tr>
                 </thead>
@@ -430,7 +445,7 @@ export function BenchmarkPage() {
             <div className="bg-gradient-to-r from-vld-primary/15 to-emerald-500/10 px-6 py-5 border-b border-vld-primary/20 rounded-t-xl">
               <h2 className="font-display text-2xl font-semibold flex items-center gap-2 mb-2">
                 <CheckCircle2 className="w-6 h-6 text-vld-primary" />
-                Same schema, same input — VLD vV2 vs Zod 4.5.4
+                Same schema, same input - VLD vV2 vs Zod 4.6
               </h2>
               <p className="text-sm text-muted-foreground">
                 10 scenarios where the <strong>SAME logical schema</strong> is built in both libraries using their public API.
@@ -470,7 +485,7 @@ export function BenchmarkPage() {
                     <th className="text-left px-6 py-3 font-medium">Scenario</th>
                     <th className="text-right px-4 py-3 font-medium text-vld-primary">vV2 (V2)</th>
                     <th className="text-right px-4 py-3 font-medium">v.* (V1)</th>
-                    <th className="text-right px-4 py-3 font-medium">Zod 4.5.4</th>
+                    <th className="text-right px-4 py-3 font-medium">Zod 4.6</th>
                     <th className="text-right px-4 py-3 font-medium">V2 vs Zod</th>
                   </tr>
                 </thead>
@@ -555,7 +570,7 @@ if (!u.success) console.log(u.error.format())  // Zod-compatible`}
                 <HardDrive className="w-5 h-5 text-vld-primary" />
                 V2 Memory Footprint — per instance (N=100k, 3-pass GC)
               </h2>
-              <p className="text-sm text-muted-foreground">V2 single-def layout is 30-40% smaller than V1, 1.6-10x smaller than Zod 4.5.4</p>
+              <p className="text-sm text-muted-foreground">V2 single-def layout is 30-40% smaller than V1, 1.6-10x smaller than Zod 4.6</p>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -593,13 +608,77 @@ if (!u.success) console.log(u.error.format())  // Zod-compatible`}
             </div>
           </div>
 
+          {/* Zod 4.6 `.validate()` head-to-head */}
+          <div className="rounded-xl border border-border overflow-hidden mb-12">
+            <div className="bg-muted/50 px-6 py-4 border-b border-border flex items-center justify-between">
+              <div>
+                <h2 className="font-display text-xl font-semibold flex items-center gap-2">
+                  <Zap className="w-5 h-5 text-vld-primary" />
+                  `.validate()` — VLD vs Zod 4.6 (boolean, no result objects)
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  The same <code className="font-mono">schema.validate(input)</code> call on both libraries. 500k ops × 15 runs median — <code className="font-mono">benchmarks/validate-vs-zod.cjs</code> is a release gate that fails if VLD loses any scenario.
+                </p>
+              </div>
+              <div className="hidden sm:flex items-center gap-4 text-xs">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded bg-vld-primary" />
+                  <span>VLD</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded bg-zinc-400 dark:bg-zinc-500" />
+                  <span>Zod 4.6</span>
+                </div>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border bg-muted/30">
+                    <th className="text-left px-6 py-4 font-medium">Scenario</th>
+                    <th className="text-right px-4 py-4 font-medium">Zod validate</th>
+                    <th className="text-right px-4 py-4 font-medium text-vld-primary">VLD validate</th>
+                    <th className="text-right px-4 py-4 font-medium">Speedup</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {validateScenarios.map((s2, i) => (
+                    <tr
+                      key={s2.name}
+                      className={cn(
+                        'border-b border-border last:border-0 hover:bg-muted/50 transition-colors',
+                        i % 2 === 0 ? 'bg-transparent' : 'bg-muted/20'
+                      )}
+                    >
+                      <td className="px-6 py-4 font-medium font-mono text-sm">{s2.name}</td>
+                      <td className="text-right px-4 py-4 font-mono text-muted-foreground text-sm">{s2.zodMs.toFixed(2)} ms</td>
+                      <td className="text-right px-4 py-4 font-mono text-vld-primary text-sm font-semibold">{s2.vldMs.toFixed(2)} ms</td>
+                      <td className="text-right px-4 py-4">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-vld-success/10 text-vld-success">
+                          {s2.speedup} faster
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="px-6 py-4 border-t border-border bg-muted/20">
+              <p className="text-sm text-muted-foreground">
+                VLD lazily AOT-compiles each schema on its first <code className="font-mono">.validate()</code> call and memoizes the
+                compiled validator, so hot loops run on flat machine-code-like checks. The guard exits non-zero if any
+                scenario dips below Zod — it passed on every scenario for this release.
+              </p>
+            </div>
+          </div>
+
           {/* AOT compile scenario table — the headline table */}
           <div className="rounded-xl border border-border overflow-hidden mb-12">
             <div className="bg-muted/50 px-6 py-4 border-b border-border flex items-center justify-between">
               <div>
                 <h2 className="font-display text-xl font-semibold flex items-center gap-2">
                   <Zap className="w-5 h-5 text-vld-primary" />
-                  AOT Compile — VLD vs Zod 4.5.4 (ops/sec)
+                  AOT Compile - VLD vs Zod 4.6 (ops/sec)
                 </h2>
                 <p className="text-sm text-muted-foreground">v.compile().parse() and v.validate() / z.validate(), 6 schema shapes</p>
               </div>
@@ -750,7 +829,7 @@ if (!u.success) console.log(u.error.format())  // Zod-compatible`}
               <p>
                 <code className="text-vld-primary font-mono">v.compile(schema)</code> recursively walks the schema and emits a single JavaScript
                 function via <code className="font-mono">new Function(...)</code>. The body is a flat <code className="font-mono">if (typeof x !== "...") return INVALID</code> chain — V8 inlines
-                it as a single zero-allocation guard, the same shape Zod 4.5 uses.
+                it as a single zero-allocation guard, the same shape Zod's AOT compiler uses.
               </p>
               <p>
                 The compiled validator returns <code className="font-mono">true</code> on success or a <code className="font-mono">COMPILE_INVALID</code> sentinel on failure. <code className="text-vld-primary font-mono">v.validate()</code> returns
@@ -950,7 +1029,7 @@ if (!u.success) console.log(u.error.format())  // Zod-compatible`}
                   </div>
                 ))}
                 <p className="text-xs text-muted-foreground mt-4">
-                  VLD retained heap is <strong className="text-vld-success">4.76x lower</strong> than Zod 4.5.4 (v2.1.0 guard, kept for context)
+                  VLD schema-creation retained heap is <strong className="text-vld-success">3.56x lower</strong> than Zod 4.6 (release-gated, median of 3 fresh-process samples); total retained heap across parse scenarios is 1.45x lower
                 </p>
               </div>
             </div>
@@ -968,7 +1047,7 @@ if (!u.success) console.log(u.error.format())  // Zod-compatible`}
                 <ul className="space-y-1">
                   <li>• Node.js v24.13.0 (all benchmarks), v20 LTS (legacy guard)</li>
                   <li>• Windows 11 / macOS / Linux</li>
-                  <li>• Zod 4.5.4 (AOT + drop-in guard) / Zod 4.4.3 (legacy guard)</li>
+                  <li>• Zod 4.6.5 (all release guards)</li>
                 </ul>
               </div>
               <div>
@@ -996,8 +1075,9 @@ if (!u.success) console.log(u.error.format())  // Zod-compatible`}
           <div className="mt-8 p-4 rounded-lg border border-border bg-muted/30">
             <p className="text-sm text-muted-foreground">
               <strong className="text-foreground">Note:</strong> Benchmark results may vary based on hardware, Node.js version, and system load.
-              The AOT guard is measured against Zod 4.5.4 (npm <code className="font-mono">latest</code> at audit time). The v3.0.0
-              drop-in head-to-head is in <code className="font-mono">benchmarks/dropin-vs-zod.cjs</code> (10/10 wins, 3.00x geomean).
+              All guards are measured against Zod 4.6.5 (npm <code className="font-mono">latest</code> at audit time). The drop-in
+              head-to-head is in <code className="font-mono">benchmarks/dropin-vs-zod.cjs</code> (10/10 wins, 3.03x geomean) and the
+              boolean .validate() head-to-head in <code className="font-mono">benchmarks/validate-vs-zod.cjs</code> (wins every scenario).
               The release gate compares against the installed latest stable Zod and must pass before publishing.
             </p>
           </div>
