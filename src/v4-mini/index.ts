@@ -80,14 +80,31 @@ export {
 
 import type { VldBase } from '../validators/base';
 import type { VldObject } from '../validators/object';
-import { number as numberFactory } from '../index';
+import { number as numberFactory, bigint as bigintFactory, date as dateFactory } from '../index';
 
 type ObjectShape = Record<string, VldBase<any, any>>;
 type ObjectMask = Record<string, boolean>;
 type ConstraintParam = string | { message?: string; error?: string };
 
-function maskKeys(mask: ObjectMask): string[] {
-  return Object.keys(mask).filter((key) => mask[key]);
+function maskKeys(mask: ObjectMask, schema?: VldObject<any>): string[] {
+  const keys = Object.keys(mask).filter((key) => mask[key]);
+  // Like Zod, a mask key that is not in the shape is a programming error
+  // (typically a typo), not something to ignore silently.
+  if (schema) {
+    for (const key of keys) {
+      if (!Object.prototype.hasOwnProperty.call(schema.shape, key)) {
+        throw new Error(`Unrecognized key: "${key}"`);
+      }
+    }
+  }
+  return keys;
+}
+
+/** A Zod numeric bound (number | bigint | Date) as a standalone schema. */
+function boundSchema(value: number | bigint | Date, kind: 'min' | 'max', message: string | undefined): VldBase<unknown, any> {
+  if (typeof value === 'bigint') return bigintFactory()[kind](value, message);
+  if (value instanceof Date) return dateFactory()[kind](value, message);
+  return numberFactory()[kind](value, message);
 }
 
 function constraintMessage(params: ConstraintParam | undefined): string | undefined {
@@ -95,14 +112,17 @@ function constraintMessage(params: ConstraintParam | undefined): string | undefi
 }
 
 export const pick = <T extends Record<string, any>>(schema: VldObject<T>, mask: ObjectMask): VldObject<any> =>
-  schema.pick(...maskKeys(mask) as Array<keyof T>);
+  schema.pick(...maskKeys(mask, schema) as Array<keyof T>);
 
 export const omit = <T extends Record<string, any>>(schema: VldObject<T>, mask: ObjectMask): VldObject<any> =>
-  schema.omit(...maskKeys(mask) as Array<keyof T>);
+  schema.omit(...maskKeys(mask, schema) as Array<keyof T>);
 
-export const partial = <T extends Record<string, any>>(schema: VldObject<T>): VldObject<any> => schema.partial();
+// With a mask, only the masked keys change (Zod's partial/required(schema, mask)).
+export const partial = <T extends Record<string, any>>(schema: VldObject<T>, mask?: ObjectMask): VldObject<any> =>
+  mask ? schema.extend(schema.pick(...maskKeys(mask, schema) as Array<keyof T>).partial().shape as any) : schema.partial();
 
-export const required = <T extends Record<string, any>>(schema: VldObject<T>): VldObject<any> => schema.required();
+export const required = <T extends Record<string, any>>(schema: VldObject<T>, mask?: ObjectMask): VldObject<any> =>
+  mask ? schema.extend(schema.pick(...maskKeys(mask, schema) as Array<keyof T>).required().shape as any) : schema.required();
 
 export const extend = <T extends Record<string, any>>(schema: VldObject<T>, shape: ObjectShape): VldObject<any> =>
   schema.extend(shape as any);
@@ -122,20 +142,18 @@ export const catchall = <T extends Record<string, any>>(
   catchallSchema: VldBase<any, any>
 ): VldObject<any> => schema.catchall(catchallSchema);
 
+// A function default is a per-parse factory (VldDefault calls it on every
+// parse), not a value to compute once when the schema is built.
 export const _default = <TInput, TOutput>(
   schema: VldBase<TInput, TOutput>,
   defaultValue: TOutput | (() => TOutput)
-) => schema.default(typeof defaultValue === 'function' ? (defaultValue as () => TOutput)() : defaultValue);
+) => schema.default(defaultValue);
 
-export const minimum = (value: number, params?: ConstraintParam): VldBase<unknown, number> => {
-  const message = constraintMessage(params);
-  return numberFactory().min(value, message);
-};
+export const minimum = (value: number | bigint | Date, params?: ConstraintParam): VldBase<unknown, any> =>
+  boundSchema(value, 'min', constraintMessage(params));
 
-export const maximum = (value: number, params?: ConstraintParam): VldBase<unknown, number> => {
-  const message = constraintMessage(params);
-  return numberFactory().max(value, message);
-};
+export const maximum = (value: number | bigint | Date, params?: ConstraintParam): VldBase<unknown, any> =>
+  boundSchema(value, 'max', constraintMessage(params));
 
 // Zod 4.5 AOT compilation parity (Zod Mini exposes compile/validate)
 export {

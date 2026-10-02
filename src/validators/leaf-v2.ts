@@ -177,7 +177,7 @@ export class VldRecordV2<T> extends VldBase<Record<string, T>, Record<string, T>
             if (typeof v !== 'string') throw new Error(`Invalid field ${k}: expected string, received ${typeof v}`);
             result[k] = v as T; break;
           case 'number':
-            if (typeof v !== 'number' || isNaN(v)) throw new Error(`Invalid field ${k}: expected number, received ${typeof v}`);
+            if (typeof v !== 'number' || !Number.isFinite(v)) throw new Error(`Invalid field ${k}: expected number, received ${typeof v}`);
             result[k] = v as T; break;
           case 'boolean':
             if (typeof v !== 'boolean') throw new Error(`Invalid field ${k}: expected boolean, received ${typeof v}`);

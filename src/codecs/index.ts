@@ -3,6 +3,7 @@ import { VldBase64 } from '../validators/base64';
 import { VldHex } from '../validators/hex';
 import { VldUint8Array } from '../validators/uint8array';
 import { VldString } from '../validators/string';
+import { url as urlFormat } from '../validators/string-formats';
 import { VldNumber } from '../validators/number';
 import { VldBigInt } from '../validators/bigint';
 import { VldBoolean } from '../validators/boolean';
@@ -72,9 +73,9 @@ export const stringToInt = VldCodec.create(
   VldNumber.create().int(),
   {
     decode: (str: string) => {
-      const num = parseInt(str, 10);
-      if (isNaN(num)) throw new Error('Invalid integer');
-      return num;
+      // parseInt would accept "12abc" (12), "1.9" (1) and "1e+21" (1).
+      if (!/^-?\d+$/.test(str)) throw new Error('Invalid integer');
+      return Number(str);
     },
     encode: (num: number) => Math.floor(num).toString()
   }
@@ -102,7 +103,9 @@ export const stringToBigInt = VldCodec.create(
  * Number to BigInt codec
  */
 export const numberToBigInt = VldCodec.create(
-  VldNumber.create().int(),
+  // Safe-integer input: encoding a bigint beyond 2^53 would silently lose
+  // precision, so it fails validation instead (as Zod's z.int() does).
+  VldNumber.create().int().min(Number.MIN_SAFE_INTEGER).max(Number.MAX_SAFE_INTEGER),
   VldBigInt.create(),
   {
     decode: (num: number) => BigInt(Math.floor(num)),
@@ -116,14 +119,13 @@ export const numberToBigInt = VldCodec.create(
  * ISO datetime string to Date codec
  */
 export const isoDatetimeToDate = VldCodec.create(
-  VldString.create().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?$/, 'Invalid ISO datetime format'),
+  // Calendar-valid UTC datetime with seconds and any fraction precision; a
+  // missing "Z" would otherwise be parsed in the host's local time zone.
+  VldString.create().datetime('Invalid ISO datetime format'),
   VldDate.create(),
   {
-    decode: (isoString: string) => {
-      const date = new Date(isoString);
-      if (isNaN(date.getTime())) throw new Error('Invalid date');
-      return date;
-    },
+    // The datetime() input check guarantees a parseable, calendar-valid value.
+    decode: (isoString: string) => new Date(isoString),
     encode: (date: Date) => date.toISOString()
   }
 );
@@ -132,7 +134,8 @@ export const isoDatetimeToDate = VldCodec.create(
  * Epoch seconds to Date codec
  */
 export const epochSecondsToDate = VldCodec.create(
-  VldNumber.create(),
+  // Integer input: fractional epochs cannot round-trip through encode.
+  VldNumber.create().int(),
   VldDate.create(),
   {
     decode: (seconds: number) => new Date(seconds * 1000),
@@ -144,7 +147,7 @@ export const epochSecondsToDate = VldCodec.create(
  * Epoch milliseconds to Date codec
  */
 export const epochMillisToDate = VldCodec.create(
-  VldNumber.create(),
+  VldNumber.create().int(),
   VldDate.create(),
   {
     decode: (millis: number) => new Date(millis),
@@ -182,7 +185,8 @@ export const jsonCodec = <T = any>(schema?: any) => {
  * String to URL codec
  */
 export const stringToURL: VldCodec<string, VldUrl> = VldCodec.create(
-  VldString.create().url(),
+  // Any URL the WHATWG parser accepts (localhost, ports, mailto:, ...), like v.url().
+  urlFormat() as unknown as VldString,
   VldUnknown.create() as any, // URL object
   {
     decode: (urlString: string) => {

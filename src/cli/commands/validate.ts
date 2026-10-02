@@ -68,6 +68,7 @@ export const validateCommand: CliCommand = {
   action: async (args, options) => {
     const schemaPath = args['schema'] as string;
     const dataArg = args['data'] as string;
+    const strict = options['strict'] as boolean;
     const quiet = options['quiet'] as boolean;
     const json = options['json'] as boolean;
     const noColor = options['no-color'] as boolean;
@@ -92,6 +93,15 @@ export const validateCommand: CliCommand = {
       if (!schema || typeof schema.parse !== 'function') {
         throw new Error('Schema must export a VLD validator with parse() method');
       }
+
+      // --strict: reject unknown keys (object schemas expose .strict()).
+      if (strict) {
+        const strictFn = (schema as { strict?: () => typeof schema }).strict;
+        if (typeof strictFn !== 'function') {
+          throw new Error('--strict requires an object schema');
+        }
+        schema = strictFn.call(schema);
+      }
     } catch (error) {
       if (json) {
         console.log(JSON.stringify({ success: false, error: (error as Error).message }));
@@ -107,20 +117,25 @@ export const validateCommand: CliCommand = {
 
     try {
       // Check if it's a file path or JSON string
-      if (dataArg.startsWith('{') || dataArg.startsWith('[')) {
-        data = JSON.parse(dataArg);
+      const trimmed = dataArg.trim();
+      if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        data = JSON.parse(trimmed);
       } else {
         const absoluteDataPath = path.resolve(process.cwd(), dataArg);
 
         // Security: Ensure resolved path is within allowed directories
         assertWithinCwd(absoluteDataPath, 'Data', dataArg);
 
-        if (!fs.existsSync(absoluteDataPath)) {
-          throw new Error(`Data file not found: ${dataArg}`);
+        if (fs.existsSync(absoluteDataPath)) {
+          data = JSON.parse(fs.readFileSync(absoluteDataPath, 'utf-8'));
+        } else {
+          // Not a file: any other JSON literal (null, 42, "text", true).
+          try {
+            data = JSON.parse(trimmed);
+          } catch {
+            throw new Error(`Data file not found: ${dataArg}`);
+          }
         }
-
-        const content = fs.readFileSync(absoluteDataPath, 'utf-8');
-        data = JSON.parse(content);
       }
     } catch (error) {
       if (json) {

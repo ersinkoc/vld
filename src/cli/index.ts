@@ -62,11 +62,28 @@ export interface Cli {
 function parseArgs(args: string[], options: CliOption[] = []): {
   positional: string[];
   options: Record<string, unknown>;
+  errors: string[];
 } {
   const result = {
     positional: [] as string[],
-    options: {} as Record<string, unknown>
+    options: {} as Record<string, unknown>,
+    errors: [] as string[]
   };
+
+  // Number options reject non-numeric values instead of storing NaN.
+  const optionValue = (option: CliOption, raw: string): unknown => {
+    if (option.type !== 'number') return raw;
+    const value = Number(raw);
+    if (raw.trim() === '' || Number.isNaN(value)) {
+      result.errors.push(`Option --${option.name} expects a number, got "${raw}"`);
+      return undefined;
+    }
+    return value;
+  };
+  // A following argument is the option's value unless it looks like another
+  // option; negative numbers (-5) are values for number options.
+  const takesNext = (option: CliOption, next: string | undefined): next is string =>
+    next !== undefined && (!next.startsWith('-') || (option.type === 'number' && /^-\d/.test(next)));
 
   // Set defaults
   for (const opt of options) {
@@ -84,8 +101,11 @@ function parseArgs(args: string[], options: CliOption[] = []): {
     }
 
     if (arg.startsWith('--')) {
-      // Long option
-      const [name, value] = arg.slice(2).split('=');
+      // Long option (split on the first "=" only: --filter=name=Ada)
+      const body = arg.slice(2);
+      const eq = body.indexOf('=');
+      const name = eq === -1 ? body : body.slice(0, eq);
+      const value = eq === -1 ? undefined : body.slice(eq + 1);
       if (name === undefined || name === '') {
         i++;
         continue;
@@ -97,13 +117,12 @@ function parseArgs(args: string[], options: CliOption[] = []): {
         if (option.type === 'boolean') {
           result.options[name] = value !== 'false';
         } else if (value !== undefined) {
-          result.options[name] = option.type === 'number' ? Number(value) : value;
-        } else if (i + 1 < args.length && args[i + 1] !== undefined && !args[i + 1]!.startsWith('-')) {
+          const parsed = optionValue(option, value);
+          if (parsed !== undefined) result.options[name] = parsed;
+        } else if (takesNext(option, args[i + 1])) {
           i++;
-          const nextArg = args[i];
-          if (nextArg !== undefined) {
-            result.options[name] = option.type === 'number' ? Number(nextArg) : nextArg;
-          }
+          const parsed = optionValue(option, args[i]!);
+          if (parsed !== undefined) result.options[name] = parsed;
         } else {
           result.options[name] = true;
         }
@@ -116,15 +135,10 @@ function parseArgs(args: string[], options: CliOption[] = []): {
       if (option) {
         if (option.type === 'boolean') {
           result.options[option.name] = true;
-        } else if (i + 1 < args.length && args[i + 1] !== undefined && !args[i + 1]!.startsWith('-')) {
+        } else if (takesNext(option, args[i + 1])) {
           i++;
-          const nextArg = args[i];
-          if (nextArg === undefined) {
-            i++;
-            continue;
-          }
-          result.options[option.name] =
-            option.type === 'number' ? Number(nextArg) : nextArg;
+          const parsed = optionValue(option, args[i]!);
+          if (parsed !== undefined) result.options[option.name] = parsed;
         }
       }
     } else {
@@ -224,6 +238,13 @@ export function createCli(name: string, version: string, description: string): C
 
       // Parse arguments
       const parsed = parseArgs(args.slice(1), cmd.options);
+      if (parsed.errors.length > 0) {
+        for (const message of parsed.errors) {
+          console.error(pigment.red(message));
+        }
+        process.exitCode = 1;
+        return;
+      }
 
       // Map positional arguments
       const positionalArgs: Record<string, unknown> = {};

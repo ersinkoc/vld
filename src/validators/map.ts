@@ -1,6 +1,6 @@
 import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
 import { getMessages } from '../locales/runtime';
-import { VldError } from '../errors-core';
+import { VldError, type VldIssue } from '../errors-core';
 
 type SimpleMapItemMode =
   | 'string'
@@ -15,6 +15,22 @@ type SimpleMapItemMode =
   | undefined;
 type ConcreteSimpleMapItemMode = Exclude<SimpleMapItemMode, undefined>;
 
+/** A size constraint; `kind` lets failures report too_small / too_big. */
+interface SizeCheck<C> {
+  readonly fn: (collection: C) => boolean;
+  readonly message: string;
+  readonly kind?: 'min' | 'max' | 'size';
+  readonly value?: number;
+}
+
+function sizeIssue(origin: 'set' | 'map', check: SizeCheck<any>, actual: number): VldIssue {
+  const limit = check.value!;
+  if (check.kind === 'min' || (check.kind === 'size' && actual < limit)) {
+    return { code: 'too_small', path: [], origin, minimum: limit, inclusive: true, message: check.message };
+  }
+  return { code: 'too_big', path: [], origin, maximum: limit, inclusive: true, message: check.message };
+}
+
 function createMapError(message: string): VldError {
   return new VldError([{ code: 'invalid_type', path: [], message }]);
 }
@@ -23,7 +39,7 @@ function createMapError(message: string): VldError {
  * Immutable Map validator
  */
 export class VldMap<K, V> extends VldBase<unknown, Map<K, V>> {
-  private readonly _checks: ReadonlyArray<{ fn: (map: Map<K, V>) => boolean; message: string }>;
+  private readonly _checks: ReadonlyArray<SizeCheck<Map<K, V>>>;
 
   /**
    * Private constructor to enforce immutability
@@ -32,7 +48,7 @@ export class VldMap<K, V> extends VldBase<unknown, Map<K, V>> {
     private readonly keyValidator: VldBase<unknown, K>,
     private readonly valueValidator: VldBase<unknown, V>,
     private readonly errorMessage?: string,
-    checks: ReadonlyArray<{ fn: (map: Map<K, V>) => boolean; message: string }> = []
+    checks: ReadonlyArray<SizeCheck<Map<K, V>>> = []
   ) {
     super(VLD_VALIDATOR_TYPES.MAP);
     this._checks = checks;
@@ -135,7 +151,7 @@ export class VldMap<K, V> extends VldBase<unknown, Map<K, V>> {
         }
         return value as T;
       case 'number':
-        if (typeof value !== 'number' || isNaN(value)) {
+        if (typeof value !== 'number' || !Number.isFinite(value)) {
           throw new Error(this.getSimpleItemError(mode, expected, value));
         }
         return value as T;
@@ -199,7 +215,7 @@ export class VldMap<K, V> extends VldBase<unknown, Map<K, V>> {
         if (typeof key !== 'string') {
           throw new Error(this.getSimpleItemError(simpleKeyMode, this._simpleKeyValue, key));
         }
-        if (typeof val !== 'number' || isNaN(val)) {
+        if (typeof val !== 'number' || !Number.isFinite(val)) {
           throw new Error(this.getSimpleItemError(simpleValueMode, this._simpleValueValue, val));
         }
         result.set(key as K, val as V);
@@ -241,7 +257,7 @@ export class VldMap<K, V> extends VldBase<unknown, Map<K, V>> {
     
     for (const check of this._checks) {
       if (!check.fn(result)) {
-        throw new Error(check.message);
+        throw check.kind ? new VldError([sizeIssue('map', check, result.size)]) : new Error(check.message);
       }
     }
     
@@ -255,6 +271,9 @@ export class VldMap<K, V> extends VldBase<unknown, Map<K, V>> {
     try {
       return { success: true, data: this.parse(value) };
     } catch (error) {
+      if (error instanceof VldError) {
+        return { success: false, error };
+      }
       return { success: false, error: createMapError((error as Error).message) };
     }
   }
@@ -262,21 +281,21 @@ export class VldMap<K, V> extends VldBase<unknown, Map<K, V>> {
   min(size: number, message?: string): VldMap<K, V> {
     return new VldMap(this.keyValidator, this.valueValidator, this.errorMessage, [
       ...this._checks,
-      { fn: (m) => m.size >= size, message: message || `Map must contain at least ${size} entries` }
+      { fn: (m) => m.size >= size, message: message || `Map must contain at least ${size} entries`, kind: 'min', value: size }
     ]);
   }
 
   max(size: number, message?: string): VldMap<K, V> {
     return new VldMap(this.keyValidator, this.valueValidator, this.errorMessage, [
       ...this._checks,
-      { fn: (m) => m.size <= size, message: message || `Map must contain at most ${size} entries` }
+      { fn: (m) => m.size <= size, message: message || `Map must contain at most ${size} entries`, kind: 'max', value: size }
     ]);
   }
 
   size(size: number, message?: string): VldMap<K, V> {
     return new VldMap(this.keyValidator, this.valueValidator, this.errorMessage, [
       ...this._checks,
-      { fn: (m) => m.size === size, message: message || `Map must contain exactly ${size} entries` }
+      { fn: (m) => m.size === size, message: message || `Map must contain exactly ${size} entries`, kind: 'size', value: size }
     ]);
   }
 

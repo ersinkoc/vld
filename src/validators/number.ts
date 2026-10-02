@@ -6,6 +6,36 @@ import { VldError, getTypeName, createInvalidTypeIssue, type VldIssue } from '..
  * Type for number validation check functions
  */
 type NumberCheck = (value: number) => boolean;
+
+/** Largest finite IEEE 754 single-precision value. */
+export const FLOAT32_MAX = 3.4028234663852886e38;
+
+function decimalPlaces(n: number): number {
+  const match = /(?:\.(\d+))?(?:e([+-]\d+))?$/i.exec(String(n));
+  const fraction = match?.[1]?.length ?? 0;
+  const exponent = match?.[2] ? Number(match[2]) : 0;
+  return Math.max(0, fraction - exponent);
+}
+
+/**
+ * `value` is a multiple of `step`. Decimal steps such as 0.1 are not exactly
+ * representable in binary, so `2.3 % 0.1` is not ~0; those are compared in
+ * scaled integer space (like Zod's floatSafeRemainder).
+ * @internal
+ */
+export function isMultipleOf(value: number, step: number): boolean {
+  const remainder = Math.abs(value % step);
+  if (remainder < Number.EPSILON || Math.abs(remainder - Math.abs(step)) < Number.EPSILON) {
+    return true;
+  }
+  if (Number.isInteger(step)) {
+    return false;
+  }
+  const scale = 10 ** Math.max(decimalPlaces(value), decimalPlaces(step));
+  const scaledValue = Math.round(value * scale);
+  const scaledStep = Math.round(step * scale);
+  return scaledStep !== 0 && Number.isSafeInteger(scaledValue) && scaledValue % scaledStep === 0;
+}
 type NumberFastCheckMode = 'none' | 'positive' | 'positive-int' | undefined;
 
 /**
@@ -66,22 +96,29 @@ export class VldNumber extends VldBase<number, number> {
   }
 
   private detectFastCheckMode(): NumberFastCheckMode {
-    const schema = this.config.jsonSchema;
     if (this._checks.length === 0) {
       return 'none';
     }
-    if (
-      this._checks.length === 1 &&
-      schema?.exclusiveMinimum === 0 &&
-      schema.type !== 'integer'
-    ) {
+    // Decide from the per-check metadata, not the JSON Schema hints: hints
+    // such as type 'integer' are also set by safe()/int32()/..., which would
+    // otherwise let positive() skip those checks entirely.
+    const metas = this.config.checkMetas;
+    if (metas === undefined) {
+      // Internal construction without metadata: fall back to the hints.
+      const schema = this.config.jsonSchema;
+      if (schema?.exclusiveMinimum !== 0) return undefined;
+      if (this._checks.length === 1 && schema.type !== 'integer') return 'positive';
+      if (this._checks.length === 2 && schema.type === 'integer') return 'positive-int';
+      return undefined;
+    }
+    if (metas.length !== this._checks.length) {
+      return undefined;
+    }
+    const isPositive = (m: NumberCheckMeta) => m.kind === 'gt' && m.value === 0;
+    if (metas.length === 1 && isPositive(metas[0]!)) {
       return 'positive';
     }
-    if (
-      this._checks.length === 2 &&
-      schema?.exclusiveMinimum === 0 &&
-      schema.type === 'integer'
-    ) {
+    if (metas.length === 2 && metas.some(isPositive) && metas.some(m => m.kind === 'int')) {
       return 'positive-int';
     }
     return undefined;
@@ -148,7 +185,7 @@ export class VldNumber extends VldBase<number, number> {
         throw new VldError([this._createCheckIssue('gt', 0, this.config.errorMessage)]);
       case 'positive-int':
         if (value > 0 && Number.isInteger(value)) return value;
-        throw new VldError([this._createCheckIssue('int', undefined, this.config.errorMessage)]);
+        throw new VldError([this._positiveIntIssue(value)]);
     }
 
     return this.parseKnownNumber(value);
@@ -172,6 +209,16 @@ export class VldNumber extends VldBase<number, number> {
       default:
         return { code: 'custom', path: [], message: message || 'Invalid number' };
     }
+  }
+
+  /**
+   * Issue for a failed positive()+int() fast path: a non-positive value is
+   * too_small (not an int error), each with its own check's message.
+   */
+  private _positiveIntIssue(value: number): VldIssue {
+    const kind = value > 0 ? 'int' : 'gt';
+    const meta = this._checkMetas?.find(m => m.kind === kind);
+    return this._createCheckIssue(kind, kind === 'gt' ? 0 : undefined, meta ? meta.message : this.config.errorMessage);
   }
 
   /**
@@ -199,7 +246,7 @@ export class VldNumber extends VldBase<number, number> {
         throw new VldError([this._createCheckIssue('gt', 0, this.config.errorMessage)]);
       case 'positive-int':
         if (value > 0 && Number.isInteger(value)) return value;
-        throw new VldError([this._createCheckIssue('int', undefined, this.config.errorMessage)]);
+        throw new VldError([this._positiveIntIssue(value)]);
     }
 
     const failedMeta = this._findFailingCheck(value);
@@ -343,9 +390,7 @@ export class VldNumber extends VldBase<number, number> {
   multipleOf(value: number, message?: ErrorParam): VldNumber {
     return new VldNumber({
       checks: [...this.config.checks, (v: number) => {
-        // Use epsilon comparison for floating point precision
-        const remainder = Math.abs(v % value);
-        return remainder < Number.EPSILON || Math.abs(remainder - Math.abs(value)) < Number.EPSILON;
+        return isMultipleOf(v, value);
       }],
       errorMessage: resolveErrorMessage(message, getMessages().numberMultipleOf(value)),
       jsonSchema: { ...this.config.jsonSchema, multipleOf: value }
@@ -502,9 +547,9 @@ export class VldNumber extends VldBase<number, number> {
    */
   float32(message?: ErrorParam): VldNumber {
     return new VldNumber({
-      checks: [...this.config.checks, (v: number) => Number.isFinite(v) && Math.abs(v) <= 3.4e38],
+      checks: [...this.config.checks, (v: number) => Number.isFinite(v) && Math.abs(v) <= FLOAT32_MAX],
       errorMessage: resolveErrorMessage(message, 'Expected a 32-bit float'),
-      jsonSchema: { ...this.config.jsonSchema, minimum: -3.4e38, maximum: 3.4e38 }
+      jsonSchema: { ...this.config.jsonSchema, minimum: -FLOAT32_MAX, maximum: FLOAT32_MAX }
     });
   }
 

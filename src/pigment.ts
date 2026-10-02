@@ -18,9 +18,11 @@ export function supportsColor(): boolean {
     return false;
   }
 
-  // Check for FORCE_COLOR environment variable
-  if (typeof process !== 'undefined' && process.env?.['FORCE_COLOR']) {
-    return true;
+  // Check for FORCE_COLOR environment variable ("0"/"false" disable color,
+  // as in supports-color and Node)
+  const forceColor = typeof process !== 'undefined' ? process.env?.['FORCE_COLOR'] : undefined;
+  if (forceColor) {
+    return forceColor !== '0' && forceColor !== 'false';
   }
 
   // Check for TTY
@@ -96,6 +98,8 @@ const ANSI = {
 
 /* eslint-disable no-control-regex */
 const ANSI_ESCAPE_PATTERN = new RegExp(
+  // OSC sequences (e.g. OSC-8 hyperlinks: ESC ] ... BEL or ESC \), then CSI/SGR.
+  '\\u001b\\][^\\u0007\\u001b]*(?:\\u0007|\\u001b\\\\)|' +
   '[\\u001b\\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]',
   'g'
 );
@@ -105,9 +109,10 @@ const ANSI_ESCAPE_PATTERN = new RegExp(
  * Create a color function
  */
 function createColorFn(code: string): (text: string) => string {
-  const enabled = supportsColor();
   return (text: string): string => {
-    if (!enabled || text === '') return text;
+    // Checked per call so NO_COLOR/FORCE_COLOR changes after import are
+    // honored consistently with supportsColor() and combine().
+    if (text === '' || !supportsColor()) return text;
     return `${code}${text}${ANSI.reset}`;
   };
 }

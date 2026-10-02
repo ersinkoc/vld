@@ -102,7 +102,13 @@ const localeLoaders: Partial<Record<Locale, LocaleLoader>> = {
  * // Now all validation errors will be in Turkish
  * ```
  */
+let latestLocaleRequest = 0;
+
 export async function setLocaleAsync(locale: Locale): Promise<void> {
+  // Concurrent calls must resolve to the most recently requested locale, not
+  // whichever loader happens to finish last.
+  const request = ++latestLocaleRequest;
+
   // If already loaded, just switch
   if (isLocaleLoaded(locale)) {
     setRuntimeLocale(locale);
@@ -119,15 +125,21 @@ export async function setLocaleAsync(locale: Locale): Promise<void> {
   const loader = localeLoaders[locale];
   if (!loader) {
     console.warn(`Locale "${locale}" not available. Falling back to English.`);
+    setRuntimeLocale('en');
     return;
   }
 
   try {
     const messages = await loader();
     registerLocale(locale, messages);
-    setRuntimeLocale(locale);
+    if (request === latestLocaleRequest) {
+      setRuntimeLocale(locale);
+    }
   } catch (error) {
     console.warn(`Failed to load locale "${locale}". Falling back to English.`, error);
+    if (request === latestLocaleRequest) {
+      setRuntimeLocale('en');
+    }
   }
 }
 
@@ -148,6 +160,8 @@ export async function setLocaleAsync(locale: Locale): Promise<void> {
  */
 export function setLocale(locale: Locale): void {
   if (isLocaleLoaded(locale)) {
+    // A synchronous switch supersedes any setLocaleAsync still loading.
+    latestLocaleRequest++;
     setRuntimeLocale(locale);
     return;
   }

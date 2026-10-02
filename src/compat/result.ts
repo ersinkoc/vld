@@ -163,8 +163,23 @@ export function tryCatch<T>(fn: () => T): Result<T, Error> {
   try {
     return Ok(fn());
   } catch (error) {
-    return Err(error instanceof Error ? error : new Error(String(error)));
+    return Err(toError(error));
   }
+}
+
+/**
+ * Normalize a thrown value to an Error. `String(value)` itself throws for
+ * null-prototype objects, which must not escape the Result contract.
+ */
+function toError(error: unknown): Error {
+  if (error instanceof Error) return error;
+  let message: string;
+  try {
+    message = String(error);
+  } catch {
+    message = Object.prototype.toString.call(error);
+  }
+  return new Error(message);
 }
 
 /**
@@ -174,7 +189,7 @@ export async function tryCatchAsync<T>(fn: () => Promise<T>): Promise<Result<T, 
   try {
     return Ok(await fn());
   } catch (error) {
-    return Err(error instanceof Error ? error : new Error(String(error)));
+    return Err(toError(error));
   }
 }
 

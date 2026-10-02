@@ -43,6 +43,8 @@ export interface VldIssue {
   format?: string;
   values?: unknown[];
   pattern?: string;
+  /** Custom data attached via refine(fn, { params }). */
+  params?: Record<string, unknown>;
 }
 
 /**
@@ -104,6 +106,31 @@ export interface VldErrorJSON {
 
 type VldIssueJSON = VldErrorJSON['issues'][number];
 
+/**
+ * Own-property lookup for error-formatting accumulators. Issue paths come
+ * from user data, so segments like "constructor" or "toString" must not
+ * resolve to inherited Object.prototype members.
+ * @internal
+ */
+export function getOwnKey<T>(target: object, key: PropertyKey): T | undefined {
+  return Object.prototype.hasOwnProperty.call(target, key) ? (target as any)[key] as T : undefined;
+}
+
+/**
+ * Create an own data property, so a "__proto__" path segment becomes a key
+ * instead of replacing the accumulator's prototype.
+ * @internal
+ */
+export function setOwnKey<T>(target: object, key: PropertyKey, value: T): T {
+  Object.defineProperty(target, key, { value, writable: true, enumerable: true, configurable: true });
+  return value;
+}
+
+/** JSON cannot encode bigint; serialize it as a decimal string like Zod's replacer. */
+function jsonSafe<T>(value: T): T {
+  return (typeof value === 'bigint' ? value.toString() : value) as T;
+}
+
 function serializeIssue(issue: VldIssue): VldIssueJSON {
   const result: VldIssueJSON = {
     code: issue.code,
@@ -114,13 +141,13 @@ function serializeIssue(issue: VldIssue): VldIssueJSON {
   if (issue.expected !== undefined) result.expected = issue.expected;
   if (issue.received !== undefined) result.received = issue.received;
   if (issue.keys !== undefined) result.keys = issue.keys;
-  if (issue.minimum !== undefined) result.minimum = issue.minimum;
-  if (issue.maximum !== undefined) result.maximum = issue.maximum;
-  if (issue.exact !== undefined) result.exact = issue.exact;
+  if (issue.minimum !== undefined) result.minimum = jsonSafe(issue.minimum);
+  if (issue.maximum !== undefined) result.maximum = jsonSafe(issue.maximum);
+  if (issue.exact !== undefined) result.exact = jsonSafe(issue.exact);
   if (issue.inclusive !== undefined) result.inclusive = issue.inclusive;
   if (issue.origin !== undefined) result.origin = issue.origin;
   if (issue.format !== undefined) result.format = issue.format;
-  if (issue.values !== undefined) result.values = issue.values;
+  if (issue.values !== undefined) result.values = issue.values.map(jsonSafe);
   if (issue.pattern !== undefined) result.pattern = issue.pattern;
 
   return result;
@@ -148,8 +175,22 @@ function deserializeIssue(issue: VldIssueJSON): VldIssue {
   return result;
 }
 
+/**
+ * Descend one level of a `format()` tree. A path segment named `_errors`
+ * collides with the reserved message list, so its messages land on the
+ * current node (matching Zod's formatError output).
+ * @internal
+ */
+export function formatChild(node: Record<PropertyKey, any>, key: PropertyKey): Record<PropertyKey, any> {
+  const existing = getOwnKey<any>(node, key);
+  if (Array.isArray(existing)) return node;
+  return existing ?? setOwnKey(node, key, { _errors: [] });
+}
+
 export class VldError extends Error {
   public readonly issues: VldIssue[];
+  /** Alias of `issues` (own, non-enumerable; defined in the constructor). */
+  declare readonly errors: VldIssue[];
   private _stack: string | undefined;
 
   constructor(issues: VldIssue[], customMessage?: string) {
@@ -164,6 +205,10 @@ export class VldError extends Error {
     super(message);
     this.name = 'VldError';
     this.issues = issues;
+    // Node's util.inspect treats an Error with an array `errors` like an
+    // AggregateError and reads its OWN property descriptor; a prototype-only
+    // getter made console.log(error) throw. Expose it as an own, hidden alias.
+    Object.defineProperty(this, 'errors', { value: issues, enumerable: false, configurable: true, writable: true });
 
     // Skip stack capture in production for performance. Stack can be captured
     // on demand by setting VLD_CAPTURE_STACK=true or calling captureStack().
@@ -184,10 +229,6 @@ export class VldError extends Error {
 
   get firstError(): VldIssue | undefined {
     return this.issues[0];
-  }
-
-  get errors(): VldIssue[] {
-    return this.issues;
   }
 
   get isEmpty(): boolean {
@@ -214,10 +255,7 @@ export class VldError extends Error {
       } else {
         let curr = result;
         for (const key of issue.path) {
-          if (!curr[key]) {
-            curr[key] = { _errors: [] };
-          }
-          curr = curr[key];
+          curr = formatChild(curr, key);
         }
         curr._errors.push(issue.message);
       }
@@ -237,8 +275,7 @@ export class VldError extends Error {
         formErrors.push(mapFn(issue));
       } else {
         const key = String(issue.path[0]);
-        fieldErrors[key] = fieldErrors[key] ?? [];
-        fieldErrors[key].push(mapFn(issue));
+        (getOwnKey<U[]>(fieldErrors, key) ?? setOwnKey<U[]>(fieldErrors, key, [])).push(mapFn(issue));
       }
     }
     return { formErrors, fieldErrors };

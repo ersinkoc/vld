@@ -1,12 +1,15 @@
 import { VldBase, ParseResult, VLD_VALIDATOR_TYPES, ValidatorType, type ErrorParam, resolveErrorMessage } from './base';
 import { getMessages } from '../locales/runtime';
-import { isValidIPv6 } from '../utils/ip-validation';
+import { isValidIPv6, isValidCidrV6 } from '../utils/ip-validation';
+import { regexes as FORMAT_REGEXES } from './string-formats';
 import { VldError, getTypeName, createInvalidTypeIssue, type VldIssue } from '../errors-core';
 
 /**
- * Ultra-fast email validation using simplified regex for maximum performance
+ * Ultra-fast email validation using simplified regex for maximum performance.
+ * Domain labels are dot-separated with no overlap, so rejection stays linear
+ * time on long dotted domains (no ReDoS).
  */
-const FAST_EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const FAST_EMAIL_REGEX = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/;
 
 /**
  * Pre-compiled regex patterns for common validations
@@ -14,9 +17,11 @@ const FAST_EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  */
 const REGEX_PATTERNS = {
   email: FAST_EMAIL_REGEX, // Use simplified fast regex
-  uuid: /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+  // Shared with the top-level format validators (Zod 4.6 sources): uuid
+  // accepts v1-v8 plus the nil/max UUIDs.
+  uuid: FORMAT_REGEXES.uuid(),
   url: /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)$/,  // Fixed unnecessary escapes
-  ipv4: /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/,
+  ipv4: FORMAT_REGEXES.ipv4,
   // Simplified IPv6 regex to prevent ReDoS - splits into multiple checks for performance
   ipv6Basic: /^[0-9a-fA-F:]+$/,
   uuidv4: /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
@@ -32,17 +37,17 @@ const REGEX_PATTERNS = {
   nanoid: /^[A-Za-z0-9_-]{21}$/,
   cuid: /^c[^\s-]{8,}$/i,
   cuid2: /^[0-9a-z]+$/,
-  ulid: /^[0-9A-HJKMNP-TV-Z]{26}$/,
-  cidrv4: /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\/(?:3[0-2]|[12]?[0-9])$/,
-  cidrv6: /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\/(?:12[0-8]|1[01][0-9]|[1-9]?[0-9])$|^::(?:[0-9a-fA-F]{1,4}:){0,6}[0-9a-fA-F]{1,4}\/(?:12[0-8]|1[01][0-9]|[1-9]?[0-9])$|^(?:[0-9a-fA-F]{1,4}:){1,7}:\/(?:12[0-8]|1[01][0-9]|[1-9]?[0-9])$/,
-  e164: /^\+[1-9]\d{1,14}$/,
-  xid: /^[A-HJKMNP-TV-Z0-9]{20}$/,
+  ulid: FORMAT_REGEXES.ulid,
+  cidrv4: FORMAT_REGEXES.cidrv4,
+  e164: FORMAT_REGEXES.e164,
+  xid: FORMAT_REGEXES.xid,
   guid: /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/i,
   ksuid: /^[0-9A-Za-z]{27}$/,
-  isoDate: /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/,
+  isoDate: FORMAT_REGEXES.date,
   isoTime: /^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?$/,
-  isoDateTime: /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?Z?$/,
-  isoDuration: /^-?P(?!$)(?:\d+(?:\.\d+)?Y)?(?:\d+(?:\.\d+)?M)?(?:\d+(?:\.\d+)?W)?(?:\d+(?:\.\d+)?D)?(?:T(?=\d)(?:\d+(?:\.\d+)?H)?(?:\d+(?:\.\d+)?M)?(?:\d+(?:\.\d+)?S)?)?$/,
+  // Calendar-valid date, seconds required, UTC "Z" required.
+  isoDateTime: new RegExp(`^${FORMAT_REGEXES.date.source.slice(1, -1)}T(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?Z$`),
+  isoDuration: FORMAT_REGEXES.duration,
 };
 
 // BUG-NEW-001 FIX: IPv6 validation moved to shared utility (src/utils/ip-validation.ts)
@@ -75,6 +80,8 @@ interface StringJSONSchemaHints {
   exactLength?: number;
   format?: string;
   pattern?: string;
+  /** startsWith/endsWith/includes constraints, for JSON Schema output. */
+  affixes?: ReadonlyArray<{ readonly kind: 'startsWith' | 'endsWith' | 'includes'; readonly value: string }>;
 }
 
 /**
@@ -161,7 +168,7 @@ export class VldString extends VldBase<string, string> {
   /**
    * Build the Zod 4-compatible VldIssue for a failed check at the given index.
    */
-  private _createCheckIssue(meta: StringCheckMeta): VldIssue {
+  private _createCheckIssue(meta: StringCheckMeta, value?: string): VldIssue {
     switch (meta.kind) {
       case 'min':
         return {
@@ -182,6 +189,17 @@ export class VldString extends VldBase<string, string> {
           message: meta.message || `Too big: expected string to have <=${meta.value} characters`,
         };
       case 'length':
+        if (value !== undefined && value.length < meta.value!) {
+          return {
+            code: 'too_small',
+            path: [],
+            origin: 'string',
+            minimum: meta.value!,
+            inclusive: true,
+            exact: meta.value!,
+            message: meta.message || `Too small: expected string to have exactly ${meta.value} characters`,
+          };
+        }
         return {
           code: 'too_big',
           path: [],
@@ -284,7 +302,7 @@ export class VldString extends VldBase<string, string> {
 
     const failedMeta = this._runChecks(result);
     if (failedMeta) {
-      throw new VldError([this._createCheckIssue(failedMeta)]);
+      throw new VldError([this._createCheckIssue(failedMeta, result)]);
     }
     return result;
   }
@@ -415,7 +433,15 @@ export class VldString extends VldBase<string, string> {
   cuid2(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.cuid2, 'cuid2', message); }
   ulid(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.ulid, 'ulid', message); }
   cidrv4(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.cidrv4, 'cidrv4', message); }
-  cidrv6(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.cidrv6, 'cidrv6', message); }
+  cidrv6(message?: ErrorParam): VldString {
+    return new VldString({
+      checks: [...this.config.checks, isValidCidrV6],
+      transforms: this.config.transforms,
+      errorMessage: resolveErrorMessage(message, 'Invalid cidrv6'),
+      jsonSchema: { ...this.config.jsonSchema, format: 'cidrv6' },
+      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'format', format: 'cidrv6', message: resolveErrorMessage(message, 'Invalid cidrv6') }]
+    });
+  }
   e164(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.e164, 'e164', message); }
   xid(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.xid, 'xid', message); }
   guid(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.guid, 'guid', message); }
@@ -430,7 +456,12 @@ export class VldString extends VldBase<string, string> {
    */
   regex(pattern: RegExp, message?: ErrorParam): VldString {
     return new VldString({
-      checks: [...this.config.checks, (v: string) => pattern.test(v)],
+      checks: [...this.config.checks, (v: string) => {
+        // A /g or /y pattern keeps lastIndex between calls; reset it so the
+        // same input always gets the same answer.
+        pattern.lastIndex = 0;
+        return pattern.test(v);
+      }],
       transforms: this.config.transforms,
       errorMessage: resolveErrorMessage(message, getMessages().stringRegex),
       jsonSchema: { ...this.config.jsonSchema, pattern: pattern.source },
@@ -446,7 +477,8 @@ export class VldString extends VldBase<string, string> {
       checks: this.config.checks,
       transforms: [...this.config.transforms, (v: string) => v.trim()],
       errorMessage: this.config.errorMessage,
-      jsonSchema: this.config.jsonSchema
+      jsonSchema: this.config.jsonSchema,
+      checkMetas: this.config.checkMetas
     });
   }
   
@@ -458,7 +490,8 @@ export class VldString extends VldBase<string, string> {
       checks: this.config.checks,
       transforms: [...this.config.transforms, (v: string) => v.toLowerCase()],
       errorMessage: this.config.errorMessage,
-      jsonSchema: this.config.jsonSchema
+      jsonSchema: this.config.jsonSchema,
+      checkMetas: this.config.checkMetas
     });
   }
 
@@ -474,7 +507,8 @@ export class VldString extends VldBase<string, string> {
       checks: this.config.checks,
       transforms: [...this.config.transforms, (v: string) => v.toUpperCase()],
       errorMessage: this.config.errorMessage,
-      jsonSchema: this.config.jsonSchema
+      jsonSchema: this.config.jsonSchema,
+      checkMetas: this.config.checkMetas
     });
   }
 
@@ -487,7 +521,8 @@ export class VldString extends VldBase<string, string> {
       checks: this.config.checks,
       transforms: [...this.config.transforms, (value: string) => value.normalize(form)],
       errorMessage: this.config.errorMessage,
-      jsonSchema: this.config.jsonSchema
+      jsonSchema: this.config.jsonSchema,
+      checkMetas: this.config.checkMetas
     });
   }
 
@@ -501,7 +536,8 @@ export class VldString extends VldBase<string, string> {
         .replace(/[\s_-]+/g, '-')
         .replace(/^-+|-+$/g, '')],
       errorMessage: this.config.errorMessage,
-      jsonSchema: this.config.jsonSchema
+      jsonSchema: this.config.jsonSchema,
+      checkMetas: this.config.checkMetas
     });
   }
   
@@ -513,7 +549,7 @@ export class VldString extends VldBase<string, string> {
       checks: [...this.config.checks, (v: string) => v.startsWith(str)],
       transforms: this.config.transforms,
       errorMessage: resolveErrorMessage(message, getMessages().stringStartsWith(str)),
-      jsonSchema: this.config.jsonSchema
+      jsonSchema: { ...this.config.jsonSchema, affixes: [...(this.config.jsonSchema?.affixes ?? []), { kind: 'startsWith', value: str }] }
     });
   }
   
@@ -525,7 +561,7 @@ export class VldString extends VldBase<string, string> {
       checks: [...this.config.checks, (v: string) => v.endsWith(str)],
       transforms: this.config.transforms,
       errorMessage: resolveErrorMessage(message, getMessages().stringEndsWith(str)),
-      jsonSchema: this.config.jsonSchema
+      jsonSchema: { ...this.config.jsonSchema, affixes: [...(this.config.jsonSchema?.affixes ?? []), { kind: 'endsWith', value: str }] }
     });
   }
   
@@ -537,7 +573,7 @@ export class VldString extends VldBase<string, string> {
       checks: [...this.config.checks, (v: string) => v.includes(str)],
       transforms: this.config.transforms,
       errorMessage: resolveErrorMessage(message, getMessages().stringIncludes(str)),
-      jsonSchema: this.config.jsonSchema
+      jsonSchema: { ...this.config.jsonSchema, affixes: [...(this.config.jsonSchema?.affixes ?? []), { kind: 'includes', value: str }] }
     });
   }
   

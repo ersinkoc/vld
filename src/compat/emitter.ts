@@ -83,6 +83,16 @@ export function createEmitter<TEvents extends EventMap = EventMap>(): Emitter<TE
     return listeners.get(event) as ListenerEntry<TEvents[K]>[];
   };
 
+  /** Remove one specific registration (not every registration of its handler). */
+  const removeEntry = <K extends keyof TEvents>(event: K, entry: ListenerEntry<TEvents[K]>): void => {
+    const eventListeners = listeners.get(event);
+    if (!eventListeners) return;
+    const index = eventListeners.indexOf(entry as ListenerEntry<unknown>);
+    if (index !== -1) {
+      eventListeners.splice(index, 1);
+    }
+  };
+
   const sortListeners = <K extends keyof TEvents>(event: K): void => {
     const eventListeners = getListeners(event);
     eventListeners.sort((a, b) => b.priority - a.priority);
@@ -102,8 +112,10 @@ export function createEmitter<TEvents extends EventMap = EventMap>(): Emitter<TE
     getListeners(event).push(entry);
     sortListeners(event);
 
-    // Return unsubscribe function
-    return () => off(event, handler);
+    // Return unsubscribe function. It removes exactly this registration and
+    // is idempotent, so calling it twice cannot remove another listener that
+    // shares the same handler.
+    return () => removeEntry(event, entry);
   };
 
   const once = <K extends keyof TEvents>(
@@ -135,11 +147,18 @@ export function createEmitter<TEvents extends EventMap = EventMap>(): Emitter<TE
 
     for (const entry of listenersToCall) {
       if (entry.once) {
-        off(event, entry.handler as EventHandler<TEvents[K]>);
+        removeEntry(event, entry as ListenerEntry<TEvents[K]>);
       }
 
       try {
-        entry.handler(payload);
+        const result = entry.handler(payload) as unknown;
+        // An async handler's rejection must be isolated like a sync throw,
+        // not escape as an unhandled rejection.
+        if (result !== null && typeof result === 'object' && typeof (result as PromiseLike<unknown>).then === 'function') {
+          (result as PromiseLike<unknown>).then(undefined, (error: unknown) => {
+            console.error(`Error in event handler for "${String(event)}":`, error);
+          });
+        }
       } catch (error) {
         // Log error but don't stop other handlers
         console.error(`Error in event handler for "${String(event)}":`, error);
@@ -159,7 +178,7 @@ export function createEmitter<TEvents extends EventMap = EventMap>(): Emitter<TE
 
     for (const entry of listenersToCall) {
       if (entry.once) {
-        off(event, entry.handler as EventHandler<TEvents[K]>);
+        removeEntry(event, entry as ListenerEntry<TEvents[K]>);
       }
 
       try {

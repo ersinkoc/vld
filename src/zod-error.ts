@@ -38,9 +38,13 @@ export interface ZodLikeIssue {
   [key: string]: unknown;
 }
 
+import { formatChild, getOwnKey, setOwnKey } from './errors-core';
+
 export class ZodLikeError extends Error {
   /** Array of individual issue descriptors. */
   readonly issues: ReadonlyArray<ZodLikeIssue>;
+  /** Zod-compatible alias of `issues` (own, non-enumerable; set in the constructor). */
+  declare readonly errors: ReadonlyArray<ZodLikeIssue>;
   /** Top-level error code (VLD-specific; Zod doesn't have this). */
   readonly code: string = 'VLD_VALIDATION_ERROR';
 
@@ -49,6 +53,8 @@ export class ZodLikeError extends Error {
     super(JSON.stringify(issues, null, 2));
     this.name = 'ZodError';
     this.issues = issues;
+    // Own alias so util.inspect / console.log can format the error (see VldError).
+    Object.defineProperty(this, 'errors', { value: issues, enumerable: false, configurable: true, writable: true });
   }
 
   /**
@@ -65,14 +71,10 @@ export class ZodLikeError extends Error {
         continue;
       }
       let node: any = result;
-      for (let i = 0; i < path.length - 1; i++) {
-        const key = String(path[i]);
-        if (!(key in node)) node[key] = { _errors: [] as string[] };
-        node = node[key];
+      for (const key of path) {
+        node = formatChild(node, String(key));
       }
-      const last = String(path[path.length - 1]);
-      if (!(last in node)) node[last] = { _errors: [] as string[] };
-      (node[last]._errors as string[]).push(issue.message);
+      (node._errors as string[]).push(issue.message);
     }
     return result;
   }
@@ -90,14 +92,10 @@ export class ZodLikeError extends Error {
         continue;
       }
       const key = String(issue.path[0]);
-      if (!fieldErrors[key]) fieldErrors[key] = [];
-      fieldErrors[key].push(issue.message);
+      (getOwnKey<string[]>(fieldErrors, key) ?? setOwnKey<string[]>(fieldErrors, key, [])).push(issue.message);
     }
     return { formErrors, fieldErrors };
   }
-
-  /** Zod-compatible `errors` getter (alias of `issues`). */
-  get errors(): ReadonlyArray<ZodLikeIssue> { return this.issues; }
 }
 
 /**
@@ -124,6 +122,9 @@ export function toZodError(vldError: any): ZodLikeError {
     if (raw.origin) issue.origin = raw.origin;
     if (raw.format) issue.format = raw.format;
     if (raw.pattern) issue.pattern = raw.pattern;
+    if (raw.keys !== undefined) issue['keys'] = raw.keys;
+    if (raw.values !== undefined) issue['values'] = raw.values;
+    if (raw.exact !== undefined) issue['exact'] = raw.exact;
     // Zod-compat defaults: fill in expected/received from context
     if (issue.expected === undefined) {
       if (issue.code === 'invalid_type' || issue.code === 'invalid_value' || issue.code === 'invalid_literal') {

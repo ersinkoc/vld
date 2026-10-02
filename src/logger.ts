@@ -5,6 +5,8 @@
  * compatible with @oxog/log when available.
  */
 
+import { supportsColor } from './pigment';
+
 /**
  * Log levels
  */
@@ -112,7 +114,8 @@ const LEVEL_LABELS: Record<Exclude<LogLevel, 'silent'>, string> = {
  * Default log handler
  */
 function createDefaultHandler(options: LoggerOptions): LogHandler {
-  const colored = options.colored ?? true;
+  // Default to the environment's color support (NO_COLOR, FORCE_COLOR, TTY).
+  const colored = options.colored ?? supportsColor();
   const timestamps = options.timestamps ?? true;
 
   return (entry: LogEntry) => {
@@ -198,6 +201,9 @@ export function createLogger(options: LoggerOptions = {}): Logger {
     child: (childName) =>
       createLogger({
         ...options,
+        // Inherit the parent's current level (setLevel/enableDebug), not the
+        // level it was created with.
+        level,
         name: `${name}:${childName}`
       })
   };

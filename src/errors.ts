@@ -3,7 +3,7 @@
 import { type Theme, vldTheme } from './pigment';
 export { VldError } from './errors-core';
 export type { VldErrorCode, VldErrorJSON, VldIssue } from './errors-core';
-import { VldError, type VldErrorCode, type VldIssue } from './errors-core';
+import { VldError, getOwnKey, setOwnKey, type VldErrorCode, type VldIssue } from './errors-core';
 
 // Error tree structure for nested validation
 export interface VldErrorTree {
@@ -30,23 +30,22 @@ export function treeifyError(error: VldError): VldErrorTree {
 
     // Navigate to the correct position in the tree
     for (let i = 0; i < path.length; i++) {
-      const segment = path[i];
+      const segment = path[i]!;
       const isLast = i === path.length - 1;
 
-      if (typeof segment === 'string') {
-        // Object property
+      if (typeof segment === 'string' || typeof segment === 'symbol') {
+        // Object property (string or symbol key)
         if (!currentNode.properties) {
           currentNode.properties = {};
         }
-        
-        if (!currentNode.properties[segment]) {
-          currentNode.properties[segment] = { errors: [] };
-        }
-        
+
+        const child = getOwnKey<VldErrorTree>(currentNode.properties, segment)
+          ?? setOwnKey<VldErrorTree>(currentNode.properties, segment, { errors: [] });
+
         if (isLast) {
-          currentNode.properties[segment].errors.push(issue.message);
+          child.errors.push(issue.message);
         } else {
-          currentNode = currentNode.properties[segment];
+          currentNode = child;
         }
       } else if (typeof segment === 'number') {
         // Array index
@@ -102,7 +101,9 @@ export function prettifyError(error: VldError, options: PrettifyOptions = {}): s
 
   const lines: string[] = [];
 
-  for (const issue of error.issues) {
+  // Like Zod, shallow issues print before deeper ones (stable for equal depth).
+  const issues = [...error.issues].sort((a, b) => a.path.length - b.path.length);
+  for (const issue of issues) {
     // Symbol and message
     const symbol = colored ? theme.symbol('✖') : '✖';
     const message = colored ? theme.error(issue.message) : issue.message;
@@ -116,15 +117,22 @@ export function prettifyError(error: VldError, options: PrettifyOptions = {}): s
 
     // Path
     if (issue.path.length > 0) {
+      // Zod's toDotPath: identifiers use dot notation; numbers, symbols and
+      // keys with other characters use brackets, so distinct paths never
+      // render the same (["a.b"] vs ["a","b"]).
       const pathStr = issue.path
-        .map((segment, index) => {
-          if (typeof segment === 'string') {
-            const str = index === 0 ? segment : `.${segment}`;
-            return colored ? theme.path(str) : str;
+        .map((segment: PropertyKey, index) => {
+          let str: string;
+          if (typeof segment === 'number') {
+            str = `[${segment}]`;
+          } else if (typeof segment === 'symbol') {
+            str = `[${JSON.stringify(String(segment))}]`;
+          } else if (/[^\w$]/.test(segment)) {
+            str = `[${JSON.stringify(segment)}]`;
           } else {
-            const str = `[${segment}]`;
-            return colored ? theme.path(str) : str;
+            str = index === 0 ? segment : `.${segment}`;
           }
+          return colored ? theme.path(str) : str;
         })
         .join('');
 
@@ -183,10 +191,7 @@ export function flattenError(error: VldError): VldFlattenedError {
     } else {
       const firstPathSegment = issue.path[0]!;
       const fieldName = firstPathSegment.toString();
-      if (!fieldErrors[fieldName]) {
-        fieldErrors[fieldName] = [];
-      }
-      fieldErrors[fieldName].push(issue.message);
+      (getOwnKey<string[]>(fieldErrors, fieldName) ?? setOwnKey<string[]>(fieldErrors, fieldName, [])).push(issue.message);
     }
   }
 

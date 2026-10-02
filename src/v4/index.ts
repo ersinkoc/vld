@@ -15,7 +15,9 @@ export {
   ZodCompileUnsupportedError
 } from '../compile';
 
+// A function default is a per-parse factory (VldDefault calls it on every
+// parse), not a value to compute once when the schema is built.
 export const _default = <TInput, TOutput>(
   schema: VldBase<TInput, TOutput>,
   defaultValue: TOutput | (() => TOutput)
-) => schema.default(typeof defaultValue === 'function' ? (defaultValue as () => TOutput)() : defaultValue);
+) => schema.default(defaultValue);

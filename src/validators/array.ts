@@ -25,6 +25,7 @@ interface ArrayValidatorConfig<T> {
   readonly maxLength?: number | undefined;
   readonly exactLength?: number;
   readonly unique?: boolean;
+  readonly uniqueMessage?: string | undefined;
   readonly errorMessage?: string;
 }
 
@@ -99,7 +100,11 @@ export class VldArray<T> extends VldBase<unknown[], T[]> {
   private parseArrayValue(value: unknown[]): T[] {
     // Validate length constraints
     if (this.config.exactLength !== undefined && value.length !== this.config.exactLength) {
-      throw createArrayTooSmallError(this.config.exactLength, this.config.errorMessage || getMessages().arrayLength(this.config.exactLength));
+      const message = this.config.errorMessage || getMessages().arrayLength(this.config.exactLength);
+      // Too many items is too_big, too few is too_small.
+      throw value.length > this.config.exactLength
+        ? createArrayTooBigError(this.config.exactLength, message)
+        : createArrayTooSmallError(this.config.exactLength, message);
     }
     
     if (this.config.minLength !== undefined && value.length < this.config.minLength) {
@@ -125,7 +130,7 @@ export class VldArray<T> extends VldBase<unknown[], T[]> {
             result[i] = item as T;
             break;
           case 'number':
-            if (typeof item !== 'number' || isNaN(item)) {
+            if (typeof item !== 'number' || !Number.isFinite(item)) {
               throw new Error(getMessages().arrayItem(i, getMessages().invalidNumber));
             }
             result[i] = item as T;
@@ -258,7 +263,7 @@ export class VldArray<T> extends VldBase<unknown[], T[]> {
       }
 
       if (seen.has(key)) {
-        throw new Error('Array must contain unique items');
+        throw new Error(this.config.uniqueMessage || 'Array must contain unique items');
       }
       seen.add(key);
     }
@@ -281,10 +286,15 @@ export class VldArray<T> extends VldBase<unknown[], T[]> {
         return '"[Max Depth Exceeded]"';
       }
 
-      // Handle primitives
+      // Handle primitives (bigint has no JSON form; tag it so 1n !== 1)
       if (value === null) return 'null';
       if (value === undefined) return 'undefined';
+      if (typeof value === 'bigint') return `${value}n`;
       if (typeof value !== 'object') return JSON.stringify(value);
+
+      // Built-ins whose state is not in own enumerable keys: without these,
+      // every Date / Map / Set would serialize as "{}" and collide.
+      if (value instanceof Date) return `Date(${value.getTime()})`;
 
       // Handle circular references
       if (seen.has(value)) {
@@ -298,6 +308,16 @@ export class VldArray<T> extends VldBase<unknown[], T[]> {
         if (Array.isArray(value)) {
           const items = value.map(item => sortedStringify(item, depth + 1));
           return `[${items.join(',')}]`;
+        }
+
+        if (value instanceof Map) {
+          const entries = Array.from(value, ([k, v]) => `${sortedStringify(k, depth + 1)}=>${sortedStringify(v, depth + 1)}`).sort();
+          return `Map{${entries.join(',')}}`;
+        }
+
+        if (value instanceof Set) {
+          const entries = Array.from(value, item => sortedStringify(item, depth + 1)).sort();
+          return `Set{${entries.join(',')}}`;
         }
 
         // Handle objects - sort keys for stability
@@ -376,6 +396,7 @@ export class VldArray<T> extends VldBase<unknown[], T[]> {
     return new VldArray({
       ...this.config,
       unique: true,
+      uniqueMessage: message,
       errorMessage: message || 'Array must contain unique items'
     });
   }

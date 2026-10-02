@@ -145,7 +145,7 @@ export class VldArrayV2<T> extends VldBase<unknown[], T[]> {
             message: c.message || `Array must have at most ${(c as VldArrayCheckMax).maxLength} items` }]);
         }
         if (c.kind === 'exactLength' && value.length !== (c as VldArrayCheckLength).exactLength) {
-          throw new VldError([{ code: 'too_big', path: [], origin: 'array',
+          throw new VldError([{ code: value.length < (c as VldArrayCheckLength).exactLength ? 'too_small' : 'too_big', path: [], origin: 'array',
             exact: (c as VldArrayCheckLength).exactLength,
             message: c.message || `Array must have exactly ${(c as VldArrayCheckLength).exactLength} items` }]);
         }
@@ -176,7 +176,7 @@ export class VldArrayV2<T> extends VldBase<unknown[], T[]> {
             if (typeof item !== 'string') throw new Error(getMessages().arrayItem(i, getMessages().invalidString));
             result[i] = item as T; break;
           case 'number':
-            if (typeof item !== 'number' || isNaN(item)) throw new Error(getMessages().arrayItem(i, getMessages().invalidNumber));
+            if (typeof item !== 'number' || !Number.isFinite(item)) throw new Error(getMessages().arrayItem(i, getMessages().invalidNumber));
             result[i] = item as T; break;
           case 'boolean':
             if (typeof item !== 'boolean') throw new Error(getMessages().arrayItem(i, getMessages().invalidBoolean));

@@ -329,7 +329,7 @@ function parseSimpleWrappedValue<TOutput>(mode: SimpleWrappedMode, value: unknow
     case 'string':
       return typeof value === 'string' ? value as TOutput : undefined;
     case 'number':
-      return typeof value === 'number' && !isNaN(value) ? value as TOutput : undefined;
+      return typeof value === 'number' && Number.isFinite(value) ? value as TOutput : undefined;
     case 'boolean':
       return typeof value === 'boolean' ? value as TOutput : undefined;
     case 'bigint':
@@ -714,7 +714,7 @@ export abstract class VldBase<TInput, TOutput = TInput> {
    * @param fallbackValue The fallback value
    * @returns A new validator with catch
    */
-  catch(fallbackValue: TOutput): VldCatch<TInput, TOutput> {
+  catch(fallbackValue: TOutput | ((ctx: CatchContext) => TOutput)): VldCatch<TInput, TOutput> {
     return new VldCatch(this, fallbackValue);
   }
   
@@ -1021,29 +1021,37 @@ export class VldRefine<TInput, TBase, TOutput extends TBase = TBase> extends Vld
   }
 
   private _createIssue(val: TBase): VldIssue {
+    // Every issue gets its own path array: callers (and outer validators)
+    // may mutate issue paths, which must never corrupt this schema.
     if (typeof this.customMessage === 'function') {
       const res = this.customMessage(val);
       if (typeof res === 'string') {
-        return { code: 'custom', path: this.refinePath ?? [], message: res };
+        return { code: 'custom', path: [...(this.refinePath ?? [])], message: res };
       }
       return {
         code: 'custom',
-        path: res?.path ?? this.refinePath ?? [],
+        path: [...(res?.path ?? this.refinePath ?? [])],
         message: res?.message ?? 'Refinement check failed'
       };
     }
     if (typeof this.customMessage === 'object' && this.customMessage !== null) {
       const msg = (this.customMessage as any).message ?? (this.customMessage as any).error;
-      const resolvedMsg = typeof msg === 'function' ? msg({}) : (typeof msg === 'string' ? msg : 'Refinement check failed');
-      return {
-        code: 'custom',
-        path: (this.customMessage as any).path ?? this.refinePath ?? [],
-        message: resolvedMsg
-      };
+      const path = [...((this.customMessage as any).path ?? this.refinePath ?? [])];
+      // Zod calls an `error` function with the issue context and keeps `params`.
+      const fromFn = typeof msg === 'function' ? msg({ code: 'custom', input: val, path }) : undefined;
+      const resolvedMsg = typeof msg === 'function'
+        ? (typeof fromFn === 'string' ? fromFn : fromFn?.message ?? 'Refinement check failed')
+        : (typeof msg === 'string' ? msg : 'Refinement check failed');
+      const issue: VldIssue = { code: 'custom', path, message: resolvedMsg };
+      const params = (this.customMessage as any).params;
+      if (params !== undefined) {
+        issue.params = params;
+      }
+      return issue;
     }
     return {
       code: 'custom',
-      path: this.refinePath ?? [],
+      path: [...(this.refinePath ?? [])],
       message: typeof this.customMessage === 'string' ? this.customMessage : 'Refinement check failed'
     };
   }
@@ -1372,52 +1380,78 @@ export class VldPrefault<TInput, TOutput> extends VldBase<TInput | undefined, TO
  * Catch validator - provides fallback value on validation error
  * BUG-NPM-003 FIX: Validate fallback value at construction time
  */
+/** Context passed to a `.catch((ctx) => value)` fallback function (Zod's shape). */
+export interface CatchContext {
+  readonly error: VldError;
+  readonly issues: VldIssue[];
+  readonly input: unknown;
+}
+
 export class VldCatch<TInput, TOutput> extends VldBase<TInput, TOutput> {
   private readonly simpleMode: SimpleWrappedMode;
+  private readonly fallbackFn: ((ctx: CatchContext) => TOutput) | undefined;
 
   constructor(
     private readonly baseValidator: VldBase<TInput, TOutput>,
-    private readonly fallbackValue: TOutput
+    private readonly fallbackValue: TOutput | ((ctx: CatchContext) => TOutput)
   ) {
     super(VLD_VALIDATOR_TYPES.CATCH);
     this.simpleMode = getSimpleWrappedMode(baseValidator as unknown as VldBase<unknown, unknown>);
-    // BUG-NPM-003 FIX: Validate the fallback value to ensure type safety
-    const validation = baseValidator.safeParse(fallbackValue);
-    if (!validation.success) {
-      throw new Error(`Invalid fallback value: ${validation.error.message}`);
+    // Like Zod, a function fallback is called per failure with the error
+    // context - unless the schema itself validates functions.
+    this.fallbackFn = typeof fallbackValue === 'function' && baseValidator.validatorType !== VLD_VALIDATOR_TYPES.FUNCTION
+      ? fallbackValue as (ctx: CatchContext) => TOutput
+      : undefined;
+    if (this.fallbackFn === undefined) {
+      // BUG-NPM-003 FIX: Validate the fallback value to ensure type safety
+      const validation = baseValidator.safeParse(fallbackValue);
+      if (!validation.success) {
+        throw new Error(`Invalid fallback value: ${validation.error.message}`);
+      }
     }
   }
-  
+
+  private fallback(input: unknown, error?: unknown): TOutput {
+    if (this.fallbackFn === undefined) {
+      return this.fallbackValue as TOutput;
+    }
+    const failure = error === undefined
+      ? (this.baseValidator.safeParse(input) as { error?: unknown }).error
+      : error;
+    const vldError = ensureVldError(failure);
+    return this.fallbackFn({ error: vldError, issues: vldError.issues, input });
+  }
+
   parse(value: unknown): TOutput {
     const simpleValue = parseSimpleWrappedValue<TOutput>(this.simpleMode, value);
     if (simpleValue !== undefined) {
       return simpleValue;
     }
     if (this.simpleMode !== undefined) {
-      return this.fallbackValue;
+      return this.fallback(value);
     }
 
     try {
       return this.baseValidator.parse(value);
-    } catch {
-      return this.fallbackValue;
+    } catch (error) {
+      return this.fallback(value, error);
     }
   }
-  
+
   safeParse(value: unknown): ParseResult<TOutput> {
     const simpleValue = parseSimpleWrappedValue<TOutput>(this.simpleMode, value);
     if (simpleValue !== undefined) {
       return { success: true, data: simpleValue };
     }
     if (this.simpleMode !== undefined) {
-      return { success: true, data: this.fallbackValue };
+      return { success: true, data: this.fallback(value) };
     }
 
     const result = this.baseValidator.safeParse(value);
     if (result.success) {
       return result;
     }
-    return { success: true, data: this.fallbackValue };
+    return { success: true, data: this.fallback(value, result.error) };
   }
 }
 

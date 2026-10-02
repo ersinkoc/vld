@@ -61,6 +61,8 @@ export type JSONSchemaDefinition = {
   minItems?: number;
   maxItems?: number;
   uniqueItems?: boolean;
+  additionalItems?: boolean | JSONSchemaDefinition;
+  propertyNames?: JSONSchemaDefinition;
   anyOf?: JSONSchemaDefinition[];
   allOf?: JSONSchemaDefinition[];
   oneOf?: JSONSchemaDefinition[];
@@ -182,11 +184,18 @@ function normalizeForTarget(
 
   if (Array.isArray(result.items)) {
     const tupleItems = result.items.map((item) => normalizeForTarget(item, options));
+    // The rest element (or `false` for a closed tuple) travels as
+    // additionalItems and becomes `items` in 2020-12 style output.
+    const rest = result.additionalItems;
     if (target === 'draft-2020-12' || target === 'draft-2019-09') {
       result.prefixItems = tupleItems;
-      result.items = false;
+      result.items = rest && typeof rest === 'object' ? normalizeForTarget(rest, options) : false;
+      delete result.additionalItems;
     } else {
       result.items = tupleItems;
+      if (rest && typeof rest === 'object') {
+        result.additionalItems = normalizeForTarget(rest, options);
+      }
     }
   } else if (result.items && typeof result.items === 'object') {
     result.items = normalizeForTarget(result.items, options);
@@ -216,8 +225,15 @@ function normalizeForTarget(
     result.not = normalizeForTarget(result.not, options);
   }
 
+  if (result.propertyNames && typeof result.propertyNames === 'object') {
+    result.propertyNames = normalizeForTarget(result.propertyNames, options);
+  }
+
   if (target === 'openapi-3.0') {
     normalizeOpenAPI30(result);
+  } else if (target === 'draft-04') {
+    // Draft-04 only knows boolean exclusiveMinimum/exclusiveMaximum.
+    booleanExclusiveBounds(result);
   }
 
   return result;
@@ -241,6 +257,10 @@ function normalizeOpenAPI30(definition: JSONSchemaDefinition): void {
     }
   }
 
+  booleanExclusiveBounds(definition);
+}
+
+function booleanExclusiveBounds(definition: JSONSchemaDefinition): void {
   if (typeof definition.exclusiveMinimum === 'number') {
     definition.minimum ??= definition.exclusiveMinimum;
     definition.exclusiveMinimum = true;
@@ -295,7 +315,7 @@ function schemaToJSONSchema(schema: AnyVldSchema, options: ToJSONSchemaOptions):
 
   // Handle literal types
   if (schema.constructor.name === 'VldLiteral') {
-    return withMetadata(schema, buildLiteralSchema(schema), options);
+    return withMetadata(schema, buildLiteralSchema(schema, options), options);
   }
 
   if (schema.constructor.name === 'VldEnum') {
@@ -412,7 +432,9 @@ function schemaToJSONSchema(schema: AnyVldSchema, options: ToJSONSchemaOptions):
 
   // Handle default/catch types
   if (schema.constructor.name === 'VldDefault' || schema.constructor.name === 'VldCatch') {
-    return withMetadata(schema, schemaToJSONSchema(unwrapInner(schemaAny), options), options);
+    const inner = schemaToJSONSchema(unwrapInner(schemaAny), options);
+    const defaultValue = schema.constructor.name === 'VldDefault' ? jsonDefault(schemaAny.defaultValue) : undefined;
+    return withMetadata(schema, defaultValue === undefined ? inner : { ...inner, default: defaultValue }, options);
   }
 
   // Handle preprocess types
@@ -432,7 +454,16 @@ function schemaToJSONSchema(schema: AnyVldSchema, options: ToJSONSchemaOptions):
   // Handle string format validators
   if (schema.constructor.name === 'VldStringFormat') {
     const formatSchema = schema as any;
-    return withMetadata(schema, { type: 'string', format: formatSchema._format }, options);
+    return withMetadata(schema, { type: 'string', format: jsonFormatName(formatSchema._format) }, options);
+  }
+
+  if (schema.constructor.name === 'VldDiscriminatedUnion') {
+    const discriminatedOptions = (schemaAny._options || []) as AnyVldSchema[];
+    return withMetadata(schema, { oneOf: discriminatedOptions.map((option) => schemaToJSONSchema(option, options)) }, options);
+  }
+
+  if (schema.constructor.name === 'VldTemplateLiteral' && schemaAny.pattern instanceof RegExp) {
+    return withMetadata(schema, { type: 'string', pattern: schemaAny.pattern.source }, options);
   }
 
   // Fallback for unknown types
@@ -491,8 +522,36 @@ function withMetadata(
   if (metadata.deprecated) result.deprecated = true;
   if (metadata.readOnly) result.readOnly = true;
   if (metadata.writeOnly) result.writeOnly = true;
+  // Custom metadata keys (e.g. "x-order") pass through, as in Zod.
+  for (const [key, value] of Object.entries(metadata)) {
+    if (!KNOWN_METADATA_KEYS.has(key) && value !== undefined && typeof value !== 'function') {
+      (result as Record<string, unknown>)[key] = value;
+    }
+  }
   return result;
 }
+
+const KNOWN_METADATA_KEYS = new Set([
+  'id', 'title', 'description', 'examples', 'default', 'deprecated', 'readOnly', 'writeOnly'
+]);
+
+/** JSON Schema names for VLD's internal string format ids. */
+function jsonFormatName(format: string): string {
+  return format === 'datetime' ? 'date-time' : format;
+}
+
+/** A default value as JSON, or undefined when it has no JSON form. */
+function jsonDefault(value: unknown): unknown {
+  try {
+    const resolved = typeof value === 'function' ? (value as () => unknown)() : value;
+    const json = JSON.stringify(resolved);
+    return json === undefined ? undefined : JSON.parse(json);
+  } catch {
+    return undefined;
+  }
+}
+
+const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
  * Build string JSON Schema
@@ -508,8 +567,17 @@ function buildStringSchema(_target: string, schema?: any): JSONSchemaDefinition 
     if (hints.minLength !== undefined) result.minLength = hints.minLength;
     if (hints.maxLength !== undefined) result.maxLength = hints.maxLength;
   }
-  if (hints.format) result.format = hints.format;
-  if (hints.pattern) result.pattern = hints.pattern;
+  if (hints.format) result.format = jsonFormatName(hints.format);
+  const patterns: string[] = hints.pattern ? [hints.pattern] : [];
+  for (const affix of (hints.affixes ?? []) as Array<{ kind: string; value: string }>) {
+    const literal = escapeRegex(affix.value);
+    if (affix.kind === 'startsWith') patterns.push(`^${literal}.*`);
+    else if (affix.kind === 'endsWith') patterns.push(`.*${literal}$`);
+    else patterns.push(literal);
+    result.format ??= affix.kind === 'startsWith' ? 'starts_with' : affix.kind === 'endsWith' ? 'ends_with' : 'includes';
+  }
+  if (patterns.length > 0) result.pattern = patterns[0]!;
+  if (patterns.length > 1) result.allOf = patterns.slice(1).map((pattern) => ({ pattern }));
 
   return result;
 }
@@ -646,8 +714,9 @@ function buildObjectSchema(schema: any, options: ToJSONSchemaOptions): JSONSchem
   for (const [key, value] of Object.entries(shape)) {
     const child = value as VldBase<unknown, unknown>;
     properties[key] = schemaToJSONSchema(child, options);
-    // VLD objects require all keys by default
-    if (!isOptionalLike(child)) {
+    // VLD objects require all keys by default; on the input side a defaulted
+    // (or caught) field may be omitted.
+    if (!isOptionalLike(child) && !(options.io === 'input' && isDefaultLike(child))) {
       required.push(key);
     }
   }
@@ -666,11 +735,17 @@ function buildObjectSchema(schema: any, options: ToJSONSchemaOptions): JSONSchem
     result.additionalProperties = true;
   } else if (schema.config?.catchall) {
     result.additionalProperties = schemaToJSONSchema(schema.config.catchall, options);
-  } else {
+  } else if (options.io !== 'input' || schema.config?.strict) {
+    // Strip mode accepts (and drops) unknown keys, so the input side is open.
     result.additionalProperties = false;
   }
 
   return result;
+}
+
+function isDefaultLike(schema: AnyVldSchema): boolean {
+  const name = schema.constructor.name;
+  return name === 'VldDefault' || name === 'VldCatch';
 }
 
 function isOptionalLike(schema: AnyVldSchema): boolean {
@@ -698,8 +773,20 @@ function buildUnionSchema(schema: any, options: ToJSONSchemaOptions): JSONSchema
 /**
  * Build literal JSON Schema
  */
-function buildLiteralSchema(schema: any): JSONSchemaDefinition {
-  const value = schema._literal ?? schema.literal ?? schema._value ?? schema.value;
+function buildLiteralSchema(schema: any, options: ToJSONSchemaOptions): JSONSchemaDefinition {
+  const values: unknown[] = Array.isArray(schema.values) ? schema.values : [schema._literal ?? schema.literal ?? schema._value ?? schema.value];
+  if (values.some((item) => item === undefined)) {
+    return unrepresentable(schema, options, 'Literal `undefined`', () => ({ not: {} }));
+  }
+  if (values.some((item) => typeof item === 'bigint')) {
+    return unrepresentable(schema, options, 'BigInt literal', () => ({ type: 'integer', enum: values.map(String) }));
+  }
+  if (values.length > 1) {
+    const types = new Set(values.map((item) => (item === null ? 'null' : typeof item)));
+    const only = types.size === 1 ? [...types][0] : undefined;
+    return only !== undefined && only !== 'null' ? { type: only, enum: [...values] } : { enum: [...values] };
+  }
+  const value = values[0];
   if (value === null) return { type: 'null' };
   if (typeof value === 'string') return { type: 'string', const: value };
   if (typeof value === 'number') return { type: 'number', const: value };
@@ -724,10 +811,19 @@ function buildEnumSchema(schema: any): JSONSchemaDefinition {
 function buildRecordSchema(schema: any, options: ToJSONSchemaOptions): JSONSchemaDefinition {
   const valueValidator = schema.valueSchema || schema._value || schema._inner || schema.valueValidator;
   if (valueValidator) {
-    return {
+    const result: JSONSchemaDefinition = {
       type: 'object',
       additionalProperties: schemaToJSONSchema(valueValidator, options)
     };
+    const keyValidator = schema.keyValidator;
+    if (keyValidator) {
+      const keySchema = schemaToJSONSchema(keyValidator, options);
+      // A plain string key adds nothing; anything stricter is kept.
+      if (!(Object.keys(keySchema).length === 1 && keySchema.type === 'string')) {
+        result.propertyNames = keySchema;
+      }
+    }
+    return result;
   }
   return { type: 'object' };
 }
@@ -780,20 +876,26 @@ function buildTupleSchema(schema: any, options: ToJSONSchemaOptions): JSONSchema
     return { type: 'array' };
   }
 
-  return {
+  const rest = schema.restValidator as AnyVldSchema | null | undefined;
+  const result: JSONSchemaDefinition = {
     type: 'array',
     items: items.map((item: AnyVldSchema) => schemaToJSONSchema(item, options)),
-    minItems: items.length,
-    maxItems: items.length
+    // Extra elements must match the rest schema, or are not allowed at all.
+    additionalItems: rest ? schemaToJSONSchema(rest, options) : false,
+    minItems: items.length
   };
+  if (!rest) {
+    result.maxItems = items.length;
+  }
+  return result;
 }
 
 /**
  * Build intersection JSON Schema
  */
 function buildIntersectionSchema(schema: any, options: ToJSONSchemaOptions): JSONSchemaDefinition {
-  const first = schema._first || schema.first;
-  const second = schema._second || schema.second;
+  const first = schema._first || schema.first || schema.validatorA;
+  const second = schema._second || schema.second || schema.validatorB;
 
   const schemas: JSONSchemaDefinition[] = [];
   if (first) schemas.push(schemaToJSONSchema(first, options));
@@ -802,7 +904,32 @@ function buildIntersectionSchema(schema: any, options: ToJSONSchemaOptions): JSO
   if (schemas.length === 0) return {};
   if (schemas.length === 1) return schemas[0] ?? {};
 
-  return { allOf: schemas };
+  const merged = mergeObjectSchemas(schemas[0]!, schemas[1]!);
+  return merged ?? { allOf: schemas };
+}
+
+/**
+ * Merge two plain object schemas. `allOf` over two closed objects
+ * (additionalProperties: false) would reject every value that has the keys
+ * of both sides, although the intersection accepts it.
+ */
+function mergeObjectSchemas(a: JSONSchemaDefinition, b: JSONSchemaDefinition): JSONSchemaDefinition | undefined {
+  const plainObject = (d: JSONSchemaDefinition) =>
+    d.type === 'object' && d.properties !== undefined && Object.keys(d).every((key) =>
+      key === 'type' || key === 'properties' || key === 'required' || key === 'additionalProperties') &&
+    (d.additionalProperties === undefined || typeof d.additionalProperties === 'boolean');
+  if (!plainObject(a) || !plainObject(b)) {
+    return undefined;
+  }
+  const required = [...new Set([...(a.required ?? []), ...(b.required ?? [])])];
+  const result: JSONSchemaDefinition = { type: 'object', properties: { ...a.properties, ...b.properties } };
+  if (required.length > 0) result.required = required;
+  if (a.additionalProperties === false && b.additionalProperties === false) {
+    result.additionalProperties = false;
+  } else if (a.additionalProperties === true || b.additionalProperties === true) {
+    result.additionalProperties = true;
+  }
+  return result;
 }
 
 /**
@@ -824,17 +951,24 @@ function buildNullableSchema(schema: any, options: ToJSONSchemaOptions): JSONSch
   const inner = unwrapInner(schema);
   if (!inner) return { type: 'null' };
 
-  const result = schemaToJSONSchema(inner, options);
-  if (typeof result.type === 'string') {
-    return { type: [result.type, 'null'] };
-  } else if (Array.isArray(result.type)) {
-    result.type.push('null');
-    return result;
-  }
+  return withNull(schemaToJSONSchema(inner, options));
+}
 
-  return {
-    anyOf: [result, { type: 'null' }]
-  };
+/**
+ * Allow `null` in addition to a schema. Type-specific keywords (minLength,
+ * properties, items, ...) ignore null, so widening `type` keeps them;
+ * const/enum apply to every value, so those need an anyOf branch.
+ */
+function withNull(result: JSONSchemaDefinition): JSONSchemaDefinition {
+  if (result.const === undefined && result.enum === undefined) {
+    if (typeof result.type === 'string') {
+      return { ...result, type: [result.type, 'null'] };
+    }
+    if (Array.isArray(result.type)) {
+      return result.type.includes('null') ? result : { ...result, type: [...result.type, 'null'] };
+    }
+  }
+  return { anyOf: [result, { type: 'null' }] };
 }
 
 /**
@@ -844,11 +978,7 @@ function buildNullishSchema(schema: any, options: ToJSONSchemaOptions): JSONSche
   const inner = unwrapInner(schema);
   if (!inner) return {};
 
-  const result = schemaToJSONSchema(inner, options);
-  if (typeof result.type === 'string') {
-    return { ...result, type: [result.type, 'null'] };
-  }
-  return result;
+  return withNull(schemaToJSONSchema(inner, options));
 }
 
 /**
@@ -983,6 +1113,15 @@ function jsonSchemaToVLDInner(json: JSONSchemaDefinition): AnyVldSchema {
   const type = json.nullable && typeof json.type === 'string'
     ? [json.type, 'null']
     : json.type;
+
+  if (
+    type === undefined &&
+    json.minLength === undefined && json.maxLength === undefined &&
+    json.pattern === undefined && json.format === undefined
+  ) {
+    // An untyped schema ({}) accepts any value.
+    return VldAny.create();
+  }
 
   if (type === 'string' || type === undefined) {
     let s = VldString.create();

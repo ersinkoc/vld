@@ -57,6 +57,8 @@ export class VldCodec<TInput, TOutput> extends VldBase<TInput, TOutput> {
       
       // Handle async decode
       if (decoded instanceof Promise) {
+        // The promise is abandoned here; keep its rejection from going unhandled.
+        decoded.catch(() => undefined);
         throw new VldError([
           createIssue('custom', [], getMessages().codecAsyncNotSupported)
         ]);
@@ -114,6 +116,7 @@ export class VldCodec<TInput, TOutput> extends VldBase<TInput, TOutput> {
       
       // Handle async encode
       if (encoded instanceof Promise) {
+        encoded.catch(() => undefined);
         throw new VldError([
           createIssue('custom', [], getMessages().codecAsyncNotSupported)
         ]);
@@ -149,8 +152,8 @@ export class VldCodec<TInput, TOutput> extends VldBase<TInput, TOutput> {
    * Async version of safeParse (decode)
    */
   override async safeParseAsync(value: unknown): Promise<ParseResult<TOutput>> {
-    // First validate the input
-    const inputResult = this.inputValidator.safeParse(value);
+    // First validate the input (async, so async refinements inside work)
+    const inputResult = await this.inputValidator.safeParseAsync(value);
     if (!inputResult.success) {
       return { success: false, error: inputResult.error };
     }
@@ -160,7 +163,7 @@ export class VldCodec<TInput, TOutput> extends VldBase<TInput, TOutput> {
       const decoded = await this.codecTransform.decode(inputResult.data);
       
       // Validate the decoded output
-      return this.outputValidator.safeParse(decoded);
+      return await this.outputValidator.safeParseAsync(decoded);
     } catch (error) {
       if (error instanceof VldError) {
         return { success: false, error };
@@ -189,8 +192,8 @@ export class VldCodec<TInput, TOutput> extends VldBase<TInput, TOutput> {
    * Async version of safeEncode
    */
   override async safeEncodeAsync(value: unknown): Promise<ParseResult<TInput>> {
-    // First validate the output
-    const outputResult = this.outputValidator.safeParse(value);
+    // First validate the output (async, so async refinements inside work)
+    const outputResult = await this.outputValidator.safeParseAsync(value);
     if (!outputResult.success) {
       return { success: false, error: outputResult.error };
     }
@@ -200,7 +203,7 @@ export class VldCodec<TInput, TOutput> extends VldBase<TInput, TOutput> {
       const encoded = await this.codecTransform.encode(outputResult.data);
       
       // Validate the encoded input
-      return this.inputValidator.safeParse(encoded);
+      return await this.inputValidator.safeParseAsync(encoded);
     } catch (error) {
       if (error instanceof VldError) {
         return { success: false, error };

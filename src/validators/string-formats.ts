@@ -6,7 +6,7 @@
 
 import { VldBase, VLD_VALIDATOR_TYPES } from './base';
 import { getMessages } from '../locales/runtime';
-import { isValidIPv6 } from '../utils/ip-validation';
+import { isValidCidrV6 } from '../utils/ip-validation';
 import { VldError, getTypeName, createInvalidTypeIssue, type VldIssue } from '../errors-core';
 import type { ParseResult } from './base';
 
@@ -109,7 +109,8 @@ export type RegexNamespace = Readonly<Record<StaticRegexName, RegExp> & {
 const REGEXES: RegexNamespace = {
   cuid: /^[cC][0-9a-z]{6,}$/,
   cuid2: /^[0-9a-z]+$/,
-  ulid: /^[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{26}$/,
+  // First character is the top of a 48-bit timestamp, so it cannot exceed 7 (Zod 4.6 source).
+  ulid: /^[0-7][0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{25}$/,
   xid: /^[0-9a-vA-V]{20}$/,
   ksuid: /^[A-Za-z0-9]{27}$/,
   nanoid: /^[a-zA-Z0-9_-]{21}$/,
@@ -293,12 +294,9 @@ export const mac = (options?: { delimiter?: string }): VldStringFormat => {
   return VldStringFormat.create('mac', value => testRegex(pattern, value));
 };
 export const cidrv4 = (): VldStringFormat => VldStringFormat.create('cidrv4', value => testRegex(REGEXES.cidrv4, value));
-export const cidrv6 = (): VldStringFormat => VldStringFormat.create('cidrv6', value => {
-  const separator = value.lastIndexOf('/');
-  if (separator <= 0) return false;
-  const prefix = Number(value.slice(separator + 1));
-  return Number.isInteger(prefix) && prefix >= 0 && prefix <= 128 && isValidIPv6(value.slice(0, separator));
-});
+// Number('') / Number(' 64') / Number('1e2') / Number('0x40') all parse, so the
+// prefix is matched as canonical digits instead.
+export const cidrv6 = (): VldStringFormat => VldStringFormat.create('cidrv6', isValidCidrV6);
 export const e164 = (): VldStringFormat => VldStringFormat.create('e164', value => testRegex(REGEXES.e164, value));
 export const xid = (): VldStringFormat => VldStringFormat.create('xid', value => testRegex(REGEXES.xid, value));
 export const guid = (): VldStringFormat => VldStringFormat.create('guid', value => testRegex(REGEXES.guid, value));

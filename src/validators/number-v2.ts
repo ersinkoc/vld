@@ -6,6 +6,7 @@ import { VldBase, VLD_VALIDATOR_TYPES, type ErrorParam, type ParseResult } from 
 import { VldError, createInvalidTypeIssue, getTypeName, type VldIssue } from '../errors-core';
 import { getMessages } from '../locales/runtime';
 import { resolveErrorMessage } from './base';
+import { FLOAT32_MAX, isMultipleOf } from './number';
 
 export abstract class VldNumberCheck {
   abstract readonly kind: 'min' | 'max' | 'gt' | 'lt' | 'int' | 'finite' | 'safe' | 'multipleOf' | 'positive' | 'negative' | 'nonnegative' | 'nonpositive' | 'even' | 'odd' | 'uint32' | 'uint64' | 'int32' | 'int64' | 'float32' | 'float64';
@@ -106,8 +107,7 @@ export class VldNumberCheckMultipleOf extends VldNumberCheck {
   readonly kind = 'multipleOf' as const;
   constructor(readonly divisor: number, private _msg?: string) { super(); }
   check(value: number): VldIssue | null {
-    const remainder = Math.abs(value % this.divisor);
-    if (!(remainder < Number.EPSILON || Math.abs(remainder - Math.abs(this.divisor)) < Number.EPSILON)) {
+    if (!isMultipleOf(value, this.divisor)) {
       return { code: 'custom', path: [], message: this._msg || `Number must be a multiple of ${this.divisor}` };
     }
     return null;
@@ -203,7 +203,7 @@ export class VldNumberCheckFloat32 extends VldNumberCheck {
   readonly kind = 'float32' as const;
   constructor(private _msg?: string) { super(); }
   check(value: number): VldIssue | null {
-    if (!Number.isFinite(value) || Math.abs(value) > 3.4e38) {
+    if (!Number.isFinite(value) || Math.abs(value) > FLOAT32_MAX) {
       return { code: 'custom', path: [], message: this._msg || 'Expected a 32-bit float' };
     }
     return null;
@@ -276,7 +276,7 @@ export class VldNumberV2 extends VldBase<number, number> {
 
   safeParse(value: unknown): ParseResult<number> {
     try { return { success: true, data: this.parse(value) }; }
-    catch (error) { return { success: false, error: error instanceof VldError ? error : new VldError([{ code: 'custom', path: [], message: String(error) }]) }; }
+    catch (error) { return { success: false, error: error instanceof VldError ? error : new VldError([{ code: 'custom', path: [], message: error instanceof Error ? error.message : String(error) }]) }; }
   }
 
   protected withDef(def: Partial<VldNumberDef> & { type: 'number' }): VldNumberV2 {

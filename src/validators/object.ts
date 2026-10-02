@@ -4,6 +4,31 @@ import { VldEnum } from './enum';
 import { isDangerousKey } from '../utils/security';
 import { VldError, VldIssue } from '../errors-core';
 
+/**
+ * Assign a shape field onto a parse result. A shape key named "__proto__" must
+ * become an own data property instead of invoking the Object.prototype setter,
+ * which would silently replace the result's prototype.
+ */
+function setResultField(result: Record<string, unknown>, key: string, value: unknown): void {
+  if (key === '__proto__') {
+    Object.defineProperty(result, key, { value, writable: true, enumerable: true, configurable: true });
+  } else {
+    result[key] = value;
+  }
+}
+
+/** Field types whose failures are a single issue, so fail-fast parsing loses nothing. */
+const LEAF_FIELD_TYPES: ReadonlySet<string> = new Set([
+  VLD_VALIDATOR_TYPES.STRING,
+  VLD_VALIDATOR_TYPES.NUMBER,
+  VLD_VALIDATOR_TYPES.BOOLEAN,
+  VLD_VALIDATOR_TYPES.BIGINT,
+  VLD_VALIDATOR_TYPES.SYMBOL,
+  VLD_VALIDATOR_TYPES.FUNCTION,
+  VLD_VALIDATOR_TYPES.FILE,
+  VLD_VALIDATOR_TYPES.DATE
+]);
+
 type SimpleFieldMode =
   | 'string'
   | 'number'
@@ -41,6 +66,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
   private readonly _simpleFieldValues: unknown[];
   private readonly _canUseSimpleObjectFastPath: boolean;
   private readonly _canUseSafeParseFastPath: boolean;
+  private readonly _hasProtoKey: boolean;
 
   private createSafeParseError(messageOrError: unknown, fieldKey?: string | number): VldError {
     if (messageOrError instanceof VldError) {
@@ -70,12 +96,15 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
     // Pre-compute shape keys for faster access
     this._shapeKeys = Object.keys(config.shape);
     this._shapeKeysSet = new Set(this._shapeKeys);
+    this._hasProtoKey = this._shapeKeysSet.has('__proto__');
     this._validators = this._shapeKeys.map(k => this.tryGetFieldValidator(k));
     // Pre-compute validator types when possible. Getter-based recursive schemas
     // may reference the object being constructed, so unresolved getters fall
     // back to the generic path and are resolved at parse time.
     this._validatorTypes = this._shapeKeys.map((k, i) => this._validators[i]?.validatorType || this.getValidatorType(k));
-    this._simpleFieldModes = this._validators.map((validator, i) => this.getSimpleFieldMode(validator, this._validatorTypes[i]!));
+    this._simpleFieldModes = this._validators.map((validator, i) =>
+      this._shapeKeys[i] === '__proto__' ? undefined : this.getSimpleFieldMode(validator, this._validatorTypes[i]!)
+    );
     this._simpleFieldValues = this._validators.map((validator, i) =>
       this._simpleFieldModes[i] === 'literal' ? (validator as any).literal : undefined
     );
@@ -200,7 +229,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
       }
     }
 
-    if (type === VLD_VALIDATOR_TYPES.NUMBER && typeof value === 'number' && !isNaN(value)) {
+    if (type === VLD_VALIDATOR_TYPES.NUMBER && typeof value === 'number' && Number.isFinite(value)) {
       const parseKnownNumber = (validator as any).parseKnownNumber;
       if (typeof parseKnownNumber === 'function') {
         return parseKnownNumber.call(validator, value);
@@ -330,7 +359,8 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
 
       const key1 = this._shapeKeys[1]!;
       const value1 = obj[key1];
-      if (typeof value1 !== 'number' || isNaN(value1)) {
+      // `x - x !== 0` rejects NaN and +/-Infinity; cheaper than Number.isFinite here.
+      if (typeof value1 !== 'number' || value1 - value1 !== 0) {
         throw new Error(getMessages().objectField(key1, getMessages().invalidNumber));
       }
 
@@ -364,7 +394,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
 
       const key2 = this._shapeKeys[2]!;
       const value2 = obj[key2];
-      if (typeof value2 !== 'number' || isNaN(value2)) {
+      if (typeof value2 !== 'number' || value2 - value2 !== 0) {
         throw new Error(getMessages().objectField(key2, getMessages().invalidNumber));
       }
 
@@ -390,7 +420,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
           result[key] = fieldValue;
           break;
         case 'number':
-          if (typeof fieldValue !== 'number' || isNaN(fieldValue)) {
+          if (typeof fieldValue !== 'number' || !Number.isFinite(fieldValue)) {
             throw new Error(getMessages().objectField(key, getMessages().invalidNumber));
           }
           result[key] = fieldValue;
@@ -562,7 +592,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
               result[currentKey] = fieldValue;
               continue;
             case 'number':
-              if (typeof fieldValue !== 'number' || isNaN(fieldValue)) {
+              if (typeof fieldValue !== 'number' || !Number.isFinite(fieldValue)) {
                 throw new Error(getMessages().invalidNumber);
               }
               result[currentKey] = fieldValue;
@@ -617,7 +647,15 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
         }
 
         const validator = this.getFieldValidator(currentKey, i);
-        result[currentKey] = this.parseCheckedField(validator, this._validatorTypes[i]!, obj[currentKey]);
+        const fieldResult = this.parseCheckedField(validator, this._validatorTypes[i]!, obj[currentKey]);
+        // An optional key that is absent from the input stays absent in the output.
+        if (fieldResult !== undefined || currentKey in obj) {
+          if (this._hasProtoKey) {
+            setResultField(result, currentKey, fieldResult);
+          } else {
+            result[currentKey] = fieldResult;
+          }
+        }
       }
     } catch (error) {
       if (error instanceof VldError) {
@@ -741,7 +779,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
         }
         if (
           (simpleMode === 'string' && typeof fieldValue === 'string') ||
-          (simpleMode === 'number' && typeof fieldValue === 'number' && !isNaN(fieldValue)) ||
+          (simpleMode === 'number' && typeof fieldValue === 'number' && Number.isFinite(fieldValue)) ||
           (simpleMode === 'boolean' && typeof fieldValue === 'boolean') ||
           (simpleMode === 'bigint' && typeof fieldValue === 'bigint') ||
           (simpleMode === 'symbol' && typeof fieldValue === 'symbol') ||
@@ -775,16 +813,21 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
         continue;
       }
       try {
-        if (validator instanceof VldBase) {
-          result[key] = this.parseCheckedField(validator, this._validatorTypes[i]!, fieldValue);
-        } else {
-          const parseResult = (validator as any).safeParse(fieldValue);
-          if (!parseResult.success) {
-            const err = this.createSafeParseError(parseResult.error, key);
-            issues.push(...err.issues);
-          } else {
-            result[key] = parseResult.data;
+        if (validator instanceof VldBase && LEAF_FIELD_TYPES.has(this._validatorTypes[i]!)) {
+          const fieldResult = this.parseCheckedField(validator, this._validatorTypes[i]!, fieldValue);
+          if (fieldResult !== undefined || key in obj) {
+            setResultField(result, key, fieldResult);
           }
+          continue;
+        }
+        // Containers and wrappers go through the child's safeParse so every
+        // nested issue is collected with its full path.
+        const parseResult = (validator as any).safeParse(fieldValue);
+        if (!parseResult.success) {
+          const err = this.createSafeParseError(parseResult.error, key);
+          issues.push(...err.issues);
+        } else if (parseResult.data !== undefined || key in obj) {
+          setResultField(result, key, parseResult.data);
         }
       } catch (error) {
         const err = this.createSafeParseError(error, key);
@@ -954,23 +997,29 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
    * Create a new validator in strict mode (no extra keys allowed)
    */
   strict(message?: string): VldObject<T> {
-    return new VldObject({
+    const config: ObjectValidatorConfig<T> = {
       ...this._config,
       strict: true,
       passthrough: false,
       errorMessage: message
-    });
+    };
+    // The latest unknown-key policy wins: strict replaces an earlier catchall.
+    delete (config as { catchall?: VldBase<unknown, any> }).catchall;
+    return new VldObject(config);
   }
   
   /**
    * Create a new validator in passthrough mode (extra keys are preserved)
    */
   passthrough(): VldObject<T> {
-    return new VldObject({
+    const config: ObjectValidatorConfig<T> = {
       ...this._config,
       strict: false,
       passthrough: true
-    });
+    };
+    // The latest unknown-key policy wins: passthrough replaces an earlier catchall.
+    delete (config as { catchall?: VldBase<unknown, any> }).catchall;
+    return new VldObject(config);
   }
 
   loose(): VldObject<T> {
@@ -1103,10 +1152,18 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
   merge<U extends Record<string, any>>(
     other: VldObject<U>
   ): VldObject<T & U> {
-    return new VldObject({
+    const config: ObjectValidatorConfig<any> = {
       ...this._config,
-      shape: { ...this._config.shape, ...other.config.shape } as any
-    });
+      shape: { ...this._config.shape, ...other.config.shape } as any,
+      // Like Zod, the merged schema takes the argument's unknown-key policy.
+      strict: other.config.strict === true,
+      passthrough: other.config.passthrough === true
+    };
+    delete (config as { catchall?: VldBase<unknown, any> }).catchall;
+    if (other.config.catchall) {
+      (config as { catchall?: VldBase<unknown, any> }).catchall = other.config.catchall;
+    }
+    return new VldObject(config);
   }
 
   /**
@@ -1117,7 +1174,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
     for (const key in this._config.shape) {
       const validator = this._config.shape[key];
       // If it's optional, unwrap it
-      if (validator instanceof VldOptional) {
+      if (validator instanceof VldOptional || validator instanceof VldExactOptional) {
         // BUG-001 FIX: Add defensive check for baseValidator property
         const unwrapped = (validator as any).baseValidator;
         if (!unwrapped || typeof unwrapped.parse !== 'function') {
@@ -1142,6 +1199,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
     return new VldObject({
       ...this._config,
       catchall: schema,
+      strict: false, // catchall overrides strict
       passthrough: false // catchall overrides passthrough
     }) as any;
   }

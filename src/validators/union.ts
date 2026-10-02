@@ -109,7 +109,7 @@ export class VldUnion<T extends readonly VldBase<any, any>[]> extends VldBase<
       case VLD_VALIDATOR_TYPES.STRING:
         return (v) => typeof v === 'string';
       case VLD_VALIDATOR_TYPES.NUMBER:
-        return (v) => typeof v === 'number' && !isNaN(v);
+        return (v) => typeof v === 'number' && Number.isFinite(v);
       case VLD_VALIDATOR_TYPES.BOOLEAN:
         return (v) => typeof v === 'boolean';
       case VLD_VALIDATOR_TYPES.BIGINT:
@@ -130,8 +130,9 @@ export class VldUnion<T extends readonly VldBase<any, any>[]> extends VldBase<
       case VLD_VALIDATOR_TYPES.ENUM:
         return (v) => typeof v === 'string' || typeof v === 'number';
       case VLD_VALIDATOR_TYPES.LITERAL: {
-        const literal = (validator as { literal?: unknown }).literal;
-        return (v) => v === literal;
+        // v.literal(['a', 'b']) holds several values; test them all.
+        const values = (validator as { values?: readonly unknown[] }).values ?? [(validator as { literal?: unknown }).literal];
+        return (v) => values.includes(v);
       }
       case VLD_VALIDATOR_TYPES.NEVER:
         return () => false;

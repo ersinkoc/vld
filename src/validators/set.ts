@@ -1,6 +1,6 @@
 import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
 import { getMessages } from '../locales/runtime';
-import { VldError } from '../errors-core';
+import { VldError, type VldIssue } from '../errors-core';
 
 type SimpleSetItemMode =
   | 'string'
@@ -14,6 +14,22 @@ type SimpleSetItemMode =
   | 'passthrough'
   | undefined;
 
+/** A size constraint; `kind` lets failures report too_small / too_big. */
+interface SizeCheck<C> {
+  readonly fn: (collection: C) => boolean;
+  readonly message: string;
+  readonly kind?: 'min' | 'max' | 'size';
+  readonly value?: number;
+}
+
+function sizeIssue(origin: 'set' | 'map', check: SizeCheck<any>, actual: number): VldIssue {
+  const limit = check.value!;
+  if (check.kind === 'min' || (check.kind === 'size' && actual < limit)) {
+    return { code: 'too_small', path: [], origin, minimum: limit, inclusive: true, message: check.message };
+  }
+  return { code: 'too_big', path: [], origin, maximum: limit, inclusive: true, message: check.message };
+}
+
 function createSetError(message: string): VldError {
   return new VldError([{ code: 'invalid_type', path: [], message }]);
 }
@@ -22,7 +38,7 @@ function createSetError(message: string): VldError {
  * Immutable Set validator
  */
 export class VldSet<T> extends VldBase<unknown, Set<T>> {
-  private readonly _checks: ReadonlyArray<{ fn: (set: Set<T>) => boolean; message: string }>;
+  private readonly _checks: ReadonlyArray<SizeCheck<Set<T>>>;
 
   /**
    * Private constructor to enforce immutability
@@ -30,7 +46,7 @@ export class VldSet<T> extends VldBase<unknown, Set<T>> {
   private constructor(
     private readonly itemValidator: VldBase<unknown, T>,
     private readonly errorMessage?: string,
-    checks: ReadonlyArray<{ fn: (set: Set<T>) => boolean; message: string }> = []
+    checks: ReadonlyArray<SizeCheck<Set<T>>> = []
   ) {
     super(VLD_VALIDATOR_TYPES.SET);
     this._checks = checks;
@@ -134,7 +150,7 @@ export class VldSet<T> extends VldBase<unknown, Set<T>> {
       }
     } else if (simpleMode === 'number') {
       for (const item of value) {
-        if (typeof item !== 'number' || isNaN(item)) {
+        if (typeof item !== 'number' || !Number.isFinite(item)) {
           throw new Error(this.getSimpleItemError(item));
         }
         result.add(item as T);
@@ -197,7 +213,7 @@ export class VldSet<T> extends VldBase<unknown, Set<T>> {
     
     for (const check of this._checks) {
       if (!check.fn(result)) {
-        throw new Error(check.message);
+        throw check.kind ? new VldError([sizeIssue('set', check, result.size)]) : new Error(check.message);
       }
     }
     
@@ -211,6 +227,9 @@ export class VldSet<T> extends VldBase<unknown, Set<T>> {
     try {
       return { success: true, data: this.parse(value) };
     } catch (error) {
+      if (error instanceof VldError) {
+        return { success: false, error };
+      }
       return { success: false, error: createSetError((error as Error).message) };
     }
   }
@@ -218,21 +237,21 @@ export class VldSet<T> extends VldBase<unknown, Set<T>> {
   min(size: number, message?: string): VldSet<T> {
     return new VldSet(this.itemValidator, this.errorMessage, [
       ...this._checks,
-      { fn: (s) => s.size >= size, message: message || `Set must contain at least ${size} elements` }
+      { fn: (s) => s.size >= size, message: message || `Set must contain at least ${size} elements`, kind: 'min', value: size }
     ]);
   }
 
   max(size: number, message?: string): VldSet<T> {
     return new VldSet(this.itemValidator, this.errorMessage, [
       ...this._checks,
-      { fn: (s) => s.size <= size, message: message || `Set must contain at most ${size} elements` }
+      { fn: (s) => s.size <= size, message: message || `Set must contain at most ${size} elements`, kind: 'max', value: size }
     ]);
   }
 
   size(size: number, message?: string): VldSet<T> {
     return new VldSet(this.itemValidator, this.errorMessage, [
       ...this._checks,
-      { fn: (s) => s.size === size, message: message || `Set must contain exactly ${size} elements` }
+      { fn: (s) => s.size === size, message: message || `Set must contain exactly ${size} elements`, kind: 'size', value: size }
     ]);
   }
 

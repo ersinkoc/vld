@@ -48,7 +48,10 @@ export class VldFile extends VldBase<unknown, VldFileValue> {
       return true;
     }
 
-    return 'size' in value && 'type' in value;
+    // A file-like object needs a real, non-negative size: NaN or non-number
+    // sizes would make every min/max comparison false and bypass the limits.
+    const { size, type } = value as { size?: unknown; type?: unknown };
+    return typeof size === 'number' && Number.isFinite(size) && size >= 0 && typeof type === 'string';
   }
 
   /**

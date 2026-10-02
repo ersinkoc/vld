@@ -46,6 +46,47 @@ export function createVldKernel(options: VldKernelOptions = {}): VldKernelInstan
   const emitter = createEmitter<VldEvents>();
   const errorStrategy = options.errorStrategy ?? 'throw';
 
+  // What each plugin's registrations replaced, so remove() (and a failed
+  // install) can restore the previous owner instead of deleting its entry.
+  interface Registration {
+    readonly registry: Map<string, unknown>;
+    readonly name: string;
+    readonly value: unknown;
+    had: boolean;
+    previous: unknown;
+  }
+  const registrations = new Map<string, Registration[]>();
+
+  const registerFor = (pluginName: string, registry: Map<string, unknown>, name: string, value: unknown): void => {
+    const records = registrations.get(pluginName) ?? [];
+    records.push({ registry, name, value, had: registry.has(name), previous: registry.get(name) });
+    registrations.set(pluginName, records);
+    registry.set(name, value);
+  };
+
+  const unregisterFor = (pluginName: string): void => {
+    const records = registrations.get(pluginName) ?? [];
+    registrations.delete(pluginName);
+    for (const record of records.reverse()) {
+      if (record.registry.get(record.name) === record.value) {
+        // Still ours: restore whatever we shadowed.
+        if (record.had) record.registry.set(record.name, record.previous);
+        else record.registry.delete(record.name);
+        continue;
+      }
+      // A later registration shadows ours; when it is removed it must fall
+      // back to what we shadowed, not to our removed entry.
+      for (const others of registrations.values()) {
+        for (const other of others) {
+          if (other.registry === record.registry && other.name === record.name && other.had && other.previous === record.value) {
+            other.had = record.had;
+            other.previous = record.previous;
+          }
+        }
+      }
+    }
+  };
+
   // ============================================
   // Context Management
   // ============================================
@@ -71,21 +112,21 @@ export function createVldKernel(options: VldKernelOptions = {}): VldKernelInstan
     // Register plugin validators
     if (plugin.validators) {
       for (const [name, factory] of Object.entries(plugin.validators)) {
-        validators.set(name, factory);
+        registerFor(plugin.name, validators as Map<string, unknown>, name, factory);
       }
     }
 
     // Register plugin transforms
     if (plugin.transforms) {
       for (const [name, factory] of Object.entries(plugin.transforms)) {
-        transforms.set(name, factory);
+        registerFor(plugin.name, transforms as Map<string, unknown>, name, factory);
       }
     }
 
     // Register plugin codecs
     if (plugin.codecs) {
       for (const [name, codec] of Object.entries(plugin.codecs)) {
-        codecs.set(name, codec);
+        registerFor(plugin.name, codecs as Map<string, unknown>, name, codec);
       }
     }
 
@@ -105,6 +146,10 @@ export function createVldKernel(options: VldKernelOptions = {}): VldKernelInstan
         }
       } catch (err) {
         if (errorStrategy === 'throw') {
+          // Roll back the half-installed plugin so its hooks stop running
+          // and a retry can register it again.
+          unregisterFor(plugin.name);
+          plugins.delete(plugin.name);
           throw err;
         }
         if (context.debug) {
@@ -145,26 +190,9 @@ export function createVldKernel(options: VldKernelOptions = {}): VldKernelInstan
       }
     }
 
-    // Remove plugin validators
-    if (plugin.validators) {
-      for (const validatorName of Object.keys(plugin.validators)) {
-        validators.delete(validatorName);
-      }
-    }
-
-    // Remove plugin transforms
-    if (plugin.transforms) {
-      for (const transformName of Object.keys(plugin.transforms)) {
-        transforms.delete(transformName);
-      }
-    }
-
-    // Remove plugin codecs
-    if (plugin.codecs) {
-      for (const codecName of Object.keys(plugin.codecs)) {
-        codecs.delete(codecName);
-      }
-    }
+    // Remove the plugin's validators, transforms and codecs, restoring any
+    // registration they shadowed (another plugin's or the user's).
+    unregisterFor(name);
 
     return plugins.delete(name);
   };
@@ -337,6 +365,7 @@ export function createVldKernel(options: VldKernelOptions = {}): VldKernelInstan
     validators.clear();
     transforms.clear();
     codecs.clear();
+    registrations.clear();
     emitter.removeAllListeners();
   };
 
@@ -462,9 +491,11 @@ export function definePlugin(): PluginBuilder {
         ..._hooks
       };
 
-      if (Object.keys(_validators).length > 0) plugin.validators = _validators;
-      if (Object.keys(_transforms).length > 0) plugin.transforms = _transforms;
-      if (Object.keys(_codecs).length > 0) plugin.codecs = _codecs;
+      // Copy the builder's registries so reusing the builder cannot mutate
+      // plugins that were already built.
+      if (Object.keys(_validators).length > 0) plugin.validators = { ..._validators };
+      if (Object.keys(_transforms).length > 0) plugin.transforms = { ..._transforms };
+      if (Object.keys(_codecs).length > 0) plugin.codecs = { ..._codecs };
       if (_install !== undefined) plugin.install = _install;
 
       return plugin;

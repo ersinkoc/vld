@@ -6,6 +6,7 @@
  */
 import { VldBase, VLD_VALIDATOR_TYPES, type ErrorParam, type ParseResult } from './base';
 import { VldError, createInvalidTypeIssue, getTypeName, type VldIssue } from '../errors-core';
+import { regexes as REGEX_SOURCES } from './string-formats';
 import { getMessages } from '../locales/runtime';
 import { isValidIPv6 } from '../utils/ip-validation';
 import { resolveErrorMessage } from './base';
@@ -65,7 +66,7 @@ export class VldCheckLength extends VldStringCheck {
 
 export class VldCheckEmail extends VldStringCheck {
   readonly kind = 'format';
-  private static RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  private static RE = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/;
   constructor(private _msg?: string) { super(); }
   get message() { return this._msg; }
   check(value: string): VldIssue | null {
@@ -95,7 +96,7 @@ export class VldCheckUrl extends VldStringCheck {
 
 export class VldCheckUuid extends VldStringCheck {
   readonly kind = 'format';
-  private static RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  private static RE = REGEX_SOURCES.uuid();
   constructor(private _msg?: string) { super(); }
   get message() { return this._msg; }
   check(value: string): VldIssue | null {
@@ -113,6 +114,7 @@ export class VldCheckRegex extends VldStringCheck {
   constructor(readonly pattern: RegExp, private _msg?: string) { super(); }
   get message() { return this._msg; }
   check(value: string): VldIssue | null {
+    this.pattern.lastIndex = 0;
     if (!this.pattern.test(value)) {
       return { code: 'invalid_format', path: [], origin: 'string', format: 'regex', pattern: this.pattern.source,
         message: this._msg || 'Invalid string: does not match pattern' };
@@ -195,7 +197,7 @@ export class VldCheckIp extends VldStringCheck {
 
 export class VldCheckIpv4 extends VldStringCheck {
   readonly kind = 'format';
-  private static RE = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+  private static RE = REGEX_SOURCES.ipv4;
   constructor(private _msg?: string) { super(); }
   get message() { return this._msg; }
   check(value: string): VldIssue | null {
@@ -305,7 +307,7 @@ export class VldStringV2 extends VldBase<string, string> {
 
   safeParse(value: unknown): ParseResult<string> {
     try { return { success: true, data: this.parse(value) }; }
-    catch (error) { return { success: false, error: error instanceof VldError ? error : new VldError([{ code: 'custom', path: [], message: String(error) }]) }; }
+    catch (error) { return { success: false, error: error instanceof VldError ? error : new VldError([{ code: 'custom', path: [], message: error instanceof Error ? error.message : String(error) }]) }; }
   }
 
   protected withDef(def: Partial<VldStringDef> & { type: 'string' }): VldStringV2 {
@@ -414,24 +416,24 @@ export class VldStringV2 extends VldBase<string, string> {
   uuidv4(message?: ErrorParam): VldStringV2 { return this.addFormat(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, 'uuid', message); }
   uuidv6(message?: ErrorParam): VldStringV2 { return this.addFormat(/^[0-9a-f]{8}-[0-9a-f]{4}-6[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, 'uuid', message); }
   uuidv7(message?: ErrorParam): VldStringV2 { return this.addFormat(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, 'uuid', message); }
-  emoji(message?: ErrorParam): VldStringV2 { return this.addFormat(/^(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F)(?:\u200D(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F))*$/u, 'emoji', message); }
+  emoji(message?: ErrorParam): VldStringV2 { return this.addFormat(REGEX_SOURCES.emoji(), 'emoji', message); }
   base64(message?: ErrorParam): VldStringV2 { return this.addFormat(/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/, 'base64', message); }
-  base64url(message?: ErrorParam): VldStringV2 { return this.addFormat(/^[A-Za-z0-9_-]*$/, 'base64url', message); }
+  base64url(message?: ErrorParam): VldStringV2 { return this.addFormat(REGEX_SOURCES.base64url, 'base64url', message); }
   jwt(message?: ErrorParam): VldStringV2 { return this.addFormat(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*$/, 'jwt', message); }
   nanoid(message?: ErrorParam): VldStringV2 { return this.addFormat(/^[A-Za-z0-9_-]{21}$/, 'nanoid', message); }
   cuid(message?: ErrorParam): VldStringV2 { return this.addFormat(/^c[^\s-]{8,}$/i, 'cuid', message); }
   cuid2(message?: ErrorParam): VldStringV2 { return this.addFormat(/^[0-9a-z]+$/, 'cuid2', message); }
-  ulid(message?: ErrorParam): VldStringV2 { return this.addFormat(/^[0-9A-HJKMNP-TV-Z]{26}$/, 'ulid', message); }
-  cidrv4(message?: ErrorParam): VldStringV2 { return this.addFormat(/^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\/(?:3[0-2]|[12]?[0-9])$/, 'cidrv4', message); }
+  ulid(message?: ErrorParam): VldStringV2 { return this.addFormat(REGEX_SOURCES.ulid, 'ulid', message); }
+  cidrv4(message?: ErrorParam): VldStringV2 { return this.addFormat(REGEX_SOURCES.cidrv4, 'cidrv4', message); }
   cidrv6(message?: ErrorParam): VldStringV2 { return this.addFormat(/^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\/(?:12[0-8]|1[01][0-9]|[1-9]?[0-9])$|^::(?:[0-9a-fA-F]{1,4}:){0,6}[0-9a-fA-F]{1,4}\/(?:12[0-8]|1[01][0-9]|[1-9]?[0-9])$|^(?:[0-9a-fA-F]{1,4}:){1,7}:\/(?:12[0-8]|1[01][0-9]|[1-9]?[0-9])$/, 'cidrv6', message); }
-  e164(message?: ErrorParam): VldStringV2 { return this.addFormat(/^\+[1-9]\d{1,14}$/, 'e164', message); }
-  xid(message?: ErrorParam): VldStringV2 { return this.addFormat(/^[A-HJKMNP-TV-Z0-9]{20}$/, 'xid', message); }
+  e164(message?: ErrorParam): VldStringV2 { return this.addFormat(REGEX_SOURCES.e164, 'e164', message); }
+  xid(message?: ErrorParam): VldStringV2 { return this.addFormat(REGEX_SOURCES.xid, 'xid', message); }
   guid(message?: ErrorParam): VldStringV2 { return this.addFormat(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/i, 'guid', message); }
   ksuid(message?: ErrorParam): VldStringV2 { return this.addFormat(/^[0-9A-Za-z]{27}$/, 'ksuid', message); }
   date(message?: ErrorParam): VldStringV2 { return this.addFormat(/^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/, 'date', message); }
   time(message?: ErrorParam): VldStringV2 { return this.addFormat(/^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?$/, 'time', message); }
-  datetime(message?: ErrorParam): VldStringV2 { return this.addFormat(/^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?Z?$/, 'datetime', message); }
-  duration(message?: ErrorParam): VldStringV2 { return this.addFormat(/^-?P(?!$)(?:\d+(?:\.\d+)?Y)?(?:\d+(?:\.\d+)?M)?(?:\d+(?:\.\d+)?W)?(?:\d+(?:\.\d+)?D)?(?:T(?=\d)(?:\d+(?:\.\d+)?H)?(?:\d+(?:\.\d+)?M)?(?:\d+(?:\.\d+)?S)?)?$/, 'duration', message); }
+  datetime(message?: ErrorParam): VldStringV2 { return this.addFormat(new RegExp(`^${REGEX_SOURCES.date.source.slice(1, -1)}T(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?Z$`), 'datetime', message); }
+  duration(message?: ErrorParam): VldStringV2 { return this.addFormat(REGEX_SOURCES.duration, 'duration', message); }
 }
 
 // --------------------------------------------------------------------------

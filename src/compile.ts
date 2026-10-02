@@ -25,6 +25,12 @@ import { VldObject } from './validators/object';
 import { VldArray } from './validators/array';
 import { VldUnknown } from './validators/unknown';
 
+/** Keys the runtime record parser skips; mirrors DANGEROUS_KEYS in utils/security. */
+const DANGEROUS_RECORD_KEYS = [
+  '__proto__', 'constructor', 'prototype',
+  '__defineGetter__', '__defineSetter__', '__lookupGetter__', '__lookupSetter__'
+];
+
 export class ZodCompileError extends Error {
   constructor(message: string) {
     super(message);
@@ -97,6 +103,53 @@ interface Compiler {
   throwOnFail?: boolean;      // when true, `throw ${invalid}` instead of `return ${invalid}`
   validateOnly?: boolean;     // when true, emit only type checks; no result allocation
   regexTable: Array<{ source: string; flags: string }>;  // regexes shared with the emitted function
+  rewritesOutput?: boolean;   // set when a node (e.g. default) makes parse output differ from input
+}
+
+/**
+ * Emit a numeric bound for a check. Schema data must never be spliced into
+ * the generated source as code, so anything that is not a real number (for
+ * example a string coming from an untrusted JSON Schema) refuses compilation.
+ */
+function numericLiteral(c: Compiler, value: unknown): string | undefined {
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    c.failed = true;
+    return undefined;
+  }
+  return String(value);
+}
+
+function bigintLiteral(c: Compiler, value: unknown): string | undefined {
+  if (typeof value !== 'bigint') {
+    c.failed = true;
+    return undefined;
+  }
+  return `${value}n`;
+}
+
+/** Source text for a literal value, or undefined (compilation refused) if it has none. */
+function literalSource(c: Compiler, value: unknown): string | undefined {
+  switch (typeof value) {
+    case 'string':
+      return JSON.stringify(value);
+    case 'number':
+      return Number.isNaN(value) ? 'NaN' : Object.is(value, -0) ? '-0' : String(value);
+    case 'bigint':
+      return `${value}n`;
+    case 'boolean':
+      return String(value);
+    case 'undefined':
+      return 'undefined';
+    default:
+      if (value === null) return 'null';
+      c.failed = true;
+      return undefined;
+  }
+}
+
+/** SameValueZero test of `input` against a literal source (matches Array#includes). */
+function literalTest(lit: string, input: string): string {
+  return lit === 'NaN' ? `${input} !== ${input}` : `${input} === ${lit}`;
 }
 
 /** Register a RegExp with the emitted function and return its local name. */
@@ -108,6 +161,18 @@ function addRegex(c: Compiler, source: string, flags: string): string {
 
 function temp(c: Compiler, kind: string): string {
   return `__${kind}${c.scratch++}`;
+}
+
+/**
+ * A missing key reads as `undefined`, which any/unknown/undefined/void accept.
+ * The runtime parser still requires such keys to be present, so emit an
+ * own-property check for them.
+ */
+function emitPresenceCheck(fieldSchema: VldBase<any, any>, input: string, key: string, c: Compiler): void {
+  const kind = kindOf(fieldSchema);
+  if (kind === 'VldAny' || kind === 'VldUnknown' || kind === 'VldUndefined' || kind === 'VldVoid') {
+    c.hoist.push(`if (!Object.prototype.hasOwnProperty.call(${input}, ${JSON.stringify(key)})) ${c.throwOnFail ? "throw" : "return"} ${c.invalid};`);
+  }
 }
 
 /**
@@ -134,9 +199,14 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
     if (metas) {
       for (const m of metas) {
         switch (m.kind) {
-          case 'min': extra.push(`__v.length >= ${m.value}`); break;
-          case 'max': extra.push(`__v.length <= ${m.value}`); break;
-          case 'length': extra.push(`__v.length === ${m.value}`); break;
+          case 'min':
+          case 'max':
+          case 'length': {
+            const bound = numericLiteral(c, m.value);
+            if (bound === undefined) return;
+            extra.push(`__v.length ${m.kind === 'min' ? '>=' : m.kind === 'max' ? '<=' : '==='} ${bound}`);
+            break;
+          }
           case 'regex': {
             // Emit through the shared regex table so flags survive and the
             // pattern is built once per compiled function, not per call.
@@ -193,20 +263,24 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
     const extra: string[] = [];
     if (metas) {
       for (const m of metas) {
+        const valued = m.kind === 'min' || m.kind === 'max' || m.kind === 'gt' || m.kind === 'gte' ||
+          m.kind === 'lt' || m.kind === 'lte' || m.kind === 'multipleOf';
+        const bound = valued ? numericLiteral(c, m.value) : undefined;
+        if (c.failed) return;
         switch (m.kind) {
           case 'int': extra.push('Number.isInteger(__v)'); break;
           case 'finite': extra.push('Number.isFinite(__v)'); break;
           case 'min':
-            extra.push(m.inclusive !== false ? `__v >= ${m.value}` : `__v > ${m.value}`);
+            extra.push(m.inclusive !== false ? `__v >= ${bound}` : `__v > ${bound}`);
             break;
           case 'max':
-            extra.push(m.inclusive !== false ? `__v <= ${m.value}` : `__v < ${m.value}`);
+            extra.push(m.inclusive !== false ? `__v <= ${bound}` : `__v < ${bound}`);
             break;
-          case 'gt': extra.push(`__v > ${m.value}`); break;
-          case 'gte': extra.push(`__v >= ${m.value}`); break;
-          case 'lt': extra.push(`__v < ${m.value}`); break;
-          case 'lte': extra.push(`__v <= ${m.value}`); break;
-          case 'multipleOf': extra.push(`__v % ${m.value} === 0`); break;
+          case 'gt': extra.push(`__v > ${bound}`); break;
+          case 'gte': extra.push(`__v >= ${bound}`); break;
+          case 'lt': extra.push(`__v < ${bound}`); break;
+          case 'lte': extra.push(`__v <= ${bound}`); break;
+          case 'multipleOf': extra.push(`__v % ${bound} === 0`); break;
           case 'positive': extra.push('__v > 0'); break;
           case 'negative': extra.push('__v < 0'); break;
           case 'nonnegative': extra.push('__v >= 0'); break;
@@ -220,7 +294,7 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
     } else if (checks && checks.length > 0) {
       c.failed = true; return;
     }
-    const allChecks = ['typeof __v === "number"', '!Number.isNaN(__v)', ...extra];
+    const allChecks = ['typeof __v === "number"', 'Number.isFinite(__v)', ...extra];
     c.hoist.push(
       `{ const __v = ${input}; if (!(${allChecks.join(' && ')})) ${c.throwOnFail ? "throw" : "return"} ${c.invalid}; ${c.outParam} = __v; }`
     );
@@ -237,8 +311,13 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
     if (metas) {
       for (const m of metas) {
         switch (m.kind) {
-          case 'min': extra.push(`__v >= ${m.value}n`); break;
-          case 'max': extra.push(`__v <= ${m.value}n`); break;
+          case 'min':
+          case 'max': {
+            const bound = bigintLiteral(c, m.value);
+            if (bound === undefined) return;
+            extra.push(`__v ${m.kind === 'min' ? '>=' : '<='} ${bound}`);
+            break;
+          }
           case 'positive': extra.push('__v > 0n'); break;
           case 'negative': extra.push('__v < 0n'); break;
           case 'nonnegative': extra.push('__v >= 0n'); break;
@@ -257,6 +336,8 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
     return;
   }
   if (kindOf(schema) === 'VldDate') {
+    // min/max and other date checks are closures the compiler does not model.
+    if (((schema as any)._checks as unknown[] | undefined)?.length) { c.failed = true; return; }
     c.hoist.push(`{ const __v = ${input}; if (!(__v instanceof Date) || __v.getTime() !== __v.getTime()) ${c.throwOnFail ? "throw" : "return"} ${c.invalid}; ${c.outParam} = __v; }`);
     return;
   }
@@ -278,14 +359,14 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
       c.hoist.push(`${c.throwOnFail ? "throw" : "return"} ${c.invalid};`);
       return;
     }
+    const sources = values.map((v) => literalSource(c, v));
+    if (c.failed) return;
     if (values.length === 1) {
-      const v = values[0];
-      const lit = typeof v === 'number' && Number.isNaN(v) ? 'NaN' : JSON.stringify(v);
-      c.hoist.push(`if (!Object.is(${lit}, ${input})) ${c.throwOnFail ? "throw" : "return"} ${c.invalid}; ${c.validateOnly ? c.outParam + " = true; " : (c.skipOutAssign ? "" : c.outParam + " = ") + input};`);
+      c.hoist.push(`if (!(${literalTest(sources[0]!, input)})) ${c.throwOnFail ? "throw" : "return"} ${c.invalid}; ${c.validateOnly ? c.outParam + " = true; " : (c.skipOutAssign ? "" : c.outParam + " = ") + input};`);
       return;
     }
     const setName = temp(c, 'set');
-    c.hoist.push(`const ${setName} = new Set([${values.map((v) => typeof v === 'number' && Number.isNaN(v) ? 'NaN' : JSON.stringify(v)).join(',')}]);`);
+    c.hoist.push(`const ${setName} = new Set([${sources.join(',')}]);`);
     c.hoist.push(`if (!${setName}.has(${input})) ${c.throwOnFail ? "throw" : "return"} ${c.invalid}; ${c.validateOnly ? c.outParam + " = true; " : (c.skipOutAssign ? "" : c.outParam + " = ") + input};`);
     return;
   }
@@ -309,6 +390,9 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
     // supported (the default value cannot be inlined), so only accept this
     // node when compiling validators.
     if (!c.validateOnly) { c.failed = true; return; }
+    // Parse output differs from the input here, so compiled parse must
+    // delegate to the runtime parser on success instead of returning input.
+    c.rewritesOutput = true;
     const inner = (schema as any).baseValidator as VldBase<any, any>;
     c.hoist.push(`if (${input} === undefined) { ${c.outParam} = true; } else {`);
     lower(inner, input, c);
@@ -485,6 +569,7 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
         const fieldSchema = shape[key];
         if (!fieldSchema) { c.failed = true; return; }
         const safeKey = /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(key) ? `.${key}` : `[${JSON.stringify(key)}]`;
+        emitPresenceCheck(fieldSchema, input, key, c);
         lower(fieldSchema, `${input}${safeKey}`, c);
         if (c.failed) return;
       }
@@ -497,6 +582,7 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
       if (!fieldSchema) { c.failed = true; return; }
       const safeKey = /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(key) ? `.${key}` : `[${JSON.stringify(key)}]`;
       const propName = temp(c, 'p');
+      emitPresenceCheck(fieldSchema, input, key, c);
       c.hoist.push(`{ const ${propName} = ${input}${safeKey};`);
       // The object builder stores the validated value in outName[safeKey]
       // right after, so the per-primitive `outParam = input` write is dead
@@ -523,7 +609,9 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
       `const ${outName} = {};`,
       `const ${ksName} = Object.keys(${input});`,
       `for (let ${idxName} = 0; ${idxName} < ${ksName}.length; ${idxName}++) {`,
-      `  let ${keyTmp} = ${ksName}[${idxName}];`
+      `  let ${keyTmp} = ${ksName}[${idxName}];`,
+      // The runtime record parser skips these keys (prototype-pollution guard).
+      `  if (${JSON.stringify(DANGEROUS_RECORD_KEYS)}.includes(${keyTmp})) continue;`
     );
     lower(keyVal, keyTmp, c);
     c.hoist.push(`  let ${valTmp} = ${input}[${ksName}[${idxName}]];`);
@@ -548,65 +636,40 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
     for (let i = 0; i < options.length; i++) {
       const opt = options[i] as VldBase<any, any>;
       const optKind = kindOf(opt);
-      // Primitive options get a single inline `if`.
-      if (optKind === 'VldString') {
-        c.hoist.push(
-          `if (typeof value === "string") { ${slot} = value; }`,
-          `else if (${slot} === ${c.invalid}) { /* fall through to next option */ }`
-        );
+      // Options are tested against this union's own input (which may be a
+      // nested field, not the root value), and only while nothing matched.
+      // Unrefined primitive options get a single inline test; anything with
+      // checks or transforms is lowered in full below.
+      const plain = !(opt as any)._checks?.length && !(opt as any)._checkMetas?.length && !(opt as any)._transforms?.length;
+      let test: string | undefined;
+      if (plain && optKind === 'VldString') test = `typeof ${input} === "string"`;
+      else if (plain && optKind === 'VldNumber') test = `typeof ${input} === "number" && Number.isFinite(${input})`;
+      else if (optKind === 'VldBoolean') test = `typeof ${input} === "boolean"`;
+      else if (optKind === 'VldNull') test = `${input} === null`;
+      else if (optKind === 'VldUndefined') test = `${input} === undefined`;
+      else if (optKind === 'VldLiteral' && ((opt as any)._values as LiteralValue[] | undefined)?.length === 1) {
+        const lit = literalSource(c, ((opt as any)._values as LiteralValue[])[0]);
+        if (lit === undefined) return;
+        test = literalTest(lit, input);
+      }
+      if (test !== undefined) {
+        c.hoist.push(`if (${slot} === ${c.invalid} && ${test}) { ${slot} = ${input}; }`);
         continue;
       }
-      if (optKind === 'VldNumber') {
-        c.hoist.push(
-          `if (typeof value === "number" && value === value) { ${slot} = value; }`,
-          `else if (${slot} === ${c.invalid}) { /* fall through */ }`
-        );
-        continue;
-      }
-      if (optKind === 'VldBoolean') {
-        c.hoist.push(
-          `if (typeof value === "boolean") { ${slot} = value; }`,
-          `else if (${slot} === ${c.invalid}) { /* fall through */ }`
-        );
-        continue;
-      }
-      if (optKind === 'VldNull') {
-        c.hoist.push(
-          `if (value === null) { ${slot} = value; }`,
-          `else if (${slot} === ${c.invalid}) { /* fall through */ }`
-        );
-        continue;
-      }
-      if (optKind === 'VldUndefined') {
-        c.hoist.push(
-          `if (value === undefined) { ${slot} = value; }`,
-          `else if (${slot} === ${c.invalid}) { /* fall through */ }`
-        );
-        continue;
-      }
-      if (optKind === 'VldLiteral') {
-        const values = ((opt as any)._values as LiteralValue[]) || [];
-        if (values.length === 1) {
-          const v = values[0];
-          const lit = typeof v === 'number' && Number.isNaN(v) ? 'NaN' : JSON.stringify(v);
-          c.hoist.push(
-            `if (Object.is(${lit}, value)) { ${slot} = value; }`,
-            `else if (${slot} === ${c.invalid}) { /* fall through */ }`
-          );
-          continue;
-        }
-      }
-      // Complex options (object/array)  -  fall back to IIFE pattern.
-      // V8 inlines small IIFEs well when the body fits the inlining budget.
-      const subC: Compiler = { invalid: c.invalid, outParam: slot, scratch: 0, hoist: [], failed: false, skipOutAssign: true, regexTable: c.regexTable };
-      lower(opt, 'value', subC);
+      // Complex options  -  lower into an IIFE. V8 inlines small IIFEs well
+      // when the body fits the inlining budget.
+      const subC: Compiler = { invalid: c.invalid, outParam: slot, scratch: c.scratch, hoist: [], failed: false, skipOutAssign: true, regexTable: c.regexTable };
+      lower(opt, '__uv', subC);
+      c.scratch = subC.scratch;
       if (subC.failed) { c.failed = true; return; }
+      if (subC.rewritesOutput) c.rewritesOutput = true;
       c.hoist.push(
-        `${slot} = ((value) => {`,
-        ...subC.hoist.map((s) => '  ' + s),
-        `  return value;`,
-        `})(value);`,
-        `if (${slot} !== ${c.invalid}) { /* matched */ }`
+        `if (${slot} === ${c.invalid}) {`,
+        `  ${slot} = ((__uv) => {`,
+        ...subC.hoist.map((s) => '    ' + s),
+        `    return __uv;`,
+        `  })(${input});`,
+        `}`
       );
     }
     c.hoist.push(`if (${slot} === ${c.invalid}) ${c.throwOnFail ? "throw" : "return"} ${c.invalid}; ${c.outParam} = ${slot};`);
@@ -655,6 +718,9 @@ export function compileFn(schema: VldBase<any, any>, options?: { validateOnly?: 
   const regexTable = c.regexTable.map((r) => new RegExp(r.source, r.flags));
   const compiled = ((input: unknown) => factory(input, COMPILE_INVALID, regexTable)) as CompiledValidator;
   Object.defineProperty(compiled, '__vld_compiled', { value: true, enumerable: false });
+  if (c.rewritesOutput) {
+    Object.defineProperty(compiled, '__vld_rewrites_output', { value: true, enumerable: false });
+  }
   return compiled;
 }
 
@@ -694,6 +760,9 @@ export function applyCompiled<T extends VldBase<any, any>>(
   const originalSafeParse = (schema as any).safeParse.bind(schema);
   const invalidSym = COMPILE_INVALID;
   const validateCompiled = (validateOnly ?? compiled) as CompiledValidator;
+  // When the schema rewrites its output (defaults), a successful check cannot
+  // return the input as-is; the runtime parser must build the result.
+  const rewritesOutput = (validateCompiled as any).__vld_rewrites_output === true;
   // Compiled parse/safeParse: on success, return the input as-is. This is
   // the same semantic Zod 4's compiled `parse` uses  -  `compile()` produces
   // a function that returns true (or throws), and the wrapped parse method
@@ -702,13 +771,13 @@ export function applyCompiled<T extends VldBase<any, any>>(
   // strip, (b) the strip in the uncompiled path remains correct, and
   // (c) inline stripping would dominate the hot path for wide objects.
   (schema as any).parse = (input: unknown) => {
-    if (validateCompiled(input) === invalidSym) {
+    if (rewritesOutput || validateCompiled(input) === invalidSym) {
       return originalParse(input);
     }
     return input as any;
   };
   (schema as any).safeParse = (input: unknown) => {
-    if (validateCompiled(input) === invalidSym) {
+    if (rewritesOutput || validateCompiled(input) === invalidSym) {
       return originalSafeParse(input);
     }
     return { success: true, data: input };

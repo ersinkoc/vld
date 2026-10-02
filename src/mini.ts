@@ -290,6 +290,11 @@ export const coerce = {
   bigint: () => VldCoerceBigInt.create(),
 };
 
+// Zod Mini's additional functional exports are available alongside the
+// original VLD Mini factories. Local exports above retain their VLD semantics.
+export * from './v4-mini/index';
+export * as z from './v4-mini/index';
+
 // ============================================
 // NEVER Constant (for transforms)
 // ============================================

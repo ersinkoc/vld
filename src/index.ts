@@ -151,8 +151,11 @@ function getGlobalErrorMap(): unknown {
 }
 
 function enumValuesFromNativeEnum(enumObject: NativeEnumLike): [string | number, ...(string | number)[]] {
+  // TypeScript numeric enums add reverse mappings keyed by the number's
+  // string form ("1", "-1", "0.5"); drop exactly those keys, like Zod.
+  const numericValues = Object.values(enumObject).filter((value): value is number => typeof value === 'number');
   const values = Object.keys(enumObject)
-    .filter(key => !/^\d+$/.test(key))
+    .filter(key => !numericValues.includes(+key))
     .map(key => enumObject[key])
     .filter((value): value is string | number => typeof value === 'string' || typeof value === 'number');
 

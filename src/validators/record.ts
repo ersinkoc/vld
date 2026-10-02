@@ -164,7 +164,7 @@ export class VldRecord<T, K extends PropertyKey = string> extends VldBase<unknow
             result[key] = val as T;
             continue;
           case 'number':
-            if (typeof val !== 'number' || isNaN(val)) {
+            if (typeof val !== 'number' || !Number.isFinite(val)) {
               throw new Error(getMessages().objectField(key, getMessages().invalidNumber));
             }
             result[key] = val as T;
@@ -233,7 +233,15 @@ export class VldRecord<T, K extends PropertyKey = string> extends VldBase<unknow
         continue;
       }
 
-      const parsedKey = this.keyValidator!.safeParse(rawKey);
+      let parsedKey = this.keyValidator!.safeParse(rawKey);
+      // Object keys are always strings; for numeric key schemas (v.number(),
+      // v.literal(1), ...) retry a canonical numeric key ("1", "-2.5") as a number.
+      if (!parsedKey.success && typeof rawKey === 'string' && rawKey !== '' && String(Number(rawKey)) === rawKey) {
+        const numericKey = this.keyValidator!.safeParse(Number(rawKey));
+        if (numericKey.success) {
+          parsedKey = numericKey;
+        }
+      }
       if (!parsedKey.success) {
         throw new VldError([{
           code: 'invalid_key',

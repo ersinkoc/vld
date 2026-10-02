@@ -43,7 +43,7 @@ function createSimpleMode(v: VldBase<any, any>): SimpleUnionMode {
 function createTypeChecker(v: VldBase<any, any>): (value: unknown) => boolean {
   switch (v.validatorType) {
     case VLD_VALIDATOR_TYPES.STRING: return (x) => typeof x === 'string';
-    case VLD_VALIDATOR_TYPES.NUMBER: return (x) => typeof x === 'number' && !isNaN(x);
+    case VLD_VALIDATOR_TYPES.NUMBER: return (x) => typeof x === 'number' && Number.isFinite(x);
     case VLD_VALIDATOR_TYPES.BOOLEAN: return (x) => typeof x === 'boolean';
     case VLD_VALIDATOR_TYPES.BIGINT: return (x) => typeof x === 'bigint';
     case VLD_VALIDATOR_TYPES.SYMBOL: return (x) => typeof x === 'symbol';
@@ -55,8 +55,8 @@ function createTypeChecker(v: VldBase<any, any>): (value: unknown) => boolean {
     case VLD_VALIDATOR_TYPES.VOID: return (x) => x === undefined;
     case VLD_VALIDATOR_TYPES.ENUM: return (x) => typeof x === 'string' || typeof x === 'number';
     case VLD_VALIDATOR_TYPES.LITERAL: {
-      const literal = (v as { literal?: unknown }).literal;
-      return (x) => x === literal;
+      const values = (v as { values?: readonly unknown[] }).values ?? [(v as { literal?: unknown }).literal];
+      return (x) => values.includes(x);
     }
     case VLD_VALIDATOR_TYPES.NEVER: return () => false;
     case VLD_VALIDATOR_TYPES.ANY:

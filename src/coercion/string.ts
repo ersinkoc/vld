@@ -1,6 +1,10 @@
 import { VldString } from '../validators/string';
 import { ParseResult, VLD_VALIDATOR_TYPES, ensureVldError } from '../validators/base';
 import { getMessages } from '../locales/runtime';
+import { regexes } from '../validators/string-formats';
+
+/** Same UUID source as v.string().uuid(): v1-v8 plus nil/max. */
+const UUID_REGEX = regexes.uuid();
 import { isValidIPv6 } from '../utils/ip-validation';
 
 // BUG-NEW-001 FIX: IPv6 validation moved to shared utility (src/utils/ip-validation.ts)
@@ -49,7 +53,7 @@ export class VldCoerceString extends VldString {
   
   override email(message?: string): VldCoerceString {
     // BUG-007 FIX: Use simpler, ReDoS-safe regex (consistent with VldString)
-    const FAST_EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const FAST_EMAIL_REGEX = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/;
     return new VldCoerceString({
       checks: [...this.config.checks, (v: string) => FAST_EMAIL_REGEX.test(v)],
       transforms: this.config.transforms,
@@ -67,7 +71,7 @@ export class VldCoerceString extends VldString {
   
   override uuid(message?: string): VldCoerceString {
     return new VldCoerceString({
-      checks: [...this.config.checks, (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v)],
+      checks: [...this.config.checks, (v: string) => UUID_REGEX.test(v)],
       transforms: this.config.transforms,
       errorMessage: message || getMessages().stringUuid
     });
@@ -75,7 +79,10 @@ export class VldCoerceString extends VldString {
   
   override regex(pattern: RegExp, message?: string): VldCoerceString {
     return new VldCoerceString({
-      checks: [...this.config.checks, (v: string) => pattern.test(v)],
+      checks: [...this.config.checks, (v: string) => {
+        pattern.lastIndex = 0;
+        return pattern.test(v);
+      }],
       transforms: this.config.transforms,
       errorMessage: message || getMessages().stringRegex
     });

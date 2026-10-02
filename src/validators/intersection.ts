@@ -1,7 +1,33 @@
 import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
-import { deepMerge, isPlainObject } from '../utils/deep-merge';
+import { isPlainObject } from '../utils/deep-merge';
+import { isDangerousKey } from '../utils/security';
 import { getMessages } from '../locales/runtime';
 import { VldError } from '../errors-core';
+
+/**
+ * Merge the two parsed sides of an intersection. Plain objects merge
+ * key-by-key and same-length arrays element-by-element (both recursively), so
+ * array outputs - always fresh copies - no longer fail an identity check and
+ * nested arrays of objects keep the fields of both sides. Equal Dates are one
+ * value. Any other conflicting leaf keeps the existing rule: the right side wins.
+ */
+function mergeIntersection(a: unknown, b: unknown): unknown {
+  if (isPlainObject(a) && isPlainObject(b)) {
+    const result: Record<string, unknown> = { ...a };
+    for (const key of Object.keys(b)) {
+      if (isDangerousKey(key)) continue;
+      result[key] = Object.prototype.hasOwnProperty.call(a, key) ? mergeIntersection(a[key], b[key]) : b[key];
+    }
+    return result;
+  }
+  if (Array.isArray(a) && Array.isArray(b) && a.length === b.length) {
+    return a.map((item, index) => mergeIntersection(item, b[index]));
+  }
+  if (a instanceof Date && b instanceof Date && a.getTime() === b.getTime()) {
+    return a;
+  }
+  return b;
+}
 
 function createIntersectionError(message: string): VldError {
   return new VldError([{ code: 'invalid_type', path: [], message }]);
@@ -46,7 +72,20 @@ export class VldIntersection<A, B> extends VldBase<unknown, A & B> {
 
       // Both are objects - safe to merge
       if (aIsObject && bIsObject) {
-        return deepMerge(resultA as any, resultB as any) as A & B;
+        return mergeIntersection(resultA, resultB) as A & B;
+      }
+
+      // Both are arrays: each side returns its own copy, so compare by content.
+      if (Array.isArray(resultA) && Array.isArray(resultB)) {
+        if (resultA.length !== resultB.length) {
+          throw new Error('Arrays must have the same length for intersection');
+        }
+        return mergeIntersection(resultA, resultB) as A & B;
+      }
+
+      // Both are Dates: equal instants are the same value.
+      if (resultA instanceof Date && resultB instanceof Date && resultA.getTime() === resultB.getTime()) {
+        return resultA as A & B;
       }
 
       // Neither are objects - must be identical primitives

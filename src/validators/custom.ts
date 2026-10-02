@@ -116,11 +116,24 @@ export function custom<TOutput = unknown>(
 ): VldCustom<TOutput> {
   if (typeof optionsOrPredicate === 'function') {
     const predicate = optionsOrPredicate;
+    const fail = () => ensureVldError(resolveErrorMessage(errorParam, 'Custom validation failed'));
     return VldCustom.create<TOutput>({
       parse: (value: unknown) => {
         const passed = predicate(value);
+        if (passed instanceof Promise) {
+          // An async predicate cannot be decided synchronously (a Promise is
+          // always truthy). Silence its outcome and require parseAsync.
+          passed.catch(() => undefined);
+          throw ensureVldError('Use parseAsync for async refinements');
+        }
         if (!passed) {
-          throw ensureVldError(resolveErrorMessage(errorParam, 'Custom validation failed'));
+          throw fail();
+        }
+        return value as TOutput;
+      },
+      parseAsync: async (value: unknown) => {
+        if (!(await predicate(value))) {
+          throw fail();
         }
         return value as TOutput;
       }

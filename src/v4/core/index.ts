@@ -154,8 +154,8 @@ export const $constructor = (name: string, initializer?: (instance: unknown, def
 export const _parse = root.parse;
 export const _default = (...args: unknown[]) => {
   const schema = schemaArg(args) as VldBase<any, any>;
-  const defaultValue = valueArg<any>(args, 1);
-  return schema.default(typeof defaultValue === 'function' ? defaultValue() : defaultValue);
+  // A function default is a per-parse factory, as in Zod.
+  return schema.default(valueArg<any>(args, 1));
 };
 export const _safeParse = root.safeParse;
 export const _parseAsync = root.parseAsync;
@@ -186,7 +186,8 @@ export const _object = (...args: unknown[]) => root.object(valueArg<Record<strin
 export const _union = (...args: unknown[]) => root.union(...schemaArrayArg(args));
 export const _intersection = (...args: unknown[]) => root.intersection(schemaArg(args), schemaArg(args, 1));
 export const _tuple = (...args: unknown[]) => root.tuple(...schemaArrayArg(args));
-export const _record = (...args: unknown[]) => root.record(schemaArg(args, hasClassArg(args) ? 1 : 0));
+// Zod signature: _record(Class?, keyType, valueType) - keep the key schema.
+export const _record = (...args: unknown[]) => root.record(schemaArg(args), schemaArg(args, 1));
 export const _map = (...args: unknown[]) => root.map(schemaArg(args), schemaArg(args, 1));
 export const _set = (...args: unknown[]) => root.set(schemaArg(args));
 export const _enum = (...args: unknown[]) => {
@@ -239,12 +240,20 @@ export const _mac = root.mac;
 export const _mime = root.mime;
 export const _stringFormat = root.stringFormat;
 
-export const _min = (value: number, params?: Params) => root.number().min(value, messageFromParams(params));
-export const _max = (value: number, params?: Params) => root.number().max(value, messageFromParams(params));
-export const _gt = (value: number, params?: Params) => root.number().gt(value, messageFromParams(params));
-export const _gte = (value: number, params?: Params) => root.number().gte(value, messageFromParams(params));
-export const _lt = (value: number, params?: Params) => root.number().lt(value, messageFromParams(params));
-export const _lte = (value: number, params?: Params) => root.number().lte(value, messageFromParams(params));
+// Zod's numeric bound checks apply to number, bigint and Date alike.
+type Bound = number | bigint | Date;
+const bound = (value: Bound, kind: 'min' | 'max' | 'gt' | 'lt', params?: Params): AnySchema => {
+  const message = messageFromParams(params);
+  if (typeof value === 'bigint') return (root.bigint() as any)[kind](value, message);
+  if (value instanceof Date) return (root.date() as any)[kind](value, message);
+  return (root.number() as any)[kind](value, message);
+};
+export const _min = (value: Bound, params?: Params) => bound(value, 'min', params);
+export const _max = (value: Bound, params?: Params) => bound(value, 'max', params);
+export const _gt = (value: Bound, params?: Params) => bound(value, 'gt', params);
+export const _gte = (value: Bound, params?: Params) => bound(value, 'min', params);
+export const _lt = (value: Bound, params?: Params) => bound(value, 'lt', params);
+export const _lte = (value: Bound, params?: Params) => bound(value, 'max', params);
 export const _int = root.int;
 export const _int32 = root.int32;
 export const _uint32 = root.uint32;
@@ -305,7 +314,22 @@ export const process = (schema: unknown) => schema;
 export const toDotPath = (path: readonly (string | number)[]) => path.map(String).join('.');
 export const isValidBase64 = (value: string) => root.base64().safeParse(value).success;
 export const isValidBase64URL = (value: string) => root.base64url().safeParse(value).success;
-export const isValidJWT = (value: string) => root.jwt().safeParse(value).success;
+// Zod's isValidJWT: three segments, a JSON header with an `alg` (and
+// typ "JWT" if present), and - when given - exactly the expected algorithm.
+export const isValidJWT = (value: string, algorithm: string | null = null): boolean => {
+  try {
+    const parts = value.split('.');
+    if (parts.length !== 3 || !parts[0]) return false;
+    const base64 = parts[0].replace(/-/g, '+').replace(/_/g, '/');
+    const header = JSON.parse(atob(base64 + '='.repeat((4 - (base64.length % 4)) % 4)));
+    if (typeof header !== 'object' || header === null) return false;
+    if ('typ' in header && header.typ !== 'JWT') return false;
+    if (!header.alg) return false;
+    return !algorithm || header.alg === algorithm;
+  } catch {
+    return false;
+  }
+};
 
 // Zod canary core additions. `standardProps` returns the Standard Schema v1
 // property bag; `handleUnrepresentable` mirrors the canary's JSON Schema

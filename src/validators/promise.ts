@@ -47,7 +47,8 @@ export class VldPromise<T> extends VldBase<unknown, Promise<T>> {
    * Must be called BEFORE wrapping in Promise.resolve
    */
   private _isThenable(value: unknown): boolean {
-    return value !== null && typeof (value as any).then === 'function';
+    return (typeof value === 'object' || typeof value === 'function') && value !== null &&
+      typeof (value as any).then === 'function';
   }
 
   unwrap(): PromiseInner<T> {

@@ -2,6 +2,14 @@ import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
 import { getMessages } from '../locales/runtime';
 import { VldError } from '../errors-core';
 
+/** Item types that accept a missing (undefined) value. */
+const OPTIONAL_ITEM_TYPES: ReadonlySet<string> = new Set([
+  VLD_VALIDATOR_TYPES.OPTIONAL,
+  VLD_VALIDATOR_TYPES.EXACT_OPTIONAL,
+  VLD_VALIDATOR_TYPES.NULLISH,
+  VLD_VALIDATOR_TYPES.DEFAULT
+]);
+
 type SimpleTupleItemMode =
   | 'string'
   | 'number'
@@ -43,6 +51,8 @@ export class VldTuple<
    * Private constructor to enforce immutability
    */
   private readonly _length: number;
+  /** Required prefix length: trailing optional items may be omitted (Zod). */
+  private readonly _minLength: number;
   private readonly _validatorTypes: string[];
   private readonly _simpleItemModes: SimpleTupleItemMode[];
   private readonly _simpleItemValues: unknown[];
@@ -55,6 +65,11 @@ export class VldTuple<
     super(VLD_VALIDATOR_TYPES.TUPLE);
     this._length = validators.length;
     this._validatorTypes = validators.map(validator => validator.validatorType);
+    let minLength = validators.length;
+    while (minLength > 0 && OPTIONAL_ITEM_TYPES.has(this._validatorTypes[minLength - 1]!)) {
+      minLength--;
+    }
+    this._minLength = minLength;
     this._simpleItemModes = validators.map((validator, index) => this.getSimpleItemMode(validator, this._validatorTypes[index]!));
     this._simpleItemValues = validators.map((validator, index) =>
       this._simpleItemModes[index] === 'literal' ? (validator as any).literal : undefined
@@ -146,10 +161,7 @@ export class VldTuple<
    * @internal Used by object validators to avoid duplicate hot-path checks.
    */
   parseKnownTuple(value: unknown[]): TupleOutput<T, TRest> {
-    if (
-      (this.restValidator === null && value.length !== this._length) ||
-      (this.restValidator !== null && value.length < this._length)
-    ) {
+    if (this.isInvalidLength(value.length)) {
       throw new Error(
         this.errorMessage ||
         getMessages().tupleLength(this._length, value.length)
@@ -157,7 +169,9 @@ export class VldTuple<
     }
 
     const result = new Array(value.length);
-    for (let i = 0; i < this._length; i++) {
+    // Omitted trailing optional items stay omitted.
+    const itemCount = Math.min(this._length, value.length);
+    for (let i = 0; i < itemCount; i++) {
       const simpleMode = this._simpleItemModes[i];
       const item = value[i];
 
@@ -170,7 +184,7 @@ export class VldTuple<
             result[i] = item;
             continue;
           case 'number':
-            if (typeof item !== 'number' || isNaN(item)) {
+            if (typeof item !== 'number' || !Number.isFinite(item)) {
               throw new Error(getMessages().arrayItem(i, getMessages().invalidNumber));
             }
             result[i] = item;
@@ -257,7 +271,7 @@ export class VldTuple<
     }
     this.validateEncodedLength(value.length);
     const result = new Array<unknown>(value.length);
-    for (let i = 0; i < this._length; i++) {
+    for (let i = 0; i < Math.min(this._length, value.length); i++) {
       result[i] = this.validators[i]!.encode(value[i]);
     }
     if (this.restValidator) {
@@ -286,7 +300,7 @@ export class VldTuple<
     }
     this.validateEncodedLength(value.length);
     const result = new Array<unknown>(value.length);
-    for (let i = 0; i < this._length; i++) {
+    for (let i = 0; i < Math.min(this._length, value.length); i++) {
       result[i] = await this.validators[i]!.encodeAsync(value[i]);
     }
     if (this.restValidator) {
@@ -308,11 +322,12 @@ export class VldTuple<
   }
 
   private validateEncodedLength(length: number): void {
-    if (
-      (this.restValidator === null && length !== this._length) ||
-      (this.restValidator !== null && length < this._length)
-    ) {
+    if (this.isInvalidLength(length)) {
       throw new Error(this.errorMessage || getMessages().tupleLength(this._length, length));
     }
+  }
+
+  private isInvalidLength(length: number): boolean {
+    return length < this._minLength || (this.restValidator === null && length > this._length);
   }
 }
