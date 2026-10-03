@@ -1,6 +1,6 @@
 import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
 import { getMessages } from '../locales/runtime';
-import { VldError } from '../errors-core';
+import { VldError, stringifyForMessage, nestIssues, createInvalidTypeIssue, getTypeName, type VldIssue } from '../errors-core';
 
 /** Item types that accept a missing (undefined) value. */
 const OPTIONAL_ITEM_TYPES: ReadonlySet<string> = new Set([
@@ -128,7 +128,7 @@ export class VldTuple<
       case 'undefinedValue':
         return getMessages().expectedUndefined;
       case 'literal':
-        return getMessages().literalExpected(JSON.stringify(expected), JSON.stringify(received));
+        return getMessages().literalExpected(stringifyForMessage(expected), stringifyForMessage(received));
       default:
         return getMessages().invalidTuple;
     }
@@ -150,10 +150,18 @@ export class VldTuple<
    */
   parse(value: unknown): TupleOutput<T, TRest> {
     if (!Array.isArray(value)) {
-      throw new Error(this.errorMessage || getMessages().invalidTuple);
+      throw new VldError([createInvalidTypeIssue('tuple', getTypeName(value), this.errorMessage || getMessages().invalidTuple)]);
     }
 
     return this.parseKnownTuple(value);
+  }
+
+  /** Zod: a wrong arity is too_small (below the required items) or too_big. */
+  private lengthError(length: number): VldError {
+    const message = this.errorMessage || getMessages().tupleLength(this._length, length);
+    return new VldError([length < this._minLength
+      ? { code: 'too_small', path: [], origin: 'array', minimum: this._minLength, inclusive: true, message }
+      : { code: 'too_big', path: [], origin: 'array', maximum: this._length, inclusive: true, message }]);
   }
 
   /**
@@ -162,10 +170,7 @@ export class VldTuple<
    */
   parseKnownTuple(value: unknown[]): TupleOutput<T, TRest> {
     if (this.isInvalidLength(value.length)) {
-      throw new Error(
-        this.errorMessage ||
-        getMessages().tupleLength(this._length, value.length)
-      );
+      throw this.lengthError(value.length);
     }
 
     const result = new Array(value.length);
@@ -261,8 +266,26 @@ export class VldTuple<
     try {
       return { success: true, data: this.parse(value) };
     } catch (error) {
-      return { success: false, error: createTupleError((error as Error).message) };
+      return { success: false, error: error instanceof VldError ? error : createTupleError((error as Error).message) };
     }
+  }
+
+  /** Async parse: each position (and rest item) goes through parseAsync. */
+  override async parseAsync(value: unknown): Promise<TupleOutput<T, TRest>> {
+    if (!Array.isArray(value) || this.isInvalidLength(value.length)) {
+      return this.parse(value);
+    }
+    const result = new Array(value.length);
+    const issues: VldIssue[] = [];
+    const itemCount = Math.min(this._length, value.length);
+    for (let i = 0; i < value.length; i++) {
+      const validator = i < itemCount ? this.validators[i]! : this.restValidator!;
+      const item = await validator.safeParseAsync(value[i]);
+      if (item.success) result[i] = item.data;
+      else issues.push(...nestIssues(item.error, i, message => getMessages().arrayItem(i, message)));
+    }
+    if (issues.length > 0) throw new VldError(issues);
+    return result as TupleOutput<T, TRest>;
   }
 
   override encode(value: TupleOutput<T, TRest>): unknown {

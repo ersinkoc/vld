@@ -4,9 +4,9 @@
  * Provides convenient validators for common string formats
  */
 
-import { VldBase, VLD_VALIDATOR_TYPES } from './base';
+import { VldBase, VLD_VALIDATOR_TYPES, resolveErrorMessage, type ErrorParam } from './base';
 import { getMessages } from '../locales/runtime';
-import { isValidCidrV6 } from '../utils/ip-validation';
+import { isValidCidrV6, isValidIPv6Address } from '../utils/ip-validation';
 import { VldError, getTypeName, createInvalidTypeIssue, type VldIssue } from '../errors-core';
 import type { ParseResult } from './base';
 
@@ -68,6 +68,24 @@ function dateTimeRegex(options: ISODateTimeOptions = {}): RegExp {
   if (options.local) timezoneParts.push('');
   if (options.offset) timezoneParts.push('([+-](?:[01]\\d|2[0-3]):[0-5]\\d)');
   return new RegExp(`^${DATE_SOURCE}T${timeSource(options)}(?:${timezoneParts.join('|')})$`);
+}
+
+/**
+ * Zod's `iso.datetime` / `string().datetime` pattern: RFC 3339 needs seconds
+ * wherever the time carries `Z` or an offset, so only the unqualified `local`
+ * form may stop at minutes. (`regexes.datetime` keeps its lenient form.)
+ */
+export function isoDateTimeRegex(options: ISODateTimeOptions = {}): RegExp {
+  const zones = ['Z'];
+  if (options.offset) zones.push('([+-](?:[01]\\d|2[0-3]):[0-5]\\d)');
+  const seconds = typeof options.precision === 'number' ? timeSource(options) : '(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?';
+  const qualified = `${seconds}(?:${zones.join('|')})`;
+  return new RegExp(`^${DATE_SOURCE}T(?:${options.local ? `${qualified}|${timeSource(options)}` : qualified})$`);
+}
+
+/** Zod params of `string().time()` / `.datetime()`: options merged with the message. */
+export function isoFormatOptions<T extends object>(params: unknown): T | undefined {
+  return typeof params === 'object' && params !== null ? (params as T) : undefined;
 }
 
 function stringRegex(options?: { minimum?: number; maximum?: number }): RegExp {
@@ -211,6 +229,18 @@ export class VldStringFormat extends VldBase<unknown, string> {
     return new VldStringFormat(format, validator, errorMessage, normalize, patternSource);
   }
 
+  /**
+   * @internal Re-create this format with the custom message carried by Zod-style
+   * params (`'msg'`, `{ message }`, `{ error }`); other params leave it as is.
+   */
+  _withMessage(params: unknown): VldStringFormat {
+    if (params === undefined || params === null) return this;
+    const message = resolveErrorMessage(params as ErrorParam, '');
+    return message
+      ? new VldStringFormat(this._format, this._validator, message, this._normalize, this._patternSource)
+      : this;
+  }
+
   private _createFormatIssue(): VldError {
     const issue: VldIssue = {
       code: 'invalid_format',
@@ -247,6 +277,10 @@ export const email = (options?: { pattern?: RegExp }): VldStringFormat => {
   return VldStringFormat.create('email', value => testRegex(pattern, value), undefined, undefined, pattern.source);
 };
 
+// Zod returns an accepted URL trimmed and without ASCII tabs / newlines (which
+// the URL parser ignores anyway), or its normalized href with `normalize`.
+const cleanUrl = (value: string): string => value.trim().replace(/[\t\n\r]/g, '');
+
 export const url = (options: URLFormatOptions = {}): VldStringFormat => {
   const parseUrl = (value: string): URL | undefined => {
     try {
@@ -264,9 +298,18 @@ export const url = (options: URLFormatOptions = {}): VldStringFormat => {
         && (!options.protocol || testRegex(options.protocol, parsed.protocol.slice(0, -1)));
     },
     undefined,
-    options.normalize ? value => new URL(value).href : undefined
+    options.normalize ? value => new URL(value).href : cleanUrl
   );
 };
+
+/**
+ * string().url(): an http(s) URL (the scheme restriction is VLD's documented
+ * contract) that the WHATWG URL parser accepts - as Zod's url check does -
+ * instead of a hand-written pattern that rejected valid URLs.
+ */
+const HTTP_URL_PREFIX = /^https?:\/\//i;
+const parsesAsUrl = url()._validator;
+export const isValidUrl = (value: string): boolean => HTTP_URL_PREFIX.test(value) && parsesAsUrl(value);
 
 export const uuid = (options?: { version?: UUIDVersion }): VldStringFormat => {
   const version = options?.version === undefined ? undefined : Number(options.version.slice(1));
@@ -282,13 +325,30 @@ export const emoji = (): VldStringFormat => VldStringFormat.create('emoji', valu
 export const base64 = (): VldStringFormat => VldStringFormat.create('base64', value => testRegex(REGEXES.base64, value));
 export const base64url = (): VldStringFormat => VldStringFormat.create('base64url', value => testRegex(REGEXES.base64url, value));
 export const hex = (): VldStringFormat => VldStringFormat.create('hex', value => testRegex(REGEXES.hex, value));
-export const jwt = (): VldStringFormat => VldStringFormat.create('jwt', value => testRegex(REGEXES.jwt, value));
+// Zod's isValidJWT: three segments, a JSON header with an `alg` (and
+// typ "JWT" if present), and - when given - exactly the expected algorithm.
+export const isValidJwtToken = (value: string, algorithm: string | null): boolean => {
+  try {
+    const parts = value.split('.');
+    if (parts.length !== 3 || !parts[0]) return false;
+    const base64 = parts[0].replace(/-/g, '+').replace(/_/g, '/');
+    const header = JSON.parse(atob(base64 + '='.repeat((4 - (base64.length % 4)) % 4)));
+    if (typeof header !== 'object' || header === null) return false;
+    if ('typ' in header && header.typ !== 'JWT') return false;
+    if (!header.alg) return false;
+    return !algorithm || header.alg === algorithm;
+  } catch {
+    return false;
+  }
+};
+export const jwt = (options?: { alg?: string }): VldStringFormat =>
+  VldStringFormat.create('jwt', value => isValidJwtToken(value, options?.alg ?? null));
 export const nanoid = (): VldStringFormat => VldStringFormat.create('nanoid', value => testRegex(REGEXES.nanoid, value));
 export const cuid = (): VldStringFormat => VldStringFormat.create('cuid', value => testRegex(REGEXES.cuid, value));
 export const cuid2 = (): VldStringFormat => VldStringFormat.create('cuid2', value => testRegex(REGEXES.cuid2, value));
 export const ulid = (): VldStringFormat => VldStringFormat.create('ulid', value => testRegex(REGEXES.ulid, value));
 export const ipv4 = (): VldStringFormat => VldStringFormat.create('ipv4', value => testRegex(REGEXES.ipv4, value));
-export const ipv6 = (): VldStringFormat => VldStringFormat.create('ipv6', value => testRegex(REGEXES.ipv6, value));
+export const ipv6 = (): VldStringFormat => VldStringFormat.create('ipv6', isValidIPv6Address);
 export const mac = (options?: { delimiter?: string }): VldStringFormat => {
   const pattern = REGEXES.mac(options?.delimiter);
   return VldStringFormat.create('mac', value => testRegex(pattern, value));
@@ -300,7 +360,11 @@ export const cidrv6 = (): VldStringFormat => VldStringFormat.create('cidrv6', is
 export const e164 = (): VldStringFormat => VldStringFormat.create('e164', value => testRegex(REGEXES.e164, value));
 export const xid = (): VldStringFormat => VldStringFormat.create('xid', value => testRegex(REGEXES.xid, value));
 export const guid = (): VldStringFormat => VldStringFormat.create('guid', value => testRegex(REGEXES.guid, value));
-export const httpUrl = (): VldStringFormat => VldStringFormat.create('httpUrl', value => testRegex(REGEXES.httpUrl, value));
+// Zod's httpUrl: a URL with an http(s) protocol whose hostname is a domain
+// name (a dotted name with a 2-63 letter TLD - not localhost or an IP).
+const HTTP_URL_DOMAIN = /^(?=.{1,253}$)([a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}$/;
+export const httpUrl = (): VldStringFormat =>
+  VldStringFormat.create('httpUrl', url({ protocol: /^https?$/, hostname: HTTP_URL_DOMAIN })._validator, undefined, cleanUrl);
 export const ksuid = (): VldStringFormat => VldStringFormat.create('ksuid', value => testRegex(REGEXES.ksuid, value));
 
 export const hash = (algorithm: 'md5' | 'sha1' | 'sha256' | 'sha384' | 'sha512'): VldStringFormat =>
@@ -402,11 +466,11 @@ export const iso = {
     return VldStringFormat.create('time', value => testRegex(pattern, value));
   },
   datetime: (options: ISODateTimeOptions = {}) => {
-    const pattern = REGEXES.datetime(options);
+    const pattern = isoDateTimeRegex(options);
     return VldStringFormat.create('datetime', value => testRegex(pattern, value));
   },
   dateTime: (options: ISODateTimeOptions = { local: true }) => {
-    const pattern = REGEXES.datetime(options);
+    const pattern = isoDateTimeRegex(options);
     return VldStringFormat.create('datetime', value => testRegex(pattern, value));
   },
   duration: () => VldStringFormat.create('duration', value => testRegex(REGEXES.duration, value))

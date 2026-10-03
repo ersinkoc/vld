@@ -35,8 +35,9 @@ export interface VldIssue {
   expected?: string;
   received?: string;
   keys?: string[];
-  minimum?: number;
-  maximum?: number;
+  /** bigint for bigint checks, as Zod. */
+  minimum?: number | bigint;
+  maximum?: number | bigint;
   exact?: number;
   inclusive?: boolean;
   origin?: string;
@@ -45,6 +46,48 @@ export interface VldIssue {
   pattern?: string;
   /** Custom data attached via refine(fn, { params }). */
   params?: Record<string, unknown>;
+  /** Per-option issues of an `invalid_union` issue (Zod's `errors`). */
+  errors?: VldIssue[][];
+  /** Indices of the options that matched, for an exclusive-union failure. */
+  matches?: number[];
+  /** Divisor of a `not_multiple_of` issue. */
+  divisor?: number | bigint;
+  /** Discriminator key of a discriminated-union failure. */
+  discriminator?: string;
+  /** Extra context, e.g. "No matching discriminator". */
+  note?: string;
+}
+
+/**
+ * Re-root a child schema's failure under one path segment (container
+ * elements). Non-VldError failures become one custom issue.
+ * @internal
+ */
+export function nestIssues(error: unknown, segment: string | number, format: (message: string) => string): VldIssue[] {
+  if (error instanceof VldError) {
+    return error.issues.map(issue => ({ ...issue, path: [segment, ...issue.path], message: format(issue.message) }));
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  return [{ code: 'custom', path: [segment], message: format(message) }];
+}
+
+/**
+ * JSON-like rendering of a value for error messages. Never throws: bigint
+ * (which JSON.stringify rejects), symbols, cycles and null-prototype objects
+ * all render, so a bad input fails validation instead of crashing it.
+ */
+export function stringifyForMessage(value: unknown): string {
+  try {
+    const json = JSON.stringify(value, (_key, item) => (typeof item === 'bigint' ? `${item}n` : item));
+    if (json !== undefined) return json;
+  } catch {
+    // fall through to String()
+  }
+  try {
+    return String(value);
+  } catch {
+    return Object.prototype.toString.call(value);
+  }
 }
 
 /**
@@ -141,8 +184,8 @@ function serializeIssue(issue: VldIssue): VldIssueJSON {
   if (issue.expected !== undefined) result.expected = issue.expected;
   if (issue.received !== undefined) result.received = issue.received;
   if (issue.keys !== undefined) result.keys = issue.keys;
-  if (issue.minimum !== undefined) result.minimum = jsonSafe(issue.minimum);
-  if (issue.maximum !== undefined) result.maximum = jsonSafe(issue.maximum);
+  if (issue.minimum !== undefined) result.minimum = jsonSafe(issue.minimum) as number;
+  if (issue.maximum !== undefined) result.maximum = jsonSafe(issue.maximum) as number;
   if (issue.exact !== undefined) result.exact = jsonSafe(issue.exact);
   if (issue.inclusive !== undefined) result.inclusive = issue.inclusive;
   if (issue.origin !== undefined) result.origin = issue.origin;
@@ -176,7 +219,33 @@ function deserializeIssue(issue: VldIssueJSON): VldIssue {
 }
 
 /**
- * Descend one level of a `format()` tree. A path segment named `_errors`
+ * Issues as Zod's treeifyError / formatError walk them: an invalid_union
+ * carrying its branches' issues (and invalid_key / invalid_element carrying
+ * nested issues) contributes those, re-rooted under its own path, instead of
+ * its one summary line.
+ * @internal
+ */
+export function expandNestedIssues(issues: readonly VldIssue[], prefix: readonly PropertyKey[] = []): VldIssue[] {
+  const out: VldIssue[] = [];
+  for (const issue of issues) {
+    const path = [...prefix, ...issue.path];
+    const branches = (issue as { errors?: unknown }).errors;
+    const nested = (issue as { issues?: unknown }).issues;
+    if (issue.code === 'invalid_union' && Array.isArray(branches) && branches.length > 0) {
+      for (const branch of branches) {
+        if (Array.isArray(branch)) out.push(...expandNestedIssues(branch as VldIssue[], path));
+      }
+    } else if ((issue.code === 'invalid_key' || issue.code === 'invalid_element') && Array.isArray(nested)) {
+      out.push(...expandNestedIssues(nested as VldIssue[], path));
+    } else {
+      out.push(prefix.length === 0 ? issue : { ...issue, path: path as (string | number)[] });
+    }
+  }
+  return out;
+}
+
+/**
+ * Descend one level of a `format()` tree.A path segment named `_errors`
  * collides with the reserved message list, so its messages land on the
  * current node (matching Zod's formatError output).
  * @internal

@@ -1,5 +1,22 @@
-import { VldBase, ParseResult, VLD_VALIDATOR_TYPES, ensureVldError } from './base';
+import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
+import { VldError, type VldIssue } from '../errors-core';
 import { getMessages } from '../locales/runtime';
+
+/**
+ * Zod-style union failure: one `invalid_union` issue carrying each option's
+ * issues, instead of a flattened `custom` string.
+ */
+function createUnionError(customMessage: string | undefined, optionErrors: unknown[] = []): VldError {
+  const message = customMessage || getMessages().unionNoMatch(
+    optionErrors.map(error => (error instanceof Error ? error.message : String(error)))
+  );
+  const errors: VldIssue[][] = optionErrors.map(error =>
+    error instanceof VldError
+      ? error.issues
+      : [{ code: 'custom', path: [], message: error instanceof Error ? error.message : String(error) }]
+  );
+  return new VldError([{ code: 'invalid_union', path: [], message, errors }]);
+}
 
 type SimpleUnionMode =
   | 'string'
@@ -158,7 +175,7 @@ export class VldUnion<T extends readonly VldBase<any, any>[]> extends VldBase<
    */
   parse(value: unknown): T[number] extends VldBase<any, infer U> ? U : never {
     // Single pass: collect errors during validation
-    const errors: string[] = [];
+    let optionErrors: unknown[] | undefined;
 
     for (let i = 0; i < this.validators.length; i++) {
       const validator = this.validators[i]!;
@@ -177,16 +194,12 @@ export class VldUnion<T extends readonly VldBase<any, any>[]> extends VldBase<
       try {
         return validator.parse(value);
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        errors.push(message);
+        (optionErrors ??= [])[i] = error;
       }
     }
 
     // All validators failed - throw with collected errors
-    throw new Error(
-      this.errorMessage ||
-      getMessages().unionNoMatch(errors)
-    );
+    throw createUnionError(this.errorMessage, this.collectOptionErrors(value, optionErrors));
   }
   
   /**
@@ -196,7 +209,7 @@ export class VldUnion<T extends readonly VldBase<any, any>[]> extends VldBase<
    */
   safeParse(value: unknown): ParseResult<T[number] extends VldBase<any, infer U> ? U : never> {
     // Single pass: collect errors during validation
-    const errors: string[] = [];
+    let optionErrors: unknown[] | undefined;
 
     for (let i = 0; i < this.validators.length; i++) {
       const validator = this.validators[i]!;
@@ -218,18 +231,60 @@ export class VldUnion<T extends readonly VldBase<any, any>[]> extends VldBase<
       try {
         return { success: true, data: validator.parse(value) };
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        errors.push(message);
+        (optionErrors ??= [])[i] = error;
       }
     }
 
     // All validators failed - return error with collected messages
     return {
       success: false,
-      error: ensureVldError(
-        this.errorMessage ||
-        getMessages().unionNoMatch(errors)
-      )
+      error: createUnionError(this.errorMessage, this.collectOptionErrors(value, optionErrors))
     };
+  }
+
+  /**
+   * Failure path only: one entry per option, in order. Options skipped by the
+   * type pre-check never ran; their (type-mismatch) errors are computed here,
+   * which runs no user code.
+   */
+  private collectOptionErrors(value: unknown, recorded: unknown[] | undefined): unknown[] {
+    const all: unknown[] = [];
+    for (let i = 0; i < this.validators.length; i++) {
+      if (recorded !== undefined && recorded[i] !== undefined) {
+        all.push(recorded[i]);
+        continue;
+      }
+      const result = this.validators[i]!.safeParse(value);
+      if (!result.success) all.push(result.error);
+    }
+    return all;
+  }
+
+  /** Async parse: the first option whose parseAsync succeeds wins. */
+  override async parseAsync(value: unknown): Promise<T[number] extends VldBase<any, infer U> ? U : never> {
+    const optionErrors: unknown[] = [];
+    for (const validator of this.validators) {
+      const result = await validator.safeParseAsync(value);
+      if (result.success) return result.data as any;
+      optionErrors.push(result.error);
+    }
+    throw createUnionError(this.errorMessage, optionErrors);
+  }
+
+  /** Encode with the first option that accepts the value (codecs run their encoder). */
+  override safeEncode(value: any): ParseResult<any> {
+    let optionErrors: unknown[] | undefined;
+    for (const validator of this.validators) {
+      const result = validator.safeEncode(value);
+      if (result.success) return result;
+      (optionErrors ??= []).push(result.error);
+    }
+    return { success: false, error: createUnionError(this.errorMessage, optionErrors) };
+  }
+
+  override encode(value: any): any {
+    const result = this.safeEncode(value);
+    if (!result.success) throw result.error;
+    return result.data;
   }
 }

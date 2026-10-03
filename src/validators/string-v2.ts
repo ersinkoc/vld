@@ -6,9 +6,10 @@
  */
 import { VldBase, VLD_VALIDATOR_TYPES, type ErrorParam, type ParseResult } from './base';
 import { VldError, createInvalidTypeIssue, getTypeName, type VldIssue } from '../errors-core';
-import { regexes as REGEX_SOURCES } from './string-formats';
+import { regexes as REGEX_SOURCES, isoDateTimeRegex, isoFormatOptions, isValidUrl, type ISODateTimeOptions, type ISOTimeOptions } from './string-formats';
 import { getMessages } from '../locales/runtime';
-import { isValidIPv6 } from '../utils/ip-validation';
+import { hasExactLength, hasMaxLength, hasMinLength } from '../utils/string-length';
+import { isValidIPv6Address, isValidCidrV6 } from '../utils/ip-validation';
 import { resolveErrorMessage } from './base';
 
 // --------------------------------------------------------------------------
@@ -27,7 +28,7 @@ export class VldCheckMin extends VldStringCheck {
   constructor(readonly length: number, private _msg?: string) { super(); }
   get message() { return this._msg; }
   check(value: string): VldIssue | null {
-    if (value.length < this.length) {
+    if (!hasMinLength(value, this.length)) {
       return { code: 'too_small', path: [], origin: 'string', minimum: this.length, inclusive: true,
         message: this._msg || `Too small: expected string to have >=${this.length} characters` };
     }
@@ -41,7 +42,7 @@ export class VldCheckMax extends VldStringCheck {
   constructor(readonly length: number, private _msg?: string) { super(); }
   get message() { return this._msg; }
   check(value: string): VldIssue | null {
-    if (value.length > this.length) {
+    if (!hasMaxLength(value, this.length)) {
       return { code: 'too_big', path: [], origin: 'string', maximum: this.length, inclusive: true,
         message: this._msg || `Too big: expected string to have <=${this.length} characters` };
     }
@@ -55,7 +56,7 @@ export class VldCheckLength extends VldStringCheck {
   constructor(readonly length: number, private _msg?: string) { super(); }
   get message() { return this._msg; }
   check(value: string): VldIssue | null {
-    if (value.length !== this.length) {
+    if (!hasExactLength(value, this.length)) {
       return { code: 'too_big', path: [], origin: 'string', exact: this.length,
         message: this._msg || `Too big: expected string to have exactly ${this.length} characters` };
     }
@@ -66,7 +67,7 @@ export class VldCheckLength extends VldStringCheck {
 
 export class VldCheckEmail extends VldStringCheck {
   readonly kind = 'format';
-  private static RE = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/;
+  private static RE = REGEX_SOURCES.email;
   constructor(private _msg?: string) { super(); }
   get message() { return this._msg; }
   check(value: string): VldIssue | null {
@@ -81,11 +82,10 @@ export class VldCheckEmail extends VldStringCheck {
 
 export class VldCheckUrl extends VldStringCheck {
   readonly kind = 'format';
-  private static RE = /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)$/;
   constructor(private _msg?: string) { super(); }
   get message() { return this._msg; }
   check(value: string): VldIssue | null {
-    if (!VldCheckUrl.RE.test(value)) {
+    if (!isValidUrl(value)) {
       return { code: 'invalid_format', path: [], origin: 'string', format: 'url',
         message: this._msg || 'Invalid url' };
     }
@@ -154,16 +154,16 @@ export class VldCheckEndsWith extends VldStringCheck {
 
 export class VldCheckIncludes extends VldStringCheck {
   readonly kind = 'includes';
-  constructor(readonly substring: string, private _msg?: string) { super(); }
+  constructor(readonly substring: string, private _msg?: string, readonly position?: number) { super(); }
   get message() { return this._msg; }
   check(value: string): VldIssue | null {
-    if (!value.includes(this.substring)) {
+    if (!value.includes(this.substring, this.position)) {
       return { code: 'invalid_string', path: [], 
         message: this._msg || `Invalid string: must include "${this.substring}"` };
     }
     return null;
   }
-  meta() { return { kind: 'includes', value: this.substring, message: this._msg }; }
+  meta() { return { kind: 'includes', value: this.substring, position: this.position, message: this._msg }; }
 }
 
 export class VldCheckRegexFormat extends VldStringCheck {
@@ -186,7 +186,7 @@ export class VldCheckIp extends VldStringCheck {
   constructor(private _msg?: string) { super(); }
   get message() { return this._msg; }
   check(value: string): VldIssue | null {
-    if (value.length > 100 || !(VldCheckIp.V4.test(value) || isValidIPv6(value))) {
+    if (value.length > 100 || !(VldCheckIp.V4.test(value) || isValidIPv6Address(value))) {
       return { code: 'invalid_format', path: [], origin: 'string', format: 'ip',
         message: this._msg || 'Invalid ip' };
     }
@@ -214,12 +214,25 @@ export class VldCheckIpv6 extends VldStringCheck {
   constructor(private _msg?: string) { super(); }
   get message() { return this._msg; }
   check(value: string): VldIssue | null {
-    if (!isValidIPv6(value)) {
+    if (!isValidIPv6Address(value)) {
       return { code: 'invalid_format', path: [], origin: 'string', format: 'ipv6', message: this._msg || 'Invalid ipv6' };
     }
     return null;
   }
   meta() { return { kind: 'format', format: 'ipv6', message: this._msg }; }
+}
+
+export class VldCheckCidrV6 extends VldStringCheck {
+  readonly kind = 'format';
+  constructor(private _msg?: string) { super(); }
+  get message() { return this._msg; }
+  check(value: string): VldIssue | null {
+    if (!isValidCidrV6(value)) {
+      return { code: 'invalid_format', path: [], origin: 'string', format: 'cidrv6', message: this._msg || 'Invalid cidrv6' };
+    }
+    return null;
+  }
+  meta() { return { kind: 'format', format: 'cidrv6', message: this._msg }; }
 }
 
 // --------------------------------------------------------------------------
@@ -395,8 +408,13 @@ export class VldStringV2 extends VldBase<string, string> {
   endsWith(str: string, message?: ErrorParam): VldStringV2 {
     return this.withDef({ type: 'string', checks: [...this.__def.checks, new VldCheckEndsWith(str, resolveErrorMessage(message, getMessages().stringEndsWith(str)))], errorMessage: resolveErrorMessage(message, getMessages().stringEndsWith(str)) });
   }
-  includes(str: string, message?: ErrorParam): VldStringV2 {
-    return this.withDef({ type: 'string', checks: [...this.__def.checks, new VldCheckIncludes(str, resolveErrorMessage(message, getMessages().stringIncludes(str)))], errorMessage: resolveErrorMessage(message, getMessages().stringIncludes(str)) });
+  includes(str: string, message?: ErrorParam | { position?: number; message?: string }): VldStringV2 {
+    // Zod: `{ position }` starts the search at that index.
+    const position = typeof message === 'object' && message !== null && typeof (message as { position?: unknown }).position === 'number'
+      ? (message as { position: number }).position
+      : undefined;
+    const msg = resolveErrorMessage(message as ErrorParam, getMessages().stringIncludes(str));
+    return this.withDef({ type: 'string', checks: [...this.__def.checks, new VldCheckIncludes(str, msg, position)], errorMessage: msg });
   }
   ip(message?: ErrorParam): VldStringV2 {
     return this.withDef({ type: 'string', checks: [...this.__def.checks, new VldCheckIp(resolveErrorMessage(message, getMessages().stringIp))], jsonSchema: { ...this.__def.jsonSchema, format: 'ip' }, errorMessage: resolveErrorMessage(message, getMessages().stringIp) });
@@ -425,14 +443,21 @@ export class VldStringV2 extends VldBase<string, string> {
   cuid2(message?: ErrorParam): VldStringV2 { return this.addFormat(/^[0-9a-z]+$/, 'cuid2', message); }
   ulid(message?: ErrorParam): VldStringV2 { return this.addFormat(REGEX_SOURCES.ulid, 'ulid', message); }
   cidrv4(message?: ErrorParam): VldStringV2 { return this.addFormat(REGEX_SOURCES.cidrv4, 'cidrv4', message); }
-  cidrv6(message?: ErrorParam): VldStringV2 { return this.addFormat(/^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\/(?:12[0-8]|1[01][0-9]|[1-9]?[0-9])$|^::(?:[0-9a-fA-F]{1,4}:){0,6}[0-9a-fA-F]{1,4}\/(?:12[0-8]|1[01][0-9]|[1-9]?[0-9])$|^(?:[0-9a-fA-F]{1,4}:){1,7}:\/(?:12[0-8]|1[01][0-9]|[1-9]?[0-9])$/, 'cidrv6', message); }
+  cidrv6(message?: ErrorParam): VldStringV2 {
+    return this.withDef({ type: 'string', checks: [...this.__def.checks, new VldCheckCidrV6(resolveErrorMessage(message, 'Invalid cidrv6'))], jsonSchema: { ...this.__def.jsonSchema, format: 'cidrv6' }, errorMessage: resolveErrorMessage(message, 'Invalid cidrv6') });
+  }
   e164(message?: ErrorParam): VldStringV2 { return this.addFormat(REGEX_SOURCES.e164, 'e164', message); }
   xid(message?: ErrorParam): VldStringV2 { return this.addFormat(REGEX_SOURCES.xid, 'xid', message); }
   guid(message?: ErrorParam): VldStringV2 { return this.addFormat(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/i, 'guid', message); }
   ksuid(message?: ErrorParam): VldStringV2 { return this.addFormat(/^[0-9A-Za-z]{27}$/, 'ksuid', message); }
   date(message?: ErrorParam): VldStringV2 { return this.addFormat(/^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/, 'date', message); }
-  time(message?: ErrorParam): VldStringV2 { return this.addFormat(/^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?$/, 'time', message); }
-  datetime(message?: ErrorParam): VldStringV2 { return this.addFormat(new RegExp(`^${REGEX_SOURCES.date.source.slice(1, -1)}T(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?Z$`), 'datetime', message); }
+  time(params?: ErrorParam | (ISOTimeOptions & { message?: string })): VldStringV2 {
+    const options = isoFormatOptions<ISOTimeOptions>(params);
+    return this.addFormat(options?.precision !== undefined ? REGEX_SOURCES.time(options) : /^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?$/, 'time', params as ErrorParam);
+  }
+  datetime(params?: ErrorParam | (ISODateTimeOptions & { message?: string })): VldStringV2 {
+    return this.addFormat(isoDateTimeRegex(isoFormatOptions<ISODateTimeOptions>(params)), 'datetime', params as ErrorParam);
+  }
   duration(message?: ErrorParam): VldStringV2 { return this.addFormat(REGEX_SOURCES.duration, 'duration', message); }
 }
 
@@ -469,7 +494,7 @@ export class VldCoerceStringV2 extends VldStringV2 {
       throw new Error(getMessages().coercionFailed('string', value));
     }
     // eslint-disable-next-line no-control-regex
-    const sanitized = coerced.replace(/[\x00-\x1F\x7F]/g, '');
+    const sanitized = coerced.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
     return super.parse(sanitized);
   }
 }

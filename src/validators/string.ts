@@ -1,15 +1,17 @@
 import { VldBase, ParseResult, VLD_VALIDATOR_TYPES, ValidatorType, type ErrorParam, resolveErrorMessage } from './base';
 import { getMessages } from '../locales/runtime';
-import { isValidIPv6, isValidCidrV6 } from '../utils/ip-validation';
-import { regexes as FORMAT_REGEXES } from './string-formats';
+import { codePointLength, hasExactLength, hasMaxLength, hasMinLength } from '../utils/string-length';
+import { isValidIPv6Address, isValidCidrV6 } from '../utils/ip-validation';
+import { regexes as FORMAT_REGEXES, isoDateTimeRegex, isoFormatOptions, isValidUrl, type ISODateTimeOptions, type ISOTimeOptions } from './string-formats';
 import { VldError, getTypeName, createInvalidTypeIssue, type VldIssue } from '../errors-core';
 
 /**
- * Ultra-fast email validation using simplified regex for maximum performance.
- * Domain labels are dot-separated with no overlap, so rejection stays linear
- * time on long dotted domains (no ReDoS).
+ * Email pattern shared with v.email() (Zod 4's default): rejects `mailto:`,
+ * quoted locals, IP literals and labels starting with '-' that a loose
+ * pattern let through. Domain labels end at their dot, so rejection stays
+ * linear time on long dotted domains (no ReDoS).
  */
-const FAST_EMAIL_REGEX = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/;
+const FAST_EMAIL_REGEX = FORMAT_REGEXES.email;
 
 /**
  * Pre-compiled regex patterns for common validations
@@ -143,6 +145,14 @@ export class VldString extends VldBase<string, string> {
   }
 
   /**
+   * Build a sibling validator with `config`, keeping the concrete subclass
+   * (e.g. v.coerce.*) so every chain method preserves coercion.
+   */
+  protected derive(config: Partial<StringValidatorConfig>): this {
+    return new (this.constructor as new (config: Partial<StringValidatorConfig>) => this)(config);
+  }
+
+  /**
    * Create a new string validator
    */
   static create(): VldString {
@@ -189,7 +199,7 @@ export class VldString extends VldBase<string, string> {
           message: meta.message || `Too big: expected string to have <=${meta.value} characters`,
         };
       case 'length':
-        if (value !== undefined && value.length < meta.value!) {
+        if (value !== undefined && codePointLength(value) < meta.value!) {
           return {
             code: 'too_small',
             path: [],
@@ -253,13 +263,22 @@ export class VldString extends VldBase<string, string> {
   private _fallbackMeta(): StringCheckMeta {
     return { kind: 'other', message: this.config.errorMessage };
   }
+
+  /**
+   * Metas for the checks already present. Checks added without a meta (e.g.
+   * startsWith) leave the list missing; pad it with fallback metas so a new
+   * meta is appended at its own check's index instead of an earlier one.
+   */
+  private _metasForExistingChecks(): ReadonlyArray<StringCheckMeta> {
+    return this.config.checkMetas ?? this.config.checks.map(() => this._fallbackMeta());
+  }
   
   /**
    * Parse and validate a string value without allocating intermediate result objects.
    */
   parse(value: unknown): string {
     if (typeof value !== 'string') {
-      throw new VldError([createInvalidTypeIssue('string', getTypeName(value), this.config.errorMessage)]);
+      throw new VldError([createInvalidTypeIssue('string', getTypeName(value), undefined)]);
     }
 
     if (this._isSimple) {
@@ -314,7 +333,7 @@ export class VldString extends VldBase<string, string> {
     if (typeof value !== 'string') {
       return {
         success: false,
-        error: new VldError([createInvalidTypeIssue('string', getTypeName(value), this.config.errorMessage)])
+        error: new VldError([createInvalidTypeIssue('string', getTypeName(value), undefined)])
       };
     }
 
@@ -337,12 +356,12 @@ export class VldString extends VldBase<string, string> {
    * Create a new validator with minimum length constraint
    */
   min(length: number, message?: ErrorParam): VldString {
-    return new VldString({
-      checks: [...this.config.checks, (v: string) => v.length >= length],
+    return this.derive({
+      checks: [...this.config.checks, (v: string) => hasMinLength(v, length)],
       transforms: this.config.transforms,
       errorMessage: resolveErrorMessage(message, getMessages().stringMin(length)),
       jsonSchema: { ...this.config.jsonSchema, minLength: length },
-      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'min', value: length, message: resolveErrorMessage(message, getMessages().stringMin(length)) }]
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'min', value: length, message: resolveErrorMessage(message, getMessages().stringMin(length)) }]
     });
   }
   
@@ -350,12 +369,12 @@ export class VldString extends VldBase<string, string> {
    * Create a new validator with maximum length constraint
    */
   max(length: number, message?: ErrorParam): VldString {
-    return new VldString({
-      checks: [...this.config.checks, (v: string) => v.length <= length],
+    return this.derive({
+      checks: [...this.config.checks, (v: string) => hasMaxLength(v, length)],
       transforms: this.config.transforms,
       errorMessage: resolveErrorMessage(message, getMessages().stringMax(length)),
       jsonSchema: { ...this.config.jsonSchema, maxLength: length },
-      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'max', value: length, message: resolveErrorMessage(message, getMessages().stringMax(length)) }]
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'max', value: length, message: resolveErrorMessage(message, getMessages().stringMax(length)) }]
     });
   }
   
@@ -363,12 +382,12 @@ export class VldString extends VldBase<string, string> {
    * Create a new validator with exact length constraint
    */
   length(length: number, message?: ErrorParam): VldString {
-    return new VldString({
-      checks: [...this.config.checks, (v: string) => v.length === length],
+    return this.derive({
+      checks: [...this.config.checks, (v: string) => hasExactLength(v, length)],
       transforms: this.config.transforms,
       errorMessage: resolveErrorMessage(message, getMessages().stringLength(length)),
       jsonSchema: { ...this.config.jsonSchema, exactLength: length },
-      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'length', value: length, message: resolveErrorMessage(message, getMessages().stringLength(length)) }]
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'length', value: length, message: resolveErrorMessage(message, getMessages().stringLength(length)) }]
     });
   }
   
@@ -376,12 +395,12 @@ export class VldString extends VldBase<string, string> {
    * Create a new validator that checks for valid email format
    */
   email(message?: ErrorParam): VldString {
-    return new VldString({
+    return this.derive({
       checks: [...this.config.checks, (v: string) => REGEX_PATTERNS.email.test(v)],
       transforms: this.config.transforms,
       errorMessage: resolveErrorMessage(message, getMessages().stringEmail),
       jsonSchema: { ...this.config.jsonSchema, format: 'email' },
-      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'format', format: 'email', message: resolveErrorMessage(message, getMessages().stringEmail) }]
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'format', format: 'email', message: resolveErrorMessage(message, getMessages().stringEmail) }]
     });
   }
   
@@ -389,12 +408,12 @@ export class VldString extends VldBase<string, string> {
    * Create a new validator that checks for valid URL format
    */
   url(message?: ErrorParam): VldString {
-    return new VldString({
-      checks: [...this.config.checks, (v: string) => REGEX_PATTERNS.url.test(v)],
+    return this.derive({
+      checks: [...this.config.checks, isValidUrl],
       transforms: this.config.transforms,
       errorMessage: resolveErrorMessage(message, getMessages().stringUrl),
       jsonSchema: { ...this.config.jsonSchema, format: 'uri' },
-      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'format', format: 'url', message: resolveErrorMessage(message, getMessages().stringUrl) }]
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'format', format: 'url', message: resolveErrorMessage(message, getMessages().stringUrl) }]
     });
   }
   
@@ -402,22 +421,22 @@ export class VldString extends VldBase<string, string> {
    * Create a new validator that checks for valid UUID format
    */
   uuid(message?: ErrorParam): VldString {
-    return new VldString({
+    return this.derive({
       checks: [...this.config.checks, (v: string) => REGEX_PATTERNS.uuid.test(v)],
       transforms: this.config.transforms,
       errorMessage: resolveErrorMessage(message, getMessages().stringUuid),
       jsonSchema: { ...this.config.jsonSchema, format: 'uuid' },
-      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'format', format: 'uuid', message: resolveErrorMessage(message, getMessages().stringUuid) }]
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'format', format: 'uuid', message: resolveErrorMessage(message, getMessages().stringUuid) }]
     });
   }
 
   private format(pattern: RegExp, formatName: string, message?: ErrorParam): VldString {
-    return new VldString({
+    return this.derive({
       checks: [...this.config.checks, (value: string) => pattern.test(value)],
       transforms: this.config.transforms,
       errorMessage: resolveErrorMessage(message, `Invalid ${formatName}`),
       jsonSchema: { ...this.config.jsonSchema, format: formatName, pattern: pattern.source },
-      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'format', format: formatName, pattern: pattern.source, flags: pattern.flags, message: resolveErrorMessage(message, `Invalid ${formatName}`) }]
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'format', format: formatName, pattern: pattern.source, flags: pattern.flags, message: resolveErrorMessage(message, `Invalid ${formatName}`) }]
     });
   }
 
@@ -434,12 +453,12 @@ export class VldString extends VldBase<string, string> {
   ulid(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.ulid, 'ulid', message); }
   cidrv4(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.cidrv4, 'cidrv4', message); }
   cidrv6(message?: ErrorParam): VldString {
-    return new VldString({
+    return this.derive({
       checks: [...this.config.checks, isValidCidrV6],
       transforms: this.config.transforms,
       errorMessage: resolveErrorMessage(message, 'Invalid cidrv6'),
       jsonSchema: { ...this.config.jsonSchema, format: 'cidrv6' },
-      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'format', format: 'cidrv6', message: resolveErrorMessage(message, 'Invalid cidrv6') }]
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'format', format: 'cidrv6', message: resolveErrorMessage(message, 'Invalid cidrv6') }]
     });
   }
   e164(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.e164, 'e164', message); }
@@ -447,15 +466,21 @@ export class VldString extends VldBase<string, string> {
   guid(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.guid, 'guid', message); }
   ksuid(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.ksuid, 'ksuid', message); }
   date(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.isoDate, 'date', message); }
-  time(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.isoTime, 'time', message); }
-  datetime(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.isoDateTime, 'datetime', message); }
+  time(params?: ErrorParam | (ISOTimeOptions & { message?: string })): VldString {
+    const options = isoFormatOptions<ISOTimeOptions>(params);
+    return this.format(options?.precision !== undefined ? FORMAT_REGEXES.time(options) : REGEX_PATTERNS.isoTime, 'time', params as ErrorParam);
+  }
+  datetime(params?: ErrorParam | (ISODateTimeOptions & { message?: string })): VldString {
+    const options = isoFormatOptions<ISODateTimeOptions>(params);
+    return this.format(options ? isoDateTimeRegex(options) : REGEX_PATTERNS.isoDateTime, 'datetime', params as ErrorParam);
+  }
   duration(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.isoDuration, 'duration', message); }
   
   /**
    * Create a new validator with regex pattern matching
    */
   regex(pattern: RegExp, message?: ErrorParam): VldString {
-    return new VldString({
+    return this.derive({
       checks: [...this.config.checks, (v: string) => {
         // A /g or /y pattern keeps lastIndex between calls; reset it so the
         // same input always gets the same answer.
@@ -465,7 +490,7 @@ export class VldString extends VldBase<string, string> {
       transforms: this.config.transforms,
       errorMessage: resolveErrorMessage(message, getMessages().stringRegex),
       jsonSchema: { ...this.config.jsonSchema, pattern: pattern.source },
-      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'regex', pattern: pattern.source, flags: pattern.flags, message: resolveErrorMessage(message, getMessages().stringRegex) }]
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'regex', pattern: pattern.source, flags: pattern.flags, message: resolveErrorMessage(message, getMessages().stringRegex) }]
     });
   }
   
@@ -473,7 +498,7 @@ export class VldString extends VldBase<string, string> {
    * Create a new validator that trims whitespace
    */
   trim(): VldString {
-    return new VldString({
+    return this.derive({
       checks: this.config.checks,
       transforms: [...this.config.transforms, (v: string) => v.trim()],
       errorMessage: this.config.errorMessage,
@@ -486,7 +511,7 @@ export class VldString extends VldBase<string, string> {
    * Create a new validator that converts to lowercase
    */
   toLowerCase(): VldString {
-    return new VldString({
+    return this.derive({
       checks: this.config.checks,
       transforms: [...this.config.transforms, (v: string) => v.toLowerCase()],
       errorMessage: this.config.errorMessage,
@@ -503,7 +528,7 @@ export class VldString extends VldBase<string, string> {
    * Create a new validator that converts to uppercase
    */
   toUpperCase(): VldString {
-    return new VldString({
+    return this.derive({
       checks: this.config.checks,
       transforms: [...this.config.transforms, (v: string) => v.toUpperCase()],
       errorMessage: this.config.errorMessage,
@@ -517,7 +542,7 @@ export class VldString extends VldBase<string, string> {
   }
 
   normalize(form?: 'NFC' | 'NFD' | 'NFKC' | 'NFKD'): VldString {
-    return new VldString({
+    return this.derive({
       checks: this.config.checks,
       transforms: [...this.config.transforms, (value: string) => value.normalize(form)],
       errorMessage: this.config.errorMessage,
@@ -527,7 +552,7 @@ export class VldString extends VldBase<string, string> {
   }
 
   slugify(): VldString {
-    return new VldString({
+    return this.derive({
       checks: this.config.checks,
       transforms: [...this.config.transforms, (value: string) => value
         .toLowerCase()
@@ -545,7 +570,7 @@ export class VldString extends VldBase<string, string> {
    * Create a new validator that checks if string starts with a substring
    */
   startsWith(str: string, message?: ErrorParam): VldString {
-    return new VldString({
+    return this.derive({
       checks: [...this.config.checks, (v: string) => v.startsWith(str)],
       transforms: this.config.transforms,
       errorMessage: resolveErrorMessage(message, getMessages().stringStartsWith(str)),
@@ -557,7 +582,7 @@ export class VldString extends VldBase<string, string> {
    * Create a new validator that checks if string ends with a substring
    */
   endsWith(str: string, message?: ErrorParam): VldString {
-    return new VldString({
+    return this.derive({
       checks: [...this.config.checks, (v: string) => v.endsWith(str)],
       transforms: this.config.transforms,
       errorMessage: resolveErrorMessage(message, getMessages().stringEndsWith(str)),
@@ -568,11 +593,15 @@ export class VldString extends VldBase<string, string> {
   /**
    * Create a new validator that checks if string includes a substring
    */
-  includes(str: string, message?: ErrorParam): VldString {
-    return new VldString({
-      checks: [...this.config.checks, (v: string) => v.includes(str)],
+  includes(str: string, message?: ErrorParam | { position?: number; message?: string }): VldString {
+    // Zod: `{ position }` starts the search at that index.
+    const position = typeof message === 'object' && message !== null && typeof (message as { position?: unknown }).position === 'number'
+      ? (message as { position: number }).position
+      : undefined;
+    return this.derive({
+      checks: [...this.config.checks, (v: string) => v.includes(str, position)],
       transforms: this.config.transforms,
-      errorMessage: resolveErrorMessage(message, getMessages().stringIncludes(str)),
+      errorMessage: resolveErrorMessage(message as ErrorParam, getMessages().stringIncludes(str)),
       jsonSchema: { ...this.config.jsonSchema, affixes: [...(this.config.jsonSchema?.affixes ?? []), { kind: 'includes', value: str }] }
     });
   }
@@ -581,16 +610,16 @@ export class VldString extends VldBase<string, string> {
    * Create a new validator that checks for valid IP address (v4 or v6)
    */
   ip(message?: ErrorParam): VldString {
-    return new VldString({
+    return this.derive({
       checks: [...this.config.checks, (v: string) => {
         // Prevent ReDoS: Check length before regex
         if (v.length > 100) return false;
-        return REGEX_PATTERNS.ipv4.test(v) || isValidIPv6(v);
+        return REGEX_PATTERNS.ipv4.test(v) || isValidIPv6Address(v);
       }],
       transforms: this.config.transforms,
       errorMessage: resolveErrorMessage(message, getMessages().stringIp),
       jsonSchema: { ...this.config.jsonSchema, format: 'ip' },
-      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'format', format: 'ip', message: resolveErrorMessage(message, getMessages().stringIp) }]
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'format', format: 'ip', message: resolveErrorMessage(message, getMessages().stringIp) }]
     });
   }
   
@@ -598,12 +627,12 @@ export class VldString extends VldBase<string, string> {
    * Create a new validator that checks for valid IPv4 address
    */
   ipv4(message?: ErrorParam): VldString {
-    return new VldString({
+    return this.derive({
       checks: [...this.config.checks, (v: string) => REGEX_PATTERNS.ipv4.test(v)],
       transforms: this.config.transforms,
       errorMessage: resolveErrorMessage(message, getMessages().stringIpv4),
       jsonSchema: { ...this.config.jsonSchema, format: 'ipv4' },
-      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'format', format: 'ipv4', message: resolveErrorMessage(message, getMessages().stringIpv4) }]
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'format', format: 'ipv4', message: resolveErrorMessage(message, getMessages().stringIpv4) }]
     });
   }
   
@@ -611,15 +640,15 @@ export class VldString extends VldBase<string, string> {
    * Create a new validator that checks for valid IPv6 address
    */
   ipv6(message?: ErrorParam): VldString {
-    return new VldString({
+    return this.derive({
       checks: [...this.config.checks, (v: string) => {
         // Use safe IPv6 validation to prevent ReDoS attacks
-        return isValidIPv6(v);
+        return isValidIPv6Address(v);
       }],
       transforms: this.config.transforms,
       errorMessage: resolveErrorMessage(message, getMessages().stringIpv6),
       jsonSchema: { ...this.config.jsonSchema, format: 'ipv6' },
-      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'format', format: 'ipv6', message: resolveErrorMessage(message, getMessages().stringIpv6) }]
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'format', format: 'ipv6', message: resolveErrorMessage(message, getMessages().stringIpv6) }]
     });
   }
   
@@ -627,12 +656,12 @@ export class VldString extends VldBase<string, string> {
    * Create a new validator that ensures string is not empty
    */
   nonempty(message?: ErrorParam): VldString {
-    return new VldString({
+    return this.derive({
       checks: [...this.config.checks, (v: string) => v.length > 0],
       transforms: this.config.transforms,
       errorMessage: resolveErrorMessage(message, getMessages().stringEmpty),
       jsonSchema: { ...this.config.jsonSchema, minLength: Math.max(this.config.jsonSchema?.minLength || 0, 1) },
-      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'min', value: 1, message: resolveErrorMessage(message, getMessages().stringEmpty) }]
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'min', value: 1, message: resolveErrorMessage(message, getMessages().stringEmpty) }]
     });
   }
 }

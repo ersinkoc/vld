@@ -106,6 +106,16 @@ const ANSI_ESCAPE_PATTERN = new RegExp(
 /* eslint-enable no-control-regex */
 
 /**
+ * Wrap text in a style. A nested style closes with a full reset, which would
+ * also cancel this outer style for the rest of the text; re-open it after
+ * every inner reset (as chalk does), e.g. red('a ' + bold('b') + ' c').
+ */
+function applyStyle(code: string, text: string): string {
+  const body = text.includes(ANSI.reset) ? text.split(ANSI.reset).join(ANSI.reset + code) : text;
+  return `${code}${body}${ANSI.reset}`;
+}
+
+/**
  * Create a color function
  */
 function createColorFn(code: string): (text: string) => string {
@@ -113,7 +123,7 @@ function createColorFn(code: string): (text: string) => string {
     // Checked per call so NO_COLOR/FORCE_COLOR changes after import are
     // honored consistently with supportsColor() and combine().
     if (text === '' || !supportsColor()) return text;
-    return `${code}${text}${ANSI.reset}`;
+    return applyStyle(code, text);
   };
 }
 
@@ -178,7 +188,7 @@ export const pigment = {
   combine: (...codes: string[]) =>
     (text: string): string => {
       if (!supportsColor()) return text;
-      return `${codes.join('')}${text}${ANSI.reset}`;
+      return applyStyle(codes.join(''), text);
     },
 
   // Strip ANSI codes from string

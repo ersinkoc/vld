@@ -1,6 +1,6 @@
 import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
 import { getMessages } from '../locales/runtime';
-import { VldError, type VldIssue } from '../errors-core';
+import { VldError, type VldIssue, stringifyForMessage, nestIssues, createInvalidTypeIssue, getTypeName } from '../errors-core';
 
 type SimpleMapItemMode =
   | 'string'
@@ -137,7 +137,7 @@ export class VldMap<K, V> extends VldBase<unknown, Map<K, V>> {
       case 'undefinedValue':
         return getMessages().expectedUndefined;
       case 'literal':
-        return getMessages().literalExpected(JSON.stringify(expected), JSON.stringify(received));
+        return getMessages().literalExpected(stringifyForMessage(expected), stringifyForMessage(received));
       default:
         return getMessages().invalidMap;
     }
@@ -195,7 +195,7 @@ export class VldMap<K, V> extends VldBase<unknown, Map<K, V>> {
    */
   parse(value: unknown): Map<K, V> {
     if (!(value instanceof Map)) {
-      throw new Error(this.errorMessage || getMessages().invalidMap);
+      throw new VldError([createInvalidTypeIssue('map', getTypeName(value), this.errorMessage || getMessages().invalidMap)]);
     }
 
     return this.parseKnownMap(value);
@@ -264,6 +264,32 @@ export class VldMap<K, V> extends VldBase<unknown, Map<K, V>> {
     return result;
   }
   
+  /** Async parse: keys and values go through their schemas' parseAsync. */
+  override async parseAsync(value: unknown): Promise<Map<K, V>> {
+    if (!(value instanceof Map)) {
+      return this.parse(value);
+    }
+    const result = new Map<K, V>();
+    const issues: VldIssue[] = [];
+    let index = 0;
+    for (const [key, val] of value) {
+      const segment = typeof key === 'string' || typeof key === 'number' ? key : index;
+      const parsedKey = await this.keyValidator.safeParseAsync(key);
+      const parsedValue = await this.valueValidator.safeParseAsync(val);
+      if (!parsedKey.success) issues.push(...nestIssues(parsedKey.error, segment, message => message).map(issue => ({ ...issue, code: 'invalid_key' as const })));
+      if (!parsedValue.success) issues.push(...nestIssues(parsedValue.error, segment, message => message));
+      if (parsedKey.success && parsedValue.success) result.set(parsedKey.data, parsedValue.data);
+      index++;
+    }
+    if (issues.length > 0) throw new VldError(issues);
+    for (const check of this._checks) {
+      if (!check.fn(result)) {
+        throw check.kind ? new VldError([sizeIssue('map', check, result.size)]) : new Error(check.message);
+      }
+    }
+    return result;
+  }
+
   /**
    * Safely parse and validate a Map value
    */

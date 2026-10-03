@@ -5,10 +5,10 @@
 
 import { VldBase, VLD_VALIDATOR_TYPES } from './base';
 import type { ParseResult } from './base';
-import { VldError } from '../errors-core';
+import { VldError, createInvalidTypeIssue, getTypeName } from '../errors-core';
 
-function createNullError(message: string): VldError {
-  return new VldError([{ code: 'invalid_type', path: [], message }]);
+function createNullError(message: string, value: unknown): VldError {
+  return new VldError([createInvalidTypeIssue('null', getTypeName(value), message)]);
 }
 
 /**
@@ -38,7 +38,7 @@ export class VldNull extends VldBase<unknown, null> {
     try {
       return { success: true, data: this.parse(value) };
     } catch (error) {
-      return { success: false, error: createNullError((error as Error).message) };
+      return { success: false, error: createNullError((error as Error).message, value) };
     }
   }
 }

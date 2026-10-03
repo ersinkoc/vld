@@ -1,6 +1,12 @@
 import { VldDate } from '../validators/date';
 import { ParseResult, VLD_VALIDATOR_TYPES, ensureVldError } from '../validators/base';
 import { getMessages } from '../locales/runtime';
+import { VldError, createInvalidTypeIssue } from '../errors-core';
+
+/** Zod: a value that does not coerce fails the type check (invalid_type). */
+function coercionError(value: unknown, received: string): VldError {
+  return new VldError([createInvalidTypeIssue('date', received, getMessages().coercionFailed('date', value))]);
+}
 
 /**
  * Date coercion validator that attempts to convert values to dates
@@ -13,8 +19,9 @@ export class VldCoerceDate extends VldDate {
     return new VldCoerceDate();
   }
 
-  constructor() {
-    super({ validatorType: VLD_VALIDATOR_TYPES.COERCE_DATE });
+  constructor(config?: any) {
+    // Accepts a config so chain methods (min/max/...) keep the coerce subclass.
+    super({ ...config, validatorType: VLD_VALIDATOR_TYPES.COERCE_DATE });
   }
   
   /**
@@ -28,14 +35,19 @@ export class VldCoerceDate extends VldDate {
 
       const date = new Date(value as any);
       if (isNaN(date.getTime())) {
-        throw new Error(getMessages().coercionFailed('date', value));
+        throw coercionError(value, 'Invalid Date');
       }
       return super.parse(date);
     } catch (error) {
+      // A coerced date that fails a check (min, max, refine) keeps its issue;
+      // only a value that is not a usable date is a coercion failure.
+      if (error instanceof VldError && error.issues[0]?.code !== 'invalid_type') {
+        throw error;
+      }
       if ((error as Error).message.includes('Cannot coerce')) {
         throw error;
       }
-      throw new Error(getMessages().coercionFailed('date', value));
+      throw coercionError(value, 'Invalid Date');
     }
   }
   

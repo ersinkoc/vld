@@ -4,7 +4,8 @@
  * VldSymbolV2, VldNullishV2, VldFunctionV2.
  */
 import { VldBase, VLD_VALIDATOR_TYPES, type ParseResult } from './base';
-import { VldError, createInvalidTypeIssue, getTypeName, type VldIssue } from '../errors-core';
+import { VldError, createInvalidTypeIssue, getTypeName, type VldIssue, stringifyForMessage } from '../errors-core';
+import { isRecordLike } from './record';
 
 // --------------------------------------------------------------------------
 // VldLiteralV2
@@ -31,8 +32,8 @@ export class VldLiteralV2<T extends string | number | boolean | null | undefined
     const expected = this.__def.value as T;
     if (value !== expected) {
       throw new VldError([{
-        code: 'invalid_literal', path: [], expected: String(expected) as string, received: value === undefined ? 'undefined' : typeof value,
-        message: `Invalid input: expected ${JSON.stringify(expected)}, received ${JSON.stringify(value)}`
+        code: 'invalid_value', path: [], values: [expected],
+        message: `Invalid input: expected ${stringifyForMessage(expected)}, received ${stringifyForMessage(value)}`
       } as VldIssue]);
     }
     return expected;
@@ -41,8 +42,8 @@ export class VldLiteralV2<T extends string | number | boolean | null | undefined
   override safeParse(value: unknown): ParseResult<T> {
     const expected = this.__def.value as T;
     if (value === expected) return { success: true, data: expected };
-    return { success: false, error: new VldError([{ code: 'invalid_literal', path: [], expected: String(expected) as string, received: value === undefined ? 'undefined' : typeof value,
-      message: `Invalid input: expected ${JSON.stringify(expected)}, received ${JSON.stringify(value)}` } as VldIssue]) };
+    return { success: false, error: new VldError([{ code: 'invalid_value', path: [], values: [expected],
+      message: `Invalid input: expected ${stringifyForMessage(expected)}, received ${stringifyForMessage(value)}` } as VldIssue]) };
   }
 
   get literal(): T { return this.__def.value as T; }
@@ -108,7 +109,7 @@ export class VldEnumV2<T extends readonly (string | number)[]> extends VldBase<T
     if (!this.__def.valuesSet.has(value as T[number])) {
       throw new VldError([{
         code: 'invalid_value', path: [], values: [...this.__def.values] as unknown[], received: typeof value,
-        message: `Invalid enum value. Expected ${[...this.__def.values].join(' | ')}, received ${JSON.stringify(value)}`
+        message: `Invalid enum value. Expected ${[...this.__def.values].join(' | ')}, received ${stringifyForMessage(value)}`
       } as VldIssue]);
     }
     return value as T[number];
@@ -118,7 +119,7 @@ export class VldEnumV2<T extends readonly (string | number)[]> extends VldBase<T
     if (this.__def.valuesSet.has(value as T[number])) return { success: true, data: value as T[number] };
     return { success: false, error: new VldError([{
       code: 'invalid_value', path: [], values: [...this.__def.values] as unknown[], received: typeof value,
-      message: `Invalid enum value. Expected ${[...this.__def.values].join(' | ')}, received ${JSON.stringify(value)}`
+      message: `Invalid enum value. Expected ${[...this.__def.values].join(' | ')}, received ${stringifyForMessage(value)}`
     } as VldIssue]) };
   }
 
@@ -158,7 +159,8 @@ export class VldRecordV2<T> extends VldBase<Record<string, T>, Record<string, T>
   }
 
   override parse(value: unknown): Record<string, T> {
-    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    // Same plain-object rule as legacy v.record() (Date / Map / Set are not records).
+    if (!isRecordLike(value)) {
       throw new VldError([createInvalidTypeIssue('record', getTypeName(value), undefined)]);
     }
     return this.parseKnownRecord(value as Record<string, unknown>);
@@ -202,7 +204,7 @@ export class VldRecordV2<T> extends VldBase<Record<string, T>, Record<string, T>
 
   override safeParse(value: unknown): ParseResult<Record<string, T>> {
     try { return { success: true, data: this.parse(value) }; }
-    catch (e) { return { success: false, error: e instanceof VldError ? e : new VldError([{ code: 'custom', path: [], message: String(e) }]) }; }
+    catch (e) { return { success: false, error: e instanceof VldError ? e : new VldError([{ code: 'custom', path: [], message: e instanceof Error ? e.message : String(e) }]) }; }
   }
 
   get isSimple(): boolean { return false; }

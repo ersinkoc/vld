@@ -4,8 +4,9 @@
  * Ensures exactly one schema in the union matches
  */
 
-import { VldBase, VLD_VALIDATOR_TYPES, ensureVldError } from './base';
+import { VldBase, VLD_VALIDATOR_TYPES } from './base';
 import type { ParseResult } from './base';
+import { VldError } from '../errors-core';
 
 /**
  * XOR validator - ensures exactly one option matches
@@ -31,38 +32,55 @@ export class VldXor<Options extends readonly VldBase<any, any>[]> extends VldBas
   }
 
   safeParse(value: unknown): ParseResult<Options[number] extends VldBase<any, infer T> ? T : never> {
-    let matchCount = 0;
     let lastSuccess: ParseResult<any> | null = null;
+    const matches: number[] = [];
+    const optionIssues: VldError['issues'][] = [];
 
-    for (const option of this._options) {
-      const result = option.safeParse(value);
+    for (let i = 0; i < this._options.length; i++) {
+      const result = this._options[i]!.safeParse(value);
       if (result.success) {
-        matchCount++;
+        matches.push(i);
         lastSuccess = result;
-        if (matchCount > 1) {
-          // Early exit if more than one match
-          break;
-        }
+      } else {
+        optionIssues.push(result.error.issues);
       }
     }
 
-    if (matchCount === 0) {
+    // Zod-shaped failures: one invalid_union issue with the option issues
+    // (no match) or the matching option indices (more than one match).
+    if (matches.length === 0) {
       return {
         success: false,
-        error: ensureVldError('No schema matched in XOR union')
+        error: new VldError([{ code: 'invalid_union', path: [], message: 'No schema matched in XOR union', errors: optionIssues }])
       };
     }
 
-    if (matchCount > 1) {
+    if (matches.length > 1) {
       return {
         success: false,
-        error: ensureVldError(
-          `Input matches ${matchCount} schemas in XOR union, but exactly one is required`
-        )
+        error: new VldError([{
+          code: 'invalid_union',
+          path: [],
+          message: `Input matches ${matches.length} schemas in XOR union, but exactly one is required`,
+          errors: [],
+          inclusive: false,
+          matches
+        }])
       };
     }
 
     return lastSuccess!;
+  }
+
+  /** Async parse: exactly one option's parseAsync must succeed. */
+  override async parseAsync(value: unknown): Promise<Options[number] extends VldBase<any, infer T> ? T : never> {
+    const results = [];
+    for (const option of this._options) results.push(await option.safeParseAsync(value));
+    const matches = results.flatMap((result, index) => (result.success ? [index] : []));
+    if (matches.length === 1) return (results[matches[0]!] as { data: any }).data;
+    throw new VldError([matches.length === 0
+      ? { code: 'invalid_union', path: [], message: 'No schema matched in XOR union', errors: (results as Array<{ error: VldError }>).map(result => result.error.issues) }
+      : { code: 'invalid_union', path: [], message: `Input matches ${matches.length} schemas in XOR union, but exactly one is required`, errors: [], inclusive: false, matches }]);
   }
 
   /**

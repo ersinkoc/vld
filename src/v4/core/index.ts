@@ -88,6 +88,8 @@ export { registry as $ZodRegistry } from '../../registry';
 
 import * as root from '../../index';
 import type { VldBase } from '../../validators/base';
+import { VldBase as VldBaseClass } from '../../validators/base';
+import { VldLazy as VldLazyClass } from '../../validators/lazy';
 
 type AnySchema = VldBase<any, any>;
 type Params = string | { message?: string; error?: string };
@@ -141,7 +143,8 @@ export class Doc {}
 export const JSONSchema = {};
 export class JSONSchemaGenerator {}
 export const globalConfig = {};
-export const version = { major: 4, minor: 4, patch: 3 };
+// Tracks the Zod parity baseline (zod 4.6.5).
+export const version = { major: 4, minor: 6, patch: 5 };
 export const $constructor = (name: string, initializer?: (instance: unknown, def: unknown) => void) =>
   class {
     constructor(def?: unknown) {
@@ -185,7 +188,14 @@ export const _array = (...args: unknown[]) => root.array(schemaArg(args));
 export const _object = (...args: unknown[]) => root.object(valueArg<Record<string, AnySchema>>(args));
 export const _union = (...args: unknown[]) => root.union(...schemaArrayArg(args));
 export const _intersection = (...args: unknown[]) => root.intersection(schemaArg(args), schemaArg(args, 1));
-export const _tuple = (...args: unknown[]) => root.tuple(...schemaArrayArg(args));
+export const _tuple = (...args: unknown[]) => {
+  // Zod: _tuple(Class?, items, rest?, params?) - keep the rest element.
+  const rest = valueArg<unknown>(args, 1);
+  const items = schemaArrayArg(args);
+  return rest && typeof (rest as AnySchema).safeParse === 'function'
+    ? (root.tuple as any)(items, rest)
+    : root.tuple(...items);
+};
 // Zod signature: _record(Class?, keyType, valueType) - keep the key schema.
 export const _record = (...args: unknown[]) => root.record(schemaArg(args), schemaArg(args, 1));
 export const _map = (...args: unknown[]) => root.map(schemaArg(args), schemaArg(args, 1));
@@ -207,7 +217,12 @@ export const _nullable = (...args: unknown[]) => root.nullable(schemaArg(args));
 export const _nonoptional = (...args: unknown[]) => root.nonoptional(schemaArg(args));
 export const _readonly = (...args: unknown[]) => root.readonly(schemaArg(args));
 export const _templateLiteral = (...args: unknown[]) => root.templateLiteral(...schemaArrayArg(args));
-export const _stringbool = (...args: unknown[]) => root.stringbool(valueArg<any>(args));
+// Zod: _stringbool(Classes, params) - the first argument is a class map, not options.
+export const _stringbool = (...args: unknown[]) => {
+  const first = args[0] as Record<string, unknown> | undefined;
+  const isClassMap = args.length > 1 && !!first && typeof first === 'object' && ('Codec' in first || 'Boolean' in first || 'String' in first);
+  return root.stringbool((isClassMap ? args[1] : args[0]) as any);
+};
 export const _nan = (..._args: unknown[]) => root.nan();
 
 export const _email = root.email;
@@ -285,8 +300,17 @@ export const _slugify = root.slugify;
 export const _toLowerCase = root.toLowerCase;
 export const _toUpperCase = root.toUpperCase;
 
-export const _check = (...args: unknown[]) => root.check(valueArg<any>(args));
-export const _custom = (...args: unknown[]) => root.custom(valueArg<any>(args));
+// Zod: _check(fn) where fn receives a payload { value, issues } and reports by
+// pushing issues (it does not return a boolean).
+export const _check = (...args: unknown[]) => {
+  const fn = valueArg<(payload: { value: unknown; issues: Array<Record<string, any>> }) => unknown>(args);
+  return root.superRefine((value: unknown, ctx) => {
+    const payload = { value, issues: [] as Array<Record<string, any>> };
+    fn(payload);
+    for (const issue of payload.issues) ctx.addIssue({ ...issue, message: issue['message'] ?? 'Invalid input' });
+  });
+};
+export const _custom = (...args: unknown[]) => root.custom(valueArg<any>(args), valueArg<any>(args, 1));
 export const _refine = (...args: unknown[]) => root.refine(valueArg<any>(args), valueArg<any>(args, 1));
 export const _superRefine = (...args: unknown[]) => root.superRefine(schemaArg(args), valueArg<any>(args, 1));
 export const _transform = (...args: unknown[]) => root.transform(valueArg<any>(args));
@@ -311,30 +335,30 @@ export const extractDefs = () => ({});
 export const finalize = (schema: unknown) => schema;
 export const initializeContext = () => ({});
 export const process = (schema: unknown) => schema;
-export const toDotPath = (path: readonly (string | number)[]) => path.map(String).join('.');
+// Zod's format: indices and non-identifier keys use brackets ("users[0].name",
+// 'a["b c"]'); { key } path objects are unwrapped.
+export const toDotPath = (path: readonly unknown[]): string => {
+  const segs: string[] = [];
+  for (const raw of path) {
+    const seg = typeof raw === 'object' && raw !== null ? (raw as { key: PropertyKey }).key : raw;
+    if (typeof seg === 'number') segs.push(`[${seg}]`);
+    else if (typeof seg === 'symbol') segs.push(`[${JSON.stringify(String(seg))}]`);
+    else if (/[^\w$]/.test(String(seg))) segs.push(`[${JSON.stringify(seg)}]`);
+    else {
+      if (segs.length) segs.push('.');
+      segs.push(String(seg));
+    }
+  }
+  return segs.join('');
+};
 export const isValidBase64 = (value: string) => root.base64().safeParse(value).success;
 export const isValidBase64URL = (value: string) => root.base64url().safeParse(value).success;
-// Zod's isValidJWT: three segments, a JSON header with an `alg` (and
-// typ "JWT" if present), and - when given - exactly the expected algorithm.
-export const isValidJWT = (value: string, algorithm: string | null = null): boolean => {
-  try {
-    const parts = value.split('.');
-    if (parts.length !== 3 || !parts[0]) return false;
-    const base64 = parts[0].replace(/-/g, '+').replace(/_/g, '/');
-    const header = JSON.parse(atob(base64 + '='.repeat((4 - (base64.length % 4)) % 4)));
-    if (typeof header !== 'object' || header === null) return false;
-    if ('typ' in header && header.typ !== 'JWT') return false;
-    if (!header.alg) return false;
-    return !algorithm || header.alg === algorithm;
-  } catch {
-    return false;
-  }
-};
+export const isValidJWT = (value: string, algorithm: string | null = null): boolean => isValidJwtToken(value, algorithm);
 
 // Zod canary core additions. `standardProps` returns the Standard Schema v1
 // property bag; `handleUnrepresentable` mirrors the canary's JSON Schema
 // fallback semantics for types with no JSON representation.
-import { isValidCreditCard, isValidIBAN, base64Charset, base64urlCharset } from '../../validators/string-formats';
+import { isValidCreditCard, isValidIBAN, base64Charset, base64urlCharset, isValidJwtToken } from '../../validators/string-formats';
 
 export { isValidCreditCard, isValidIBAN, base64Charset, base64urlCharset };
 
@@ -361,13 +385,11 @@ export function canParseURL(input: string): boolean {
 export function validateURL(
   trimmed: string,
   def: { normalize?: unknown; hostname?: unknown; protocol?: unknown } = {}
-): URL | typeof URL_BAD_FORMAT | typeof URL_UNPARSEABLE {
-  try {
-    return new URL(trimmed);
-  } catch {
-    void def;
-    return URL_UNPARSEABLE;
+): URL | boolean | typeof URL_BAD_FORMAT | typeof URL_UNPARSEABLE {
+  if (!('normalize' in def) && !('hostname' in def) && !('protocol' in def)) {
+    return canParseURL(trimmed) || URL_UNPARSEABLE;
   }
+  return parseURLObject(trimmed, def);
 }
 
 // Zod 4.6 renamed the JSON Schema processing internal to `processSchema`.
@@ -449,9 +471,53 @@ export { properties as _properties } from '../../compile';
 // VLD resolves cycles lazily through its schema graph and does not need a
 // public recursive-schema guard; the shim keeps the parity contract green
 // without changing runtime behavior.
+// Zod semantics: true only when the schema graph reaches a schema from itself
+// (a lazy that merely defers a plain schema is not recursive). A lazy getter
+// that throws while the graph is still being defined counts as recursive.
+const schemaChildren = (node: object): unknown[] => {
+  if (node instanceof VldLazyClass) return [node.unwrap()];
+  const out: unknown[] = [];
+  const collect = (value: unknown, depth: number): void => {
+    if (!value || typeof value !== 'object') return;
+    if (value instanceof VldBaseClass) {
+      out.push(value);
+      return;
+    }
+    if (depth > 2) return;
+    if (Array.isArray(value)) {
+      for (const item of value) collect(item, depth + 1);
+      return;
+    }
+    const proto = Object.getPrototypeOf(value);
+    if (proto === Object.prototype || proto === null) {
+      for (const item of Object.values(value)) collect(item, depth + 1);
+    }
+  };
+  for (const value of Object.values(node)) collect(value, 0);
+  return out;
+};
 export const isRecursiveSchema = (schema: unknown): boolean => {
-  if (!schema || typeof schema !== 'object') return false;
-  return (schema as { _def?: { typeName?: string } })._def?.typeName === 'ZodLazy';
+  if (!(schema instanceof VldBaseClass)) return false;
+  const onStack = new Set<object>();
+  const done = new Set<object>();
+  const visit = (node: object): boolean => {
+    if (onStack.has(node)) return true;
+    if (done.has(node)) return false;
+    onStack.add(node);
+    let children: unknown[];
+    try {
+      children = schemaChildren(node);
+    } catch {
+      return true;
+    }
+    for (const child of children) {
+      if (visit(child as object)) return true;
+    }
+    onStack.delete(node);
+    done.add(node);
+    return false;
+  };
+  return visit(schema);
 };
 
 // Zod 4.5 exposes several URL validation helpers in core; VLD routes them
@@ -462,20 +528,64 @@ export const INVALID = Symbol.for('zod.compile.invalid');
 
 export const isValidIPv6 = (value: string): boolean => root.ipv6().safeParse(value).success;
 export const isValidCIDRv6 = (value: string): boolean => root.cidrv6().safeParse(value).success;
-export const urlHostnameOk = (host: string): boolean => /^[A-Za-z0-9.-]+$/.test(host);
-export const urlProtocolOk = (protocol: string): boolean => /^[a-z][a-z0-9+\-.]*$/i.test(protocol);
-export const parseURLObject = (url: string): URL | null => {
+// Zod: test a parsed URL's hostname / protocol (without the trailing ":")
+// against the schema's pattern.
+export const urlHostnameOk = (url: URL, hostname: RegExp): boolean => {
+  hostname.lastIndex = 0;
+  return hostname.test(url.hostname);
+};
+export const urlProtocolOk = (url: URL, protocol: RegExp): boolean => {
+  protocol.lastIndex = 0;
+  return protocol.test(url.protocol.endsWith(':') ? url.protocol.slice(0, -1) : url.protocol);
+};
+const HTTP_PROTOCOL_SOURCE = /^https?$/.source;
+/** Parse a URL; without normalize, http(s) URLs must spell out "://" (Zod). */
+export const parseURLObject = (
+  trimmed: string,
+  def: { normalize?: unknown; protocol?: unknown } = {}
+): URL | typeof URL_BAD_FORMAT | typeof URL_UNPARSEABLE => {
+  if (!def.normalize && (def.protocol as RegExp | undefined)?.source === HTTP_PROTOCOL_SOURCE && !/^https?:\/\//i.test(trimmed)) {
+    return URL_BAD_FORMAT;
+  }
   try {
-    return new URL(url);
+    return new URL(trimmed);
   } catch {
-    return null;
+    return URL_UNPARSEABLE;
   }
 };
 export const stripTabAndNewline = (value: string): string => value.replace(/[\t\n\r]/g, '');
-export const mergeValues = (a: unknown, b: unknown): unknown => {
-  if (Array.isArray(a) && Array.isArray(b)) return [...a, ...b];
-  if (a && b && typeof a === 'object' && typeof b === 'object') {
-    return { ...(a as Record<string, unknown>), ...(b as Record<string, unknown>) };
+type MergeResult = { valid: true; data: unknown } | { valid: false; mergeErrorPath: (string | number)[] };
+const isPlainRecord = (value: unknown): value is Record<string, unknown> => {
+  if (typeof value !== 'object' || value === null) return false;
+  const proto = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+};
+// Zod's intersection merge: equal values merge, plain objects merge key-wise,
+// same-length arrays merge element-wise; anything else is unmergeable and
+// reports where (mergeErrorPath).
+export const mergeValues = (a: unknown, b: unknown): MergeResult => {
+  if (a === b) return { valid: true, data: a };
+  if (a instanceof Date && b instanceof Date && +a === +b) return { valid: true, data: a };
+  if (isPlainRecord(a) && isPlainRecord(b)) {
+    const newObj: Record<string, unknown> = { ...a, ...b };
+    if (Object.prototype.hasOwnProperty.call(newObj, '__proto__')) delete newObj['__proto__'];
+    for (const key of Object.keys(a)) {
+      if (key === '__proto__' || !Object.prototype.hasOwnProperty.call(b, key)) continue;
+      const shared = mergeValues(a[key], b[key]);
+      if (!shared.valid) return { valid: false, mergeErrorPath: [key, ...shared.mergeErrorPath] };
+      newObj[key] = shared.data;
+    }
+    return { valid: true, data: newObj };
   }
-  return b;
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return { valid: false, mergeErrorPath: [] };
+    const merged: unknown[] = [];
+    for (let i = 0; i < a.length; i++) {
+      const shared = mergeValues(a[i], b[i]);
+      if (!shared.valid) return { valid: false, mergeErrorPath: [i, ...shared.mergeErrorPath] };
+      merged.push(shared.data);
+    }
+    return { valid: true, data: merged };
+  }
+  return { valid: false, mergeErrorPath: [] };
 };

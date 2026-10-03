@@ -2,7 +2,8 @@ import { VldBase, ParseResult, VldOptional, VldExactOptional, VLD_VALIDATOR_TYPE
 import { getMessages } from '../locales/runtime';
 import { VldEnum } from './enum';
 import { isDangerousKey } from '../utils/security';
-import { VldError, VldIssue } from '../errors-core';
+import { VldError, VldIssue, stringifyForMessage, createInvalidTypeIssue, getTypeName } from '../errors-core';
+import { isRecordLike } from './record';
 
 /**
  * Assign a shape field onto a parse result. A shape key named "__proto__" must
@@ -209,7 +210,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
       case 'undefinedValue':
         return getMessages().expectedUndefined;
       case 'literal':
-        return getMessages().literalExpected(JSON.stringify(expected), JSON.stringify(received));
+        return getMessages().literalExpected(stringifyForMessage(expected), stringifyForMessage(received));
       case 'passthrough':
         return getMessages().invalidObject;
       default:
@@ -314,9 +315,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
 
     if (
       type === VLD_VALIDATOR_TYPES.RECORD &&
-      typeof value === 'object' &&
-      value !== null &&
-      !Array.isArray(value)
+      isRecordLike(value)
     ) {
       const parseKnownRecord = (validator as any).parseKnownRecord;
       if (typeof parseKnownRecord === 'function') {
@@ -532,10 +531,14 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
   parse(value: unknown): T {
     // Fast type check
     if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-      throw new Error(this._config.errorMessage || getMessages().invalidObject);
+      throw new VldError([createInvalidTypeIssue('object', getTypeName(value), this._config.errorMessage || getMessages().invalidObject)]);
     }
 
-    return this.parseObjectValue(value as Record<string, unknown>);
+    try {
+      return this.parseObjectValue(value as Record<string, unknown>);
+    } catch (error) {
+      return this.rethrowWithIssues(value, error);
+    }
   }
 
   /**
@@ -543,7 +546,11 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
    * @internal Used by discriminated unions after discriminator lookup.
    */
   parseKnownObject(value: Record<string, unknown>, trustedKey?: string): T {
-    return this.parseObjectValue(value, trustedKey);
+    try {
+      return this.parseObjectValue(value, trustedKey);
+    } catch (error) {
+      return this.rethrowWithIssues(value, error);
+    }
   }
 
   /**
@@ -552,25 +559,42 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
    * @internal
    */
   parseTrustedKnownObject(value: Record<string, unknown>, trustedKey: string): T {
-    return this.parseObjectValue(value, trustedKey, true);
+    try {
+      return this.parseObjectValue(value, trustedKey, true);
+    } catch (error) {
+      return this.rethrowWithIssues(value, error);
+    }
+  }
+
+  /**
+   * The simple-field fast path fails with bare Errors (no code, no path);
+   * report what safeParse would - a VldError with each field's issue.
+   */
+  private rethrowWithIssues(value: unknown, error: unknown): never {
+    if (error instanceof VldError) throw error;
+    const result = this.safeParse(value);
+    throw result.success ? error : result.error;
   }
 
   private parseObjectValue(
     obj: Record<string, unknown>,
     trustedKey?: string,
-    skipTrustedLiteralCheck = false
+    skipTrustedLiteralCheck = false,
+    progress?: { result: any; index: number }
   ): T {
     if (this._canUseSimpleObjectFastPath) {
       return this.parseSimpleObjectValue(obj, trustedKey, skipTrustedLiteralCheck);
     }
 
     const result: any = {};
+    if (progress) progress.result = result;
 
     // Validate fields directly on parse() to avoid safeParse result allocation
     // in the successful hot path.
     let currentKey = '';
+    let i = 0;
     try {
-      for (let i = 0; i < this._shapeKeys.length; i++) {
+      for (; i < this._shapeKeys.length; i++) {
         currentKey = this._shapeKeys[i]!;
         if (
           skipTrustedLiteralCheck &&
@@ -658,6 +682,9 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
         }
       }
     } catch (error) {
+      // Fields before `i` already succeeded: safeParse resumes from here
+      // instead of running their transforms / refinements a second time.
+      if (progress) progress.index = i;
       if (error instanceof VldError) {
         throw new VldError(error.issues.map(iss => ({
           ...iss,
@@ -672,6 +699,8 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
         message: message.startsWith('Invalid field') ? message : getMessages().objectField(currentKey, message)
       }]);
     }
+
+    if (progress) progress.index = this._shapeKeys.length;
 
     // Handle strict/passthrough/catchall modes - optimized single Object.keys() call
     if (this._config.strict || this._config.passthrough || this._config.catchall) {
@@ -689,7 +718,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
         }
 
         if (extraKeys.length > 0) {
-          throw new Error(getMessages().unexpectedKeys(extraKeys));
+          throw new VldError([{ code: 'unrecognized_keys', path: [], keys: extraKeys, message: getMessages().unexpectedKeys(extraKeys) }]);
         }
       }
 
@@ -713,7 +742,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
             try {
               result[key] = this._config.catchall.parse(obj[key]);
             } catch (error) {
-              throw new Error(getMessages().objectField(key, (error as Error).message));
+              throw this.createSafeParseError(error, key);
             }
           }
         }
@@ -732,7 +761,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
     if (typeof value !== 'object' || value === null || Array.isArray(value)) {
       return {
         success: false,
-        error: this.createSafeParseError(this._config.errorMessage || getMessages().invalidObject)
+        error: new VldError([createInvalidTypeIssue('object', getTypeName(value), this._config.errorMessage || getMessages().invalidObject)])
       };
     }
 
@@ -746,19 +775,26 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
       }
     }
 
+    let result: any = {};
+    let resumeFrom = 0;
     if (this._canUseSafeParseFastPath) {
+      const progress = { result: undefined as any, index: 0 };
       try {
-        return { success: true, data: this.parseObjectValue(obj) };
+        return { success: true, data: this.parseObjectValue(obj, undefined, false, progress) };
       } catch {
-        // Fall back to full issue aggregation on validation failure
+        // Fall back to full issue aggregation on validation failure, keeping
+        // the fields that already passed (each field runs once, as in Zod).
+        if (progress.result !== undefined) {
+          result = progress.result;
+          resumeFrom = progress.index;
+        }
       }
     }
 
-    const result: any = {};
     const issues: VldIssue[] = [];
 
     // Ultra-optimized field validation - use pre-computed validatorTypes in hot path
-    for (let i = 0; i < this._shapeKeys.length; i++) {
+    for (let i = resumeFrom; i < this._shapeKeys.length; i++) {
       const key = this._shapeKeys[i]!;
       const fieldValue = obj[key];
       const simpleMode = this._simpleFieldModes[i];
@@ -851,11 +887,8 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
         }
 
         if (extraKeys.length > 0) {
-          issues.push(...extraKeys.map(k => ({
-            code: 'unrecognized_keys' as const,
-            path: [k],
-            message: getMessages().unexpectedKeys([k])
-          })));
+          // Zod: one issue at the object's path listing every extra key.
+          issues.push({ code: 'unrecognized_keys', path: [], keys: extraKeys, message: getMessages().unexpectedKeys(extraKeys) });
         }
       }
 
@@ -903,6 +936,66 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
     }
 
     return { success: true, data: result as T };
+  }
+
+  /**
+   * Async parse: every field (and catchall value) goes through its own
+   * parseAsync, so async refinements / transforms inside an object work.
+   * Issues from all fields are collected, as in safeParse.
+   */
+  override async parseAsync(value: unknown): Promise<T> {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+      return this.parse(value);
+    }
+    const obj = value as Record<string, unknown>;
+    const result: any = {};
+    const issues: VldIssue[] = [];
+    for (let i = 0; i < this._shapeKeys.length; i++) {
+      const key = this._shapeKeys[i]!;
+      const simpleMode = this._simpleFieldModes[i];
+      if ((simpleMode === 'passthrough' || simpleMode === 'undefinedValue') && !Object.prototype.hasOwnProperty.call(obj, key)) {
+        issues.push({ code: 'invalid_type', path: [key], message: getMessages().objectField(key, getMessages().requiredField(key)) });
+        continue;
+      }
+      let fieldResult: ParseResult<unknown>;
+      try {
+        fieldResult = await this.getFieldValidator(key, i).safeParseAsync(obj[key]);
+      } catch (error) {
+        issues.push(...this.createSafeParseError(error, key).issues);
+        continue;
+      }
+      if (!fieldResult.success) {
+        issues.push(...this.createSafeParseError(fieldResult.error, key).issues);
+      } else if (fieldResult.data !== undefined || key in obj) {
+        setResultField(result, key, fieldResult.data);
+      }
+    }
+
+    if (this._config.strict || this._config.passthrough || this._config.catchall) {
+      const extraKeys: string[] = [];
+      for (const key of Object.keys(obj)) {
+        if (this._shapeKeysSet.has(key)) continue;
+        if (this._config.strict) {
+          extraKeys.push(key);
+        } else if (!isDangerousKey(key)) {
+          if (this._config.catchall) {
+            const extra = await this._config.catchall.safeParseAsync(obj[key]);
+            if (extra.success) result[key] = extra.data;
+            else issues.push(...this.createSafeParseError(extra.error, key).issues);
+          } else {
+            result[key] = obj[key];
+          }
+        }
+      }
+      if (extraKeys.length > 0) {
+        issues.push({ code: 'unrecognized_keys', path: [], keys: extraKeys, message: getMessages().unexpectedKeys(extraKeys) });
+      }
+    }
+
+    if (issues.length > 0) {
+      throw new VldError(issues);
+    }
+    return result as T;
   }
 
   override encode(value: T): unknown {
@@ -1037,12 +1130,33 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
   }
 
   /**
+   * Keys a Zod-style `{ key: true }` mask selects (undefined: no mask, all
+   * keys). Like Zod, a mask key outside the shape is an error.
+   */
+  private _maskedKeys(mask: Record<string, unknown> | undefined): Set<string> | undefined {
+    if (mask === undefined) return undefined;
+    const selected = new Set<string>();
+    for (const key of Object.keys(mask)) {
+      if (!Object.prototype.hasOwnProperty.call(this._config.shape, key)) {
+        throw new Error(`Unrecognized key: "${key}"`);
+      }
+      if (mask[key]) selected.add(key);
+    }
+    return selected;
+  }
+
+  /**
    * Create a new validator with all fields optional
    */
-  partial(): VldObject<{ [K in keyof T]?: T[K] }> {
+  partial(): VldObject<{ [K in keyof T]?: T[K] }>;
+  partial<M extends { [K in keyof T]?: true }>(mask: M): VldObject<Omit<T, keyof M> & { [K in keyof M & keyof T]?: T[K] }>;
+  partial(mask?: Record<string, unknown>): VldObject<any> {
+    const selected = this._maskedKeys(mask);
     const partialShape: any = {};
     for (const key in this._config.shape) {
-      partialShape[key] = new VldOptional(this._config.shape[key]);
+      partialShape[key] = selected === undefined || selected.has(key)
+        ? new VldOptional(this._config.shape[key])
+        : this._config.shape[key];
     }
     return new VldObject({
       ...this._config,
@@ -1095,12 +1209,12 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
     const pickedShape: any = {};
     let keyList: string[] = [];
     if (args.length === 1 && typeof args[0] === 'object' && args[0] !== null && !Array.isArray(args[0])) {
-      keyList = Object.keys(args[0]).filter((k) => args[0][k]);
+      keyList = [...this._maskedKeys(args[0])!];
     } else {
       keyList = args.flat();
     }
     for (const key of keyList) {
-      if (key in this._config.shape) {
+      if (Object.prototype.hasOwnProperty.call(this._config.shape, key)) {
         pickedShape[key] = this._config.shape[key];
       }
     }
@@ -1118,7 +1232,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
   omit(...args: any[]): any {
     let keysToOmit: Set<string>;
     if (args.length === 1 && typeof args[0] === 'object' && args[0] !== null && !Array.isArray(args[0])) {
-      keysToOmit = new Set(Object.keys(args[0]).filter((k) => args[0][k]));
+      keysToOmit = this._maskedKeys(args[0])!;
     } else {
       keysToOmit = new Set(args.flat());
     }
@@ -1169,16 +1283,25 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
   /**
    * Create a new validator with all fields required (removes optional)
    */
-  required(): VldObject<{ [K in keyof T]-?: T[K] }> {
+  required(): VldObject<{ [K in keyof T]-?: T[K] }>;
+  required<M extends { [K in keyof T]?: true }>(mask: M): VldObject<Omit<T, keyof M> & { [K in keyof M & keyof T]-?: T[K] }>;
+  required(mask?: Record<string, unknown>): VldObject<any> {
+    const selected = this._maskedKeys(mask);
     const requiredShape: any = {};
     for (const key in this._config.shape) {
       const validator = this._config.shape[key];
-      // If it's optional, unwrap it
-      if (validator instanceof VldOptional || validator instanceof VldExactOptional) {
-        // BUG-001 FIX: Add defensive check for baseValidator property
-        const unwrapped = (validator as any).baseValidator;
-        if (!unwrapped || typeof unwrapped.parse !== 'function') {
-          throw new Error(`Invalid VldOptional structure for field "${key}": missing or invalid baseValidator`);
+      // If it's optional (and selected by the mask), unwrap it
+      if ((selected === undefined || selected.has(key)) && (validator instanceof VldOptional || validator instanceof VldExactOptional)) {
+        // Peel every optional layer: `.partial()` over an already optional
+        // field nests them, and Zod's required() makes the key required.
+        let unwrapped: any = validator;
+        while (unwrapped instanceof VldOptional || unwrapped instanceof VldExactOptional) {
+          // BUG-001 FIX: Add defensive check for baseValidator property
+          const inner = (unwrapped as any).baseValidator;
+          if (!inner || typeof inner.parse !== 'function') {
+            throw new Error(`Invalid VldOptional structure for field "${key}": missing or invalid baseValidator`);
+          }
+          unwrapped = inner;
         }
         requiredShape[key] = unwrapped;
       } else {

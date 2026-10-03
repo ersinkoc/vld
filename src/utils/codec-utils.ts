@@ -176,16 +176,17 @@ function validateBase64Input(encoded: string): void {
   }
 
   // Additional security check: prevent potential encoded JavaScript
-  // by looking for suspicious patterns that might indicate malicious content
+  // by looking for suspicious patterns that might indicate malicious content.
+  // Patterns match code shapes, not bare words: plain data such as
+  // {"type":"function"} or "medieval" must still round-trip.
   const suspiciousPatterns = [
-    /eval/i,
-    /function/i,
+    /\beval\s*\(/i,
+    /\bfunction\b[\w$\s]*\([^)]*\)\s*\{/i,
     /javascript:/i,
     /<script/i,
-    /on\w+\s*=/i,
+    /<[^>]*\son\w+\s*=/i,
     /__proto__/i,
-    /constructor/i,
-    /prototype/i
+    /\bconstructor\s*(?:\.|\[)\s*["']?prototype/i
   ];
 
   // Decode a small portion to check for suspicious content

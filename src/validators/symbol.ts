@@ -1,9 +1,9 @@
 import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
 import { getMessages } from '../locales/runtime';
-import { VldError } from '../errors-core';
+import { VldError, createInvalidTypeIssue, getTypeName } from '../errors-core';
 
-function createSymbolError(message: string): VldError {
-  return new VldError([{ code: 'invalid_type', path: [], message }]);
+function createSymbolError(message: string, value: unknown): VldError {
+  return new VldError([createInvalidTypeIssue('symbol', getTypeName(value), message)]);
 }
 
 /**
@@ -58,7 +58,7 @@ export class VldSymbol extends VldBase<symbol, symbol> {
     }
     return { 
       success: false, 
-      error: createSymbolError(this.errorMessage || getMessages().invalidSymbol)
+      error: createSymbolError(this.errorMessage || getMessages().invalidSymbol, value)
     };
   }
 }

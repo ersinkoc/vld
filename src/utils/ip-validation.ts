@@ -61,11 +61,19 @@ function isHexGroup(group: string): boolean {
 }
 
 /**
+ * IPv6 address as Zod's ipv6 format accepts it: `isValidIPv6` without the
+ * RFC 4007 zone id (`fe80::1%eth0`), which is not part of an address literal.
+ */
+export function isValidIPv6Address(ip: string): boolean {
+  return !ip.includes('%') && isValidIPv6(ip);
+}
+
+/**
  * IPv6 CIDR block: a valid IPv6 address, "/", and a canonical prefix length
  * 0-128 (no sign, exponent, hex, whitespace or leading zeros).
  */
 export function isValidCidrV6(value: string): boolean {
   const separator = value.lastIndexOf('/');
   if (separator <= 0) return false;
-  return /^(?:12[0-8]|1[01]\d|[1-9]?\d)$/.test(value.slice(separator + 1)) && isValidIPv6(value.slice(0, separator));
+  return /^(?:12[0-8]|1[01]\d|[1-9]?\d)$/.test(value.slice(separator + 1)) && isValidIPv6Address(value.slice(0, separator));
 }

@@ -123,7 +123,7 @@ export class VldBigIntV2 extends VldBase<bigint, bigint> {
 
   safeParse(value: unknown): ParseResult<bigint> {
     try { return { success: true, data: this.parse(value) }; }
-    catch (e) { return { success: false, error: e instanceof VldError ? e : new VldError([{ code: 'custom', path: [], message: String(e) }]) }; }
+    catch (e) { return { success: false, error: e instanceof VldError ? e : new VldError([{ code: 'custom', path: [], message: e instanceof Error ? e.message : String(e) }]) }; }
   }
 
   protected withDef(def: Partial<VldBigIntDef> & { type: 'bigint' }): VldBigIntV2 {

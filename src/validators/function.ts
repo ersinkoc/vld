@@ -1,11 +1,11 @@
 import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
 import { getMessages } from '../locales/runtime';
-import { VldError } from '../errors-core';
+import { VldError, createInvalidTypeIssue, getTypeName } from '../errors-core';
 
 type AnyFunction = (...args: any[]) => any;
 
-function createFunctionError(message: string): VldError {
-  return new VldError([{ code: 'invalid_type', path: [], message }]);
+function createFunctionError(message: string, value: unknown): VldError {
+  return new VldError([createInvalidTypeIssue('function', getTypeName(value), message)]);
 }
 
 /**
@@ -52,7 +52,7 @@ export class VldFunction extends VldBase<unknown, AnyFunction> {
     try {
       return { success: true, data: this.parse(value) };
     } catch (error) {
-      return { success: false, error: createFunctionError((error as Error).message) };
+      return { success: false, error: createFunctionError((error as Error).message, value) };
     }
   }
 }

@@ -1,6 +1,6 @@
 import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
 import { getMessages } from '../locales/runtime';
-import { VldError, type VldIssue } from '../errors-core';
+import { VldError, type VldIssue, stringifyForMessage, nestIssues, createInvalidTypeIssue, getTypeName } from '../errors-core';
 
 type SimpleSetItemMode =
   | 'string'
@@ -116,7 +116,7 @@ export class VldSet<T> extends VldBase<unknown, Set<T>> {
       case 'undefinedValue':
         return getMessages().expectedUndefined;
       case 'literal':
-        return getMessages().literalExpected(JSON.stringify(this._simpleItemValue), JSON.stringify(received));
+        return getMessages().literalExpected(stringifyForMessage(this._simpleItemValue), stringifyForMessage(received));
       default:
         return getMessages().invalidSet;
     }
@@ -127,7 +127,7 @@ export class VldSet<T> extends VldBase<unknown, Set<T>> {
    */
   parse(value: unknown): Set<T> {
     if (!(value instanceof Set)) {
-      throw new Error(this.errorMessage || getMessages().invalidSet);
+      throw new VldError([createInvalidTypeIssue('set', getTypeName(value), this.errorMessage || getMessages().invalidSet)]);
     }
 
     return this.parseKnownSet(value);
@@ -220,6 +220,29 @@ export class VldSet<T> extends VldBase<unknown, Set<T>> {
     return result;
   }
   
+  /** Async parse: each item goes through the item schema's parseAsync. */
+  override async parseAsync(value: unknown): Promise<Set<T>> {
+    if (!(value instanceof Set)) {
+      return this.parse(value);
+    }
+    const result = new Set<T>();
+    const issues: VldIssue[] = [];
+    let index = 0;
+    for (const item of value) {
+      const parsed = await this.itemValidator.safeParseAsync(item);
+      if (parsed.success) result.add(parsed.data);
+      else issues.push(...nestIssues(parsed.error, index, message => message));
+      index++;
+    }
+    if (issues.length > 0) throw new VldError(issues);
+    for (const check of this._checks) {
+      if (!check.fn(result)) {
+        throw check.kind ? new VldError([sizeIssue('set', check, result.size)]) : new Error(check.message);
+      }
+    }
+    return result;
+  }
+
   /**
    * Safely parse and validate a Set value
    */

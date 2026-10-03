@@ -1,6 +1,6 @@
 import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
 import { getMessages } from '../locales/runtime';
-import { VldError } from '../errors-core';
+import { VldError, createInvalidTypeIssue, getTypeName } from '../errors-core';
 
 /**
  * Validator that only accepts undefined
@@ -40,7 +40,7 @@ export class VldVoid extends VldBase<void, void> {
     }
     return { 
       success: false, 
-      error: new VldError([{ code: 'invalid_type', path: [], message: getMessages().expectedUndefined }])
+      error: new VldError([createInvalidTypeIssue('void', getTypeName(value), getMessages().expectedUndefined)])
     };
   }
 }

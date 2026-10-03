@@ -29,6 +29,48 @@ function mergeIntersection(a: unknown, b: unknown): unknown {
   return b;
 }
 
+/**
+ * Combine the outputs of both intersection sides (shared with VldIntersectionV2).
+ * @internal
+ */
+export function intersectResults(resultA: unknown, resultB: unknown): unknown {
+  // BUG-NEW-015 FIX: Check type consistency before merging
+  const aIsObject = isPlainObject(resultA);
+  const bIsObject = isPlainObject(resultB);
+
+  // Both are objects - safe to merge
+  if (aIsObject && bIsObject) {
+    return mergeIntersection(resultA, resultB);
+  }
+
+  // Both are arrays: each side returns its own copy, so compare by content.
+  if (Array.isArray(resultA) && Array.isArray(resultB)) {
+    if (resultA.length !== resultB.length) {
+      throw new Error('Arrays must have the same length for intersection');
+    }
+    return mergeIntersection(resultA, resultB);
+  }
+
+  // Both are Dates: equal instants are the same value.
+  if (resultA instanceof Date && resultB instanceof Date && resultA.getTime() === resultB.getTime()) {
+    return resultA;
+  }
+
+  // Neither are objects - must be identical primitives
+  if (!aIsObject && !bIsObject) {
+    if ((resultA as any) === (resultB as any)) {
+      return resultA;
+    }
+    throw new Error('Values must be identical for intersection of primitive types');
+  }
+
+  // One is object, one is primitive - invalid intersection
+  throw new Error(
+    'Cannot create intersection of object and primitive types. ' +
+    'Both validators must produce the same type category.'
+  );
+}
+
 function createIntersectionError(message: string): VldError {
   return new VldError([{ code: 'invalid_type', path: [], message }]);
 }
@@ -66,46 +108,23 @@ export class VldIntersection<A, B> extends VldBase<unknown, A & B> {
       const resultA = this.validatorA.parse(value);
       const resultB = this.validatorB.parse(value);
 
-      // BUG-NEW-015 FIX: Check type consistency before merging
-      const aIsObject = isPlainObject(resultA);
-      const bIsObject = isPlainObject(resultB);
-
-      // Both are objects - safe to merge
-      if (aIsObject && bIsObject) {
-        return mergeIntersection(resultA, resultB) as A & B;
-      }
-
-      // Both are arrays: each side returns its own copy, so compare by content.
-      if (Array.isArray(resultA) && Array.isArray(resultB)) {
-        if (resultA.length !== resultB.length) {
-          throw new Error('Arrays must have the same length for intersection');
-        }
-        return mergeIntersection(resultA, resultB) as A & B;
-      }
-
-      // Both are Dates: equal instants are the same value.
-      if (resultA instanceof Date && resultB instanceof Date && resultA.getTime() === resultB.getTime()) {
-        return resultA as A & B;
-      }
-
-      // Neither are objects - must be identical primitives
-      if (!aIsObject && !bIsObject) {
-        if ((resultA as any) === (resultB as any)) {
-          return resultA as A & B;
-        }
-        throw new Error('Values must be identical for intersection of primitive types');
-      }
-
-      // One is object, one is primitive - invalid intersection
-      throw new Error(
-        'Cannot create intersection of object and primitive types. ' +
-        'Both validators must produce the same type category.'
-      );
+      return intersectResults(resultA, resultB) as A & B;
     } catch (error) {
       throw new Error(getMessages().intersectionError((error as Error).message));
     }
   }
   
+  /** Async parse: both sides run their parseAsync, then the outputs are combined. */
+  override async parseAsync(value: unknown): Promise<A & B> {
+    try {
+      const resultA = await this.validatorA.parseAsync(value);
+      const resultB = await this.validatorB.parseAsync(value);
+      return intersectResults(resultA, resultB) as A & B;
+    } catch (error) {
+      throw new Error(getMessages().intersectionError((error as Error).message));
+    }
+  }
+
   /**
    * Safely parse and validate a value against both validators
    */

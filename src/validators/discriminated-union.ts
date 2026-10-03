@@ -4,14 +4,36 @@
  * Provides O(1) lookup performance by using a discriminator key
  */
 
-import { VldBase, VLD_VALIDATOR_TYPES, ensureVldError } from './base';
+import {
+  VldBase, VLD_VALIDATOR_TYPES, ensureVldError,
+  VldMeta, VldReadonly, VldBrand, VldRefine, VldSuperRefine,
+  VldOptional, VldExactOptional, VldNullable, VldNullish
+} from './base';
 import { VldObject } from './object';
 import { VldLiteral } from './literal';
 import { VldEnum } from './enum';
+import { VldUnion } from './union';
+import { VldError, createInvalidTypeIssue, getTypeName, stringifyForMessage } from '../errors-core';
 import type { ParseResult } from './base';
 
+/** Inner schema of a wrapper that does not change which values are accepted. */
+function innerOfWrapper(schema: VldBase<unknown, any>): VldBase<unknown, any> | undefined {
+  if (
+    schema instanceof VldMeta || schema instanceof VldReadonly || schema instanceof VldBrand ||
+    schema instanceof VldRefine || schema instanceof VldOptional || schema instanceof VldExactOptional ||
+    schema instanceof VldNullable || schema instanceof VldNullish
+  ) {
+    return (schema as any).baseValidator;
+  }
+  if (schema instanceof VldSuperRefine) {
+    return (schema as any)._inner;
+  }
+  return undefined;
+}
+
 /**
- * Extract literal values from a schema
+ * Extract literal values from a discriminator schema: literals, enums, unions
+ * of those, and their optional / nullable / described / branded wrappers.
  */
 function extractLiteralValues(schema: VldBase<unknown, any>): unknown[] {
   if (schema instanceof VldLiteral) {
@@ -20,7 +42,36 @@ function extractLiteralValues(schema: VldBase<unknown, any>): unknown[] {
   if (schema instanceof VldEnum) {
     return [...schema.values];
   }
+  if (schema instanceof VldUnion) {
+    return schema.options.flatMap((option: VldBase<unknown, any>) => extractLiteralValues(option));
+  }
+  const inner = innerOfWrapper(schema);
+  if (inner) {
+    const values = extractLiteralValues(inner);
+    if (schema instanceof VldNullable || schema instanceof VldNullish) values.push(null);
+    if (schema instanceof VldOptional || schema instanceof VldExactOptional || schema instanceof VldNullish) values.push(undefined);
+    return values;
+  }
   throw new Error('Discriminator must be a literal or enum schema');
+}
+
+/**
+ * Discriminator values an option accepts: plain objects, nested discriminated
+ * unions and wrapped (refined / described / branded) objects.
+ */
+function optionDiscriminatorValues(option: VldBase<unknown, any>, discriminator: string): unknown[] | undefined {
+  if (option instanceof VldObject) {
+    const discriminatorSchema = (option as any).config?.shape?.[discriminator];
+    if (!discriminatorSchema) {
+      throw new Error(`Missing discriminator key "${discriminator}" in one of the options`);
+    }
+    return extractLiteralValues(discriminatorSchema);
+  }
+  if (option instanceof VldDiscriminatedUnion) {
+    return option.options.flatMap((nested: VldBase<unknown, any>) => optionDiscriminatorValues(nested, discriminator)!);
+  }
+  const inner = innerOfWrapper(option);
+  return inner ? optionDiscriminatorValues(inner, discriminator) : undefined;
 }
 
 /**
@@ -30,8 +81,8 @@ function extractLiteralValues(schema: VldBase<unknown, any>): unknown[] {
 export class VldDiscriminatedUnion<K extends string, Options extends readonly VldBase<any, any>[]>
   extends VldBase<unknown, Options[number] extends VldBase<any, infer T> ? T : never> {
 
-  private readonly _discriminatorMap: Map<unknown, VldObject<any>>;
-  private readonly _stringDiscriminatorMap: Record<string, VldObject<any>>;
+  private readonly _discriminatorMap: Map<unknown, VldBase<unknown, any>>;
+  private readonly _stringDiscriminatorMap: Record<string, VldBase<unknown, any>>;
   private readonly _validValues: unknown[];
 
   constructor(
@@ -42,19 +93,13 @@ export class VldDiscriminatedUnion<K extends string, Options extends readonly Vl
 
     // Build discriminator map for O(1) lookup
     this._discriminatorMap = new Map();
-    this._stringDiscriminatorMap = Object.create(null) as Record<string, VldObject<any>>;
+    this._stringDiscriminatorMap = Object.create(null) as Record<string, VldBase<unknown, any>>;
 
     for (const option of _options) {
-      if (!(option instanceof VldObject)) {
+      const values = optionDiscriminatorValues(option, this._discriminator);
+      if (!values) {
         throw new Error('All options in a discriminated union must be objects');
       }
-
-      const discriminatorSchema = (option as any).config?.shape?.[this._discriminator];
-      if (!discriminatorSchema) {
-        throw new Error(`Missing discriminator key "${this._discriminator}" in one of the options`);
-      }
-
-      const values = extractLiteralValues(discriminatorSchema);
 
       for (const value of values) {
         if (this._discriminatorMap.has(value)) {
@@ -86,8 +131,8 @@ export class VldDiscriminatedUnion<K extends string, Options extends readonly Vl
   }
 
   parse(value: unknown): Options[number] extends VldBase<any, infer T> ? T : never {
-    if (typeof value !== 'object' || value === null) {
-      throw new Error(`Expected object, received ${value === null ? 'null' : typeof value}`);
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+      throw this.notObjectError(value);
     }
 
     const discriminatorValue = (value as Record<string, unknown>)[this._discriminator];
@@ -96,28 +141,45 @@ export class VldDiscriminatedUnion<K extends string, Options extends readonly Vl
       : this._discriminatorMap.get(discriminatorValue);
 
     if (!matchedSchema) {
-      throw new Error(
-        `Invalid discriminator value for "${this._discriminator}". ` +
-        `Expected one of: ${JSON.stringify(this._validValues)}, ` +
-        `received: ${JSON.stringify(discriminatorValue)}`
-      );
+      throw this.noMatchError(discriminatorValue);
     }
 
-    return matchedSchema.parseTrustedKnownObject(
-      value as Record<string, unknown>,
-      this._discriminator
-    ) as Options[number] extends VldBase<any, infer T> ? T : never;
+    return this.parseOption(matchedSchema, value as Record<string, unknown>) as Options[number] extends VldBase<any, infer T> ? T : never;
+  }
+
+  private parseOption(option: VldBase<unknown, any>, value: Record<string, unknown>): unknown {
+    return option instanceof VldObject
+      ? option.parseTrustedKnownObject(value, this._discriminator)
+      : option.parse(value);
+  }
+
+  private notObjectError(value: unknown): VldError {
+    return new VldError([createInvalidTypeIssue(
+      'object',
+      getTypeName(value),
+      `Expected object, received ${value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value}`
+    )]);
+  }
+
+  /** Zod-shaped: invalid_union at the discriminator path. */
+  private noMatchError(discriminatorValue: unknown): VldError {
+    return new VldError([{
+      code: 'invalid_union',
+      path: [this._discriminator],
+      message:
+        `Invalid discriminator value for "${this._discriminator}". ` +
+        `Expected one of: ${stringifyForMessage(this._validValues)}, ` +
+        `received: ${stringifyForMessage(discriminatorValue)}`,
+      errors: [],
+      note: 'No matching discriminator',
+      discriminator: this._discriminator
+    }]);
   }
 
   safeParse(value: unknown): ParseResult<Options[number] extends VldBase<any, infer T> ? T : never> {
     // Check if input is an object
-    if (typeof value !== 'object' || value === null) {
-      return {
-        success: false,
-        error: ensureVldError(
-          `Expected object, received ${value === null ? 'null' : typeof value}`
-        )
-      };
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+      return { success: false, error: this.notObjectError(value) };
     }
 
     // Get discriminator value
@@ -129,30 +191,38 @@ export class VldDiscriminatedUnion<K extends string, Options extends readonly Vl
       : this._discriminatorMap.get(discriminatorValue);
 
     if (!matchedSchema) {
-      return {
-        success: false,
-        error: ensureVldError(
-          `Invalid discriminator value for "${this._discriminator}". ` +
-          `Expected one of: ${JSON.stringify(this._validValues)}, ` +
-          `received: ${JSON.stringify(discriminatorValue)}`
-        )
-      };
+      return { success: false, error: this.noMatchError(discriminatorValue) };
     }
 
     try {
       return {
         success: true,
-        data: matchedSchema.parseTrustedKnownObject(
-          value as Record<string, unknown>,
-          this._discriminator
-        ) as Options[number] extends VldBase<any, infer T> ? T : never
+        data: this.parseOption(matchedSchema, value as Record<string, unknown>) as Options[number] extends VldBase<any, infer T> ? T : never
       };
     } catch (error) {
+      // Failure path only: re-run the option's own safeParse so issues keep
+      // their codes and field paths instead of one flattened message.
+      const detailed = matchedSchema.safeParse(value);
       return {
         success: false,
-        error: ensureVldError(error)
+        error: detailed.success ? ensureVldError(error) : ensureVldError(detailed.error)
       };
     }
+  }
+
+  /** Async parse: the matched option runs its parseAsync. */
+  override async parseAsync(value: unknown): Promise<Options[number] extends VldBase<any, infer T> ? T : never> {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+      throw this.notObjectError(value);
+    }
+    const discriminatorValue = (value as Record<string, unknown>)[this._discriminator];
+    const matchedSchema = typeof discriminatorValue === 'string'
+      ? this._stringDiscriminatorMap[discriminatorValue]
+      : this._discriminatorMap.get(discriminatorValue);
+    if (!matchedSchema) {
+      throw this.noMatchError(discriminatorValue);
+    }
+    return matchedSchema.parseAsync(value) as any;
   }
 
   /**

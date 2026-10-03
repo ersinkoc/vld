@@ -5,10 +5,10 @@
 
 import { VldBase, VLD_VALIDATOR_TYPES } from './base';
 import type { ParseResult } from './base';
-import { VldError } from '../errors-core';
+import { VldError, createInvalidTypeIssue, getTypeName } from '../errors-core';
 
-function createNanError(message: string): VldError {
-  return new VldError([{ code: 'invalid_number', path: [], message }]);
+function createNanError(message: string, value: unknown): VldError {
+  return new VldError([createInvalidTypeIssue('nan', getTypeName(value), message)]);
 }
 
 /**
@@ -35,7 +35,7 @@ export class VldNan extends VldBase<unknown, number> {
     try {
       return { success: true, data: this.parse(value) };
     } catch (error) {
-      return { success: false, error: createNanError((error as Error).message) };
+      return { success: false, error: createNanError((error as Error).message, value) };
     }
   }
 }

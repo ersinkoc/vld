@@ -1,10 +1,19 @@
-import { VldBase, ParseResult, VLD_VALIDATOR_TYPES, ensureVldError } from './base';
+import { VldBase, ParseResult, VLD_VALIDATOR_TYPES, ensureVldError, VldOptional, VldNullable, VldNullish } from './base';
 import { getMessages } from '../locales/runtime';
+import { VldError, createInvalidTypeIssue, getTypeName } from '../errors-core';
+import { VldString } from './string';
+import { VldLiteral } from './literal';
+import { VldEnum } from './enum';
+import { VldUnion } from './union';
+
+function escapeForPattern(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
 /**
  * Template literal component types
  */
-type TLComponent = VldBase<any, any> | string;
+type TLComponent = VldBase<any, any> | string | number | boolean | null | undefined | readonly TLComponent[];
 
 /**
  * Immutable template literal validator
@@ -21,16 +30,19 @@ export class VldTemplateLiteral extends VldBase<unknown, string> {
    * Create a template literal validator from components
    */
   static create(...components: TLComponent[]): VldTemplateLiteral {
-    // Build regex pattern from components
+    // Zod's form passes the parts as one array: templateLiteral(['id-', z.number()]).
+    const parts: unknown[] = components.length === 1 && Array.isArray(components[0]) ? components[0] : components;
+
+    // Build regex pattern from components (no `s` flag needed: string parts use [\s\S])
     let pattern = '^';
 
-    for (const comp of components) {
-      if (typeof comp === 'string') {
-        // Escape special regex characters
-        pattern += comp.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    for (const comp of parts as TLComponent[]) {
+      if (typeof comp !== 'object' || comp === null) {
+        // Literal part (string, number, boolean, null, undefined): escape regex characters
+        pattern += String(comp).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       } else {
         // Add appropriate pattern based on validator type
-        pattern += getPatternForValidator(comp);
+        pattern += getPatternForValidator(comp as VldBase<any, any>);
       }
     }
 
@@ -44,11 +56,11 @@ export class VldTemplateLiteral extends VldBase<unknown, string> {
    */
   parse(value: unknown): string {
     if (typeof value !== 'string') {
-      throw new Error(getMessages().invalidString);
+      throw new VldError([createInvalidTypeIssue('string', getTypeName(value), getMessages().invalidString)]);
     }
 
     if (!this.pattern.test(value)) {
-      throw new Error(getMessages().stringPatternInvalid);
+      throw new VldError([{ code: 'invalid_format', path: [], format: 'template_literal', pattern: this.pattern.source, message: getMessages().stringPatternInvalid }]);
     }
 
     return value;
@@ -74,12 +86,30 @@ export class VldTemplateLiteral extends VldBase<unknown, string> {
  */
 function getPatternForValidator(validator: VldBase<any, any>): string {
   // For template literals, we need to identify the validator type
-  // and return an appropriate capture group pattern
+  // and return an appropriate capture group pattern.
+  // Value sets (literal / enum / union) and string length bounds are encoded
+  // as Zod does; otherwise "purple-car" would match `${'red' | 'blue'}-car`.
+  if ((validator instanceof VldLiteral && !validator.values.includes(undefined as never)) || validator instanceof VldEnum) {
+    return '(' + [...validator.values].map(v => escapeForPattern(String(v))).join('|') + ')';
+  }
+  if (validator instanceof VldUnion) {
+    return '(' + validator.options.map((option: VldBase<any, any>) => getPatternForValidator(option)).join('|') + ')';
+  }
+  if (validator instanceof VldOptional) {
+    return '(' + getPatternForValidator((validator as any).baseValidator) + ')?';
+  }
+  if (validator instanceof VldNullable || validator instanceof VldNullish) {
+    return '(' + getPatternForValidator((validator as any).baseValidator) + '|null)' + (validator instanceof VldNullish ? '?' : '');
+  }
+  if (validator instanceof VldString) {
+    // Non-empty unless min(0) is explicit; [\s\S] also matches newlines.
+    return '([\\s\\S]{' + (validator.minLength ?? 1) + ',' + (validator.maxLength ?? '') + '})';
+  }
 
   switch (validator.validatorType) {
     case VLD_VALIDATOR_TYPES.STRING:
     case VLD_VALIDATOR_TYPES.STRING_FORMAT:
-      return '(.+)';
+      return '([\\s\\S]+)';
     case VLD_VALIDATOR_TYPES.NUMBER:
     case VLD_VALIDATOR_TYPES.COERCE_NUMBER:
       return '(-?\\d+(?:\\.\\d+)?)';
@@ -94,18 +124,10 @@ function getPatternForValidator(validator: VldBase<any, any>): string {
     case VLD_VALIDATOR_TYPES.UNDEFINED:
     case VLD_VALIDATOR_TYPES.VOID:
       return '(undefined)';
-    case VLD_VALIDATOR_TYPES.LITERAL: {
-      const literalValidator = validator as { literal?: unknown };
-      if (literalValidator.literal !== undefined) {
-        const valueStr = String(literalValidator.literal);
-        return '(' + valueStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')';
-      }
-      break;
-    }
   }
 
-  // Default: match any string
-  return '(.+)';
+  // Default: match any non-empty string
+  return '([\\s\\S]+)';
 }
 
 /**

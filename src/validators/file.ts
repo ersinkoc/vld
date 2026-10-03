@@ -11,7 +11,7 @@ type FileCheck =
   | { type: 'mime'; value: string[]; message: string | undefined };
 
 function createFileError(message: string): VldError {
-  return new VldError([{ code: 'invalid_type', path: [], message }]);
+  return new VldError([{ code: 'invalid_type', path: [], expected: 'file', message }]);
 }
 
 /**
@@ -87,28 +87,19 @@ export class VldFile extends VldBase<unknown, VldFileValue> {
       switch (check.type) {
         case 'min':
           if (file.size < check.value) {
-            throw new Error(
-              check.message ||
-              (msgs.fileMinSize?.(check.value) || `File size must be at least ${check.value} bytes`)
-            );
+            throw new VldError([{ code: 'too_small', path: [], origin: 'file', minimum: check.value, inclusive: true, message: check.message || (msgs.fileMinSize?.(check.value) || `File size must be at least ${check.value} bytes`) }]);
           }
           break;
 
         case 'max':
           if (file.size > check.value) {
-            throw new Error(
-              check.message ||
-              (msgs.fileMaxSize?.(check.value) || `File size must not exceed ${check.value} bytes`)
-            );
+            throw new VldError([{ code: 'too_big', path: [], origin: 'file', maximum: check.value, inclusive: true, message: check.message || (msgs.fileMaxSize?.(check.value) || `File size must not exceed ${check.value} bytes`) }]);
           }
           break;
 
         case 'mime':
           if (!check.value.includes(file.type)) {
-            throw new Error(
-              check.message ||
-              (msgs.fileMimeType?.(check.value) || `Invalid file type. Expected: ${check.value.join(', ')}`)
-            );
+            throw new VldError([{ code: 'invalid_value', path: [], values: [...check.value], message: check.message || (msgs.fileMimeType?.(check.value) || `Invalid file type. Expected: ${check.value.join(', ')}`) }]);
           }
           break;
       }
@@ -124,7 +115,7 @@ export class VldFile extends VldBase<unknown, VldFileValue> {
     try {
       return { success: true, data: this.parse(value) };
     } catch (error) {
-      return { success: false, error: createFileError((error as Error).message) };
+      return { success: false, error: error instanceof VldError ? error : createFileError((error as Error).message) };
     }
   }
 

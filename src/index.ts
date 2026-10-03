@@ -18,7 +18,7 @@
 import { VldBase, configureSchemaCompositionFactories, resolveErrorMessage, type ErrorParam, type ParseResult, type SchemaMetadata, type SuperRefineContext } from './validators/base';
 import type { Infer, Input, Output } from './validators';
 import { globalRegistry, registry } from './registry';
-import { VldError, type VldIssue } from './errors-core';
+import { VldError, expandNestedIssues, type VldIssue } from './errors-core';
 
 // Import validators
 import { VldString } from './validators/string';
@@ -117,6 +117,12 @@ import {
 
 // Import string format validators
 import * as stringFormats from './validators/string-formats';
+
+// Zod format factories take one params argument: a message string, or the
+// format options merged with `message` / `error`.
+type FormatParams<T extends object = object> = string | (T & { message?: string; error?: ErrorParam });
+const formatOptions = <T extends object>(params: FormatParams<T> | undefined): T | undefined =>
+  typeof params === 'object' && params !== null ? params : undefined;
 
 type NativeEnumLike = Record<string, string | number>;
 type Constructor<T = unknown> = abstract new (...args: any[]) => T;
@@ -964,7 +970,7 @@ export const v = {
   nullishV2: <T>(validator: VldBase<unknown, T>) => VldNullishV2.create(validator),
   exactOptional: <T>(validator: VldBase<unknown, T>) => VldExactOptional.create(validator),
   nonoptional: <T>(validator: VldBase<unknown, T | undefined>, message?: RefinementMessage) =>
-    validator.refine((value): value is Exclude<T, undefined> => value !== undefined, messageFromRefinementParam(message)),
+    validator.nonoptional(messageFromRefinementParam(message)) as unknown as VldBase<unknown, Exclude<T, undefined>>,
   catch: <T>(validator: VldBase<unknown, T>, fallbackValue: T) => validator.catch(fallbackValue),
   prefault: <TInput, TOutput>(validator: VldBase<TInput, TOutput>, defaultValue: TInput | (() => TInput)) =>
     validator.prefault(defaultValue),
@@ -1061,8 +1067,8 @@ export const v = {
 
   // Preprocessing
   preprocess: <TInput, TOutput>(
-    preprocessor: (input: unknown) => unknown,
-    schema: VldBase<TInput, TOutput>
+    preprocessor: (input: unknown, ctx: SuperRefineContext) => unknown,
+schema: VldBase<TInput, TOutput>
   ) => VldPreprocess.create(preprocessor, schema),
 
   // Coercion API (legacy default, V2 opt-in)
@@ -1079,31 +1085,31 @@ export const v = {
   },
 
   // String format validators (Zod 4 parity)
-  email: (options?: { pattern?: RegExp }) => stringFormats.email(options),
-  url: (options?: stringFormats.URLFormatOptions) => stringFormats.url(options),
-  uuid: (options?: { version?: stringFormats.UUIDVersion }) => stringFormats.uuid(options),
-  uuidv4: () => stringFormats.uuidv4(),
-  uuidv6: () => stringFormats.uuidv6(),
-  uuidv7: () => stringFormats.uuidv7(),
-  hostname: () => stringFormats.hostname(),
-  emoji: () => stringFormats.emoji(),
-  base64: () => stringFormats.base64(),
-  base64url: () => stringFormats.base64url(),
-  hex: () => stringFormats.hex(),
-  jwt: () => stringFormats.jwt(),
-  nanoid: () => stringFormats.nanoid(),
-  cuid: () => stringFormats.cuid(),
-  cuid2: () => stringFormats.cuid2(),
-  ulid: () => stringFormats.ulid(),
-  ipv4: () => stringFormats.ipv4(),
-  ipv6: () => stringFormats.ipv6(),
-  mac: () => stringFormats.mac(),
-  cidrv4: () => stringFormats.cidrv4(),
-  cidrv6: () => stringFormats.cidrv6(),
-  creditCard: (params?: { message?: string }) => stringFormats.creditCard(params),
-  iban: (params?: { message?: string }) => stringFormats.iban(params),
-  currencyCode: (params?: { message?: string }) => stringFormats.currencyCode(params),
-  e164: () => stringFormats.e164(),
+  email: (options?: FormatParams<{ pattern?: RegExp }>) => stringFormats.email(formatOptions(options))._withMessage(options),
+  url: (options?: FormatParams<stringFormats.URLFormatOptions>) => stringFormats.url(formatOptions(options))._withMessage(options),
+  uuid: (options?: FormatParams<{ version?: stringFormats.UUIDVersion }>) => stringFormats.uuid(formatOptions(options))._withMessage(options),
+  uuidv4: (params?: FormatParams) => stringFormats.uuidv4()._withMessage(params),
+  uuidv6: (params?: FormatParams) => stringFormats.uuidv6()._withMessage(params),
+  uuidv7: (params?: FormatParams) => stringFormats.uuidv7()._withMessage(params),
+  hostname: (params?: FormatParams) => stringFormats.hostname()._withMessage(params),
+  emoji: (params?: FormatParams) => stringFormats.emoji()._withMessage(params),
+  base64: (params?: FormatParams) => stringFormats.base64()._withMessage(params),
+  base64url: (params?: FormatParams) => stringFormats.base64url()._withMessage(params),
+  hex: (params?: FormatParams) => stringFormats.hex()._withMessage(params),
+  jwt: (options?: FormatParams<{ alg?: string }>) => stringFormats.jwt(formatOptions(options))._withMessage(options),
+  nanoid: (params?: FormatParams) => stringFormats.nanoid()._withMessage(params),
+  cuid: (params?: FormatParams) => stringFormats.cuid()._withMessage(params),
+  cuid2: (params?: FormatParams) => stringFormats.cuid2()._withMessage(params),
+  ulid: (params?: FormatParams) => stringFormats.ulid()._withMessage(params),
+  ipv4: (params?: FormatParams) => stringFormats.ipv4()._withMessage(params),
+  ipv6: (params?: FormatParams) => stringFormats.ipv6()._withMessage(params),
+  mac: (options?: FormatParams<{ delimiter?: string }>) => stringFormats.mac(formatOptions(options))._withMessage(options),
+  cidrv4: (params?: FormatParams) => stringFormats.cidrv4()._withMessage(params),
+  cidrv6: (params?: FormatParams) => stringFormats.cidrv6()._withMessage(params),
+  creditCard: (params?: FormatParams) => stringFormats.creditCard()._withMessage(params),
+  iban: (params?: FormatParams) => stringFormats.iban()._withMessage(params),
+  currencyCode: (params?: FormatParams) => stringFormats.currencyCode()._withMessage(params),
+  e164: (params?: FormatParams) => stringFormats.e164()._withMessage(params),
   hash: (algorithm: 'md5' | 'sha1' | 'sha256' | 'sha384' | 'sha512') =>
     stringFormats.hash(algorithm),
   iso: {
@@ -1111,11 +1117,11 @@ export const v = {
     ZodISODateTime: stringFormats.VldStringFormat,
     ZodISODuration: stringFormats.VldStringFormat,
     ZodISOTime: stringFormats.VldStringFormat,
-    date: () => stringFormats.iso.date(),
-    time: (options?: stringFormats.ISOTimeOptions) => stringFormats.iso.time(options),
-    datetime: (options?: stringFormats.ISODateTimeOptions) => stringFormats.iso.datetime(options),
-    dateTime: (options?: stringFormats.ISODateTimeOptions) => stringFormats.iso.dateTime(options),
-    duration: () => stringFormats.iso.duration(),
+    date: (params?: FormatParams) => stringFormats.iso.date()._withMessage(params),
+    time: (options?: FormatParams<stringFormats.ISOTimeOptions>) => stringFormats.iso.time(formatOptions(options))._withMessage(options),
+    datetime: (options?: FormatParams<stringFormats.ISODateTimeOptions>) => stringFormats.iso.datetime(formatOptions(options))._withMessage(options),
+    dateTime: (options?: FormatParams<stringFormats.ISODateTimeOptions>) => stringFormats.iso.dateTime(formatOptions(options))._withMessage(options),
+    duration: (params?: FormatParams) => stringFormats.iso.duration()._withMessage(params),
   },
   stringFormat: (name: string, validator: ((val: string) => boolean) | RegExp) =>
     stringFormats.stringFormat(name, validator),
@@ -1154,10 +1160,10 @@ export const v = {
   mime: (types: string | string[], message?: string) => VldFile.create().mime(types, message),
 
   // Zod v4 parity string formats
-  xid: () => stringFormats.xid(),
-  guid: () => stringFormats.guid(),
-  httpUrl: () => stringFormats.httpUrl(),
-  ksuid: () => stringFormats.ksuid(),
+  xid: (params?: FormatParams) => stringFormats.xid()._withMessage(params),
+  guid: (params?: FormatParams) => stringFormats.guid()._withMessage(params),
+  httpUrl: (params?: FormatParams) => stringFormats.httpUrl()._withMessage(params),
+  ksuid: (params?: FormatParams) => stringFormats.ksuid()._withMessage(params),
   regexes: stringFormats.regexes,
 
   // Zod 4.5 AOT compilation (compile/validate/properties/getDiscriminatedOption/memoizer/toZod)
@@ -1175,7 +1181,7 @@ export const v = {
   toZod: toZodFn,
 
   // Template literal validator
-  templateLiteral: (...components: (VldBase<any, any> | string)[]) => createTemplateLiteral(...components),
+  templateLiteral: (...components: Parameters<typeof createTemplateLiteral>) => createTemplateLiteral(...components),
 
   // Codec validators (binary data validators)
   base64Bytes: () => VldBase64.create(),
@@ -1216,7 +1222,7 @@ export const v = {
   formatError: (error: Error): FormattedError => {
     const formatted: FormattedError = { _errors: [] };
     if (error instanceof VldErrorClass) {
-      for (const issue of error.issues) {
+      for (const issue of expandNestedIssues(error.issues)) {
         addFormattedIssue(formatted, issue.path, issue.message);
       }
       return formatted;

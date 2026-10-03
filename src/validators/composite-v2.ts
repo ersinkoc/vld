@@ -4,6 +4,7 @@
  */
 import { VldBase, VLD_VALIDATOR_TYPES, type ParseResult } from './base';
 import { VldError, createInvalidTypeIssue, getTypeName } from '../errors-core';
+import { intersectResults } from './intersection';
 
 // --------------------------------------------------------------------------
 // VldTupleV2
@@ -42,7 +43,11 @@ export class VldTupleV2<T extends readonly VldBase<any, any>[]> extends VldBase<
     const validators = this.__def.validators;
     const len = validators.length;
     if (value.length < len) {
-      throw new Error(`Tuple must have at least ${len} items, got ${value.length}`);
+      throw new VldError([{ code: 'too_small', path: [], origin: 'array', minimum: len, inclusive: true, message: `Tuple must have at least ${len} items, got ${value.length}` }]);
+    }
+    // Extra items are rejected (as legacy VldTuple and Zod do), not silently dropped.
+    if (value.length > len) {
+      throw new VldError([{ code: 'too_big', path: [], origin: 'array', maximum: len, inclusive: true, message: `Tuple must have at most ${len} items, got ${value.length}` }]);
     }
     const result: unknown[] = new Array(len);
     for (let i = 0; i < len; i++) {
@@ -53,7 +58,7 @@ export class VldTupleV2<T extends readonly VldBase<any, any>[]> extends VldBase<
 
   override safeParse(value: unknown): ParseResult<unknown[]> {
     try { return { success: true, data: this.parse(value) }; }
-    catch (e) { return { success: false, error: e instanceof VldError ? e : new VldError([{ code: 'custom', path: [], message: String(e) }]) }; }
+    catch (e) { return { success: false, error: e instanceof VldError ? e : new VldError([{ code: 'custom', path: [], message: e instanceof Error ? e.message : String(e) }]) }; }
   }
 
   get items(): ReadonlyArray<VldBase<any, any>> { return this.__def.validators; }
@@ -91,7 +96,6 @@ export class VldSetV2<T> extends VldBase<Set<T>, Set<T>> {
     if (!(value instanceof Set)) {
       throw new VldError([createInvalidTypeIssue('set', getTypeName(value), this.__def.errorMessage)]);
     }
-    if (this.__def.isSimple) return value;
     const result = new Set<T>();
     for (const item of value) result.add(this.__def.valueValidator.parse(item) as T);
     return result;
@@ -99,7 +103,7 @@ export class VldSetV2<T> extends VldBase<Set<T>, Set<T>> {
 
   override safeParse(value: unknown): ParseResult<Set<T>> {
     try { return { success: true, data: this.parse(value) }; }
-    catch (e) { return { success: false, error: e instanceof VldError ? e : new VldError([{ code: 'custom', path: [], message: String(e) }]) }; }
+    catch (e) { return { success: false, error: e instanceof VldError ? e : new VldError([{ code: 'custom', path: [], message: e instanceof Error ? e.message : String(e) }]) }; }
   }
 
   get isSimple(): boolean { return this.__def.isSimple; }
@@ -139,7 +143,6 @@ export class VldMapV2<K, V> extends VldBase<Map<K, V>, Map<K, V>> {
     if (!(value instanceof Map)) {
       throw new VldError([createInvalidTypeIssue('map', getTypeName(value), undefined)]);
     }
-    if (this.__def.isSimple) return value;
     const result = new Map<K, V>();
     for (const [k, v] of value) {
       result.set(this.__def.keyValidator.parse(k) as K, this.__def.valueValidator.parse(v) as V);
@@ -149,7 +152,7 @@ export class VldMapV2<K, V> extends VldBase<Map<K, V>, Map<K, V>> {
 
   override safeParse(value: unknown): ParseResult<Map<K, V>> {
     try { return { success: true, data: this.parse(value) }; }
-    catch (e) { return { success: false, error: e instanceof VldError ? e : new VldError([{ code: 'custom', path: [], message: String(e) }]) }; }
+    catch (e) { return { success: false, error: e instanceof VldError ? e : new VldError([{ code: 'custom', path: [], message: e instanceof Error ? e.message : String(e) }]) }; }
   }
 
   get isSimple(): boolean { return this.__def.isSimple; }
@@ -178,11 +181,13 @@ export class VldIntersectionV2<A, B> extends VldBase<A & B, A & B> {
   }
 
   override parse(value: unknown): A & B {
-    return { ...this.__def.left.parse(value), ...this.__def.right.parse(value) } as A & B;
+    // Same combination rules as legacy VldIntersection: spreading would turn
+    // strings and arrays into index-keyed objects.
+    return intersectResults(this.__def.left.parse(value), this.__def.right.parse(value)) as A & B;
   }
 
   override safeParse(value: unknown): ParseResult<A & B> {
     try { return { success: true, data: this.parse(value) }; }
-    catch (e) { return { success: false, error: e instanceof VldError ? e : new VldError([{ code: 'custom', path: [], message: String(e) }]) }; }
+    catch (e) { return { success: false, error: e instanceof VldError ? e : new VldError([{ code: 'custom', path: [], message: e instanceof Error ? e.message : String(e) }]) }; }
   }
 }

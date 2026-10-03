@@ -203,8 +203,40 @@ export type ValidatorType = typeof VLD_VALIDATOR_TYPES[keyof typeof VLD_VALIDATO
  * Context for superRefine - allows adding multiple issues with path and code
  */
 export interface SuperRefineContext {
-  addIssue(issue: { message: string; code?: string; path?: (string | number)[]; fatal?: boolean; [key: string]: any }): void;
+  addIssue(issue: string | { message?: string; code?: string; path?: (string | number)[]; fatal?: boolean; [key: string]: any }): void;
   path: (string | number)[];
+  /** The value being refined / transformed (Zod's `ctx.value`). */
+  value?: unknown;
+}
+
+/**
+ * Build the ctx handed to superRefine / transform / preprocess callbacks.
+ * Accepts a bare message string and keeps extra issue fields (minimum,
+ * origin, params, ...) as Zod does.
+ * @internal
+ */
+export function createIssueContext(value: unknown): { ctx: SuperRefineContext; issues: VldIssue[] } {
+  const issues: VldIssue[] = [];
+  const ctx: SuperRefineContext = {
+    addIssue: (issue) => {
+      if (typeof issue === 'string') {
+        issues.push({ code: 'custom', path: [], message: issue });
+        return;
+      }
+      const extra: Record<string, unknown> = { ...issue };
+      delete extra['fatal'];
+      delete extra['input'];
+      issues.push({
+        ...extra,
+        code: (issue.code as any) || 'custom',
+        path: issue.path ? [...issue.path] : [],
+        message: issue.message || 'Validation error'
+      } as VldIssue);
+    },
+    path: [],
+    value
+  };
+  return { ctx, issues };
 }
 
 export interface CheckPayload<T> {
@@ -230,6 +262,43 @@ export type ErrorParam =
   | CustomErrorParams
   | ((value: any) => CustomErrorParams | string)
   | { error?: string | ErrorMap; message?: string };
+
+const FATAL_ISSUE_CODES = new Set(['invalid_type', 'invalid_union', 'invalid_key', 'invalid_element', 'unrecognized_keys', 'invalid_object', 'invalid_array', 'invalid_date']);
+const CONTINUABLE_BASE_TYPES = new Set<string>(['string', 'number', 'bigint', 'boolean', 'date']);
+
+/**
+ * Zod keeps running refinements after non-fatal check failures (min, another
+ * refine): the value had the right type, so the next check can still judge it.
+ * Only for refine chains over a primitive without transforms, where the input
+ * is exactly the value the refinement would have received. @internal
+ */
+export function canContinueAfter(schema: VldBase<any, any>, error: VldError): boolean {
+  if (error.issues.length === 0 || error.issues.some(issue => FATAL_ISSUE_CODES.has(issue.code) || ABORTED_ISSUES.has(issue) || /Use (?:safeParseAsync|parseAsync) for async/.test(issue.message))) {
+    return false;
+  }
+  let node: any = schema;
+  while (node instanceof VldRefine || node instanceof VldSuperRefine) {
+    node = node instanceof VldRefine ? node.baseValidator : node._inner;
+  }
+  return CONTINUABLE_BASE_TYPES.has(node?.validatorType) && !(node?._transforms?.length);
+}
+
+/** Issues of a refinement created with `abort: true` (Zod) or `fatal: true`: nothing after them runs. */
+const ABORTED_ISSUES = new WeakSet<VldIssue>();
+
+/** True when a failure only means "this schema needs parseAsync" (async refine / transform). @internal */
+export function isAsyncRequiredError(error: VldError): boolean {
+  return error.issues.some(issue => /Use (?:safeParseAsync|parseAsync) for async/.test(issue.message));
+}
+
+/** safeEncode() for wrappers that override encode(). @internal */
+export function safeEncodeVia(schema: { encode(value: any): any }, value: unknown): ParseResult<any> {
+  try {
+    return { success: true, data: schema.encode(value) };
+  } catch (error) {
+    return { success: false, error: ensureVldError(error) };
+  }
+}
 
 export function resolveErrorMessage(error: ErrorParam | undefined, fallback: string): string {
   if (typeof error === 'string') {
@@ -633,8 +702,8 @@ export abstract class VldBase<TInput, TOutput = TInput> {
    * @returns A new transformed validator
    */
   transform<TTransformed>(
-    transformer: (value: TOutput) => TTransformed | Promise<TTransformed>
-  ): VldTransform<TInput, TOutput, TTransformed> {
+    transformer: (value: TOutput, ctx: SuperRefineContext) => TTransformed | Promise<TTransformed>
+): VldTransform<TInput, TOutput, TTransformed> {
     return new VldTransform(this, transformer);
   }
   
@@ -656,7 +725,8 @@ export abstract class VldBase<TInput, TOutput = TInput> {
     return new VldRefine(
       this,
       (value) => value !== undefined,
-      resolveErrorMessage(message, 'Expected non-optional value')
+      resolveErrorMessage(message, 'Expected non-optional value'),
+      { code: 'invalid_type', expected: 'nonoptional' }
     );
   }
 
@@ -691,10 +761,9 @@ export abstract class VldBase<TInput, TOutput = TInput> {
         }
       }
       const flush = (): void => {
+        // Keep the pushed issue's path and extra fields (minimum, params, ...).
         for (const issue of payload.issues) {
-          ctx.addIssue(issue.code === undefined
-            ? { message: issue.message || 'Custom check failed' }
-            : { message: issue.message || 'Custom check failed', code: issue.code });
+          ctx.addIssue({ ...issue, message: issue.message || 'Custom check failed' });
         }
       };
       if (pending.length > 0) {
@@ -820,6 +889,19 @@ export abstract class VldBase<TInput, TOutput = TInput> {
     predicate: (value: TOutput) => boolean | Promise<boolean>,
     message?: ErrorParam | CustomErrorParams | ((val: TOutput) => CustomErrorParams | string)
   ): VldRefine<TInput, TOutput, TOutput> {
+    // Zod's .check() also takes check schemas - z.minimum(5), z.minLength(2),
+    // z.superRefine(...) - one or several; each validates the output value.
+    if ((predicate as unknown) instanceof VldBase) {
+      const checks = [predicate, message].filter((c): c is any => c instanceof VldBase) as VldBase<any, any>[];
+      return this.superRefine((value, ctx) => {
+        for (const checkSchema of checks) {
+          const result = checkSchema.safeParse(value);
+          if (!result.success) {
+            for (const issue of result.error.issues) ctx.addIssue(issue);
+          }
+        }
+      }) as unknown as VldRefine<TInput, TOutput, TOutput>;
+    }
     return this.refine(predicate, message);
   }
 
@@ -920,6 +1002,20 @@ export class VldMeta<TInput, TOutput> extends VldBase<TInput, TOutput> {
     return this.baseValidator.parse(value);
   }
 
+  // Async: the inner schema's parseAsync runs (async refinements / transforms).
+  override async parseAsync(value: unknown): Promise<TOutput> {
+    return this.baseValidator.parseAsync(value) as any;
+  }
+
+  // Encode through the wrapper, so a codec inside it runs its encoder.
+  override encode(value: any): any {
+    return this.baseValidator.encode(value as any);
+  }
+
+  override safeEncode(value: any): ParseResult<any> {
+    return safeEncodeVia(this, value);
+  }
+
   safeParse(value: unknown): ParseResult<TOutput> {
     return this.baseValidator.safeParse(value);
   }
@@ -957,15 +1053,29 @@ export class VldReadonly<TInput, TOutput> extends VldBase<TInput, Readonly<TOutp
   }
 
   parse(value: unknown): Readonly<TOutput> {
-    return this.baseValidator.parse(value);
+    // Shallow freeze, as Zod's .readonly(): the type promise holds at runtime.
+    return Object.freeze(this.baseValidator.parse(value));
+  }
+
+  // Encode through the wrapper, so a codec inside it runs its encoder.
+  override encode(value: any): any {
+    return this.baseValidator.encode(value as any);
+  }
+
+  override safeEncode(value: any): ParseResult<any> {
+    return safeEncodeVia(this, value);
   }
 
   safeParse(value: unknown): ParseResult<Readonly<TOutput>> {
     const result = this.baseValidator.safeParse(value);
     if (result.success) {
-      return { success: true, data: result.data as Readonly<TOutput> };
+      return { success: true, data: Object.freeze(result.data) as Readonly<TOutput> };
     }
     return { success: false, error: result.error };
+  }
+
+  override async parseAsync(value: unknown): Promise<Readonly<TOutput>> {
+    return Object.freeze(await this.baseValidator.parseAsync(value));
   }
 }
 
@@ -989,6 +1099,20 @@ export class VldBrand<TInput, TOutput, TBrand extends string> extends VldBase<
     };
   }
 
+  // Async: the inner schema's parseAsync runs (async refinements / transforms).
+  override async parseAsync(value: unknown): Promise<TOutput & { readonly __brand: TBrand }> {
+    return this.baseValidator.parseAsync(value) as any;
+  }
+
+  // Encode through the wrapper, so a codec inside it runs its encoder.
+  override encode(value: any): any {
+    return this.baseValidator.encode(value as any);
+  }
+
+  override safeEncode(value: any): ParseResult<any> {
+    return safeEncodeVia(this, value);
+  }
+
   safeParse(value: unknown): ParseResult<TOutput & { readonly __brand: TBrand }> {
     const result = this.baseValidator.safeParse(value);
     if (result.success) {
@@ -1002,6 +1126,53 @@ export class VldBrand<TInput, TOutput, TBrand extends string> extends VldBase<
 }
 
 /**
+ * Chain methods / read-only getters of concrete schemas that describe(),
+ * meta() and brand() wrappers re-expose (Zod returns the same schema type
+ * there): v.string().describe('id').min(3) keeps the description and adds the
+ * check; v.object({...}).describe('x').extend({...}) and .shape keep working.
+ */
+const WRAPPER_FORWARDED_METHODS = [
+  'base64', 'base64url', 'between', 'catchall', 'cidrv4', 'cidrv6', 'cuid', 'cuid2', 'date', 'datetime', 'deepPartial',
+  'duration', 'e164', 'email', 'emoji', 'endsWith', 'even', 'exactPartial', 'exclude', 'extend', 'extract', 'finite',
+  'float32', 'float64', 'future', 'gt', 'gte', 'guid', 'includes', 'int', 'int32', 'int64', 'ip', 'ipv4', 'ipv6', 'jwt',
+  'keyof', 'ksuid', 'length', 'loose', 'lowercase', 'lt', 'lte', 'max', 'merge', 'mime', 'min', 'multipleOf', 'nanoid',
+  'negative', 'nonempty', 'nonnegative', 'nonpositive', 'normalize', 'odd', 'omit', 'partial', 'passthrough', 'past',
+  'pick', 'positive', 'regex', 'required', 'rest', 'size', 'slugify', 'startsWith', 'step', 'strict', 'strip', 'time',
+  'toLowerCase', 'toUpperCase', 'today', 'trim', 'uint32', 'uint64', 'ulid', 'unique', 'uppercase', 'url', 'uuid',
+  'uuidv4', 'uuidv6', 'uuidv7', 'weekday', 'weekend', 'xid'
+] as const;
+const WRAPPER_FORWARDED_GETTERS = [
+  'element', 'enum', 'format', 'isFinite', 'isInt', 'itemSchema', 'items', 'keySchema', 'keyType', 'literal', 'maxDate',
+  'maxLength', 'maxValue', 'minDate', 'minLength', 'minValue', 'options', 'shape', 'value', 'valueSchema', 'valueType', 'values'
+] as const;
+
+function forwardWrappedSchemaApi(cls: { prototype: object }, rewrap: (self: any, next: VldBase<any, any>) => unknown): void {
+  const has = (name: string) => name in cls.prototype;
+  for (const name of WRAPPER_FORWARDED_METHODS.filter(name => !has(name))) {
+    Object.defineProperty(cls.prototype, name, {
+      configurable: true,
+      writable: true,
+      value: function (this: any, ...args: unknown[]) {
+        const method = this.baseValidator[name];
+        if (typeof method !== 'function') {
+          throw new TypeError(`${name} is not a function`);
+        }
+        const next = method.apply(this.baseValidator, args);
+        return next instanceof VldBase ? rewrap(this, next) : next;
+      }
+    });
+  }
+  for (const name of WRAPPER_FORWARDED_GETTERS.filter(name => !has(name))) {
+    Object.defineProperty(cls.prototype, name, {
+      configurable: true,
+      get(this: any) {
+        return this.baseValidator[name];
+      }
+    });
+  }
+}
+
+/**
  * Refine validator - adds custom validation
  */
 export class VldRefine<TInput, TBase, TOutput extends TBase = TBase> extends VldBase<TInput, TOutput> {
@@ -1009,9 +1180,11 @@ export class VldRefine<TInput, TBase, TOutput extends TBase = TBase> extends Vld
   private readonly refinePath?: (string | number)[];
 
   constructor(
-    private readonly baseValidator: VldBase<TInput, TBase>,
+    readonly baseValidator: VldBase<TInput, TBase>,
     private readonly predicate: (value: TBase) => boolean | Promise<boolean>,
-    customMessage?: ErrorParam | CustomErrorParams | ((val: TBase) => CustomErrorParams | string)
+    customMessage?: ErrorParam | CustomErrorParams | ((val: TBase) => CustomErrorParams | string),
+    /** Built-in checks expressed as refinements report their own Zod issue (e.g. nonoptional). */
+    private readonly issueFields?: Partial<VldIssue>
   ) {
     super(VLD_VALIDATOR_TYPES.REFINE);
     this.customMessage = customMessage ?? 'Refinement check failed';
@@ -1021,6 +1194,24 @@ export class VldRefine<TInput, TBase, TOutput extends TBase = TBase> extends Vld
   }
 
   private _createIssue(val: TBase): VldIssue {
+    const issue = this._createRefineIssue(val);
+    const result = this.issueFields ? { ...issue, ...this.issueFields } : issue;
+    const options = this.customMessage as { abort?: unknown; fatal?: unknown } | null;
+    if (typeof options === 'object' && options !== null && (options.abort === true || options.fatal === true)) {
+      ABORTED_ISSUES.add(result);
+    }
+    return result;
+  }
+
+  /** Zod's `when`: decides from the payload (value + issues so far) whether this check runs. */
+  private get _when(): ((payload: { value: unknown; issues: VldIssue[] }) => boolean) | undefined {
+    const options = this.customMessage as { when?: unknown } | null;
+    return typeof options === 'object' && options !== null && typeof options.when === 'function'
+      ? options.when as (payload: { value: unknown; issues: VldIssue[] }) => boolean
+      : undefined;
+  }
+
+  private _createRefineIssue(val: TBase): VldIssue {
     // Every issue gets its own path array: callers (and outer validators)
     // may mutate issue paths, which must never corrupt this schema.
     if (typeof this.customMessage === 'function') {
@@ -1057,7 +1248,17 @@ export class VldRefine<TInput, TBase, TOutput extends TBase = TBase> extends Vld
   }
 
   parse(value: unknown): TOutput {
-    const baseResult = this.baseValidator.parse(value);
+    let baseResult: TBase;
+    try {
+      baseResult = this.baseValidator.parse(value);
+    } catch (error) {
+      throw this.continueAfterBaseFailure(value, error);
+    }
+
+    const when = this._when;
+    if (when !== undefined && !when({ value: baseResult, issues: [] })) {
+      return baseResult as TOutput;
+    }
 
     const passed = this.predicate(baseResult);
     if (isPromiseLike(passed)) {
@@ -1067,8 +1268,28 @@ export class VldRefine<TInput, TBase, TOutput extends TBase = TBase> extends Vld
     if (!passed) {
       throw new VldError([this._createIssue(baseResult)]);
     }
-    
+
     return baseResult as TOutput;
+  }
+
+  /** Failure path: append this refinement's issue when Zod would still run it. */
+  private continueAfterBaseFailure(value: unknown, error: unknown): unknown {
+    const baseError = ensureVldError(error);
+    const when = this._when;
+    if (when !== undefined) {
+      // An explicit `when` replaces the default "only after non-fatal issues" rule.
+      if (isAsyncRequiredError(baseError) || !when({ value, issues: baseError.issues })) return error;
+    } else if (!canContinueAfter(this.baseValidator, baseError)) {
+      return error;
+    }
+    let passed: boolean | Promise<boolean>;
+    try {
+      passed = this.predicate(value as TBase);
+    } catch {
+      return error;
+    }
+    if (isPromiseLike(passed) || passed) return error;
+    return new VldError([...baseError.issues, this._createIssue(value as TBase)]);
   }
   
   safeParse(value: unknown): ParseResult<TOutput> {
@@ -1096,7 +1317,7 @@ export class VldRefine<TInput, TBase, TOutput extends TBase = TBase> extends Vld
   }
 
   private _wrap(nextBase: any): any {
-    return new VldRefine(nextBase, this.predicate, this.customMessage);
+    return new VldRefine(nextBase, this.predicate, this.customMessage, this.issueFields);
   }
 
   // Common constraint methods
@@ -1252,25 +1473,30 @@ export class VldRefine<TInput, TBase, TOutput extends TBase = TBase> extends Vld
 export class VldTransform<TInput, TBase, TOutput> extends VldBase<TInput, TOutput> {
   constructor(
     private readonly baseValidator: VldBase<TInput, TBase>,
-    private readonly transformer: (value: TBase) => TOutput | Promise<TOutput>
+    private readonly transformer: (value: TBase, ctx: SuperRefineContext) => TOutput | Promise<TOutput>
   ) {
     super(VLD_VALIDATOR_TYPES.TRANSFORM);
   }
-  
+
   parse(value: unknown): TOutput {
     const baseResult = this.baseValidator.parse(value);
-    
+    const { ctx, issues } = createIssueContext(baseResult);
+    let transformed: TOutput | Promise<TOutput>;
     try {
-      const transformed = this.transformer(baseResult);
+      transformed = this.transformer(baseResult, ctx);
       if (isPromiseLike(transformed)) {
         throw new Error('Use parseAsync for async transforms');
       }
-      return transformed;
     } catch (error) {
       throw new Error(`Transform failed: ${(error as Error).message}`);
     }
+    // Issues reported through ctx.addIssue fail the parse (Zod semantics).
+    if (issues.length > 0) {
+      throw new VldError(issues, issues.map(i => i.message).join('; '));
+    }
+    return transformed;
   }
-  
+
   safeParse(value: unknown): ParseResult<TOutput> {
     try {
       return { success: true, data: this.parse(value) };
@@ -1281,12 +1507,18 @@ export class VldTransform<TInput, TBase, TOutput> extends VldBase<TInput, TOutpu
 
   override async parseAsync(value: unknown): Promise<TOutput> {
     const baseResult = await this.baseValidator.parseAsync(value);
+    const { ctx, issues } = createIssueContext(baseResult);
+    let transformed: TOutput;
     try {
-      return await this.transformer(baseResult);
+      transformed = await this.transformer(baseResult, ctx);
     } catch (error) {
       throw new Error(`Transform failed: ${(error as Error).message}`);
     }
-  }
+    if (issues.length > 0) {
+      throw new VldError(issues, issues.map(i => i.message).join('; '));
+    }
+    return transformed;
+}
 }
 
 /**
@@ -1307,6 +1539,20 @@ export class VldDefault<TInput, TOutput> extends VldBase<TInput | undefined, TOu
       return resolveValue(this.defaultValue);
     }
     return this.baseValidator.parse(value);
+  }
+
+  // Async: the inner schema's parseAsync runs (async refinements / transforms).
+  override async parseAsync(value: unknown): Promise<TOutput> {
+    return value === undefined ? resolveValue(this.defaultValue) : this.baseValidator.parseAsync(value) as any;
+  }
+
+  // Encode through the wrapper, so a codec inside it runs its encoder.
+  override encode(value: any): any {
+    return this.baseValidator.encode(value as any);
+  }
+
+  override safeEncode(value: any): ParseResult<any> {
+    return safeEncodeVia(this, value);
   }
 
   safeParse(value: unknown): ParseResult<TOutput> {
@@ -1357,6 +1603,11 @@ export class VldPrefault<TInput, TOutput> extends VldBase<TInput | undefined, TO
     return this.baseValidator.parse(value);
   }
 
+  // Async: the inner schema's parseAsync runs (async refinements / transforms).
+  override async parseAsync(value: unknown): Promise<TOutput> {
+    return this.baseValidator.parseAsync(value === undefined ? resolveValue(this.defaultValue) : value) as any;
+  }
+
   safeParse(value: unknown): ParseResult<TOutput> {
     if (value === undefined) {
       return this.baseValidator.safeParse(resolveValue(this.defaultValue));
@@ -1403,12 +1654,25 @@ export class VldCatch<TInput, TOutput> extends VldBase<TInput, TOutput> {
       ? fallbackValue as (ctx: CatchContext) => TOutput
       : undefined;
     if (this.fallbackFn === undefined) {
-      // BUG-NPM-003 FIX: Validate the fallback value to ensure type safety
-      const validation = baseValidator.safeParse(fallbackValue);
-      if (!validation.success) {
+      // BUG-NPM-003 FIX: Validate the fallback value to ensure type safety.
+      // A schema with async refinements cannot be checked synchronously; its
+      // fallback is accepted as given (it is only used by parseAsync then).
+      let validation: ParseResult<TOutput>;
+      try {
+        validation = baseValidator.safeParse(fallbackValue);
+      } catch (error) {
+        validation = { success: false, error: ensureVldError(error) };
+      }
+      if (!validation.success && !isAsyncRequiredError(validation.error)) {
         throw new Error(`Invalid fallback value: ${validation.error.message}`);
       }
     }
+  }
+
+  // Async: the inner schema's parseAsync runs (async refinements / transforms).
+  override async parseAsync(value: unknown): Promise<TOutput> {
+    const result = await this.baseValidator.safeParseAsync(value);
+    return result.success ? result.data : this.fallback(value, result.error);
   }
 
   private fallback(input: unknown, error?: unknown): TOutput {
@@ -1460,10 +1724,27 @@ export class VldCatch<TInput, TOutput> extends VldBase<TInput, TOutput> {
  */
 export class VldOptional<TInput, TOutput> extends VldBase<TInput | undefined, TOutput | undefined> {
   private readonly simpleMode: SimpleWrappedMode;
+  // Zod runs an inner default for `undefined` (`.default(x).optional()` yields x).
+  private readonly defaultInside: boolean;
 
   constructor(private readonly baseValidator: VldBase<TInput, TOutput>) {
     super(VLD_VALIDATOR_TYPES.OPTIONAL);
     this.simpleMode = getSimpleWrappedMode(baseValidator as unknown as VldBase<unknown, unknown>);
+    this.defaultInside = baseValidator instanceof VldDefault;
+  }
+
+  // Async: the inner schema's parseAsync runs (async refinements / transforms).
+  override async parseAsync(value: unknown): Promise<TOutput | undefined> {
+    return value === undefined && !this.defaultInside ? undefined : this.baseValidator.parseAsync(value) as any;
+  }
+
+  // Encode through the wrapper, so a codec inside it runs its encoder.
+  override encode(value: any): any {
+    return value === undefined ? undefined : this.baseValidator.encode(value as any);
+  }
+
+  override safeEncode(value: any): ParseResult<any> {
+    return safeEncodeVia(this, value);
   }
 
   private parseSimpleValue(value: unknown): TOutput | undefined {
@@ -1476,7 +1757,7 @@ export class VldOptional<TInput, TOutput> extends VldBase<TInput | undefined, TO
 
   parse(value: unknown): TOutput | undefined {
     if (value === undefined) {
-      return undefined;
+      return this.defaultInside ? this.baseValidator.parse(value) : undefined;
     }
     const simpleValue = this.parseSimpleValue(value);
     if (simpleValue !== undefined) {
@@ -1487,7 +1768,7 @@ export class VldOptional<TInput, TOutput> extends VldBase<TInput | undefined, TO
 
   safeParse(value: unknown): ParseResult<TOutput | undefined> {
     if (value === undefined) {
-      return { success: true, data: undefined };
+      return this.defaultInside ? this.baseValidator.safeParse(value) : { success: true, data: undefined };
     }
     const simpleValue = this.parseSimpleValue(value);
     if (simpleValue !== undefined) {
@@ -1513,6 +1794,20 @@ export class VldExactOptional<TInput, TOutput> extends VldBase<TInput | undefine
   constructor(private readonly baseValidator: VldBase<TInput, TOutput>) {
     super(VLD_VALIDATOR_TYPES.EXACT_OPTIONAL);
     this.simpleMode = getSimpleWrappedMode(baseValidator as unknown as VldBase<unknown, unknown>);
+  }
+
+  // Async: the inner schema's parseAsync runs (async refinements / transforms).
+  override async parseAsync(value: unknown): Promise<TOutput | undefined> {
+    return value === undefined ? undefined : this.baseValidator.parseAsync(value) as any;
+  }
+
+  // Encode through the wrapper, so a codec inside it runs its encoder.
+  override encode(value: any): any {
+    return value === undefined ? undefined : this.baseValidator.encode(value as any);
+  }
+
+  override safeEncode(value: any): ParseResult<any> {
+    return safeEncodeVia(this, value);
   }
 
   static create<TInput, TOutput>(baseValidator: VldBase<TInput, TOutput>): VldExactOptional<TInput, TOutput> {
@@ -1559,6 +1854,20 @@ export class VldNullable<TInput, TOutput> extends VldBase<TInput | null, TOutput
     this.simpleMode = getSimpleWrappedMode(baseValidator as unknown as VldBase<unknown, unknown>);
   }
 
+  // Async: the inner schema's parseAsync runs (async refinements / transforms).
+  override async parseAsync(value: unknown): Promise<TOutput | null> {
+    return value === null ? null : this.baseValidator.parseAsync(value) as any;
+  }
+
+  // Encode through the wrapper, so a codec inside it runs its encoder.
+  override encode(value: any): any {
+    return value === null ? null : this.baseValidator.encode(value as any);
+  }
+
+  override safeEncode(value: any): ParseResult<any> {
+    return safeEncodeVia(this, value);
+  }
+
   static create<TInput, TOutput>(baseValidator: VldBase<TInput, TOutput>): VldNullable<TInput, TOutput> {
     return new VldNullable(baseValidator);
   }
@@ -1596,9 +1905,27 @@ export class VldNullable<TInput, TOutput> extends VldBase<TInput | null, TOutput
 export class VldNullish<TInput, TOutput> extends VldBase<TInput | null | undefined, TOutput | null | undefined> {
   private readonly simpleMode: SimpleWrappedMode;
 
+  // As in VldOptional: `undefined` reaches an inner default.
+  private readonly defaultInside: boolean;
+
   constructor(private readonly baseValidator: VldBase<TInput, TOutput>) {
     super(VLD_VALIDATOR_TYPES.NULLISH);
     this.simpleMode = getSimpleWrappedMode(baseValidator as unknown as VldBase<unknown, unknown>);
+    this.defaultInside = baseValidator instanceof VldDefault;
+  }
+
+  // Async: the inner schema's parseAsync runs (async refinements / transforms).
+  override async parseAsync(value: unknown): Promise<TOutput | null | undefined> {
+    return value === null || (value === undefined && !this.defaultInside) ? value as any : this.baseValidator.parseAsync(value) as any;
+  }
+
+  // Encode through the wrapper, so a codec inside it runs its encoder.
+  override encode(value: any): any {
+    return value === null || value === undefined ? value : this.baseValidator.encode(value as any);
+  }
+
+  override safeEncode(value: any): ParseResult<any> {
+    return safeEncodeVia(this, value);
   }
 
   static create<TInput, TOutput>(baseValidator: VldBase<TInput, TOutput>): VldNullish<TInput, TOutput> {
@@ -1606,7 +1933,7 @@ export class VldNullish<TInput, TOutput> extends VldBase<TInput | null | undefin
   }
 
   parse(value: unknown): TOutput | null | undefined {
-    if (value === null || value === undefined) {
+    if (value === null || (value === undefined && !this.defaultInside)) {
       return value as null | undefined;
     }
     const simpleValue = parseSimpleWrappedValue<TOutput>(this.simpleMode, value);
@@ -1617,7 +1944,7 @@ export class VldNullish<TInput, TOutput> extends VldBase<TInput | null | undefin
   }
 
   safeParse(value: unknown): ParseResult<TOutput | null | undefined> {
-    if (value === null || value === undefined) {
+    if (value === null || (value === undefined && !this.defaultInside)) {
       return { success: true, data: value as null | undefined };
     }
     const simpleValue = parseSimpleWrappedValue<TOutput>(this.simpleMode, value);
@@ -1648,6 +1975,11 @@ export class VldPipe<TInput, TIntermediate, TOutput> extends VldBase<TInput, TOu
     return this.second.parse(intermediateResult);
   }
 
+  // Async: the inner schema's parseAsync runs (async refinements / transforms).
+  override async parseAsync(value: unknown): Promise<TOutput> {
+    return this.second.parseAsync(await this.first.parseAsync(value));
+  }
+
   safeParse(value: unknown): ParseResult<TOutput> {
     const firstResult = this.first.safeParse(value);
     if (!firstResult.success) {
@@ -1662,26 +1994,21 @@ export class VldPipe<TInput, TIntermediate, TOutput> extends VldBase<TInput, TOu
  */
 export class VldSuperRefine<TInput, TOutput> extends VldBase<TInput, TOutput> {
   constructor(
-    private readonly _inner: VldBase<TInput, TOutput>,
+    readonly _inner: VldBase<TInput, TOutput>,
     private readonly _refinement: (value: TOutput, ctx: SuperRefineContext) => void | Promise<void>
   ) {
     super(VLD_VALIDATOR_TYPES.SUPER_REFINE);
   }
 
   parse(value: unknown): TOutput {
-    const result = this._inner.parse(value);
+    let result: TOutput;
+    try {
+      result = this._inner.parse(value);
+    } catch (error) {
+      throw this.continueAfterInnerFailure(value, error);
+    }
 
-    const issues: VldIssue[] = [];
-    const ctx: SuperRefineContext = {
-      addIssue: (issue) => {
-        issues.push({
-          code: (issue.code as any) || 'custom',
-          path: issue.path ?? [],
-          message: issue.message || 'Validation error'
-        });
-      },
-      path: []
-    };
+    const { ctx, issues } = createIssueContext(result);
 
     const maybePromise = this._refinement(result, ctx);
     if (maybePromise instanceof Promise) {
@@ -1695,21 +2022,28 @@ export class VldSuperRefine<TInput, TOutput> extends VldBase<TInput, TOutput> {
     return result;
   }
 
+  /** Failure path: append this refinement's issues when Zod would still run it. */
+  private continueAfterInnerFailure(value: unknown, error: unknown): unknown {
+    const innerError = ensureVldError(error);
+    if (!canContinueAfter(this._inner, innerError)) return error;
+    const { ctx, issues } = createIssueContext(value);
+    try {
+      const maybePromise = this._refinement(value as TOutput, ctx);
+      if (maybePromise instanceof Promise) {
+        maybePromise.catch(() => undefined);
+        return error;
+      }
+    } catch {
+      return error;
+    }
+    return issues.length > 0 ? new VldError([...innerError.issues, ...issues]) : error;
+  }
+
   safeParse(value: unknown): ParseResult<TOutput> {
     const result = this._inner.safeParse(value);
-    if (!result.success) return { success: false, error: ensureVldError(result.error) };
+    if (!result.success) return { success: false, error: ensureVldError(this.continueAfterInnerFailure(value, result.error)) };
 
-    const issues: VldIssue[] = [];
-    const ctx: SuperRefineContext = {
-      addIssue: (issue) => {
-        issues.push({
-          code: (issue.code as any) || 'custom',
-          path: issue.path ?? [],
-          message: issue.message || 'Validation error'
-        });
-      },
-      path: []
-    };
+    const { ctx, issues } = createIssueContext(result.data);
 
     const maybePromise = this._refinement(result.data, ctx);
     if (maybePromise instanceof Promise) {
@@ -1729,17 +2063,7 @@ export class VldSuperRefine<TInput, TOutput> extends VldBase<TInput, TOutput> {
   override async parseAsync(value: unknown): Promise<TOutput> {
     const result = await this._inner.parseAsync(value);
 
-    const issues: VldIssue[] = [];
-    const ctx: SuperRefineContext = {
-      addIssue: (issue) => {
-        issues.push({
-          code: (issue.code as any) || 'custom',
-          path: issue.path ?? [],
-          message: issue.message || 'Validation error'
-        });
-      },
-      path: []
-    };
+    const { ctx, issues } = createIssueContext(result);
 
     await this._refinement(result, ctx);
 
@@ -1914,27 +2238,41 @@ export class VldSuperRefine<TInput, TOutput> extends VldBase<TInput, TOutput> {
  */
 export class VldPreprocess<TInput, TOutput> extends VldBase<unknown, TOutput> {
   constructor(
-    private readonly _preprocessor: (input: unknown) => unknown,
+    private readonly _preprocessor: (input: unknown, ctx: SuperRefineContext) => unknown,
     private readonly _schema: VldBase<TInput, TOutput>
   ) {
     super(VLD_VALIDATOR_TYPES.PREPROCESS);
   }
 
   static create<TInput, TOutput>(
-    preprocessor: (input: unknown) => unknown,
+    preprocessor: (input: unknown, ctx: SuperRefineContext) => unknown,
     schema: VldBase<TInput, TOutput>
   ): VldPreprocess<TInput, TOutput> {
     return new VldPreprocess(preprocessor, schema);
   }
 
+  // Async: the inner schema's parseAsync runs (async refinements / transforms).
+  override async parseAsync(value: unknown): Promise<TOutput> {
+    return this._schema.parseAsync(this.runPreprocessor(value));
+  }
+
   parse(value: unknown): TOutput {
-    const preprocessed = this._preprocessor(value);
-    return this._schema.parse(preprocessed);
+    return this._schema.parse(this.runPreprocessor(value));
+  }
+
+  /** Run the preprocessor; issues it reports through ctx.addIssue fail the parse. */
+  private runPreprocessor(value: unknown): unknown {
+    const { ctx, issues } = createIssueContext(value);
+    const preprocessed = this._preprocessor(value, ctx);
+    if (issues.length > 0) {
+      throw new VldError(issues, issues.map(i => i.message).join('; '));
+    }
+    return preprocessed;
   }
 
   safeParse(value: unknown): ParseResult<TOutput> {
     try {
-      const preprocessed = this._preprocessor(value);
+      const preprocessed = this.runPreprocessor(value);
       return this._schema.safeParse(preprocessed);
     } catch (error) {
       return {
@@ -1944,3 +2282,10 @@ export class VldPreprocess<TInput, TOutput> extends VldBase<unknown, TOutput> {
     }
   }
 }
+
+forwardWrappedSchemaApi(VldMeta, (self, next) => {
+  const schema = new VldMeta(next, self.metadata);
+  globalRegistry.add(schema as unknown as VldBase<unknown, unknown>, schema.getMeta() as SchemaMetadata);
+  return schema;
+});
+forwardWrappedSchemaApi(VldBrand, (_self, next) => new VldBrand(next));

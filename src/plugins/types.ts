@@ -43,9 +43,10 @@ export interface VldContext {
 /**
  * Validator factory function
  */
-export type ValidatorFactory<T = unknown> = (
+// Any input type: a factory returning v.string() (VldBase<string, string>) must type-check.
+export type ValidatorFactory<T = any> = (
   ...args: unknown[]
-) => VldBase<unknown, T>;
+) => VldBase<any, T>;
 
 /**
  * Transform factory function

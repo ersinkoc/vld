@@ -1,14 +1,6 @@
 import { VldString } from '../validators/string';
 import { ParseResult, VLD_VALIDATOR_TYPES, ensureVldError } from '../validators/base';
 import { getMessages } from '../locales/runtime';
-import { regexes } from '../validators/string-formats';
-
-/** Same UUID source as v.string().uuid(): v1-v8 plus nil/max. */
-const UUID_REGEX = regexes.uuid();
-import { isValidIPv6 } from '../utils/ip-validation';
-
-// BUG-NEW-001 FIX: IPv6 validation moved to shared utility (src/utils/ip-validation.ts)
-// to eliminate code duplication between string.ts and coercion/string.ts
 
 /**
  * String coercion validator that attempts to convert values to strings
@@ -26,154 +18,74 @@ export class VldCoerceString extends VldString {
     return new VldCoerceString();
   }
   
-  // Override all chain methods to return VldCoerceString instances
+  // Chain methods are inherited (they keep the subclass via derive());
+  // these overrides only narrow the return type.
   override min(length: number, message?: string): VldCoerceString {
-    return new VldCoerceString({
-      checks: [...this.config.checks, (v: string) => v.length >= length],
-      transforms: this.config.transforms,
-      errorMessage: message || getMessages().stringMin(length)
-    });
+    return super.min(length, message) as VldCoerceString;
   }
   
   override max(length: number, message?: string): VldCoerceString {
-    return new VldCoerceString({
-      checks: [...this.config.checks, (v: string) => v.length <= length],
-      transforms: this.config.transforms,
-      errorMessage: message || getMessages().stringMax(length)
-    });
+    return super.max(length, message) as VldCoerceString;
   }
   
   override length(length: number, message?: string): VldCoerceString {
-    return new VldCoerceString({
-      checks: [...this.config.checks, (v: string) => v.length === length],
-      transforms: this.config.transforms,
-      errorMessage: message || getMessages().stringLength(length)
-    });
+    return super.length(length, message) as VldCoerceString;
   }
   
   override email(message?: string): VldCoerceString {
-    // BUG-007 FIX: Use simpler, ReDoS-safe regex (consistent with VldString)
-    const FAST_EMAIL_REGEX = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/;
-    return new VldCoerceString({
-      checks: [...this.config.checks, (v: string) => FAST_EMAIL_REGEX.test(v)],
-      transforms: this.config.transforms,
-      errorMessage: message || getMessages().stringEmail
-    });
+    return super.email(message) as VldCoerceString;
   }
   
   override url(message?: string): VldCoerceString {
-    return new VldCoerceString({
-      checks: [...this.config.checks, (v: string) => /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)$/.test(v)],
-      transforms: this.config.transforms,
-      errorMessage: message || getMessages().stringUrl
-    });
+    return super.url(message) as VldCoerceString;
   }
   
   override uuid(message?: string): VldCoerceString {
-    return new VldCoerceString({
-      checks: [...this.config.checks, (v: string) => UUID_REGEX.test(v)],
-      transforms: this.config.transforms,
-      errorMessage: message || getMessages().stringUuid
-    });
+    return super.uuid(message) as VldCoerceString;
   }
   
   override regex(pattern: RegExp, message?: string): VldCoerceString {
-    return new VldCoerceString({
-      checks: [...this.config.checks, (v: string) => {
-        pattern.lastIndex = 0;
-        return pattern.test(v);
-      }],
-      transforms: this.config.transforms,
-      errorMessage: message || getMessages().stringRegex
-    });
+    return super.regex(pattern, message) as VldCoerceString;
   }
   
   override trim(): VldCoerceString {
-    return new VldCoerceString({
-      checks: this.config.checks,
-      transforms: [...this.config.transforms, (v: string) => v.trim()],
-      errorMessage: this.config.errorMessage
-    });
+    return super.trim() as VldCoerceString;
   }
   
   override toLowerCase(): VldCoerceString {
-    return new VldCoerceString({
-      checks: this.config.checks,
-      transforms: [...this.config.transforms, (v: string) => v.toLowerCase()],
-      errorMessage: this.config.errorMessage
-    });
+    return super.toLowerCase() as VldCoerceString;
   }
   
   override toUpperCase(): VldCoerceString {
-    return new VldCoerceString({
-      checks: this.config.checks,
-      transforms: [...this.config.transforms, (v: string) => v.toUpperCase()],
-      errorMessage: this.config.errorMessage
-    });
+    return super.toUpperCase() as VldCoerceString;
   }
   
   override startsWith(str: string, message?: string): VldCoerceString {
-    return new VldCoerceString({
-      checks: [...this.config.checks, (v: string) => v.startsWith(str)],
-      transforms: this.config.transforms,
-      errorMessage: message || getMessages().stringStartsWith(str)
-    });
+    return super.startsWith(str, message) as VldCoerceString;
   }
   
   override endsWith(str: string, message?: string): VldCoerceString {
-    return new VldCoerceString({
-      checks: [...this.config.checks, (v: string) => v.endsWith(str)],
-      transforms: this.config.transforms,
-      errorMessage: message || getMessages().stringEndsWith(str)
-    });
+    return super.endsWith(str, message) as VldCoerceString;
   }
   
   override includes(str: string, message?: string): VldCoerceString {
-    return new VldCoerceString({
-      checks: [...this.config.checks, (v: string) => v.includes(str)],
-      transforms: this.config.transforms,
-      errorMessage: message || getMessages().stringIncludes(str)
-    });
+    return super.includes(str, message) as VldCoerceString;
   }
   
   override ip(message?: string): VldCoerceString {
-    const ipv4 = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-    return new VldCoerceString({
-      checks: [...this.config.checks, (v: string) => {
-        // Prevent ReDoS: Check length before validation
-        if (v.length > 100) return false;
-        return ipv4.test(v) || isValidIPv6(v);
-      }],
-      transforms: this.config.transforms,
-      errorMessage: message || getMessages().stringIp
-    });
+    return super.ip(message) as VldCoerceString;
   }
   
   override ipv4(message?: string): VldCoerceString {
-    return new VldCoerceString({
-      checks: [...this.config.checks, (v: string) => /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(v)],
-      transforms: this.config.transforms,
-      errorMessage: message || getMessages().stringIpv4
-    });
+    return super.ipv4(message) as VldCoerceString;
   }
   
   override ipv6(message?: string): VldCoerceString {
-    return new VldCoerceString({
-      checks: [...this.config.checks, (v: string) => {
-        // Use safe IPv6 validation to prevent ReDoS attacks
-        return isValidIPv6(v);
-      }],
-      transforms: this.config.transforms,
-      errorMessage: message || getMessages().stringIpv6
-    });
+    return super.ipv6(message) as VldCoerceString;
   }
   
   override nonempty(message?: string): VldCoerceString {
-    return new VldCoerceString({
-      checks: [...this.config.checks, (v: string) => v.length > 0],
-      transforms: this.config.transforms,
-      errorMessage: message || getMessages().stringEmpty
-    });
+    return super.nonempty(message) as VldCoerceString;
   }
   
   /**
@@ -187,10 +99,10 @@ export class VldCoerceString extends VldString {
         throw new Error(getMessages().coercionFailed('string', value));
       }
 
-      // Sanitize control characters for security
-      // Remove characters that could cause issues in logs, databases, or UI
+      // Sanitize control characters for security (tab / LF / CR are content, not
+      // control noise: stripping them would corrupt multi-line text)
       // eslint-disable-next-line no-control-regex -- Intentional removal of control characters for security
-      const sanitized = value.replace(/[\x00-\x1F\x7F]/g, '');
+      const sanitized = value.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
 
       // Use parent validation with sanitized string
       return super.parse(sanitized);
@@ -240,10 +152,10 @@ export class VldCoerceString extends VldString {
       throw new Error(getMessages().coercionFailed('string', value));
     }
 
-    // Sanitize control characters for security
-    // Remove characters that could cause issues in logs, databases, or UI
+    // Sanitize control characters for security (tab / LF / CR are content, not
+    // control noise: stripping them would corrupt multi-line text)
     // eslint-disable-next-line no-control-regex -- Intentional removal of control characters for security
-    const sanitized = coerced.replace(/[\x00-\x1F\x7F]/g, '');
+    const sanitized = coerced.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
 
     // Use parent validation with sanitized value
     return super.parse(sanitized);

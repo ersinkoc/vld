@@ -1,5 +1,6 @@
 import { VldBase, ParseResult, VLD_VALIDATOR_TYPES, ensureVldError } from './base';
 import { getMessages } from '../locales/runtime';
+import { VldError, createInvalidTypeIssue } from '../errors-core';
 
 /**
  * Configuration for string boolean validation
@@ -11,6 +12,8 @@ export interface StringBoolOptions {
   falsy?: readonly string[];
   /** Whether matching should be case-sensitive (default: false) */
   caseSensitive?: boolean;
+  /** Zod spelling of `caseSensitive` (default: 'insensitive') */
+  case?: 'sensitive' | 'insensitive';
 }
 
 /**
@@ -47,7 +50,9 @@ export class VldStringBool extends VldBase<unknown, boolean> {
    * Create a new string boolean validator
    */
   static create(options: StringBoolOptions = {}): VldStringBool {
-    return new VldStringBool(options);
+    return new VldStringBool(
+      options.case === undefined ? options : { ...options, caseSensitive: options.case === 'sensitive' }
+    );
   }
 
   /**
@@ -74,9 +79,7 @@ export class VldStringBool extends VldBase<unknown, boolean> {
       if (typeof value === 'boolean') {
         return value;
       }
-      throw new Error(
-        getMessages().stringExpected(typeof value, 'string')
-      );
+      throw new VldError([createInvalidTypeIssue('string', typeof value, getMessages().stringExpected(typeof value, 'string'))]);
     }
 
     const normalized = this.normalizeValue(value);
@@ -91,13 +94,13 @@ export class VldStringBool extends VldBase<unknown, boolean> {
       return false;
     }
 
-    // Value is not recognized
-    throw new Error(
-      getMessages().stringBoolExpected(
-        this.validValuesText,
-        value
-      )
-    );
+    // Value is not recognized (Zod: invalid_value listing the accepted strings)
+    throw new VldError([{
+      code: 'invalid_value',
+      path: [],
+      values: [...this.normalizedTruthySet, ...this.normalizedFalsySet],
+      message: getMessages().stringBoolExpected(this.validValuesText, value)
+    }]);
   }
 
   /**

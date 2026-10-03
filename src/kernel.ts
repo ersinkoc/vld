@@ -102,6 +102,11 @@ export function createVldKernel(options: VldKernelOptions = {}): VldKernelInstan
   // ============================================
 
   const use = (plugin: VldPlugin): VldKernelInstance => {
+    // A builder passed without .build() (or any nameless object) would be
+    // registered under a function name and register nothing useful.
+    if (!plugin || typeof plugin.name !== 'string' || plugin.name === '') {
+      throw new Error('Invalid plugin: a plugin object with a string "name" is required (call .build() on a plugin builder)');
+    }
     if (plugins.has(plugin.name)) {
       if (errorStrategy === 'throw') {
         throw new Error(`Plugin "${plugin.name}" is already registered`);
@@ -426,9 +431,18 @@ export function createVldKernel(options: VldKernelOptions = {}): VldKernelInstan
 // ============================================
 
 /**
- * Create a plugin using the builder pattern
+ * Create a plugin using the builder pattern, or - as documented in the README -
+ * define one directly from a plugin object (returned as-is).
  */
-export function definePlugin(): PluginBuilder {
+export function definePlugin(): PluginBuilder;
+export function definePlugin<T extends VldPlugin>(plugin: T): T;
+export function definePlugin(plugin?: VldPlugin): PluginBuilder | VldPlugin {
+  if (plugin !== undefined) {
+    if (!plugin || typeof plugin.name !== 'string' || plugin.name === '') {
+      throw new Error('Plugin name is required');
+    }
+    return plugin;
+  }
   let _name = '';
   let _version = '1.0.0';
   let _description = '';

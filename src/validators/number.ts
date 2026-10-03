@@ -42,10 +42,14 @@ type NumberFastCheckMode = 'none' | 'positive' | 'positive-int' | undefined;
  * Metadata for a single number constraint, enabling Zod 4-compatible issues.
  */
 interface NumberCheckMeta {
-  readonly kind: 'min' | 'max' | 'int' | 'gt' | 'lt' | 'multiple_of' | 'finite' | 'safe' | 'other';
+  readonly kind: 'min' | 'max' | 'int' | 'gt' | 'lt' | 'multiple_of' | 'finite' | 'safe' | 'bounded' | 'other';
   readonly value?: number;
   readonly inclusive?: boolean;
   readonly message: string | undefined;
+  /** `bounded` (uint32, int64, float32, ...): the range and integer flag of the format. */
+  readonly minimum?: number;
+  readonly maximum?: number;
+  readonly integer?: boolean;
 }
 
 interface NumberJSONSchemaHints {
@@ -93,6 +97,14 @@ export class VldNumber extends VldBase<number, number> {
     this._isSimple = this._checks.length === 0;
     this._fastCheckMode = this.detectFastCheckMode();
     this._checkMetas = this.config.checkMetas;
+  }
+
+  /**
+   * Build a sibling validator with `config`, keeping the concrete subclass
+   * (e.g. v.coerce.*) so every chain method preserves coercion.
+   */
+  protected derive(config: Partial<NumberValidatorConfig>): this {
+    return new (this.constructor as new (config: Partial<NumberValidatorConfig>) => this)(config);
   }
 
   private detectFastCheckMode(): NumberFastCheckMode {
@@ -174,7 +186,7 @@ export class VldNumber extends VldBase<number, number> {
   parse(value: unknown): number {
     // Zod 4 rejects Infinity, -Infinity, and NaN for z.number()
     if (typeof value !== 'number' || !Number.isFinite(value)) {
-      throw new VldError([createInvalidTypeIssue('number', getTypeName(value), this.config.errorMessage)]);
+      throw new VldError([createInvalidTypeIssue('number', getTypeName(value), this._typeMessage(value))]);
     }
 
     switch (this._fastCheckMode) {
@@ -184,11 +196,20 @@ export class VldNumber extends VldBase<number, number> {
         if (value > 0) return value;
         throw new VldError([this._createCheckIssue('gt', 0, this.config.errorMessage)]);
       case 'positive-int':
-        if (value > 0 && Number.isInteger(value)) return value;
+        if (value > 0 && Number.isSafeInteger(value)) return value;
         throw new VldError([this._positiveIntIssue(value)]);
     }
 
     return this.parseKnownNumber(value);
+  }
+
+  /**
+   * Message for an invalid_type issue. A non-number gets the type message, not
+   * the last check's message (min/max/...); NaN / Infinity keep the configured
+   * message, which is what finite() reports.
+   */
+  private _typeMessage(value: unknown): string | undefined {
+    return typeof value === 'number' ? this.config.errorMessage : undefined;
   }
 
   /**
@@ -206,6 +227,8 @@ export class VldNumber extends VldBase<number, number> {
         return { code: 'too_big', path: [], origin: 'number', maximum: value!, inclusive: false, message: message || `Too big: expected number to be <${value}` };
       case 'int':
         return { code: 'invalid_type', path: [], expected: 'int', received: 'number', message: message || 'Invalid input: expected int, received number' };
+      case 'multiple_of':
+        return { code: 'not_multiple_of', path: [], origin: 'number', divisor: value!, message: message || `Invalid number: must be a multiple of ${value}` };
       default:
         return { code: 'custom', path: [], message: message || 'Invalid number' };
     }
@@ -218,12 +241,66 @@ export class VldNumber extends VldBase<number, number> {
   private _positiveIntIssue(value: number): VldIssue {
     const kind = value > 0 ? 'int' : 'gt';
     const meta = this._checkMetas?.find(m => m.kind === kind);
-    return this._createCheckIssue(kind, kind === 'gt' ? 0 : undefined, meta ? meta.message : this.config.errorMessage);
+    if (kind === 'int') return this._intIssue(value, meta ? meta.message : this.config.errorMessage);
+    return this._createCheckIssue(kind, 0, meta ? meta.message : this.config.errorMessage);
+  }
+
+  private _issueForFailedMeta(meta: NumberCheckMeta, value: number): VldIssue {
+    if (meta.kind === 'bounded') return this._boundedIssue(meta, value);
+    return meta.kind === 'int' ? this._intIssue(value, meta.message) : this._createCheckIssue(meta.kind, meta.value, meta.message);
+  }
+
+  /** Numeric formats fail as Zod's do: not an int, below the range, or above it. */
+  private _boundedIssue(meta: NumberCheckMeta, value: number): VldIssue {
+    if (meta.integer && !Number.isInteger(value)) return this._createCheckIssue('int', undefined, meta.message);
+    if (meta.minimum !== undefined && value < meta.minimum) return this._createCheckIssue('min', meta.minimum, meta.message);
+    return this._createCheckIssue('max', meta.maximum, meta.message);
+  }
+
+  /** int() failure: an integer outside the safe range is too_big / too_small (Zod). */
+  private _intIssue(value: number, message: string | undefined): VldIssue {
+    if (Number.isInteger(value)) {
+      const tooBig = value > 0;
+      const bound = tooBig ? Number.MAX_SAFE_INTEGER : Number.MIN_SAFE_INTEGER;
+      return {
+        code: tooBig ? 'too_big' : 'too_small',
+        path: [],
+        origin: 'int',
+        ...(tooBig ? { maximum: bound } : { minimum: bound }),
+        inclusive: true,
+        note: 'Integers must be within the safe integer range.',
+        message: message || `${tooBig ? 'Too big' : 'Too small'}: expected int to be ${tooBig ? '<=' : '>='}${bound}`
+      };
+    }
+    return this._createCheckIssue('int', undefined, message);
   }
 
   /**
    * Run all checks against a known number and return the index of the first failing check, or -1.
    */
+  /**
+   * JSON Schema hints for int() / safe(): an integer within the safe range
+   * (as Zod emits), keeping any narrower bound set earlier in the chain.
+   */
+  private _safeIntegerHints(): NumberJSONSchemaHints {
+    const hints = this.config.jsonSchema;
+    return {
+      ...hints,
+      type: 'integer',
+      minimum: Math.max(hints?.minimum ?? Number.MIN_SAFE_INTEGER, Number.MIN_SAFE_INTEGER),
+      maximum: Math.min(hints?.maximum ?? Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER)
+    };
+  }
+
+  /**
+   * Metas for the checks already present. Checks added without a meta (e.g.
+   * finite(), between()) leave the list missing; pad it with fallback metas so
+   * a new meta lands at its own check's index instead of an earlier one.
+   */
+  private _metasForExistingChecks(): ReadonlyArray<NumberCheckMeta> {
+    return this.config.checkMetas ?? this.config.checks.map(() => ({ kind: 'other' as const, message: this.config.errorMessage }));
+  }
+
   private _findFailingCheck(value: number): NumberCheckMeta | null {
     const checks = this._checks;
     const metas = this._checkMetas;
@@ -245,13 +322,13 @@ export class VldNumber extends VldBase<number, number> {
         if (value > 0) return value;
         throw new VldError([this._createCheckIssue('gt', 0, this.config.errorMessage)]);
       case 'positive-int':
-        if (value > 0 && Number.isInteger(value)) return value;
+        if (value > 0 && Number.isSafeInteger(value)) return value;
         throw new VldError([this._positiveIntIssue(value)]);
     }
 
     const failedMeta = this._findFailingCheck(value);
     if (failedMeta) {
-      throw new VldError([this._createCheckIssue(failedMeta.kind, failedMeta.value, failedMeta.message)]);
+      throw new VldError([this._issueForFailedMeta(failedMeta, value)]);
     }
     return value;
   }
@@ -262,13 +339,13 @@ export class VldNumber extends VldBase<number, number> {
   safeParse(value: unknown): ParseResult<number> {
     // Zod 4 rejects Infinity, -Infinity, and NaN for z.number()
     if (typeof value !== 'number' || !Number.isFinite(value)) {
-      return { success: false, error: new VldError([createInvalidTypeIssue('number', getTypeName(value), this.config.errorMessage)]) };
+      return { success: false, error: new VldError([createInvalidTypeIssue('number', getTypeName(value), this._typeMessage(value))]) };
     }
 
     try {
       const failedMeta = this._findFailingCheck(value);
       if (failedMeta) {
-        return { success: false, error: new VldError([this._createCheckIssue(failedMeta.kind, failedMeta.value, failedMeta.message)]) };
+        return { success: false, error: new VldError([this._issueForFailedMeta(failedMeta, value)]) };
       }
     } catch (error) {
       if (error instanceof VldError) return { success: false, error };
@@ -282,11 +359,11 @@ export class VldNumber extends VldBase<number, number> {
    * Create a new validator with minimum value constraint
    */
   min(value: number, message?: ErrorParam): VldNumber {
-    return new VldNumber({
+    return this.derive({
       checks: [...this.config.checks, (v: number) => v >= value],
       errorMessage: resolveErrorMessage(message, getMessages().numberMin(value)),
       jsonSchema: { ...this.config.jsonSchema, minimum: value },
-      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'min', value, inclusive: true, message: resolveErrorMessage(message, getMessages().numberMin(value)) }]
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'min', value, inclusive: true, message: resolveErrorMessage(message, getMessages().numberMin(value)) }]
     });
   }
   
@@ -294,11 +371,11 @@ export class VldNumber extends VldBase<number, number> {
    * Create a new validator with maximum value constraint
    */
   max(value: number, message?: ErrorParam): VldNumber {
-    return new VldNumber({
+    return this.derive({
       checks: [...this.config.checks, (v: number) => v <= value],
       errorMessage: resolveErrorMessage(message, getMessages().numberMax(value)),
       jsonSchema: { ...this.config.jsonSchema, maximum: value },
-      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'max', value, inclusive: true, message: resolveErrorMessage(message, getMessages().numberMax(value)) }]
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'max', value, inclusive: true, message: resolveErrorMessage(message, getMessages().numberMax(value)) }]
     });
   }
   
@@ -306,11 +383,12 @@ export class VldNumber extends VldBase<number, number> {
    * Create a new validator that checks for integer values
    */
   int(message?: ErrorParam): VldNumber {
-    return new VldNumber({
-      checks: [...this.config.checks, (v: number) => Number.isInteger(v)],
+    return this.derive({
+      // Safe range, as Zod: 2 ** 60 is an integer but not one a number can represent exactly.
+      checks: [...this.config.checks, (v: number) => Number.isSafeInteger(v)],
       errorMessage: resolveErrorMessage(message, getMessages().numberInt),
-      jsonSchema: { ...this.config.jsonSchema, type: 'integer' },
-      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'int', message: resolveErrorMessage(message, getMessages().numberInt) }]
+      jsonSchema: this._safeIntegerHints(),
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'int', message: resolveErrorMessage(message, getMessages().numberInt) }]
     });
   }
   
@@ -318,11 +396,11 @@ export class VldNumber extends VldBase<number, number> {
    * Create a new validator that checks for positive values
    */
   positive(message?: ErrorParam): VldNumber {
-    return new VldNumber({
+    return this.derive({
       checks: [...this.config.checks, (v: number) => v > 0],
       errorMessage: resolveErrorMessage(message, getMessages().numberPositive),
       jsonSchema: { ...this.config.jsonSchema, exclusiveMinimum: 0 },
-      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'gt', value: 0, inclusive: false, message: resolveErrorMessage(message, getMessages().numberPositive) }]
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'gt', value: 0, inclusive: false, message: resolveErrorMessage(message, getMessages().numberPositive) }]
     });
   }
   
@@ -330,11 +408,11 @@ export class VldNumber extends VldBase<number, number> {
    * Create a new validator that checks for negative values
    */
   negative(message?: ErrorParam): VldNumber {
-    return new VldNumber({
+    return this.derive({
       checks: [...this.config.checks, (v: number) => v < 0],
       errorMessage: resolveErrorMessage(message, getMessages().numberNegative),
       jsonSchema: { ...this.config.jsonSchema, exclusiveMaximum: 0 },
-      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'lt', value: 0, inclusive: false, message: resolveErrorMessage(message, getMessages().numberNegative) }]
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'lt', value: 0, inclusive: false, message: resolveErrorMessage(message, getMessages().numberNegative) }]
     });
   }
   
@@ -342,11 +420,11 @@ export class VldNumber extends VldBase<number, number> {
    * Create a new validator that checks for non-negative values
    */
   nonnegative(message?: ErrorParam): VldNumber {
-    return new VldNumber({
+    return this.derive({
       checks: [...this.config.checks, (v: number) => v >= 0],
       errorMessage: resolveErrorMessage(message, getMessages().numberNonnegative),
       jsonSchema: { ...this.config.jsonSchema, minimum: 0 },
-      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'min', value: 0, inclusive: true, message: resolveErrorMessage(message, getMessages().numberNonnegative) }]
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'min', value: 0, inclusive: true, message: resolveErrorMessage(message, getMessages().numberNonnegative) }]
     });
   }
   
@@ -354,11 +432,11 @@ export class VldNumber extends VldBase<number, number> {
    * Create a new validator that checks for non-positive values
    */
   nonpositive(message?: ErrorParam): VldNumber {
-    return new VldNumber({
+    return this.derive({
       checks: [...this.config.checks, (v: number) => v <= 0],
       errorMessage: resolveErrorMessage(message, getMessages().numberNonpositive),
       jsonSchema: { ...this.config.jsonSchema, maximum: 0 },
-      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'max', value: 0, inclusive: true, message: resolveErrorMessage(message, getMessages().numberNonpositive) }]
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'max', value: 0, inclusive: true, message: resolveErrorMessage(message, getMessages().numberNonpositive) }]
     });
   }
   
@@ -366,10 +444,11 @@ export class VldNumber extends VldBase<number, number> {
    * Create a new validator that checks for finite values
    */
   finite(message?: ErrorParam): VldNumber {
-    return new VldNumber({
+    return this.derive({
       checks: [...this.config.checks, (v: number) => Number.isFinite(v)],
       errorMessage: resolveErrorMessage(message, getMessages().numberFinite),
-      jsonSchema: this.config.jsonSchema
+      jsonSchema: this.config.jsonSchema,
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'other', message: resolveErrorMessage(message, getMessages().numberFinite) }]
     });
   }
   
@@ -377,10 +456,11 @@ export class VldNumber extends VldBase<number, number> {
    * Create a new validator that checks for safe integer values
    */
   safe(message?: ErrorParam): VldNumber {
-    return new VldNumber({
+    return this.derive({
       checks: [...this.config.checks, (v: number) => Number.isSafeInteger(v)],
       errorMessage: resolveErrorMessage(message, getMessages().numberSafe),
-      jsonSchema: { ...this.config.jsonSchema, type: 'integer' }
+      jsonSchema: this._safeIntegerHints(),
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'int', message: resolveErrorMessage(message, getMessages().numberSafe) }]
     });
   }
   
@@ -388,12 +468,13 @@ export class VldNumber extends VldBase<number, number> {
    * Create a new validator that checks if value is multiple of another
    */
   multipleOf(value: number, message?: ErrorParam): VldNumber {
-    return new VldNumber({
+    return this.derive({
       checks: [...this.config.checks, (v: number) => {
         return isMultipleOf(v, value);
       }],
       errorMessage: resolveErrorMessage(message, getMessages().numberMultipleOf(value)),
-      jsonSchema: { ...this.config.jsonSchema, multipleOf: value }
+      jsonSchema: { ...this.config.jsonSchema, multipleOf: value },
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'multiple_of', value, message: resolveErrorMessage(message, getMessages().numberMultipleOf(value)) }]
     });
   }
   
@@ -408,10 +489,11 @@ export class VldNumber extends VldBase<number, number> {
    * Create a new validator with a range constraint
    */
   between(min: number, max: number, message?: ErrorParam): VldNumber {
-    return new VldNumber({
+    return this.derive({
       checks: [...this.config.checks, (v: number) => v >= min && v <= max],
       errorMessage: resolveErrorMessage(message, `Number must be between ${min} and ${max}`),
-      jsonSchema: { ...this.config.jsonSchema, minimum: min, maximum: max }
+      jsonSchema: { ...this.config.jsonSchema, minimum: min, maximum: max },
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'other', message: resolveErrorMessage(message, `Number must be between ${min} and ${max}`) }]
     });
   }
   
@@ -420,7 +502,7 @@ export class VldNumber extends VldBase<number, number> {
    * BUG-011 FIX: Require integers for even/odd validation (more mathematically correct)
    */
   even(message?: ErrorParam): VldNumber {
-    return new VldNumber({
+    return this.derive({
       checks: [...this.config.checks, (v: number) => {
         // Even/odd only makes sense for integers
         if (!Number.isInteger(v)) {
@@ -429,7 +511,8 @@ export class VldNumber extends VldBase<number, number> {
         return v % 2 === 0;
       }],
       errorMessage: resolveErrorMessage(message, 'Number must be even'),
-      jsonSchema: { ...this.config.jsonSchema, type: 'integer', multipleOf: 2 }
+      jsonSchema: { ...this.config.jsonSchema, type: 'integer', multipleOf: 2 },
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'other', message: resolveErrorMessage(message, 'Number must be even') }]
     });
   }
 
@@ -438,7 +521,7 @@ export class VldNumber extends VldBase<number, number> {
    * BUG-011 FIX: Require integers for even/odd validation (more mathematically correct)
    */
   odd(message?: ErrorParam): VldNumber {
-    return new VldNumber({
+    return this.derive({
       checks: [...this.config.checks, (v: number) => {
         // Even/odd only makes sense for integers
         if (!Number.isInteger(v)) {
@@ -447,7 +530,8 @@ export class VldNumber extends VldBase<number, number> {
         return v % 2 !== 0;
       }],
       errorMessage: resolveErrorMessage(message, 'Number must be odd'),
-      jsonSchema: { ...this.config.jsonSchema, type: 'integer' }
+      jsonSchema: { ...this.config.jsonSchema, type: 'integer' },
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'other', message: resolveErrorMessage(message, 'Number must be odd') }]
     });
   }
 
@@ -456,11 +540,11 @@ export class VldNumber extends VldBase<number, number> {
    * Zod 4 API parity - strictly greater than (not equal to)
    */
   gt(value: number, message?: ErrorParam): VldNumber {
-    return new VldNumber({
+    return this.derive({
       checks: [...this.config.checks, (v: number) => v > value],
       errorMessage: resolveErrorMessage(message, `Number must be greater than ${value}`),
       jsonSchema: { ...this.config.jsonSchema, exclusiveMinimum: value },
-      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'gt', value, inclusive: false, message: resolveErrorMessage(message, `Number must be greater than ${value}`) }]
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'gt', value, inclusive: false, message: resolveErrorMessage(message, `Number must be greater than ${value}`) }]
     });
   }
 
@@ -469,11 +553,11 @@ export class VldNumber extends VldBase<number, number> {
    * Zod 4 API parity - strictly less than (not equal to)
    */
   lt(value: number, message?: ErrorParam): VldNumber {
-    return new VldNumber({
+    return this.derive({
       checks: [...this.config.checks, (v: number) => v < value],
       errorMessage: resolveErrorMessage(message, `Number must be less than ${value}`),
       jsonSchema: { ...this.config.jsonSchema, exclusiveMaximum: value },
-      checkMetas: [...(this.config.checkMetas ?? []), { kind: 'lt', value, inclusive: false, message: resolveErrorMessage(message, `Number must be less than ${value}`) }]
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'lt', value, inclusive: false, message: resolveErrorMessage(message, `Number must be less than ${value}`) }]
     });
   }
 
@@ -498,10 +582,11 @@ export class VldNumber extends VldBase<number, number> {
    * Range: 0 to 4,294,967,295
    */
   uint32(message?: ErrorParam): VldNumber {
-    return new VldNumber({
+    return this.derive({
       checks: [...this.config.checks, (v: number) => Number.isSafeInteger(v) && v >= 0 && v <= 4294967295],
       errorMessage: resolveErrorMessage(message, 'Expected an unsigned 32-bit integer'),
-      jsonSchema: { ...this.config.jsonSchema, type: 'integer', minimum: 0, maximum: 4294967295 }
+      jsonSchema: { ...this.config.jsonSchema, type: 'integer', minimum: 0, maximum: 4294967295 },
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'bounded', minimum: 0, maximum: 4294967295, integer: true, message: resolveErrorMessage(message, 'Expected an unsigned 32-bit integer') }]
     });
   }
 
@@ -510,10 +595,11 @@ export class VldNumber extends VldBase<number, number> {
    * Range: 0 to 2^53-1 (safe integer limit)
    */
   uint64(message?: ErrorParam): VldNumber {
-    return new VldNumber({
+    return this.derive({
       checks: [...this.config.checks, (v: number) => Number.isSafeInteger(v) && v >= 0],
       errorMessage: resolveErrorMessage(message, 'Expected an unsigned 64-bit integer'),
-      jsonSchema: { ...this.config.jsonSchema, type: 'integer', minimum: 0 }
+      jsonSchema: { ...this.config.jsonSchema, type: 'integer', minimum: 0 },
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'bounded', minimum: 0, maximum: Number.MAX_SAFE_INTEGER, integer: true, message: resolveErrorMessage(message, 'Expected an unsigned 64-bit integer') }]
     });
   }
 
@@ -522,10 +608,11 @@ export class VldNumber extends VldBase<number, number> {
    * Range: -2,147,483,648 to 2,147,483,647
    */
   int32(message?: ErrorParam): VldNumber {
-    return new VldNumber({
+    return this.derive({
       checks: [...this.config.checks, (v: number) => Number.isSafeInteger(v) && v >= -2147483648 && v <= 2147483647],
       errorMessage: resolveErrorMessage(message, 'Expected a signed 32-bit integer'),
-      jsonSchema: { ...this.config.jsonSchema, type: 'integer', minimum: -2147483648, maximum: 2147483647 }
+      jsonSchema: { ...this.config.jsonSchema, type: 'integer', minimum: -2147483648, maximum: 2147483647 },
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'bounded', minimum: -2147483648, maximum: 2147483647, integer: true, message: resolveErrorMessage(message, 'Expected a signed 32-bit integer') }]
     });
   }
 
@@ -534,10 +621,11 @@ export class VldNumber extends VldBase<number, number> {
    * Range: -(2^53-1) to 2^53-1 (safe integer limit)
    */
   int64(message?: ErrorParam): VldNumber {
-    return new VldNumber({
+    return this.derive({
       checks: [...this.config.checks, (v: number) => Number.isSafeInteger(v)],
       errorMessage: resolveErrorMessage(message, 'Expected a signed 64-bit integer'),
-      jsonSchema: { ...this.config.jsonSchema, type: 'integer' }
+      jsonSchema: { ...this.config.jsonSchema, type: 'integer' },
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'bounded', minimum: Number.MIN_SAFE_INTEGER, maximum: Number.MAX_SAFE_INTEGER, integer: true, message: resolveErrorMessage(message, 'Expected a signed 64-bit integer') }]
     });
   }
 
@@ -546,10 +634,11 @@ export class VldNumber extends VldBase<number, number> {
    * Range: -3.4e38 to 3.4e38, precision ~7 decimal digits
    */
   float32(message?: ErrorParam): VldNumber {
-    return new VldNumber({
+    return this.derive({
       checks: [...this.config.checks, (v: number) => Number.isFinite(v) && Math.abs(v) <= FLOAT32_MAX],
       errorMessage: resolveErrorMessage(message, 'Expected a 32-bit float'),
-      jsonSchema: { ...this.config.jsonSchema, minimum: -FLOAT32_MAX, maximum: FLOAT32_MAX }
+      jsonSchema: { ...this.config.jsonSchema, minimum: -FLOAT32_MAX, maximum: FLOAT32_MAX },
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'bounded', minimum: -FLOAT32_MAX, maximum: FLOAT32_MAX, message: resolveErrorMessage(message, 'Expected a 32-bit float') }]
     });
   }
 
@@ -558,10 +647,11 @@ export class VldNumber extends VldBase<number, number> {
    * Alias for standard number validation
    */
   float64(message?: ErrorParam): VldNumber {
-    return new VldNumber({
+    return this.derive({
       checks: [...this.config.checks, (v: number) => Number.isFinite(v)],
       errorMessage: resolveErrorMessage(message, 'Expected a 64-bit float'),
-      jsonSchema: this.config.jsonSchema
+      jsonSchema: this.config.jsonSchema,
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'other', message: resolveErrorMessage(message, 'Expected a 64-bit float') }]
     });
   }
 }

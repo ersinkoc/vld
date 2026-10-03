@@ -1,6 +1,6 @@
 import { VldBase, ParseResult, VLD_VALIDATOR_TYPES, ValidatorType } from './base';
 import { getMessages } from '../locales/runtime';
-import { VldError } from '../errors-core';
+import { VldError, createInvalidTypeIssue, getTypeName, type VldIssue } from '../errors-core';
 
 /**
  * Type for bigint validation check functions
@@ -9,6 +9,16 @@ type BigIntCheck = (value: bigint) => boolean;
 
 function createBigIntError(message: string): VldError {
   return new VldError([{ code: 'invalid_type', path: [], message }]);
+}
+
+/**
+ * Metadata for one bigint check, so a failure reports its own Zod-style issue
+ * (too_small / too_big / not_multiple_of) and message instead of the last one's.
+ */
+interface BigIntCheckMeta {
+  readonly kind: 'min' | 'max' | 'gt' | 'lt' | 'multiple_of';
+  readonly value: bigint;
+  readonly message: string;
 }
 
 interface BigIntJSONSchemaHints {
@@ -26,9 +36,10 @@ interface BigIntValidatorConfig {
   readonly errorMessage: string | undefined;
   readonly validatorType?: ValidatorType;
   readonly jsonSchema: BigIntJSONSchemaHints | undefined;
+  readonly checkMetas?: ReadonlyArray<BigIntCheckMeta> | undefined;
 }
 
-type BigIntFastCheckMode =
+type BigIntFastCheckMode=
   | 'none'
   | 'positive'
   | 'negative'
@@ -52,10 +63,19 @@ export class VldBigInt extends VldBase<bigint, bigint> {
     this.config = {
       checks: config?.checks || [],
       errorMessage: config?.errorMessage,
-      jsonSchema: config?.jsonSchema
+      jsonSchema: config?.jsonSchema,
+      checkMetas: config?.checkMetas
     };
     this._checks = this.config.checks;
     this._fastCheckMode = this.detectFastCheckMode();
+  }
+
+  /**
+   * Build a sibling validator with `config`, keeping the concrete subclass
+   * (e.g. v.coerce.*) so every chain method preserves coercion.
+   */
+  protected derive(config: Partial<BigIntValidatorConfig>): this {
+    return new (this.constructor as new (config: Partial<BigIntValidatorConfig>) => this)(config);
   }
 
   get jsonSchema(): BigIntJSONSchemaHints | undefined {
@@ -114,13 +134,48 @@ export class VldBigInt extends VldBase<bigint, bigint> {
   private getValidationError(): Error {
     return new Error(this.config.errorMessage || getMessages().invalidBigint);
   }
-  
+
+  /** invalid_type for a non-bigint: the type message, not the last check's. */
+  private getTypeError(value: unknown): VldError {
+    return new VldError([createInvalidTypeIssue('bigint', getTypeName(value), getMessages().invalidBigint)]);
+  }
+
+  /** Issue for the check at `index`, from its own metadata when present. */
+  private getCheckError(index: number): Error {
+    const meta = this.config.checkMetas?.[index];
+    if (!meta) return this.getValidationError();
+    let issue: VldIssue;
+    switch (meta.kind) {
+      case 'min':
+      case 'gt':
+        issue = { code: 'too_small', path: [], origin: 'bigint', minimum: meta.value, inclusive: meta.kind === 'min', message: meta.message };
+        break;
+      case 'max':
+      case 'lt':
+        issue = { code: 'too_big', path: [], origin: 'bigint', maximum: meta.value, inclusive: meta.kind === 'max', message: meta.message };
+        break;
+      default:
+        issue = { code: 'not_multiple_of', path: [], origin: 'bigint', divisor: meta.value, message: meta.message };
+    }
+    return new VldError([issue]);
+  }
+
+  private withCheck(check: BigIntCheck, meta: BigIntCheckMeta, jsonSchema: BigIntJSONSchemaHints): VldBigInt {
+    return this.derive({
+      ...this.config,
+      checks: [...this.config.checks, check],
+      errorMessage: meta.message,
+      jsonSchema,
+      checkMetas: [...(this.config.checkMetas ?? []), meta]
+    });
+  }
+
   /**
    * Parse and validate a bigint value
    */
   parse(value: unknown): bigint {
     if (typeof value !== 'bigint') {
-      throw this.getValidationError();
+      throw this.getTypeError(value);
     }
 
     return this.parseKnownBigInt(value);
@@ -136,22 +191,23 @@ export class VldBigInt extends VldBase<bigint, bigint> {
         return value;
       case 'positive':
         if (value > 0n) return value;
-        throw this.getValidationError();
+        throw this.getCheckError(0);
       case 'negative':
         if (value < 0n) return value;
-        throw this.getValidationError();
+        throw this.getCheckError(0);
       case 'nonnegative':
         if (value >= 0n) return value;
-        throw this.getValidationError();
+        throw this.getCheckError(0);
       case 'nonpositive':
         if (value <= 0n) return value;
-        throw this.getValidationError();
+        throw this.getCheckError(0);
     }
 
     // Apply all checks
-    for (const check of this._checks) {
-      if (!check(value)) {
-        throw this.getValidationError();
+    const checks = this._checks;
+    for (let i = 0; i < checks.length; i++) {
+      if (!checks[i]!(value)) {
+        throw this.getCheckError(i);
       }
     }
     
@@ -163,12 +219,13 @@ export class VldBigInt extends VldBase<bigint, bigint> {
    */
   safeParse(value: unknown): ParseResult<bigint> {
     if (typeof value !== 'bigint') {
-      return { success: false, error: createBigIntError(this.getValidationError().message) };
+      return { success: false, error: this.getTypeError(value) };
     }
 
     try {
       return { success: true, data: this.parseKnownBigInt(value) };
     } catch (error) {
+      if (error instanceof VldError) return { success: false, error };
       return { success: false, error: createBigIntError((error as Error).message) };
     }
   }
@@ -177,72 +234,42 @@ export class VldBigInt extends VldBase<bigint, bigint> {
    * Create a new validator with minimum value constraint
    */
   min(value: bigint, message?: string): VldBigInt {
-    return new VldBigInt({
-      ...this.config,
-      checks: [...this.config.checks, (v: bigint) => v >= value],
-      errorMessage: message || `BigInt must be at least ${value}`,
-      jsonSchema: { ...this.config.jsonSchema, minimum: value }
-    });
+    return this.withCheck((v: bigint) => v >= value, { kind: 'min', value: value, message: message || `BigInt must be at least ${value}` }, { ...this.config.jsonSchema, minimum: value });
   }
   
   /**
    * Create a new validator with maximum value constraint
    */
   max(value: bigint, message?: string): VldBigInt {
-    return new VldBigInt({
-      ...this.config,
-      checks: [...this.config.checks, (v: bigint) => v <= value],
-      errorMessage: message || `BigInt must be at most ${value}`,
-      jsonSchema: { ...this.config.jsonSchema, maximum: value }
-    });
+    return this.withCheck((v: bigint) => v <= value, { kind: 'max', value: value, message: message || `BigInt must be at most ${value}` }, { ...this.config.jsonSchema, maximum: value });
   }
   
   /**
    * Create a new validator that checks for positive values
    */
   positive(message?: string): VldBigInt {
-    return new VldBigInt({
-      ...this.config,
-      checks: [...this.config.checks, (v: bigint) => v > 0n],
-      errorMessage: message || 'BigInt must be positive',
-      jsonSchema: { ...this.config.jsonSchema, exclusiveMinimum: 0n }
-    });
+    return this.withCheck((v: bigint) => v > 0n, { kind: 'gt', value: 0n, message: message || 'BigInt must be positive' }, { ...this.config.jsonSchema, exclusiveMinimum: 0n });
   }
   
   /**
    * Create a new validator that checks for negative values
    */
   negative(message?: string): VldBigInt {
-    return new VldBigInt({
-      ...this.config,
-      checks: [...this.config.checks, (v: bigint) => v < 0n],
-      errorMessage: message || 'BigInt must be negative',
-      jsonSchema: { ...this.config.jsonSchema, exclusiveMaximum: 0n }
-    });
+    return this.withCheck((v: bigint) => v < 0n, { kind: 'lt', value: 0n, message: message || 'BigInt must be negative' }, { ...this.config.jsonSchema, exclusiveMaximum: 0n });
   }
   
   /**
    * Create a new validator that checks for non-negative values
    */
   nonnegative(message?: string): VldBigInt {
-    return new VldBigInt({
-      ...this.config,
-      checks: [...this.config.checks, (v: bigint) => v >= 0n],
-      errorMessage: message || 'BigInt must be non-negative',
-      jsonSchema: { ...this.config.jsonSchema, minimum: 0n }
-    });
+    return this.withCheck((v: bigint) => v >= 0n, { kind: 'min', value: 0n, message: message || 'BigInt must be non-negative' }, { ...this.config.jsonSchema, minimum: 0n });
   }
   
   /**
    * Create a new validator that checks for non-positive values
    */
   nonpositive(message?: string): VldBigInt {
-    return new VldBigInt({
-      ...this.config,
-      checks: [...this.config.checks, (v: bigint) => v <= 0n],
-      errorMessage: message || 'BigInt must be non-positive',
-      jsonSchema: { ...this.config.jsonSchema, maximum: 0n }
-    });
+    return this.withCheck((v: bigint) => v <= 0n, { kind: 'max', value: 0n, message: message || 'BigInt must be non-positive' }, { ...this.config.jsonSchema, maximum: 0n });
   }
 
   /**
@@ -251,12 +278,7 @@ export class VldBigInt extends VldBase<bigint, bigint> {
    */
   gt(value: bigint | number, message?: string): VldBigInt {
     const compareValue = typeof value === 'bigint' ? value : BigInt(value);
-    return new VldBigInt({
-      ...this.config,
-      checks: [...this.config.checks, (v: bigint) => v > compareValue],
-      errorMessage: message || `BigInt must be greater than ${compareValue}`,
-      jsonSchema: { ...this.config.jsonSchema, exclusiveMinimum: compareValue }
-    });
+    return this.withCheck((v: bigint) => v > compareValue, { kind: 'gt', value: compareValue, message: message || `BigInt must be greater than ${compareValue}` }, { ...this.config.jsonSchema, exclusiveMinimum: compareValue });
   }
 
   /**
@@ -265,12 +287,7 @@ export class VldBigInt extends VldBase<bigint, bigint> {
    */
   lt(value: bigint | number, message?: string): VldBigInt {
     const compareValue = typeof value === 'bigint' ? value : BigInt(value);
-    return new VldBigInt({
-      ...this.config,
-      checks: [...this.config.checks, (v: bigint) => v < compareValue],
-      errorMessage: message || `BigInt must be less than ${compareValue}`,
-      jsonSchema: { ...this.config.jsonSchema, exclusiveMaximum: compareValue }
-    });
+    return this.withCheck((v: bigint) => v < compareValue, { kind: 'lt', value: compareValue, message: message || `BigInt must be less than ${compareValue}` }, { ...this.config.jsonSchema, exclusiveMaximum: compareValue });
   }
 
   /**
@@ -295,11 +312,10 @@ export class VldBigInt extends VldBase<bigint, bigint> {
    * Create a new validator with multiple of constraint
    */
   multipleOf(divisor: bigint, message?: string): VldBigInt {
-    return new VldBigInt({
-      ...this.config,
-      checks: [...this.config.checks, (v: bigint) => v % divisor === 0n],
-      errorMessage: message || `BigInt must be a multiple of ${divisor}`,
-      jsonSchema: { ...this.config.jsonSchema, multipleOf: divisor } as any
-    });
+    return this.withCheck(
+      (v: bigint) => v % divisor === 0n,
+      { kind: 'multiple_of', value: divisor, message: message || `BigInt must be a multiple of ${divisor}` },
+      { ...this.config.jsonSchema, multipleOf: divisor } as any
+    );
   }
 }

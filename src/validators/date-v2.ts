@@ -193,7 +193,7 @@ export class VldDateV2 extends VldBase<Date, Date> {
 
   safeParse(value: unknown): ParseResult<Date> {
     try { return { success: true, data: this.parse(value) }; }
-    catch (e) { return { success: false, error: e instanceof VldError ? e : new VldError([{ code: 'custom', path: [], message: String(e) }]) }; }
+    catch (e) { return { success: false, error: e instanceof VldError ? e : new VldError([{ code: 'custom', path: [], message: e instanceof Error ? e.message : String(e) }]) }; }
   }
 
   protected withDef(def: Partial<VldDateDef> & { type: 'date' }): VldDateV2 {

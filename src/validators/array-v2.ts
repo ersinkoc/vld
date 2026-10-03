@@ -5,6 +5,7 @@
 import { VldBase, VLD_VALIDATOR_TYPES, type ErrorParam, type ParseResult } from './base';
 import { VldError, createInvalidTypeIssue, getTypeName } from '../errors-core';
 import { getMessages } from '../locales/runtime';
+import { VldArray } from './array';
 
 type SimpleItemMode = 'string' | 'number' | 'boolean' | undefined;
 
@@ -152,7 +153,8 @@ export class VldArrayV2<T> extends VldBase<unknown[], T[]> {
         if (c.kind === 'unique' && def.hasUnique) {
           const seen = new Set<unknown>();
           for (let j = 0; j < value.length; j++) {
-            const item = value[j];
+            // Structural key, as legacy VldArray.unique(): {a:1} twice is a duplicate.
+            const item = typeof value[j] === 'object' && value[j] !== null ? VldArray.stableStringify(value[j]) : value[j];
             if (seen.has(item)) {
               throw new VldError([{ code: 'custom', path: [j],
                 message: c.message || `Duplicate item at index ${j}` }]);
@@ -193,7 +195,7 @@ export class VldArrayV2<T> extends VldBase<unknown[], T[]> {
 
   safeParse(value: unknown): ParseResult<T[]> {
     try { return { success: true, data: this.parse(value) }; }
-    catch (e) { return { success: false, error: e instanceof VldError ? e : new VldError([{ code: 'custom', path: [], message: String(e) }]) }; }
+    catch (e) { return { success: false, error: e instanceof VldError ? e : new VldError([{ code: 'custom', path: [], message: e instanceof Error ? e.message : String(e) }]) }; }
   }
 
   protected withDef(def: Partial<VldArrayDef> & { type: 'array' }): VldArrayV2<T> {

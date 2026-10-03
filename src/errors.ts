@@ -3,7 +3,7 @@
 import { type Theme, vldTheme } from './pigment';
 export { VldError } from './errors-core';
 export type { VldErrorCode, VldErrorJSON, VldIssue } from './errors-core';
-import { VldError, getOwnKey, setOwnKey, type VldErrorCode, type VldIssue } from './errors-core';
+import { VldError, getOwnKey, setOwnKey, expandNestedIssues, type VldErrorCode, type VldIssue } from './errors-core';
 
 // Error tree structure for nested validation
 export interface VldErrorTree {
@@ -24,7 +24,7 @@ export interface VldFlattenedError {
 export function treeifyError(error: VldError): VldErrorTree {
   const tree: VldErrorTree = { errors: [] };
 
-  for (const issue of error.issues) {
+  for (const issue of expandNestedIssues(error.issues)) {
     let currentNode = tree;
     const path = issue.path;
 

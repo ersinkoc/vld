@@ -1,6 +1,12 @@
 import { VldBigInt } from '../validators/bigint';
 import { ParseResult, VLD_VALIDATOR_TYPES, ensureVldError } from '../validators/base';
 import { getMessages } from '../locales/runtime';
+import { VldError, createInvalidTypeIssue, getTypeName } from '../errors-core';
+
+/** Zod: a value that does not coerce fails the type check (invalid_type). */
+function coercionError(value: unknown, received: string): VldError {
+  return new VldError([createInvalidTypeIssue('bigint', received, getMessages().coercionFailed('bigint', value))]);
+}
 
 /**
  * BigInt coercion validator that attempts to convert values to bigint
@@ -17,47 +23,30 @@ export class VldCoerceBigInt extends VldBigInt {
     return new VldCoerceBigInt();
   }
   
-  // Override all chain methods to return VldCoerceBigInt instances
+  // Chain methods are inherited (they keep the subclass via derive());
+  // these overrides only narrow the return type.
   override min(value: bigint, message?: string): VldCoerceBigInt {
-    return new VldCoerceBigInt({
-      checks: [...this.config.checks, (v: bigint) => v >= value],
-      errorMessage: message || `BigInt must be at least ${value}`
-    });
+    return super.min(value, message) as VldCoerceBigInt;
   }
   
   override max(value: bigint, message?: string): VldCoerceBigInt {
-    return new VldCoerceBigInt({
-      checks: [...this.config.checks, (v: bigint) => v <= value],
-      errorMessage: message || `BigInt must be at most ${value}`
-    });
+    return super.max(value, message) as VldCoerceBigInt;
   }
   
   override positive(message?: string): VldCoerceBigInt {
-    return new VldCoerceBigInt({
-      checks: [...this.config.checks, (v: bigint) => v > 0n],
-      errorMessage: message || 'BigInt must be positive'
-    });
+    return super.positive(message) as VldCoerceBigInt;
   }
   
   override negative(message?: string): VldCoerceBigInt {
-    return new VldCoerceBigInt({
-      checks: [...this.config.checks, (v: bigint) => v < 0n],
-      errorMessage: message || 'BigInt must be negative'
-    });
+    return super.negative(message) as VldCoerceBigInt;
   }
   
   override nonnegative(message?: string): VldCoerceBigInt {
-    return new VldCoerceBigInt({
-      checks: [...this.config.checks, (v: bigint) => v >= 0n],
-      errorMessage: message || 'BigInt must be non-negative'
-    });
+    return super.nonnegative(message) as VldCoerceBigInt;
   }
   
   override nonpositive(message?: string): VldCoerceBigInt {
-    return new VldCoerceBigInt({
-      checks: [...this.config.checks, (v: bigint) => v <= 0n],
-      errorMessage: message || 'BigInt must be non-positive'
-    });
+    return super.nonpositive(message) as VldCoerceBigInt;
   }
   
   /**
@@ -73,20 +62,21 @@ export class VldCoerceBigInt extends VldBigInt {
     if (typeof value === 'string') {
       const trimmed = value.trim();
       if (trimmed === '') {
-        throw new Error(getMessages().coercionFailed('bigint', value));
+        throw coercionError(value, 'string');
       }
+      let coerced: bigint;
       try {
-        const coerced = BigInt(trimmed);
-        return super.parse(coerced);
+        coerced = BigInt(trimmed);
       } catch {
-        throw new Error(getMessages().coercionFailed('bigint', value));
+        throw coercionError(value, 'string');
       }
+      return super.parse(coerced);
     }
     
     // Handle number values (must be integer)
     if (typeof value === 'number') {
       if (!Number.isInteger(value)) {
-        throw new Error(getMessages().coercionFailed('bigint', value));
+        throw coercionError(value, getTypeName(value));
       }
       const coerced = BigInt(value);
       return super.parse(coerced);
@@ -94,16 +84,17 @@ export class VldCoerceBigInt extends VldBigInt {
     
     // Handle null and undefined
     if (value === null || value === undefined) {
-      throw new Error(getMessages().coercionFailed('bigint', value));
+      throw coercionError(value, getTypeName(value));
     }
-    
+
     // Try to coerce other values
+    let coerced: bigint;
     try {
-      const coerced = BigInt(value as any);
-      return super.parse(coerced);
+      coerced = BigInt(value as any);
     } catch {
-      throw new Error(getMessages().coercionFailed('bigint', value));
+      throw coercionError(value, getTypeName(value));
     }
+    return super.parse(coerced);
   }
   
   /**

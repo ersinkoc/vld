@@ -204,7 +204,14 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
           case 'length': {
             const bound = numericLiteral(c, m.value);
             if (bound === undefined) return;
-            extra.push(`__v.length ${m.kind === 'min' ? '>=' : m.kind === 'max' ? '<=' : '==='} ${bound}`);
+            // Code-point length (Zod 4.6): surrogate pairs count once, and
+            // only need counting when the UTF-16 length cannot decide.
+            const pairs = `(__v.length - (__v.match(${addRegex(c, '[\\uD800-\\uDBFF][\\uDC00-\\uDFFF]', 'g')}) || []).length)`;
+            extra.push(m.kind === 'min'
+              ? `(__v.length >= ${bound} && (__v.length >= ${bound} * 2 || ${pairs} >= ${bound}))`
+              : m.kind === 'max'
+                ? `(__v.length <= ${bound} || ${pairs} <= ${bound})`
+                : `(__v.length >= ${bound} && __v.length <= ${bound} * 2 && ${pairs} === ${bound})`);
             break;
           }
           case 'regex': {
@@ -218,16 +225,29 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
           }
           case 'startsWith': extra.push(`__v.startsWith(${JSON.stringify(m.value)})`); break;
           case 'endsWith': extra.push(`__v.endsWith(${JSON.stringify(m.value)})`); break;
-          case 'includes': extra.push(`__v.includes(${JSON.stringify(m.value)})`); break;
-          case 'email':
+          case 'includes': {
+            const position = (m as { position?: unknown }).position;
+            extra.push(typeof position === 'number'
+              ? `__v.includes(${JSON.stringify(m.value)}, ${JSON.stringify(position)})`
+              : `__v.includes(${JSON.stringify(m.value)})`);
+            break;
+          }
           case 'url':
+            // URL validity is the WHATWG parser's call, not a regex.
+            c.failed = true;
+            return;
+          case 'email':
           case 'uuid': {
             const fmt = COMPILABLE_FORMATS[m.kind];
             extra.push(`${addRegex(c, fmt.source, fmt.flags)}.test(__v)`);
             break;
           }
           case 'format': {
-            if (m.format === 'email' || m.format === 'url' || m.format === 'uuid') {
+            if (m.format === 'url') {
+              c.failed = true;
+              return;
+            }
+            if (m.format === 'email' || m.format === 'uuid') {
               const fmt = COMPILABLE_FORMATS[m.format];
               extra.push(`${addRegex(c, fmt.source, fmt.flags)}.test(__v)`);
             } else if (m.pattern !== undefined) {
@@ -268,7 +288,7 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
         const bound = valued ? numericLiteral(c, m.value) : undefined;
         if (c.failed) return;
         switch (m.kind) {
-          case 'int': extra.push('Number.isInteger(__v)'); break;
+          case 'int': extra.push('Number.isSafeInteger(__v)'); break;
           case 'finite': extra.push('Number.isFinite(__v)'); break;
           case 'min':
             extra.push(m.inclusive !== false ? `__v >= ${bound}` : `__v > ${bound}`);
@@ -497,6 +517,8 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
   }
   if (kindOf(schema) === 'VldTuple') {
     const items = ((schema as any).validators as Array<VldBase<any, any> | undefined>).filter((x): x is VldBase<any, any> => Boolean(x));
+    // Optional positions shorten the accepted length (interpreter rule): fall back.
+    if (items.some((item) => ['VldOptional', 'VldExactOptional', 'VldNullish', 'VldDefault'].includes(kindOf(item)))) { c.failed = true; return; }
     const rest = (schema as any).restValidator as VldBase<any, any> | undefined;
     const outName = temp(c, 'tup');
     const lengthCheck = rest ? `${input}.length < ${items.length}` : `${input}.length !== ${items.length}`;
@@ -604,8 +626,16 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
     const idxName = temp(c, 'i');
     const keyTmp = temp(c, 'k');
     const valTmp = temp(c, 'v');
+    // Enum / literal keys make the record exhaustive (every key required):
+    // leave that to the interpreter rather than emit a weaker check.
+    const keyKind = keyVal ? kindOf(keyVal) : undefined;
+    if (keyKind === 'VldEnum' || keyKind === 'VldLiteral') { c.failed = true; return; }
+    const ctorName = temp(c, 'ctor');
     c.hoist.push(
       `if (typeof ${input} !== "object" || ${input} === null || Array.isArray(${input})) ${c.throwOnFail ? "throw" : "return"} ${c.invalid};`,
+      // Same plain-object rule as VldRecord: Date / Map / Set / typed arrays are not records.
+      `const ${ctorName} = ${input}.constructor;`,
+      `if (typeof ${ctorName} === "function" && !(typeof ${ctorName}.prototype === "object" && ${ctorName}.prototype !== null && Object.prototype.hasOwnProperty.call(${ctorName}.prototype, "isPrototypeOf"))) ${c.throwOnFail ? "throw" : "return"} ${c.invalid};`,
       `const ${outName} = {};`,
       `const ${ksName} = Object.keys(${input});`,
       `for (let ${idxName} = 0; ${idxName} < ${ksName}.length; ${idxName}++) {`,

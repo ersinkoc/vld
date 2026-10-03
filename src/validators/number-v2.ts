@@ -74,6 +74,15 @@ export class VldNumberCheckInt extends VldNumberCheck {
       return { code: 'invalid_type', path: [], expected: 'int', received: 'number',
         message: this._msg || 'Invalid input: expected int, received number' };
     }
+    // Outside the safe range: not exactly representable (Zod's int bounds).
+    if (!Number.isSafeInteger(value)) {
+      const tooBig = value > 0;
+      return tooBig
+        ? { code: 'too_big', path: [], origin: 'int', maximum: Number.MAX_SAFE_INTEGER, inclusive: true,
+          message: this._msg || `Too big: expected int to be <=${Number.MAX_SAFE_INTEGER}` }
+        : { code: 'too_small', path: [], origin: 'int', minimum: Number.MIN_SAFE_INTEGER, inclusive: true,
+          message: this._msg || `Too small: expected int to be >=${Number.MIN_SAFE_INTEGER}` };
+    }
     return null;
   }
   meta() { return { kind: 'int', message: this._msg }; }

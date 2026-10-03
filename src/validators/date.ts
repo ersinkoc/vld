@@ -1,19 +1,26 @@
-import { VldBase, ParseResult, VLD_VALIDATOR_TYPES, ValidatorType } from './base';
+import { VldBase, ParseResult, VLD_VALIDATOR_TYPES, ValidatorType, ensureVldError } from './base';
 import { getMessages } from '../locales/runtime';
-import { VldError } from '../errors-core';
+import { VldError, createInvalidTypeIssue, getTypeName, type VldIssue } from '../errors-core';
 
 /**
  * Type for date validation check functions
  */
 type DateCheckFn = (value: Date) => boolean;
 
-function createDateError(message: string): VldError {
-  return new VldError([{ code: 'invalid_date', path: [], message }]);
-}
-
 interface DateCheck {
   fn: DateCheckFn;
   message: string;
+  /** Zod issue fields for a failed bound (too_small / too_big); default invalid_date. */
+  issue?: (value: Date) => Partial<VldIssue>;
+}
+
+const tooSmall = (minimum: Date) => (): Partial<VldIssue> => ({ code: 'too_small', origin: 'date', minimum: minimum.getTime(), inclusive: true });
+const tooBig = (maximum: Date) => (): Partial<VldIssue> => ({ code: 'too_big', origin: 'date', maximum: maximum.getTime(), inclusive: true });
+
+/** Zod: a non-date (or an Invalid Date) is invalid_type, expected date. */
+function dateTypeError(value: unknown, message: string): VldError {
+  const received = value instanceof Date ? 'Invalid Date' : getTypeName(value);
+  return new VldError([createInvalidTypeIssue('date', received, message)]);
 }
 
 interface DateJSONSchemaHints {
@@ -55,6 +62,14 @@ export class VldDate extends VldBase<Date, Date> {
     this._isSimple = this._checks.length === 0;
   }
 
+  /**
+   * Build a sibling validator with `config`, keeping the concrete subclass
+   * (e.g. v.coerce.*) so every chain method preserves coercion.
+   */
+  protected derive(config: Partial<DateValidatorConfig>): this {
+    return new (this.constructor as new (config: Partial<DateValidatorConfig>) => this)(config);
+  }
+
   get jsonSchema(): DateJSONSchemaHints | undefined {
     return this.config.jsonSchema;
   }
@@ -87,12 +102,12 @@ export class VldDate extends VldBase<Date, Date> {
     } else if (typeof value === 'string' || typeof value === 'number') {
       date = new Date(value);
     } else {
-      throw new Error(this.config.errorMessage || getMessages().invalidDate);
+      throw dateTypeError(value, this.config.errorMessage || getMessages().invalidDate);
     }
 
     // Check if the date is valid
     if (isNaN(date.getTime())) {
-      throw new Error(this.config.errorMessage || getMessages().invalidDate);
+      throw dateTypeError(date, this.config.errorMessage || getMessages().invalidDate);
     }
 
     return this.parseValidDate(date);
@@ -104,7 +119,7 @@ export class VldDate extends VldBase<Date, Date> {
    */
   parseKnownDate(value: Date): Date {
     if (isNaN(value.getTime())) {
-      throw new Error(this.config.errorMessage || getMessages().invalidDate);
+      throw dateTypeError(value, this.config.errorMessage || getMessages().invalidDate);
     }
 
     return this.parseValidDate(value);
@@ -118,7 +133,7 @@ export class VldDate extends VldBase<Date, Date> {
     // Apply all checks
     for (const check of this._checks) {
       if (!check.fn(date)) {
-        throw new Error(check.message);
+        throw new VldError([{ code: 'invalid_date', path: [], message: check.message, ...check.issue?.(date) }]);
       }
     }
 
@@ -133,14 +148,14 @@ export class VldDate extends VldBase<Date, Date> {
       try {
         return { success: true, data: this.parseKnownDate(value) };
       } catch (error) {
-        return { success: false, error: createDateError((error as Error).message) };
+        return { success: false, error: ensureVldError(error) };
       }
     }
 
     try {
       return { success: true, data: this.parse(value) };
     } catch (error) {
-      return { success: false, error: createDateError((error as Error).message) };
+      return { success: false, error: ensureVldError(error) };
     }
   }
 
@@ -156,11 +171,12 @@ export class VldDate extends VldBase<Date, Date> {
       throw new Error(`Invalid date provided to min(): ${date}`);
     }
 
-    return new VldDate({
+    return this.derive({
       ...this.config,
       checks: [...this.config.checks, {
         fn: (v: Date) => v >= minDate,
-        message: message || getMessages().dateMin(minDate)
+        message: message || getMessages().dateMin(minDate),
+        issue: tooSmall(minDate)
       }],
       jsonSchema: { ...this.config.jsonSchema, formatMinimum: minDate.toISOString() }
     });
@@ -178,11 +194,12 @@ export class VldDate extends VldBase<Date, Date> {
       throw new Error(`Invalid date provided to max(): ${date}`);
     }
 
-    return new VldDate({
+    return this.derive({
       ...this.config,
       checks: [...this.config.checks, {
         fn: (v: Date) => v <= maxDate,
-        message: message || getMessages().dateMax(maxDate)
+        message: message || getMessages().dateMax(maxDate),
+        issue: tooBig(maxDate)
       }],
       jsonSchema: { ...this.config.jsonSchema, formatMaximum: maxDate.toISOString() }
     });
@@ -208,11 +225,12 @@ export class VldDate extends VldBase<Date, Date> {
       throw new Error(`Invalid max date provided to between(): ${max}`);
     }
 
-    return new VldDate({
+    return this.derive({
       ...this.config,
       checks: [...this.config.checks, {
         fn: (v: Date) => v >= minDate && v <= maxDate,
-        message: message || `Date must be between ${minDate.toISOString()} and ${maxDate.toISOString()}`
+        message: message || `Date must be between ${minDate.toISOString()} and ${maxDate.toISOString()}`,
+        issue: (v: Date) => (v < minDate ? tooSmall(minDate)() : tooBig(maxDate)())
       }],
       jsonSchema: {
         ...this.config.jsonSchema,
@@ -224,14 +242,15 @@ export class VldDate extends VldBase<Date, Date> {
 
   /**
    * Create a new validator that checks if date is in the past
-   * BUG-NEW-006 FIX: Capture reference date at validator creation time for deterministic behavior
+   * "Now" is read at parse time (as dateV2 does): a schema built at startup
+   * must not keep accepting dates that have since moved into the past/future.
    */
   past(message?: string): VldDate {
-    const referenceDate = new Date(); // Capture NOW at validator creation time
-    return new VldDate({
+    const referenceDate = new Date(); // JSON Schema hint only
+    return this.derive({
       ...this.config,
       checks: [...this.config.checks, {
-        fn: (v: Date) => v < referenceDate,
+        fn: (v: Date) => v.getTime() < Date.now(),
         message: message || 'Date must be in the past'
       }],
       jsonSchema: { ...this.config.jsonSchema, formatExclusiveMaximum: referenceDate.toISOString() }
@@ -240,14 +259,14 @@ export class VldDate extends VldBase<Date, Date> {
 
   /**
    * Create a new validator that checks if date is in the future
-   * BUG-NEW-006 FIX: Capture reference date at validator creation time for deterministic behavior
+   * "Now" is read at parse time (see past()).
    */
   future(message?: string): VldDate {
-    const referenceDate = new Date(); // Capture NOW at validator creation time
-    return new VldDate({
+    const referenceDate = new Date(); // JSON Schema hint only
+    return this.derive({
       ...this.config,
       checks: [...this.config.checks, {
-        fn: (v: Date) => v > referenceDate,
+        fn: (v: Date) => v.getTime() > Date.now(),
         message: message || 'Date must be in the future'
       }],
       jsonSchema: { ...this.config.jsonSchema, formatExclusiveMinimum: referenceDate.toISOString() }
@@ -256,19 +275,17 @@ export class VldDate extends VldBase<Date, Date> {
 
   /**
    * Create a new validator that checks if date is today
-   * BUG-NEW-008 FIX: Capture reference date at validator creation time for deterministic behavior
+   * "Today" is read at parse time (see past()).
    */
   today(message?: string): VldDate {
-    // Capture the reference date (today) at validator creation time
-    const referenceDate = new Date();
-    const refYear = referenceDate.getFullYear();
-    const refMonth = referenceDate.getMonth();
-    const refDate = referenceDate.getDate();
-
-    return new VldDate({
+    return this.derive({
       ...this.config,
       checks: [...this.config.checks, {
         fn: (v: Date) => {
+          const referenceDate = new Date();
+          const refYear = referenceDate.getFullYear();
+          const refMonth = referenceDate.getMonth();
+          const refDate = referenceDate.getDate();
           return v.getFullYear() === refYear &&
                  v.getMonth() === refMonth &&
                  v.getDate() === refDate;
@@ -282,7 +299,7 @@ export class VldDate extends VldBase<Date, Date> {
    * Create a new validator that checks if date is a weekday
    */
   weekday(message?: string): VldDate {
-    return new VldDate({
+    return this.derive({
       ...this.config,
       checks: [...this.config.checks, {
         fn: (v: Date) => {
@@ -298,7 +315,7 @@ export class VldDate extends VldBase<Date, Date> {
    * Create a new validator that checks if date is a weekend
    */
   weekend(message?: string): VldDate {
-    return new VldDate({
+    return this.derive({
       ...this.config,
       checks: [...this.config.checks, {
         fn: (v: Date) => {
@@ -316,7 +333,7 @@ export class VldDate extends VldBase<Date, Date> {
    */
   gt(value: Date | number, message?: string): VldDate {
     const compareDate = value instanceof Date ? value : new Date(value);
-    return new VldDate({
+    return this.derive({
       ...this.config,
       checks: [...this.config.checks, {
         fn: (v: Date) => v.getTime() > compareDate.getTime(),
@@ -332,7 +349,7 @@ export class VldDate extends VldBase<Date, Date> {
    */
   lt(value: Date | number, message?: string): VldDate {
     const compareDate = value instanceof Date ? value : new Date(value);
-    return new VldDate({
+    return this.derive({
       ...this.config,
       checks: [...this.config.checks, {
         fn: (v: Date) => v.getTime() < compareDate.getTime(),

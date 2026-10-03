@@ -162,8 +162,9 @@ export class VldInstance<T> extends VldCustom<T> {
       parse: (value: unknown) => {
         if (!(value instanceof cls)) {
           throw new VldError([{
-            code: 'custom',
+            code: 'invalid_type',
             path: [],
+            expected: cls.name || 'provided constructor',
             message: message || `Expected instance of ${cls.name || 'provided constructor'}`
           }]);
         }
@@ -191,8 +192,9 @@ export class VldInstance<T> extends VldCustom<T> {
       parse: (value: unknown) => {
         if (!(value instanceof cls)) {
           throw new VldError([{
-            code: 'custom',
+            code: 'invalid_type',
             path: [],
+            expected: cls.name || 'provided constructor',
             message: failMessage || `Expected instance of ${cls.name || 'provided constructor'}`
           }]);
         }

@@ -31,6 +31,10 @@ export class VldLiteral<T extends LiteralValue> extends VldBase<T, T> {
   }
 
   get value(): T {
+    // Zod: `.value` is only meaningful for a single-value literal.
+    if (this._values.length > 1) {
+      throw new Error('This schema contains multiple valid literal values. Use `.values` instead.');
+    }
     return this._values[0]!;
   }
 

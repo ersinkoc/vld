@@ -20,7 +20,7 @@ import { VldRecord } from '../validators/record';
 import { VldString } from '../validators/string';
 import { VldTuple } from '../validators/tuple';
 import { VldUnion } from '../validators/union';
-import { email, httpUrl, uuid } from '../validators/string-formats';
+import * as stringFormats from '../validators/string-formats';
 
 type AnyVldSchema = VldBase<any, any>;
 
@@ -271,32 +271,92 @@ function booleanExclusiveBounds(definition: JSONSchemaDefinition): void {
   }
 }
 
+interface CycleContext {
+  readonly root: AnyVldSchema;
+  readonly active: Set<AnyVldSchema>;
+  readonly refs: Map<AnyVldSchema, string>;
+  readonly defs: Record<string, JSONSchemaDefinition>;
+}
+
+let cycleContext: CycleContext | undefined;
+
+/**
+ * Convert a schema, turning cycles (getter-based recursive shapes) into
+ * `$ref`s like Zod: `#` for the root, `#/$defs/__schemaN` otherwise.
+ */
+function schemaToJSONSchema(schema: AnyVldSchema, options: ToJSONSchemaOptions): JSONSchemaDefinition {
+  const ctx = cycleContext;
+  if (ctx === undefined) {
+    const root: CycleContext = { root: schema, active: new Set(), refs: new Map(), defs: {} };
+    cycleContext = root;
+    try {
+      const result = schemaToJSONSchema(schema, options);
+      if (root.refs.size > 0) {
+        const key = options.target === 'draft-04' || options.target === 'draft-07' ? 'definitions' : '$defs';
+        const target = result as Record<string, unknown>;
+        target[key] = { ...(target[key] as Record<string, JSONSchemaDefinition> | undefined), ...root.defs };
+      }
+      return result;
+    } finally {
+      cycleContext = undefined;
+    }
+  }
+  const defsPath = options.target === 'draft-04' || options.target === 'draft-07' ? '#/definitions/' : '#/$defs/';
+  if (ctx.active.has(schema)) {
+    if (schema === ctx.root) return { $ref: '#' };
+    let id = ctx.refs.get(schema);
+    if (id === undefined) {
+      id = `__schema${ctx.refs.size}`;
+      ctx.refs.set(schema, id);
+    }
+    return { $ref: defsPath + id };
+  }
+  ctx.active.add(schema);
+  let result: JSONSchemaDefinition;
+  try {
+    result = convertSchemaToJSONSchema(schema, options);
+  } finally {
+    ctx.active.delete(schema);
+  }
+  const id = ctx.refs.get(schema);
+  if (id !== undefined && schema !== ctx.root) {
+    ctx.defs[id] = result;
+    return { $ref: defsPath + id };
+  }
+  return result;
+}
+
 /**
  * Internal function to convert VLD schema to JSON Schema
  */
-function schemaToJSONSchema(schema: AnyVldSchema, options: ToJSONSchemaOptions): JSONSchemaDefinition {
+function convertSchemaToJSONSchema(schema: AnyVldSchema, options: ToJSONSchemaOptions): JSONSchemaDefinition {
   const target = options.target || 'draft-2020-12';
   const schemaAny = schema as any;
   const validatorType = schema.validatorType;
 
+  const v2 = buildV2Schema(schemaAny, target, options);
+  if (v2 !== undefined) {
+    return withMetadata(schema, v2, options);
+  }
+
   // Handle primitives
-  if (schema.constructor.name === 'VldString' || validatorType === VLD_VALIDATOR_TYPES.STRING) {
+  if (schema.constructor.name === 'VldString' || validatorType === VLD_VALIDATOR_TYPES.STRING || validatorType === VLD_VALIDATOR_TYPES.COERCE_STRING) {
     return withMetadata(schema, buildStringSchema(target, schema), options);
   }
 
-  if (schema.constructor.name === 'VldNumber' || validatorType === VLD_VALIDATOR_TYPES.NUMBER) {
+  if (schema.constructor.name === 'VldNumber' || validatorType === VLD_VALIDATOR_TYPES.NUMBER || validatorType === VLD_VALIDATOR_TYPES.COERCE_NUMBER) {
     return withMetadata(schema, buildNumberSchema(schema, target), options);
   }
 
-  if (schema.constructor.name === 'VldBoolean' || validatorType === VLD_VALIDATOR_TYPES.BOOLEAN) {
+  if (schema.constructor.name === 'VldBoolean' || validatorType === VLD_VALIDATOR_TYPES.BOOLEAN || validatorType === VLD_VALIDATOR_TYPES.COERCE_BOOLEAN) {
     return withMetadata(schema, { type: 'boolean' }, options);
   }
 
-  if (schema.constructor.name === 'VldBigInt' || validatorType === VLD_VALIDATOR_TYPES.BIGINT) {
+  if (schema.constructor.name === 'VldBigInt' || validatorType === VLD_VALIDATOR_TYPES.BIGINT || validatorType === VLD_VALIDATOR_TYPES.COERCE_BIGINT) {
     return unrepresentable(schema, options, 'BigInt', () => buildBigIntSchema(schema));
   }
 
-  if (schema.constructor.name === 'VldDate' || validatorType === VLD_VALIDATOR_TYPES.DATE) {
+  if (schema.constructor.name === 'VldDate' || validatorType === VLD_VALIDATOR_TYPES.DATE || validatorType === VLD_VALIDATOR_TYPES.COERCE_DATE) {
     return unrepresentable(schema, options, 'Date', () => buildDateSchema(schema));
   }
 
@@ -362,6 +422,11 @@ function schemaToJSONSchema(schema: AnyVldSchema, options: ToJSONSchemaOptions):
     return withMetadata(schema, { type: 'object' }, options); // Placeholder for recursive schemas
   }
 
+  // stringbool: a boolean on output, the accepted string on input (Zod).
+  if (schema.constructor.name === 'VldStringBool') {
+    return withMetadata(schema, { type: options.io === 'input' ? 'string' : 'boolean' }, options);
+  }
+
   if (schema.constructor.name === 'VldJson') {
     return withMetadata(schema, {}, options); // Any JSON
   }
@@ -405,7 +470,7 @@ function schemaToJSONSchema(schema: AnyVldSchema, options: ToJSONSchemaOptions):
 
   // Handle readonly types
   if (schema.constructor.name === 'VldReadonly') {
-    return withMetadata(schema, schemaToJSONSchema(schemaAny.baseValidator, options), options);
+    return withMetadata(schema, { readOnly: true, ...schemaToJSONSchema(schemaAny.baseValidator, options) }, options);
   }
 
   // Handle transform types
@@ -433,7 +498,9 @@ function schemaToJSONSchema(schema: AnyVldSchema, options: ToJSONSchemaOptions):
   // Handle default/catch types
   if (schema.constructor.name === 'VldDefault' || schema.constructor.name === 'VldCatch') {
     const inner = schemaToJSONSchema(unwrapInner(schemaAny), options);
-    const defaultValue = schema.constructor.name === 'VldDefault' ? jsonDefault(schemaAny.defaultValue) : undefined;
+    const defaultValue = schema.constructor.name === 'VldDefault'
+      ? jsonDefault(schemaAny.defaultValue)
+      : catchDefault(schemaAny.fallbackValue);
     return withMetadata(schema, defaultValue === undefined ? inner : { ...inner, default: defaultValue }, options);
   }
 
@@ -483,6 +550,54 @@ function unrepresentable(
     return withMetadata(schema, vldExtension(), options);
   }
   throw new Error(`${typeName} cannot be represented in JSON Schema`);
+}
+
+/**
+ * The V2 schema family keeps its definition in `__def`; present it in the
+ * shape the V1 builders read instead of falling through to `{}`.
+ */
+function buildV2Schema(schema: any, target: string, options: ToJSONSchemaOptions): JSONSchemaDefinition | undefined {
+  const def = schema.__def;
+  if (!def || typeof def.type !== 'string' || !/V2$/.test(schema.constructor.name)) return undefined;
+  switch (def.type) {
+    case 'string': {
+      const affixes = (def.checks as any[])
+        .filter((check) => check.kind === 'startsWith' || check.kind === 'endsWith' || check.kind === 'includes')
+        .map((check) => ({ kind: check.kind, value: check.prefix ?? check.suffix ?? check.substring }));
+      return buildStringSchema(target, { config: { jsonSchema: { ...def.jsonSchema, affixes } } });
+    }
+    case 'number':
+      return buildNumberSchema({ config: { jsonSchema: def.jsonSchema ?? {} } }, target);
+    case 'array': {
+      const config: any = { itemValidator: def.itemValidator };
+      for (const check of def.checks as any[]) {
+        if (check.kind === 'unique') config.unique = true;
+        else if (typeof check.kind === 'string') config[check.kind] = check[check.kind];
+      }
+      return buildArraySchema({ config }, options);
+    }
+    case 'record':
+      return buildRecordSchema({ valueValidator: def.valueValidator }, options);
+    case 'union':
+      return buildUnionSchema({ validators: def.validators }, options);
+    case 'intersection':
+      return buildIntersectionSchema({ first: def.left, second: def.right }, options);
+    case 'literal':
+      return buildLiteralSchema({ value: def.value }, options);
+    case 'enum':
+      return buildEnumSchema({ values: def.values });
+    case 'optional':
+      return schemaToJSONSchema(def.inner, options);
+    case 'nullable':
+    case 'nullish':
+      return withNull(schemaToJSONSchema(def.inner, options));
+    case 'refine':
+      return schemaToJSONSchema(def.inner, options);
+    case 'transform':
+      return unrepresentable(schema, options, 'Transform', () => schemaToJSONSchema(def.inner, options));
+    default:
+      return undefined;
+  }
 }
 
 function unwrapInner(schema: any): AnyVldSchema {
@@ -541,6 +656,15 @@ function jsonFormatName(format: string): string {
 }
 
 /** A default value as JSON, or undefined when it has no JSON form. */
+/** A catch fallback as a JSON default; a fallback function that needs its error context gives none. */
+function catchDefault(fallback: unknown): unknown {
+  try {
+    return jsonDefault(typeof fallback === 'function' ? () => (fallback as (ctx: unknown) => unknown)({ error: undefined, issues: [], input: undefined }) : fallback);
+  } catch {
+    return undefined;
+  }
+}
+
 function jsonDefault(value: unknown): unknown {
   try {
     const resolved = typeof value === 'function' ? (value as () => unknown)() : value;
@@ -822,6 +946,13 @@ function buildRecordSchema(schema: any, options: ToJSONSchemaOptions): JSONSchem
       if (!(Object.keys(keySchema).length === 1 && keySchema.type === 'string')) {
         result.propertyNames = keySchema;
       }
+      // Enum / literal keys: every key is required unless the value accepts undefined.
+      const finiteKeys = keyValidator.constructor.name === 'VldEnum' || keyValidator.constructor.name === 'VldLiteral'
+        ? [...(keyValidator.values as readonly unknown[])]
+        : undefined;
+      if (finiteKeys && !valueValidator.safeParse(undefined).success) {
+        result.required = finiteKeys.map(String);
+      }
     }
     return result;
   }
@@ -1007,6 +1138,15 @@ function applyJSONArrayConstraints(arraySchema: any, json: JSONSchemaDefinition)
   if (json.maxItems !== undefined && typeof result.max === 'function') {
     result = result.max(json.maxItems);
   }
+  // Tuples have no min()/max(): enforce the item counts as length checks (Zod).
+  if (typeof result.min !== 'function' && (json.minItems !== undefined || json.maxItems !== undefined)) {
+    const minItems = json.minItems ?? 0;
+    const maxItems = json.maxItems ?? Infinity;
+    result = result.refine(
+      (items: unknown[]) => items.length >= minItems && items.length <= maxItems,
+      `Array must have between ${minItems} and ${maxItems} items`
+    );
+  }
   if (json.uniqueItems === true && typeof result.unique === 'function') {
     result = result.unique();
   }
@@ -1057,8 +1197,45 @@ function applyObjectConstraints(objectSchema: any, json: JSONSchemaDefinition): 
 }
 
 function jsonSchemaToVLD(json: JSONSchemaDefinition): AnyVldSchema {
-  return applyJSONSchemaMetadata(jsonSchemaToVLDInner(json), json);
+  const schema = applyJSONSchemaMetadata(jsonSchemaToVLDInner(json), json);
+  // A JSON Schema `default` fills a missing value, as in Zod's fromJSONSchema.
+  return json.default !== undefined ? schema.default(json.default as any) as AnyVldSchema : schema;
 }
+
+/** RFC 3339 full-time (format "time"), as Zod's fromJSONSchema. */
+const JSON_SCHEMA_FULL_TIME = /^(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/;
+
+/** JSON Schema `format` -> check schema (Zod fromJSONSchema mapping). */
+const JSON_SCHEMA_FORMATS: Record<string, () => AnyVldSchema> = {
+  email: () => stringFormats.email(),
+  uri: () => stringFormats.url(),
+  'uri-reference': () => stringFormats.url(),
+  uuid: () => stringFormats.uuid(),
+  guid: () => stringFormats.guid(),
+  'date-time': () => stringFormats.iso.datetime({ offset: true }),
+  date: () => stringFormats.iso.date(),
+  time: () => VldString.create().regex(JSON_SCHEMA_FULL_TIME),
+  duration: () => stringFormats.iso.duration(),
+  hostname: () => stringFormats.hostname(),
+  ipv4: () => stringFormats.ipv4(),
+  ipv6: () => stringFormats.ipv6(),
+  mac: () => stringFormats.mac(),
+  cidr: () => stringFormats.cidrv4(),
+  'cidr-v6': () => stringFormats.cidrv6(),
+  base64: () => stringFormats.base64(),
+  base64url: () => stringFormats.base64url(),
+  e164: () => stringFormats.e164(),
+  credit_card: () => stringFormats.creditCard(),
+  iban: () => stringFormats.iban(),
+  jwt: () => stringFormats.jwt(),
+  emoji: () => stringFormats.emoji(),
+  nanoid: () => stringFormats.nanoid(),
+  cuid: () => stringFormats.cuid(),
+  cuid2: () => stringFormats.cuid2(),
+  ulid: () => stringFormats.ulid(),
+  xid: () => stringFormats.xid(),
+  ksuid: () => stringFormats.ksuid()
+};
 
 function jsonSchemaToVLDInner(json: JSONSchemaDefinition): AnyVldSchema {
   // Handle $ref
@@ -1106,7 +1283,12 @@ function jsonSchemaToVLDInner(json: JSONSchemaDefinition): AnyVldSchema {
 
   // Handle enum
   if (json.enum) {
-    return VldEnum.create(json.enum as any);
+    if (json.enum.every((value) => typeof value === 'string' || typeof value === 'number')) {
+      return VldEnum.create(json.enum as any);
+    }
+    // null / boolean members: a union of literals (VldEnum only holds strings and numbers).
+    const members = json.enum.map((value) => VldLiteral.create(value as any));
+    return members.length === 1 ? members[0]! : VldUnion.create(...members);
   }
 
   // Handle type
@@ -1128,26 +1310,9 @@ function jsonSchemaToVLDInner(json: JSONSchemaDefinition): AnyVldSchema {
     if (json.minLength !== undefined) s = s.min(json.minLength);
     if (json.maxLength !== undefined) s = s.max(json.maxLength);
     if (json.pattern) s = s.regex(new RegExp(json.pattern));
-    if (json.format) {
-      // Map JSON Schema formats to VLD validators
-      switch (json.format) {
-        case 'date-time':
-        case 'date':
-        case 'time':
-          // Would need DateTime validator
-          break;
-        case 'email':
-          return email();
-        case 'uri':
-        case 'uri-reference':
-          return httpUrl();
-        case 'uuid':
-          return uuid();
-        default:
-          break;
-      }
-    }
-    return s;
+    // Unknown / custom formats stay a plain string (as Zod).
+    const formatCheck = json.format ? JSON_SCHEMA_FORMATS[json.format] : undefined;
+    return formatCheck ? s.check(formatCheck() as any) as AnyVldSchema : s;
   }
 
   if (type === 'number' || type === 'integer') {
@@ -1169,12 +1334,25 @@ function jsonSchemaToVLDInner(json: JSONSchemaDefinition): AnyVldSchema {
 
   if (type === 'array') {
     let arraySchema: any;
-    if (json.prefixItems && json.prefixItems.length > 0) {
-      const validators = json.prefixItems.map((item) => jsonSchemaToVLD(item));
-      arraySchema = VldTuple.create(...validators as any);
-    } else if (Array.isArray(json.items)) {
-      const validators = json.items.map((item) => jsonSchemaToVLD(item));
-      arraySchema = VldTuple.create(...validators as any);
+    const tupleItems = json.prefixItems && json.prefixItems.length > 0
+      ? json.prefixItems
+      : Array.isArray(json.items) ? json.items : undefined;
+    if (tupleItems) {
+      // JSON Schema tuples do not require their positions: only the first
+      // minItems are required, and further items follow the rest schema
+      // (`items` in 2020-12, `additionalItems` in draft-07; absent = anything).
+      const minItems = typeof json.minItems === 'number' ? json.minItems : 0;
+      const validators = tupleItems.map((item, index) => {
+        const validator = jsonSchemaToVLD(item);
+        return index < minItems ? validator : validator.optional();
+      });
+      const restDefinition = tupleItems === json.prefixItems ? json.items : json.additionalItems;
+      const tuple = VldTuple.create(...validators as any);
+      arraySchema = restDefinition === false
+        ? tuple
+        : tuple.rest(restDefinition === undefined || restDefinition === true
+          ? VldAny.create()
+          : jsonSchemaToVLD(restDefinition as JSONSchemaDefinition));
     } else if (json.items && !Array.isArray(json.items)) {
       arraySchema = VldArray.create(jsonSchemaToVLD(json.items));
     } else {
@@ -1190,7 +1368,9 @@ function jsonSchemaToVLDInner(json: JSONSchemaDefinition): AnyVldSchema {
 
       for (const [key, propSchema] of Object.entries(json.properties)) {
         const fieldSchema = jsonSchemaToVLD(propSchema as JSONSchemaDefinition);
-        shape[key] = required.has(key) ? fieldSchema : fieldSchema.optional();
+        // A property with a default already accepts a missing value (and fills it).
+        const hasDefault = typeof propSchema === 'object' && propSchema !== null && (propSchema as JSONSchemaDefinition).default !== undefined;
+        shape[key] = required.has(key) || hasDefault ? fieldSchema : fieldSchema.optional();
       }
 
       let obj = VldObject.create(shape);
@@ -1200,12 +1380,26 @@ function jsonSchemaToVLDInner(json: JSONSchemaDefinition): AnyVldSchema {
       } else if (json.additionalProperties === true) {
         obj = obj.passthrough();
       } else if (json.additionalProperties) {
-        // additionalProperties is a schema
-        const valueSchema = jsonSchemaToVLD(json.additionalProperties as JSONSchemaDefinition);
-        return applyObjectConstraints(VldRecord.create(valueSchema), json);
+        // additionalProperties is a schema: extra keys are validated by it,
+        // the declared properties still apply (a record would drop them).
+        obj = obj.catchall(jsonSchemaToVLD(json.additionalProperties as JSONSchemaDefinition) as any);
       }
 
       return applyObjectConstraints(obj, json);
+    }
+    // No properties: a dictionary whose keys follow propertyNames and whose
+    // values follow additionalProperties.
+    if (json.propertyNames || (json.additionalProperties && typeof json.additionalProperties === 'object')) {
+      const valueSchema = json.additionalProperties && typeof json.additionalProperties === 'object'
+        ? jsonSchemaToVLD(json.additionalProperties as JSONSchemaDefinition)
+        : VldAny.create();
+      const keySchema = json.propertyNames
+        ? jsonSchemaToVLD({ type: 'string', ...(json.propertyNames as JSONSchemaDefinition) })
+        : undefined;
+      return applyObjectConstraints(VldRecord.create(valueSchema, keySchema as any), json);
+    }
+    if (json.additionalProperties === false) {
+      return applyObjectConstraints(VldObject.create({}).strict(), json);
     }
     // Empty object schema
     return applyObjectConstraints(VldObject.create({}), json);
