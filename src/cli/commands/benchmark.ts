@@ -68,6 +68,8 @@ function formatResult(result: BenchmarkResult, colored: boolean): string {
   return `${name} ${ops} ops/sec  ${avg} ms/op`;
 }
 
+const BENCHMARK_SUITES = ['all', 'primitives', 'objects', 'arrays'];
+
 /**
  * Benchmark command
  */
@@ -110,6 +112,18 @@ export const benchmarkCommand: CliCommand = {
     const json = options['json'] as boolean;
     const noColor = options['no-color'] as boolean;
     const colored = !noColor;
+
+    // A report built from a zero/negative/fractional iteration count or an unknown suite is meaningless.
+    if (!Number.isInteger(iterations) || iterations < 1) {
+      console.error(pigment.red(`Option --iterations expects a positive integer, got "${String(iterations)}"`));
+      process.exitCode = 1;
+      return;
+    }
+    if (!BENCHMARK_SUITES.includes(suite)) {
+      console.error(pigment.red(`Option --suite expects one of ${BENCHMARK_SUITES.join(', ')}, got "${String(suite)}"`));
+      process.exitCode = 1;
+      return;
+    }
 
     const results: BenchmarkResult[] = [];
 

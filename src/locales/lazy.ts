@@ -85,6 +85,14 @@ const localeLoaders: Partial<Record<Locale, LocaleLoader>> = {
   'es-MX': () => import('./es-MX').then(m => m.esMX),
 };
 
+/**
+ * Own-property lookup: a locale code is untrusted input, and names such as
+ * "constructor" or "toString" must not resolve through Object.prototype.
+ */
+function getLoader(locale: Locale): LocaleLoader | undefined {
+  return Object.prototype.hasOwnProperty.call(localeLoaders, locale) ? localeLoaders[locale] : undefined;
+}
+
 // ============================================
 // Public API
 // ============================================
@@ -122,7 +130,7 @@ export async function setLocaleAsync(locale: Locale): Promise<void> {
   }
 
   // Try to load dynamically
-  const loader = localeLoaders[locale];
+  const loader = getLoader(locale);
   if (!loader) {
     console.warn(`Locale "${locale}" not available. Falling back to English.`);
     setRuntimeLocale('en');
@@ -192,7 +200,7 @@ export function setLocale(locale: Locale): void {
  * @param locale - The locale to check
  */
 export function isLocaleSupported(locale: Locale): boolean {
-  return locale === 'en' || locale in localeLoaders;
+  return locale === 'en' || getLoader(locale) !== undefined;
 }
 
 /**
@@ -218,7 +226,7 @@ export async function preloadLocales(locales: Locale[]): Promise<void> {
   await Promise.all(
     locales.map(async (locale) => {
       if (!isLocaleLoaded(locale) && locale !== 'en') {
-        const loader = localeLoaders[locale];
+        const loader = getLoader(locale);
         if (loader) {
           try {
             const messages = await loader();

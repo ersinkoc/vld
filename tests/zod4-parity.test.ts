@@ -209,7 +209,8 @@ describe('Zod 4 parity additions', () => {
     expect(typeof $input).toBe('symbol');
     expect(typeof $output).toBe('symbol');
     expect(_ZodString).toBe(ZodString);
-    expect(_default).toBe(v);
+    expect(_default).toBe(v._default);
+    expect(_default(v.string(), 'fallback').parse(undefined)).toBe('fallback');
     expect(_function().parse(() => 'ok')()).toBe('ok');
     expect(formatError(new VldError([
       { code: 'custom', path: ['user', 'email'], message: 'Invalid email' },

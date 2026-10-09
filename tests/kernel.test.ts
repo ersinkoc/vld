@@ -929,6 +929,30 @@ describe('VLD Kernel', () => {
       expect(consoleSpy).not.toHaveBeenCalled();
       consoleSpy.mockRestore();
     });
+
+    it('should keep a shared factory registered until every owning plugin is removed (F202)', () => {
+      const shared = () => ({}) as any;
+      const build = (name: string) => definePlugin().name(name).validator('shared', shared).build();
+
+      const kernel = createVldKernel();
+      kernel.use(build('A'));
+      kernel.use(build('B'));
+      kernel.remove('A');
+      expect(kernel.getValidators()['shared']).toBe(shared);
+      kernel.remove('B');
+      expect(kernel.getValidators()['shared']).toBeUndefined();
+
+      // Reverse removal order, with a pre-existing user registration underneath.
+      const user = () => ({}) as any;
+      const reversed = createVldKernel();
+      reversed.registerValidator('shared', user);
+      reversed.use(build('A'));
+      reversed.use(build('B'));
+      reversed.remove('B');
+      expect(reversed.getValidators()['shared']).toBe(shared);
+      reversed.remove('A');
+      expect(reversed.getValidators()['shared']).toBe(user);
+    });
   });
 
   describe('Kernel options', () => {

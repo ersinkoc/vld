@@ -830,6 +830,10 @@ function mapContainer(node: AnySchema, walk: (child: AnySchema) => AnySchema): A
     const inner = walk(s.baseValidator);
     return inner === s.baseValidator ? node : new VldReadonly(inner);
   }
+  if (node instanceof VldBrand) {
+    const inner = walk(s.baseValidator);
+    return inner === s.baseValidator ? node : new VldBrand(inner);
+  }
   if (node instanceof VldMeta) {
     const inner = walk(s.baseValidator);
     return inner === s.baseValidator ? node : new VldMeta(inner, s.metadata);
@@ -1591,7 +1595,7 @@ const neverFactory = v.never;
 const nullFactory = v.null;
 const undefinedFactory = v.undefined;
 const voidFactory = v.void;
-const defaultFactory = v;
+const defaultFactory = v._default;
 const zodStringFactory = VldString;
 
 export {

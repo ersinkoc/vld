@@ -6,13 +6,16 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { pathToFileURL } from 'url';
 import { pigment } from '../../pigment';
 import { prettifyError, prettifyErrorColored } from '../../errors';
 import type { CliCommand } from '../index';
 
 function assertWithinCwd(absolutePath: string, label: string, original: string): void {
-  const allowedDir = process.cwd();
-  if (!absolutePath.startsWith(allowedDir + path.sep) && absolutePath !== allowedDir) {
+  // path.relative copes with a root cwd ("/" or "C:\" already end in a separator),
+  // case-insensitive file systems and a sibling that merely shares the cwd prefix.
+  const relative = path.relative(process.cwd(), absolutePath);
+  if (relative === '..' || relative.startsWith('..' + path.sep) || path.isAbsolute(relative)) {
     throw new Error(`${label} path escapes allowed directory: ${original}`);
   }
 }
@@ -86,13 +89,26 @@ export const validateCommand: CliCommand = {
         throw new Error(`Schema file not found: ${schemaPath}`);
       }
 
-      // Dynamic import for ESM/CJS compatibility
-      const schemaModule = await import(absoluteSchemaPath);
-      schema = schemaModule.default || schemaModule.schema || schemaModule;
+      // Dynamic import for ESM/CJS compatibility. The ESM loader only accepts
+      // file: URLs for absolute paths (a Windows "D:\..." path is rejected).
+      const schemaModule = await import(pathToFileURL(absoluteSchemaPath).href);
+      // For a CommonJS module the ESM `default` is the whole `exports` object, so a
+      // validator may sit one level down (exports.default / exports.schema): take the
+      // first candidate that actually is a validator.
+      const isSchema = (candidate: unknown): candidate is typeof schema =>
+        candidate !== null && candidate !== undefined && typeof (candidate as { parse?: unknown }).parse === 'function';
+      const found = [
+        schemaModule.default,
+        schemaModule.default?.default,
+        schemaModule.schema,
+        schemaModule.default?.schema,
+        schemaModule
+      ].find(isSchema);
 
-      if (!schema || typeof schema.parse !== 'function') {
+      if (!found) {
         throw new Error('Schema must export a VLD validator with parse() method');
       }
+      schema = found;
 
       // --strict: reject unknown keys (object schemas expose .strict()).
       if (strict) {
@@ -161,6 +177,7 @@ export const validateCommand: CliCommand = {
           issues: err?.issues
         };
         console.log(JSON.stringify(errorJson));
+        process.exitCode = 1;
       }
     } else {
       if (result.success) {

@@ -69,4 +69,12 @@ export class VldLazy<TInput, TOutput> extends VldBase<TInput, TOutput> {
   override safeEncode(value: TOutput): ParseResult<TInput> {
     return this._getSchema().safeEncode(value);
   }
+
+  override encodeAsync(value: TOutput): Promise<TInput> {
+    return this._getSchema().encodeAsync(value);
+  }
+
+  override safeEncodeAsync(value: TOutput): Promise<ParseResult<TInput>> {
+    return this._getSchema().safeEncodeAsync(value);
+  }
 }

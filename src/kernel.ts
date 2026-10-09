@@ -68,7 +68,15 @@ export function createVldKernel(options: VldKernelOptions = {}): VldKernelInstan
     const records = registrations.get(pluginName) ?? [];
     registrations.delete(pluginName);
     for (const record of records.reverse()) {
-      if (record.registry.get(record.name) === record.value) {
+      // The same factory may be registered by several plugins; the entry is
+      // only ours to restore/delete when no other plugin still holds it.
+      let heldByOther = false;
+      for (const others of registrations.values()) {
+        for (const other of others) {
+          if (other.registry === record.registry && other.name === record.name && other.value === record.value) heldByOther = true;
+        }
+      }
+      if (!heldByOther && record.registry.get(record.name) === record.value) {
         // Still ours: restore whatever we shadowed.
         if (record.had) record.registry.set(record.name, record.previous);
         else record.registry.delete(record.name);

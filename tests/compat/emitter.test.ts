@@ -339,6 +339,52 @@ describe('Event Emitter', () => {
       // Handler should not fire after dispose
       expect(count).toBe(0);
     });
+
+    it('should limit scoped removeAllListeners and off to listeners the scope owns (F210)', () => {
+      const bus = createEventBus<{ t: number; u: number }>();
+      const log: string[] = [];
+      const shared = () => { log.push('shared'); };
+
+      bus.on('t', () => { log.push('root'); });
+      const a = bus.createScope();
+      const b = bus.createScope();
+      a.on('t', () => { log.push('a:t'); });
+      a.on('u', () => { log.push('a:u'); });
+      b.on('t', () => { log.push('b:t'); });
+      b.on('t', shared);
+
+      a.off('t', shared); // registered by b: untouched
+      a.removeAllListeners('t'); // only a's 't' listeners
+      bus.emit('t', 1);
+      bus.emit('u', 1);
+      expect(log).toEqual(['root', 'b:t', 'shared', 'a:u']);
+
+      log.length = 0;
+      a.removeAllListeners(); // everything a still owns
+      bus.emit('u', 2);
+      bus.emit('t', 2);
+      expect(log).toEqual(['root', 'b:t', 'shared']);
+
+      // own registrations: off removes one at a time and is a no-op when nothing is left
+      log.length = 0;
+      const own = () => { log.push('own'); };
+      a.on('t', own);
+      a.on('t', own);
+      a.off('t', own);
+      bus.emit('t', 3);
+      expect(log.filter((entry) => entry === 'own')).toEqual(['own']);
+      a.off('t', own);
+      a.off('t', own);
+      log.length = 0;
+      bus.emit('t', 4);
+      expect(log).toEqual(['root', 'b:t', 'shared']);
+
+      // the bus itself can still clear everything
+      bus.removeAllListeners('t');
+      log.length = 0;
+      bus.emit('t', 5);
+      expect(log).toEqual([]);
+    });
   });
 
   describe('withEmitter mixin', () => {

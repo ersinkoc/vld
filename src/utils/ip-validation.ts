@@ -54,7 +54,8 @@ export function isValidIPv6(ip: string): boolean {
   return groups.length <= 7 && groups.every(isHexGroup);
 }
 
-const IPV4_TAIL = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+// Same octet grammar as the standalone ipv4 format: no leading zeros (inet_aton reads "010" as octal).
+const IPV4_TAIL = /^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$/;
 
 function isHexGroup(group: string): boolean {
   return /^[0-9a-fA-F]{1,4}$/.test(group);

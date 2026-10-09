@@ -271,30 +271,49 @@ export function createEventBus<TEvents extends EventMap>(): Emitter<TEvents> & {
   const emitter = createEmitter<TEvents>();
 
   const createScope = (): Emitter<TEvents> & { dispose(): void } => {
-    const unsubscribers: (() => void)[] = [];
+    // Registrations made through this scope: off/removeAllListeners/dispose
+    // may only touch these, never listeners owned by the bus or other scopes.
+    const owned: { event: keyof TEvents; handler: EventHandler<never>; unsubscribe: () => void }[] = [];
+
+    const track = (event: keyof TEvents, handler: EventHandler<never>, unsubscribe: () => void): void => {
+      owned.push({ event, handler, unsubscribe });
+    };
 
     const scopedEmitter: Emitter<TEvents> & { dispose(): void } = {
       on: (event, handler, options) => {
         const unsubscribe = emitter.on(event, handler, options);
-        unsubscribers.push(unsubscribe);
+        track(event, handler as EventHandler<never>, unsubscribe);
         return unsubscribe;
       },
       once: (event, handler) => {
         const unsubscribe = emitter.once(event, handler);
-        unsubscribers.push(unsubscribe);
+        track(event, handler as EventHandler<never>, unsubscribe);
         return unsubscribe;
       },
-      off: emitter.off,
+      off: (event, handler) => {
+        const index = owned.findIndex((entry) => entry.event === event && entry.handler === handler);
+        if (index !== -1) {
+          owned[index]!.unsubscribe();
+          owned.splice(index, 1);
+        }
+      },
       emit: emitter.emit,
       emitAsync: emitter.emitAsync,
-      removeAllListeners: emitter.removeAllListeners,
+      removeAllListeners: (event) => {
+        for (let i = owned.length - 1; i >= 0; i--) {
+          if (event === undefined || owned[i]!.event === event) {
+            owned[i]!.unsubscribe();
+            owned.splice(i, 1);
+          }
+        }
+      },
       listenerCount: emitter.listenerCount,
       eventNames: emitter.eventNames,
       dispose: () => {
-        for (const unsubscribe of unsubscribers) {
-          unsubscribe();
+        for (const entry of owned) {
+          entry.unsubscribe();
         }
-        unsubscribers.length = 0;
+        owned.length = 0;
       }
     };
 
