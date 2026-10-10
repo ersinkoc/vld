@@ -16,6 +16,9 @@ export interface VldLiteralDef<T> {
   readonly value: T | undefined;
 }
 
+/** SameValueZero: NaN matches NaN, as in Zod's literal. */
+const sameLiteral = (value: unknown, expected: unknown): boolean => value === expected || (value !== value && expected !== expected);
+
 export class VldLiteralV2<T extends string | number | boolean | null | undefined> extends VldBase<T, T> {
   readonly __def: VldLiteralDef<T>;
 
@@ -30,7 +33,7 @@ export class VldLiteralV2<T extends string | number | boolean | null | undefined
 
   override parse(value: unknown): T {
     const expected = this.__def.value as T;
-    if (value !== expected) {
+    if (!sameLiteral(value, expected)) {
       throw new VldError([{
         code: 'invalid_value', path: [], values: [expected],
         message: `Invalid input: expected ${stringifyForMessage(expected)}, received ${stringifyForMessage(value)}`
@@ -41,7 +44,7 @@ export class VldLiteralV2<T extends string | number | boolean | null | undefined
 
   override safeParse(value: unknown): ParseResult<T> {
     const expected = this.__def.value as T;
-    if (value === expected) return { success: true, data: expected };
+    if (sameLiteral(value, expected)) return { success: true, data: expected };
     return { success: false, error: new VldError([{ code: 'invalid_value', path: [], values: [expected],
       message: `Invalid input: expected ${stringifyForMessage(expected)}, received ${stringifyForMessage(value)}` } as VldIssue]) };
   }

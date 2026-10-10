@@ -2,8 +2,6 @@ import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
 import { getMessages } from '../locales/runtime';
 import { isDangerousKey } from '../utils/security';
 import { VldError, stringifyForMessage, nestIssues, type VldIssue, createInvalidTypeIssue, getTypeName } from '../errors-core';
-import { VldEnum } from './enum';
-import { VldLiteral } from './literal';
 
 /**
  * Zod's record input check (isPlainObject): plain / null-prototype objects and
@@ -39,6 +37,42 @@ function createRecordError(message: string): VldError {
  * Immutable record validator for key-value pairs
  * BUG-NEW-018 FIX: Uses comprehensive dangerous key protection
  */
+/**
+ * The finite set of property keys a key schema accepts (Zod's `_zod.values`): enum and literal values, a union whose
+ * options all have one, and the wrappers that pass the input type through (readonly, optional, default, catch, brand,
+ * refine, transform, pipe input...). Such a record is exhaustive: every key is required, any other key is unrecognized.
+ */
+function finiteKeyValues(schema: any): readonly unknown[] | undefined {
+  switch (schema.validatorType) {
+    case VLD_VALIDATOR_TYPES.ENUM:
+    case VLD_VALIDATOR_TYPES.LITERAL:
+      return schema.values ?? schema.__def.values ?? [schema.__def.value];
+    case VLD_VALIDATOR_TYPES.UNION: {
+      const options: any[] = schema.validators ?? schema.__def?.validators ?? [];
+      const sets = options.map(finiteKeyValues);
+      return options.length > 0 && sets.every(set => set !== undefined) ? sets.flat() : undefined;
+    }
+    case VLD_VALIDATOR_TYPES.PIPE:
+      return finiteKeyValues(schema.first);
+    case VLD_VALIDATOR_TYPES.SUPER_REFINE:
+      return finiteKeyValues(schema._inner);
+    case VLD_VALIDATOR_TYPES.READONLY:
+    case VLD_VALIDATOR_TYPES.BRAND:
+    case VLD_VALIDATOR_TYPES.META:
+    case VLD_VALIDATOR_TYPES.OPTIONAL:
+    case VLD_VALIDATOR_TYPES.NULLABLE:
+    case VLD_VALIDATOR_TYPES.NULLISH:
+    case VLD_VALIDATOR_TYPES.DEFAULT:
+    case VLD_VALIDATOR_TYPES.PREFAULT:
+    case VLD_VALIDATOR_TYPES.CATCH:
+    case VLD_VALIDATOR_TYPES.REFINE:
+    case VLD_VALIDATOR_TYPES.TRANSFORM:
+      return finiteKeyValues(schema.baseValidator ?? schema.__def.inner);
+    default:
+      return undefined;
+  }
+}
+
 export class VldRecord<T, K extends PropertyKey = string> extends VldBase<unknown, Record<K, T>> {
   /**
    * Private constructor to enforce immutability
@@ -242,9 +276,8 @@ export class VldRecord<T, K extends PropertyKey = string> extends VldBase<unknow
     const keys = Reflect.ownKeys(obj);
     // Enum / literal keys form a finite key set: like Zod, a key outside it is
     // an unrecognized key (not an invalid one) and the record is exhaustive.
-    const finiteKeys = this.keyValidator instanceof VldEnum || this.keyValidator instanceof VldLiteral
-      ? (this.keyValidator.values as readonly unknown[])
-      : undefined;
+    const finiteKeys = this.keyValidator === undefined ? undefined : finiteKeyValues(this.keyValidator);
+    const finiteKeySet = finiteKeys === undefined ? undefined : new Set(finiteKeys.filter(key => typeof key === 'string' || typeof key === 'number').map(String));
     const unrecognized: string[] = [];
 
     for (const rawKey of keys) {
@@ -255,6 +288,11 @@ export class VldRecord<T, K extends PropertyKey = string> extends VldBase<unknow
         continue;
       }
 
+      // A key outside the finite key set is unrecognized whatever the key schema would make of it (a catch would remap it).
+      if (finiteKeySet !== undefined && typeof rawKey === 'string' && !finiteKeySet.has(rawKey)) {
+        unrecognized.push(rawKey);
+        continue;
+      }
       let parsedKey = this.keyValidator!.safeParse(rawKey);
       // Object keys are always strings; for numeric key schemas (v.number(),
       // v.literal(1), ...) retry a canonical numeric key ("1", "-2.5") as a number.
@@ -265,10 +303,6 @@ export class VldRecord<T, K extends PropertyKey = string> extends VldBase<unknow
         }
       }
       if (!parsedKey.success) {
-        if (finiteKeys !== undefined && typeof rawKey === 'string') {
-          unrecognized.push(rawKey);
-          continue;
-        }
         throw new VldError([{
           code: 'invalid_key',
           path: [String(rawKey)],
@@ -339,9 +373,8 @@ export class VldRecord<T, K extends PropertyKey = string> extends VldBase<unknow
     const keyValidator = this.keyValidator;
     const result = {} as Record<PropertyKey, T>;
     const issues: VldIssue[] = [];
-    const finiteKeys = keyValidator instanceof VldEnum || keyValidator instanceof VldLiteral
-      ? (keyValidator.values as readonly unknown[])
-      : undefined;
+    const finiteKeys = keyValidator === undefined ? undefined : finiteKeyValues(keyValidator);
+    const finiteKeySet = finiteKeys === undefined ? undefined : new Set(finiteKeys.filter(key => typeof key === 'string' || typeof key === 'number').map(String));
     const unrecognized: string[] = [];
     const rawKeys = keyValidator === undefined
       ? Object.keys(obj)
@@ -349,6 +382,10 @@ export class VldRecord<T, K extends PropertyKey = string> extends VldBase<unknow
     for (const rawKey of rawKeys) {
       if (typeof rawKey === 'string' && isDangerousKey(rawKey)) continue;
       let key: PropertyKey = rawKey;
+      if (finiteKeySet !== undefined && typeof rawKey === 'string' && !finiteKeySet.has(rawKey)) {
+        unrecognized.push(rawKey);
+        continue;
+      }
       if (keyValidator !== undefined) {
         let parsedKey = await keyValidator.safeParseAsync(rawKey);
         if (!parsedKey.success && typeof rawKey === 'string' && rawKey !== '' && String(Number(rawKey)) === rawKey) {
@@ -356,8 +393,7 @@ export class VldRecord<T, K extends PropertyKey = string> extends VldBase<unknow
           if (numericKey.success) parsedKey = numericKey;
         }
         if (!parsedKey.success) {
-          if (finiteKeys !== undefined && typeof rawKey === 'string') unrecognized.push(rawKey);
-          else issues.push({ code: 'invalid_key', path: [String(rawKey)], message: parsedKey.error.message });
+          issues.push({ code: 'invalid_key', path: [String(rawKey)], message: parsedKey.error.message });
           continue;
         }
         key = parsedKey.data as PropertyKey;

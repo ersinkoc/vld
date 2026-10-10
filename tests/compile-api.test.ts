@@ -616,7 +616,9 @@ describe('AOT compile  -  date / null / undefined / unknown / any', () => {
   test('date accepts a valid Date and rejects Invalid Date and non-dates', () => {
     expect(v.validate(v.compile(v.date()), new Date())).toBe(true);
     expect(v.validate(v.compile(v.date()), new Date('not-a-date'))).toBe(false);
-    expect(v.validate(v.compile(v.date()), '2024-01-01')).toBe(false);
+    // v.date() coerces date strings and numbers at runtime, so the compiled validator must agree (audit F222).
+    expect(v.validate(v.compile(v.date()), '2024-01-01')).toBe(true);
+    expect(v.validate(v.compile(v.date()), 'not a date')).toBe(false);
   });
 
   test('null / undefined / unknown / any are no-ops (anything goes)', () => {

@@ -1,14 +1,61 @@
-import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
+import { VldBase, ParseResult, VLD_VALIDATOR_TYPES, isAsyncRequiredError } from './base';
+import type { VldOptional, VldExactOptional, VldNullish } from './base';
+import type { VldOptionalV2, VldNullishV2 } from './wrapper-v2';
 import { getMessages } from '../locales/runtime';
 import { VldError, stringifyForMessage, nestIssues, createInvalidTypeIssue, getTypeName, type VldIssue } from '../errors-core';
 
-/** Item types that accept a missing (undefined) value. */
-const OPTIONAL_ITEM_TYPES: ReadonlySet<string> = new Set([
-  VLD_VALIDATOR_TYPES.OPTIONAL,
-  VLD_VALIDATOR_TYPES.EXACT_OPTIONAL,
-  VLD_VALIDATOR_TYPES.NULLISH,
-  VLD_VALIDATOR_TYPES.DEFAULT
-]);
+/**
+ * Zod's optin / optout ladder for one tuple item: `optin` says whether an omitted slot is
+ * acceptable ('optional' supplies nothing, 'defaulted' supplies a value), `optout` whether
+ * the item may produce `undefined` for an omitted slot.
+ */
+export interface ItemShape {
+  optin: 'optional' | 'defaulted' | undefined;
+  optout: boolean;
+}
+
+const NO_SHAPE: ItemShape = { optin: undefined, optout: false };
+
+export function itemShape(node: any, staticInput = false): ItemShape {
+  // Wrappers form an acyclic chain (schemas are immutable); lazy schemas are not resolved.
+  // staticInput: the declared input type (JSON Schema), which looks through catch like Zod's inputOptin.
+  // V1 wrappers keep the wrapped schema in baseValidator, V2 wrappers in __def.inner.
+  const inner = (): ItemShape => itemShape(node.baseValidator ?? node.__def.inner, staticInput);
+  switch (node.validatorType) {
+    case VLD_VALIDATOR_TYPES.DEFAULT:
+    case VLD_VALIDATOR_TYPES.PREFAULT:
+      return { optin: 'defaulted', optout: false };
+    case VLD_VALIDATOR_TYPES.OPTIONAL:
+    case VLD_VALIDATOR_TYPES.EXACT_OPTIONAL:
+    case VLD_VALIDATOR_TYPES.NULLISH:
+      return { optin: inner().optin === 'defaulted' ? 'defaulted' : 'optional', optout: true };
+    case VLD_VALIDATOR_TYPES.CATCH:
+      return staticInput ? inner() : { optin: inner().optin === 'defaulted' ? 'defaulted' : 'optional', optout: inner().optout };
+    case VLD_VALIDATOR_TYPES.TRANSFORM:
+      return { optin: inner().optin, optout: false };
+    case VLD_VALIDATOR_TYPES.NULLABLE:
+    case VLD_VALIDATOR_TYPES.READONLY:
+    case VLD_VALIDATOR_TYPES.META:
+    case VLD_VALIDATOR_TYPES.BRAND:
+    case VLD_VALIDATOR_TYPES.REFINE:
+      return inner();
+    case VLD_VALIDATOR_TYPES.SUPER_REFINE:
+      return itemShape(node._inner, staticInput);
+    case VLD_VALIDATOR_TYPES.PIPE:
+      return { optin: itemShape(node.first, staticInput).optin, optout: itemShape(node.second, staticInput).optout };
+    case VLD_VALIDATOR_TYPES.UNION: {
+      const options: ItemShape[] = (node.validators ?? node.__def.validators).map((option: unknown) => itemShape(option, staticInput));
+      return {
+        optin: options.some(option => option.optin === 'defaulted')
+          ? 'defaulted'
+          : options.some(option => option.optin !== undefined) ? 'optional' : undefined,
+        optout: options.some(option => option.optout)
+      };
+    }
+    default:
+      return NO_SHAPE;
+  }
+}
 
 type SimpleTupleItemMode =
   | 'string'
@@ -22,9 +69,28 @@ type SimpleTupleItemMode =
   | 'passthrough'
   | undefined;
 
-type FixedTupleOutput<T extends readonly VldBase<any, any>[]> = {
-  -readonly [K in keyof T]: ReturnType<T[K]['parse']>;
-};
+type ItemOutput<S extends VldBase<any, any>> = ReturnType<S['parse']>;
+
+/** A trailing optional / nullish item may be omitted (Zod's optout); `undefined`, `any` and union-with-undefined items may not. */
+type OmittableItem<S extends VldBase<any, any>> = S extends
+  | VldOptional<any, any>
+  | VldExactOptional<any, any>
+  | VldNullish<any, any>
+  | VldOptionalV2<any, any>
+  | VldNullishV2<any, any>
+  ? true
+  : false;
+
+type FixedTupleOutput<T extends readonly VldBase<any, any>[], TrailingOptional extends boolean = true> =
+  T extends readonly [...infer Head extends readonly VldBase<any, any>[], infer Last extends VldBase<any, any>]
+    ? TrailingOptional extends true
+      ? OmittableItem<Last> extends true
+        ? [...FixedTupleOutput<Head, true>, ItemOutput<Last>?]
+        : [...FixedTupleOutput<Head, false>, ItemOutput<Last>]
+      : [...FixedTupleOutput<Head, false>, ItemOutput<Last>]
+    : T extends readonly []
+      ? []
+      : { -readonly [K in keyof T]: ItemOutput<T[K]> };
 
 type TupleOutput<
   T extends readonly VldBase<any, any>[],
@@ -53,6 +119,9 @@ export class VldTuple<
   private readonly _length: number;
   /** Required prefix length: trailing optional items may be omitted (Zod). */
   private readonly _minLength: number;
+  /** First index of the trailing run of items that may produce `undefined` for an omitted slot. */
+  private readonly _optoutStart: number;
+  private readonly _shapes: ItemShape[];
   private readonly _validatorTypes: string[];
   private readonly _simpleItemModes: SimpleTupleItemMode[];
   private readonly _simpleItemValues: unknown[];
@@ -65,11 +134,17 @@ export class VldTuple<
     super(VLD_VALIDATOR_TYPES.TUPLE);
     this._length = validators.length;
     this._validatorTypes = validators.map(validator => validator.validatorType);
+    this._shapes = validators.map(validator => itemShape(validator));
     let minLength = validators.length;
-    while (minLength > 0 && OPTIONAL_ITEM_TYPES.has(this._validatorTypes[minLength - 1]!)) {
+    while (minLength > 0 && this._shapes[minLength - 1]!.optin !== undefined) {
       minLength--;
     }
     this._minLength = minLength;
+    let optoutStart = validators.length;
+    while (optoutStart > 0 && this._shapes[optoutStart - 1]!.optout) {
+      optoutStart--;
+    }
+    this._optoutStart = optoutStart;
     this._simpleItemModes = validators.map((validator, index) => this.getSimpleItemMode(validator, this._validatorTypes[index]!));
     this._simpleItemValues = validators.map((validator, index) =>
       this._simpleItemModes[index] === 'literal' ? (validator as any).literal : undefined
@@ -102,7 +177,8 @@ export class VldTuple<
       case VLD_VALIDATOR_TYPES.VOID:
         return 'undefinedValue';
       case VLD_VALIDATOR_TYPES.LITERAL:
-        return 'literal';
+        // The fast path compares with ===, which never matches NaN; the generic literal check does (SameValueZero).
+        return Number.isNaN((validator as any).literal) ? undefined : 'literal';
       case VLD_VALIDATOR_TYPES.ANY:
       case VLD_VALIDATOR_TYPES.UNKNOWN:
         return 'passthrough';
@@ -169,7 +245,7 @@ export class VldTuple<
    * @internal Used by object validators to avoid duplicate hot-path checks.
    */
   parseKnownTuple(value: unknown[]): TupleOutput<T, TRest> {
-    if (this.isInvalidLength(value.length)) {
+    if (this.isInvalidParseLength(value.length)) {
       throw this.lengthError(value.length);
     }
 
@@ -256,9 +332,43 @@ export class VldTuple<
       }
     }
 
+    for (let i = value.length; i < this._length; i++) {
+      if (this.truncatesAt(i)) {
+        result.length = i;
+        break;
+      }
+      const item = this.validators[i]!.safeParse(undefined);
+      if (!item.success) {
+        if (isAsyncRequiredError(item.error)) throw item.error;
+        if (i >= this._optoutStart) {
+          result.length = i;
+          break;
+        }
+        throw new Error(getMessages().arrayItem(i, item.error.message));
+      }
+      result[i] = item.data;
+    }
+    this.trimOmittedTail(result, value.length);
+
     return result as TupleOutput<T, TRest>;
   }
-  
+
+  /** Zod: an omitted optional item in the optional-out tail ends the output there. */
+  private truncatesAt(index: number): boolean {
+    return index >= this._optoutStart && this._shapes[index]!.optin === 'optional';
+  }
+
+  /** Zod: omitted trailing slots that produced `undefined` are not part of the output. */
+  private trimOmittedTail(result: unknown[], inputLength: number): void {
+    for (let i = result.length - 1; i >= inputLength; i--) {
+      if (this._shapes[i]!.optout && result[i] === undefined) {
+        result.length = i;
+      } else {
+        break;
+      }
+    }
+  }
+
   /**
    * Safely parse and validate a tuple value
    */
@@ -272,7 +382,7 @@ export class VldTuple<
 
   /** Async parse: each position (and rest item) goes through parseAsync. */
   override async parseAsync(value: unknown): Promise<TupleOutput<T, TRest>> {
-    if (!Array.isArray(value) || this.isInvalidLength(value.length)) {
+    if (!Array.isArray(value) || this.isInvalidParseLength(value.length)) {
       return this.parse(value);
     }
     const result = new Array(value.length);
@@ -284,7 +394,24 @@ export class VldTuple<
       if (item.success) result[i] = item.data;
       else issues.push(...nestIssues(item.error, i, message => getMessages().arrayItem(i, message)));
     }
+    for (let i = value.length; i < this._length; i++) {
+      if (this.truncatesAt(i)) {
+        result.length = i;
+        break;
+      }
+      const item = await this.validators[i]!.safeParseAsync(undefined);
+      if (!item.success) {
+        if (i >= this._optoutStart) {
+          result.length = i;
+          break;
+        }
+        issues.push(...nestIssues(item.error, i, message => getMessages().arrayItem(i, message)));
+      } else {
+        result[i] = item.data;
+      }
+    }
     if (issues.length > 0) throw new VldError(issues);
+    this.trimOmittedTail(result, value.length);
     return result as TupleOutput<T, TRest>;
   }
 
@@ -348,6 +475,11 @@ export class VldTuple<
     if (this.isInvalidLength(length)) {
       throw new Error(this.errorMessage || getMessages().tupleLength(this._length, length));
     }
+  }
+
+  /** With a rest schema Zod performs no arity check on parse: omitted fixed items are run with undefined instead. */
+  private isInvalidParseLength(length: number): boolean {
+    return this.restValidator === null && this.isInvalidLength(length);
   }
 
   private isInvalidLength(length: number): boolean {

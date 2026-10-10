@@ -8,6 +8,7 @@
  * Public API mirrors VldUnion 1:1. Exposed via v.unionV2().
  */
 import { VldBase, VLD_VALIDATOR_TYPES, type ParseResult } from './base';
+import type { UnionMemberOutput } from './union';
 import { VldError } from '../errors-core';
 import { getMessages } from '../locales/runtime';
 
@@ -75,8 +76,8 @@ function buildDef(validators: ReadonlyArray<VldBase<any, any>>, errorMessage?: s
 }
 
 export class VldUnionV2<T extends readonly VldBase<any, any>[]> extends VldBase<
-  T[number] extends VldBase<any, infer U> ? U : never,
-  T[number] extends VldBase<any, infer U> ? U : never
+  UnionMemberOutput<T[number]>,
+  UnionMemberOutput<T[number]>
 > {
   readonly __def: VldUnionDef;
 
@@ -91,7 +92,7 @@ export class VldUnionV2<T extends readonly VldBase<any, any>[]> extends VldBase<
 
   get options(): T { return this.__def.validators as unknown as T; }
 
-  parse(value: unknown): T[number] extends VldBase<any, infer U> ? U : never {
+  parse(value: unknown): UnionMemberOutput<T[number]> {
     const errors: string[] = [];
     const { validators, typeCheckers, simpleModes, simpleValues } = this.__def;
 
@@ -121,7 +122,7 @@ export class VldUnionV2<T extends readonly VldBase<any, any>[]> extends VldBase<
     throw new Error(this.__def.errorMessage || getMessages().unionNoMatch(errors));
   }
 
-  safeParse(value: unknown): ParseResult<T[number] extends VldBase<any, infer U> ? U : never> {
+  safeParse(value: unknown): ParseResult<UnionMemberOutput<T[number]>> {
     try { return { success: true, data: this.parse(value) }; }
     catch (e) {
       return { success: false, error: e instanceof VldError ? e : new VldError([{ code: 'custom', path: [], message: (e as Error).message }]) };

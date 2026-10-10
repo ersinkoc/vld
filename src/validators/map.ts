@@ -111,7 +111,8 @@ export class VldMap<K, V> extends VldBase<unknown, Map<K, V>> {
       case VLD_VALIDATOR_TYPES.VOID:
         return 'undefinedValue';
       case VLD_VALIDATOR_TYPES.LITERAL:
-        return 'literal';
+        // The fast path compares with ===, which never matches NaN; the generic literal check does (SameValueZero).
+        return Number.isNaN((validator as any).literal) ? undefined : 'literal';
       case VLD_VALIDATOR_TYPES.ANY:
       case VLD_VALIDATOR_TYPES.UNKNOWN:
         return 'passthrough';

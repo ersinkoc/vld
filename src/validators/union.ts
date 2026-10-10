@@ -31,12 +31,18 @@ type SimpleUnionMode =
   | undefined;
 
 /**
+ * Output type of a union of validators. Distributive on purpose: `VldBase` is invariant in its output, so a
+ * non-distributive `T extends VldBase<any, infer U>` collapses a multi-member union to `never`.
+ */
+export type UnionMemberOutput<T> = T extends VldBase<any, infer U> ? U : never;
+
+/**
  * Optimized immutable union validator for multiple type options
  * Features type-checking shortcuts for 110x performance improvement
  */
 export class VldUnion<T extends readonly VldBase<any, any>[]> extends VldBase<
   unknown,
-  T[number] extends VldBase<any, infer U> ? U : never
+  UnionMemberOutput<T[number]>
 > {
   private readonly validators: T;
   private readonly errorMessage: string | undefined;
@@ -173,7 +179,7 @@ export class VldUnion<T extends readonly VldBase<any, any>[]> extends VldBase<
    * Optimized with type checking and direct parsing to avoid success-result allocations
    * BUG-NEW-013 FIX: Single-pass error collection to avoid double parsing
    */
-  parse(value: unknown): T[number] extends VldBase<any, infer U> ? U : never {
+  parse(value: unknown): UnionMemberOutput<T[number]> {
     // Single pass: collect errors during validation
     let optionErrors: unknown[] | undefined;
 
@@ -188,7 +194,7 @@ export class VldUnion<T extends readonly VldBase<any, any>[]> extends VldBase<
 
       const simpleMode = this.simpleModes[i];
       if (simpleMode !== undefined) {
-        return this.parseSimpleValue(simpleMode, i, value) as T[number] extends VldBase<any, infer U> ? U : never;
+        return this.parseSimpleValue(simpleMode, i, value) as UnionMemberOutput<T[number]>;
       }
 
       try {
@@ -207,7 +213,7 @@ export class VldUnion<T extends readonly VldBase<any, any>[]> extends VldBase<
    * Optimized version using type checking shortcuts
    * BUG-NEW-013 FIX: Single-pass error collection to avoid double parsing
    */
-  safeParse(value: unknown): ParseResult<T[number] extends VldBase<any, infer U> ? U : never> {
+  safeParse(value: unknown): ParseResult<UnionMemberOutput<T[number]>> {
     // Single pass: collect errors during validation
     let optionErrors: unknown[] | undefined;
 
@@ -224,7 +230,7 @@ export class VldUnion<T extends readonly VldBase<any, any>[]> extends VldBase<
       if (simpleMode !== undefined) {
         return {
           success: true,
-          data: this.parseSimpleValue(simpleMode, i, value) as T[number] extends VldBase<any, infer U> ? U : never
+          data: this.parseSimpleValue(simpleMode, i, value) as UnionMemberOutput<T[number]>
         };
       }
 
@@ -261,7 +267,7 @@ export class VldUnion<T extends readonly VldBase<any, any>[]> extends VldBase<
   }
 
   /** Async parse: the first option whose parseAsync succeeds wins. */
-  override async parseAsync(value: unknown): Promise<T[number] extends VldBase<any, infer U> ? U : never> {
+  override async parseAsync(value: unknown): Promise<UnionMemberOutput<T[number]>> {
     const optionErrors: unknown[] = [];
     for (const validator of this.validators) {
       const result = await validator.safeParseAsync(value);

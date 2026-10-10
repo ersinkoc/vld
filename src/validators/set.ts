@@ -90,7 +90,8 @@ export class VldSet<T> extends VldBase<unknown, Set<T>> {
       case VLD_VALIDATOR_TYPES.VOID:
         return 'undefinedValue';
       case VLD_VALIDATOR_TYPES.LITERAL:
-        return 'literal';
+        // The fast path compares with ===, which never matches NaN; the generic literal check does (SameValueZero).
+        return Number.isNaN((itemValidator as any).literal) ? undefined : 'literal';
       case VLD_VALIDATOR_TYPES.ANY:
       case VLD_VALIDATOR_TYPES.UNKNOWN:
         return 'passthrough';

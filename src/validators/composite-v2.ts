@@ -4,7 +4,7 @@
  */
 import { VldBase, VLD_VALIDATOR_TYPES, type ParseResult } from './base';
 import { VldError, createInvalidTypeIssue, getTypeName } from '../errors-core';
-import { intersectResults } from './intersection';
+import { intersectResults, intersectionSide, planIntersection, withoutKeys } from './intersection';
 
 // --------------------------------------------------------------------------
 // VldTupleV2
@@ -183,7 +183,13 @@ export class VldIntersectionV2<A, B> extends VldBase<A & B, A & B> {
   override parse(value: unknown): A & B {
     // Same combination rules as legacy VldIntersection: spreading would turn
     // strings and arrays into index-keyed objects.
-    return intersectResults(this.__def.left.parse(value), this.__def.right.parse(value)) as A & B;
+    const { left, right } = this.__def;
+    const a = intersectionSide(left.safeParse(value));
+    const b = intersectionSide(right.safeParse(value));
+    const plan = planIntersection(a, b);
+    if (plan === undefined) return intersectResults((a as { data: unknown }).data, (b as { data: unknown }).data) as A & B;
+    // a key owned by the other side is not unrecognized (Zod): re-parse a strict side without it
+    return intersectResults(a.ok ? a.data : left.parse(withoutKeys(value, plan.left)), b.ok ? b.data : right.parse(withoutKeys(value, plan.right))) as A & B;
   }
 
   override safeParse(value: unknown): ParseResult<A & B> {

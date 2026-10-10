@@ -12,7 +12,7 @@ import {
 import { VldObject } from './object';
 import { VldLiteral } from './literal';
 import { VldEnum } from './enum';
-import { VldUnion } from './union';
+import { VldUnion, type UnionMemberOutput } from './union';
 import { VldError, createInvalidTypeIssue, getTypeName, stringifyForMessage } from '../errors-core';
 import type { ParseResult } from './base';
 
@@ -79,7 +79,7 @@ function optionDiscriminatorValues(option: VldBase<unknown, any>, discriminator:
  * Much faster than regular union when you have a discriminator field
  */
 export class VldDiscriminatedUnion<K extends string, Options extends readonly VldBase<any, any>[]>
-  extends VldBase<unknown, Options[number] extends VldBase<any, infer T> ? T : never> {
+  extends VldBase<unknown, UnionMemberOutput<Options[number]>> {
 
   private readonly _discriminatorMap: Map<unknown, VldBase<unknown, any>>;
   private readonly _stringDiscriminatorMap: Record<string, VldBase<unknown, any>>;
@@ -101,7 +101,8 @@ export class VldDiscriminatedUnion<K extends string, Options extends readonly Vl
         throw new Error('All options in a discriminated union must be objects');
       }
 
-      for (const value of values) {
+      // A nested discriminated union may repeat a tag it splits on a second discriminator: once per option.
+      for (const value of new Set(values)) {
         if (this._discriminatorMap.has(value)) {
           throw new Error(`Duplicate discriminator value "${String(value)}" found in discriminated union`);
         }
@@ -130,7 +131,7 @@ export class VldDiscriminatedUnion<K extends string, Options extends readonly Vl
     return new VldDiscriminatedUnion(discriminator, options);
   }
 
-  parse(value: unknown): Options[number] extends VldBase<any, infer T> ? T : never {
+  parse(value: unknown): UnionMemberOutput<Options[number]> {
     if (typeof value !== 'object' || value === null || Array.isArray(value)) {
       throw this.notObjectError(value);
     }
@@ -144,7 +145,7 @@ export class VldDiscriminatedUnion<K extends string, Options extends readonly Vl
       throw this.noMatchError(discriminatorValue);
     }
 
-    return this.parseOption(matchedSchema, value as Record<string, unknown>) as Options[number] extends VldBase<any, infer T> ? T : never;
+    return this.parseOption(matchedSchema, value as Record<string, unknown>) as UnionMemberOutput<Options[number]>;
   }
 
   private parseOption(option: VldBase<unknown, any>, value: Record<string, unknown>): unknown {
@@ -176,7 +177,7 @@ export class VldDiscriminatedUnion<K extends string, Options extends readonly Vl
     }]);
   }
 
-  safeParse(value: unknown): ParseResult<Options[number] extends VldBase<any, infer T> ? T : never> {
+  safeParse(value: unknown): ParseResult<UnionMemberOutput<Options[number]>> {
     // Check if input is an object
     if (typeof value !== 'object' || value === null || Array.isArray(value)) {
       return { success: false, error: this.notObjectError(value) };
@@ -197,7 +198,7 @@ export class VldDiscriminatedUnion<K extends string, Options extends readonly Vl
     try {
       return {
         success: true,
-        data: this.parseOption(matchedSchema, value as Record<string, unknown>) as Options[number] extends VldBase<any, infer T> ? T : never
+        data: this.parseOption(matchedSchema, value as Record<string, unknown>) as UnionMemberOutput<Options[number]>
       };
     } catch (error) {
       // Failure path only: re-run the option's own safeParse so issues keep
@@ -211,7 +212,7 @@ export class VldDiscriminatedUnion<K extends string, Options extends readonly Vl
   }
 
   /** Async parse: the matched option runs its parseAsync. */
-  override async parseAsync(value: unknown): Promise<Options[number] extends VldBase<any, infer T> ? T : never> {
+  override async parseAsync(value: unknown): Promise<UnionMemberOutput<Options[number]>> {
     if (typeof value !== 'object' || value === null || Array.isArray(value)) {
       throw this.notObjectError(value);
     }

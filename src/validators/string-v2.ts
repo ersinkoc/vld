@@ -450,7 +450,7 @@ export class VldStringV2 extends VldBase<string, string> {
   xid(message?: ErrorParam): VldStringV2 { return this.addFormat(REGEX_SOURCES.xid, 'xid', message); }
   guid(message?: ErrorParam): VldStringV2 { return this.addFormat(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/i, 'guid', message); }
   ksuid(message?: ErrorParam): VldStringV2 { return this.addFormat(/^[0-9A-Za-z]{27}$/, 'ksuid', message); }
-  date(message?: ErrorParam): VldStringV2 { return this.addFormat(/^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/, 'date', message); }
+  date(message?: ErrorParam): VldStringV2 { return this.addFormat(REGEX_SOURCES.date, 'date', message); }
   time(params?: ErrorParam | (ISOTimeOptions & { message?: string })): VldStringV2 {
     const options = isoFormatOptions<ISOTimeOptions>(params);
     return this.addFormat(options?.precision !== undefined ? REGEX_SOURCES.time(options) : /^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?$/, 'time', params as ErrorParam);

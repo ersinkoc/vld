@@ -31,10 +31,28 @@ export function isMultipleOf(value: number, step: number): boolean {
   if (Number.isInteger(step)) {
     return false;
   }
-  const scale = 10 ** Math.max(decimalPlaces(value), decimalPlaces(step));
+  const places = Math.max(decimalPlaces(value), decimalPlaces(step));
+  const scale = 10 ** places;
   const scaledValue = Math.round(value * scale);
   const scaledStep = Math.round(step * scale);
-  return scaledStep !== 0 && Number.isSafeInteger(scaledValue) && scaledValue % scaledStep === 0;
+  // The scaled doubles are exact integers only while |scaled| * 2^-52 stays well below 0.5 (2^50 leaves a wide margin).
+  if (Math.abs(scaledValue) <= 2 ** 50 && Math.abs(scaledStep) <= 2 ** 50) {
+    return scaledStep !== 0 && scaledValue % scaledStep === 0;
+  }
+  // Larger scaled values are no longer exact doubles: compare the shortest decimal forms exactly.
+  const bigValue = scaleDecimal(value, places);
+  const bigStep = scaleDecimal(step, places);
+  return bigValue !== undefined && bigStep !== undefined && bigStep !== 0n && bigValue % bigStep === 0n;
+}
+
+/** `n` (its shortest decimal form) times 10^places as an exact BigInt; undefined for non-finite numbers. */
+function scaleDecimal(n: number, places: number): bigint | undefined {
+  const match = /^(-?)(\d+)(?:\.(\d+))?(?:e([+-]?\d+))?$/i.exec(String(n));
+  if (!match) return undefined;
+  const fraction = match[3] ?? '';
+  const shift = places - fraction.length + (match[4] ? Number(match[4]) : 0);
+  const digits = BigInt(match[2]! + fraction) * 10n ** BigInt(Math.max(shift, 0));
+  return match[1] ? -digits : digits;
 }
 type NumberFastCheckMode = 'none' | 'positive' | 'positive-int' | undefined;
 

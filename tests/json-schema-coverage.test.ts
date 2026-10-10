@@ -270,8 +270,8 @@ describe('toJSONSchema - VLD -> JSON Schema', () => {
   // SPECIAL TYPES
   // ==============================
   describe('special types: Lazy, Json, Any, Unknown, Never, Undefined, NaN, Void, Symbol', () => {
-    it('converts VldLazy to { type: "object" } placeholder', () => {
-      expect(toJSONSchema(v.lazy(() => v.string()))).toMatchObject({ type: 'object' });
+    it('converts VldLazy to the schema it resolves to (audit F231)', () => {
+      expect(toJSONSchema(v.lazy(() => v.string()))).toMatchObject({ type: 'string' });
     });
 
     it('converts VldJson to empty schema {}', () => {

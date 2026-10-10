@@ -11,6 +11,7 @@ import { VldArray } from '../validators/array';
 import { VldBoolean } from '../validators/boolean';
 import { VldEnum } from '../validators/enum';
 import { VldIntersection } from '../validators/intersection';
+import { VldLazy } from '../validators/lazy';
 import { VldLiteral } from '../validators/literal';
 import { VldNever } from '../validators/never';
 import { VldNull } from '../validators/null';
@@ -18,8 +19,9 @@ import { VldNumber } from '../validators/number';
 import { VldObject } from '../validators/object';
 import { VldRecord } from '../validators/record';
 import { VldString } from '../validators/string';
-import { VldTuple } from '../validators/tuple';
+import { VldTuple, itemShape } from '../validators/tuple';
 import { VldUnion } from '../validators/union';
+import { VldXor } from '../validators/xor';
 import * as stringFormats from '../validators/string-formats';
 
 type AnyVldSchema = VldBase<any, any>;
@@ -156,7 +158,7 @@ export function fromJSONSchema(
     throw new Error('fromJSONSchema input is not valid JSON (possibly cyclic); use $defs/$ref for recursive schemas');
   }
 
-  const schema = jsonSchemaToVLD(normalized) as VldBase<unknown, unknown>;
+  const schema = withRefDocument(normalized, () => jsonSchemaToVLD(normalized)) as VldBase<unknown, unknown>;
   const metadata = schema.meta();
   if (options.registry && metadata) {
     options.registry.add(schema, metadata);
@@ -419,7 +421,17 @@ function convertSchemaToJSONSchema(schema: AnyVldSchema, options: ToJSONSchemaOp
   }
 
   if (schema.constructor.name === 'VldLazy') {
-    return withMetadata(schema, { type: 'object' }, options); // Placeholder for recursive schemas
+    // The resolved schema; recursion comes back as a $ref through the cycle context.
+    return withMetadata(schema, schemaToJSONSchema(unwrapInner(schemaAny), options), options);
+  }
+
+  if (schema.constructor.name === 'VldXor') {
+    return withMetadata(schema, { oneOf: (schemaAny._options as AnyVldSchema[]).map((option) => schemaToJSONSchema(option, options)) }, options);
+  }
+
+  // prefault only changes the value fed to the inner schema: the JSON Schema is the inner one.
+  if (schema.constructor.name === 'VldPrefault') {
+    return withMetadata(schema, schemaToJSONSchema(unwrapInner(schemaAny), options), options);
   }
 
   // stringbool: a boolean on output, the accepted string on input (Zod).
@@ -485,8 +497,9 @@ function convertSchemaToJSONSchema(schema: AnyVldSchema, options: ToJSONSchemaOp
   }
 
   // Handle refine/superRefine types
+  // (read the wrapped schema directly: unwrap() forwards to e.g. an array's element schema)
   if (schema.constructor.name === 'VldRefine' || schema.constructor.name === 'VldSuperRefine') {
-    return withMetadata(schema, schemaToJSONSchema(unwrapInner(schemaAny), options), options);
+    return withMetadata(schema, schemaToJSONSchema(schemaAny.baseValidator ?? schemaAny._inner, options), options);
   }
 
   // Handle pipe types
@@ -838,9 +851,9 @@ function buildObjectSchema(schema: any, options: ToJSONSchemaOptions): JSONSchem
   for (const [key, value] of Object.entries(shape)) {
     const child = value as VldBase<unknown, unknown>;
     properties[key] = schemaToJSONSchema(child, options);
-    // VLD objects require all keys by default; on the input side a defaulted
-    // (or caught) field may be omitted.
-    if (!isOptionalLike(child) && !(options.io === 'input' && isDefaultLike(child))) {
+    // A key is required unless the field may be omitted (Zod's optionality ladder): on the
+    // output side when it can produce undefined, on the input side when its declared type allows it.
+    if (!isOmittable(child, options)) {
       required.push(key);
     }
   }
@@ -867,21 +880,9 @@ function buildObjectSchema(schema: any, options: ToJSONSchemaOptions): JSONSchem
   return result;
 }
 
-function isDefaultLike(schema: AnyVldSchema): boolean {
-  const name = schema.constructor.name;
-  return name === 'VldDefault' || name === 'VldCatch';
-}
-
-function isOptionalLike(schema: AnyVldSchema): boolean {
-  const name = schema.constructor.name;
-  return (
-    name === 'VldOptional' ||
-    name === 'VldNullish' ||
-    name === 'VldExactOptional' ||
-    schema.validatorType === VLD_VALIDATOR_TYPES.OPTIONAL ||
-    schema.validatorType === VLD_VALIDATOR_TYPES.NULLISH ||
-    schema.validatorType === VLD_VALIDATOR_TYPES.EXACT_OPTIONAL
-  );
+function isOmittable(schema: AnyVldSchema, options: ToJSONSchemaOptions): boolean {
+  const shape = itemShape(schema, options.io === 'input');
+  return options.io === 'input' ? shape.optin !== undefined : shape.optout;
 }
 
 /**
@@ -1013,8 +1014,11 @@ function buildTupleSchema(schema: any, options: ToJSONSchemaOptions): JSONSchema
     items: items.map((item: AnyVldSchema) => schemaToJSONSchema(item, options)),
     // Extra elements must match the rest schema, or are not allowed at all.
     additionalItems: rest ? schemaToJSONSchema(rest, options) : false,
+    // Trailing items that may be omitted do not count towards the minimum (Zod).
     minItems: items.length
   };
+  while (result.minItems! > 0 && isOmittable(items[result.minItems! - 1], options)) result.minItems!--;
+  if (result.minItems === 0) delete result.minItems;
   if (!rest) {
     result.maxItems = items.length;
   }
@@ -1092,6 +1096,7 @@ function buildNullableSchema(schema: any, options: ToJSONSchemaOptions): JSONSch
  */
 function withNull(result: JSONSchemaDefinition): JSONSchemaDefinition {
   if (result.const === undefined && result.enum === undefined) {
+    if (result.type === 'null') return result;
     if (typeof result.type === 'string') {
       return { ...result, type: [result.type, 'null'] };
     }
@@ -1147,8 +1152,15 @@ function applyJSONArrayConstraints(arraySchema: any, json: JSONSchemaDefinition)
       `Array must have between ${minItems} and ${maxItems} items`
     );
   }
-  if (json.uniqueItems === true && typeof result.unique === 'function') {
-    result = result.unique();
+  if (json.uniqueItems === true) {
+    // JSON Schema equality is structural and applies to the input items (an item schema may strip or rewrite them),
+    // and tuples have no unique().
+    result = VldPreprocess.create((value: unknown) => {
+      if (Array.isArray(value) && value.some((item, index) => value.findIndex((other) => jsonDeepEqual(other, item)) !== index)) {
+        throw new VldError([{ code: 'custom', path: [], message: 'Array must contain unique items' }]);
+      }
+      return value;
+    }, result);
   }
   if (json.contains) {
     const containsSchema = jsonSchemaToVLD(json.contains);
@@ -1196,7 +1208,89 @@ function applyObjectConstraints(objectSchema: any, json: JSONSchemaDefinition): 
   }, objectSchema);
 }
 
-function jsonSchemaToVLD(json: JSONSchemaDefinition): AnyVldSchema {
+/** The document local `$ref`s resolve against while it is being converted (and while a lazily resolved ref converts). */
+interface RefDocument {
+  readonly root: JSONSchemaDefinition;
+  readonly cache: Map<string, AnyVldSchema>;
+}
+
+let refDocument: RefDocument | undefined;
+
+function withRefDocument<T>(root: JSONSchemaDefinition, run: () => T, cache: Map<string, AnyVldSchema> = new Map()): T {
+  const previous = refDocument;
+  refDocument = { root, cache };
+  try {
+    return run();
+  } finally {
+    refDocument = previous;
+  }
+}
+
+/** The subschema a local JSON pointer ref (`#`, `#/$defs/x`, `#/definitions/x`, `#/properties/a`) points at; undefined when it points nowhere. */
+function lookupLocalRef(root: JSONSchemaDefinition, ref: string): JSONSchemaDefinition | boolean | undefined {
+  let node: unknown = root;
+  if (ref !== '#') {
+    if (!ref.startsWith('#/')) return undefined;
+    for (const raw of ref.slice(2).split('/')) {
+      const key = decodeURIComponent(raw).replace(/~1/g, '/').replace(/~0/g, '~');
+      if (typeof node !== 'object' || node === null || !Object.prototype.hasOwnProperty.call(node, key)) return undefined;
+      node = (node as Record<string, unknown>)[key];
+    }
+  }
+  if (typeof node !== 'boolean' && (typeof node !== 'object' || node === null)) return undefined;
+  return node as JSONSchemaDefinition | boolean;
+}
+
+/** A local ref converts lazily (recursive schemas) and once per document; a dangling ref accepts anything (as before). */
+function resolveLocalRef(document: RefDocument, ref: string): AnyVldSchema {
+  const cached = document.cache.get(ref);
+  if (cached !== undefined) return cached;
+  const target = lookupLocalRef(document.root, ref);
+  if (target === undefined) return VldAny.create() as unknown as AnyVldSchema;
+  const lazy = VldLazy.create(() => withRefDocument(document.root, () => jsonSchemaToVLD(target), document.cache)) as unknown as AnyVldSchema;
+  document.cache.set(ref, lazy);
+  return lazy;
+}
+
+/** "required" names that no listed property covers: the key must be present on the raw input. */
+function applyRequiredKeys(objectSchema: any, json: JSONSchemaDefinition): any {
+  const required = (json.required ?? []).filter(
+    (key) => json.properties === undefined || !Object.prototype.hasOwnProperty.call(json.properties, key)
+  );
+  if (required.length === 0) return objectSchema;
+  return VldPreprocess.create((value: unknown) => {
+    if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+      const issues: VldIssue[] = required
+        .filter((key) => !Object.prototype.hasOwnProperty.call(value, key))
+        .map((key) => ({ code: 'invalid_type', path: [key], message: `Invalid input: missing required property "${key}"` }) as VldIssue);
+      if (issues.length > 0) throw new VldError(issues);
+    }
+    return value;
+  }, objectSchema);
+}
+
+/** propertyNames on an object that is not a record: every own key must satisfy the key schema. */
+function applyPropertyNames(objectSchema: any, json: JSONSchemaDefinition): any {
+  const names = json.propertyNames as JSONSchemaDefinition | boolean | undefined;
+  if (names === undefined) return objectSchema;
+  const keySchema = jsonSchemaToVLD(typeof names === 'object' ? { type: 'string', ...names } : names);
+  // Checked on the raw input: the object schema itself drops or rejects keys it does not list.
+  return VldPreprocess.create((value: unknown) => {
+    if (value !== null && typeof value === 'object') {
+      const issues: VldIssue[] = [];
+      for (const key of Object.keys(value)) {
+        const parsed = keySchema.safeParse(key);
+        if (!parsed.success) issues.push({ code: 'invalid_key', path: [key], message: parsed.error.message });
+      }
+      if (issues.length > 0) throw new VldError(issues);
+    }
+    return value;
+  }, objectSchema);
+}
+
+function jsonSchemaToVLD(json: JSONSchemaDefinition | boolean): AnyVldSchema {
+  // A boolean subschema (anyOf: [false, ...], items: false, properties: { a: true }) accepts everything or nothing.
+  if (typeof json === 'boolean') return (json ? VldAny.create() : VldNever.create()) as unknown as AnyVldSchema;
   const schema = applyJSONSchemaMetadata(jsonSchemaToVLDInner(json), json);
   // A JSON Schema `default` fills a missing value, as in Zod's fromJSONSchema.
   return json.default !== undefined ? schema.default(json.default as any) as AnyVldSchema : schema;
@@ -1237,20 +1331,52 @@ const JSON_SCHEMA_FORMATS: Record<string, () => AnyVldSchema> = {
   ksuid: () => stringFormats.ksuid()
 };
 
+/** JSON Schema equality (const / enum): structural for arrays and objects, strict for primitives. */
+function jsonDeepEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  if (Array.isArray(a)) {
+    const other = b as unknown[];
+    return a.length === other.length && a.every((item, index) => jsonDeepEqual(item, other[index]));
+  }
+  const left = a as Record<string, unknown>;
+  const right = b as Record<string, unknown>;
+  const keys = Object.keys(left);
+  return keys.length === Object.keys(right).length && keys.every((key) => Object.prototype.hasOwnProperty.call(right, key) && jsonDeepEqual(left[key], right[key]));
+}
+
+/** A const / enum member: primitives are literals, arrays and objects compare structurally. */
+function jsonLiteral(value: unknown): AnyVldSchema {
+  if (typeof value === 'object' && value !== null) {
+    return VldAny.create().refine((candidate) => jsonDeepEqual(candidate, value)) as unknown as AnyVldSchema;
+  }
+  return VldLiteral.create(value as any) as unknown as AnyVldSchema;
+}
+
 function jsonSchemaToVLDInner(json: JSONSchemaDefinition): AnyVldSchema {
   // Handle $ref
   if (json.$ref) {
-    // For now, return any - full $ref handling requires registry
-    return VldAny.create();
+    // Local refs resolve against the converted document; dangling and external refs accept anything.
+    return refDocument !== undefined && json.$ref.startsWith('#') ? resolveLocalRef(refDocument, json.$ref) : VldAny.create();
   }
 
-  // Handle anyOf/oneOf (union)
+  // Handle not: the remaining keywords must hold and the negated schema must not.
+  if (json.not !== undefined) {
+    // `default` stays with the outer schema (applied once by jsonSchemaToVLD).
+    const { not, ...rest } = json;
+    delete rest.default;
+    const negated = jsonSchemaToVLD(not);
+    return jsonSchemaToVLD(rest).refine((value) => !negated.safeParse(value).success) as unknown as AnyVldSchema;
+  }
+
+  // Handle anyOf/oneOf (union; oneOf is exclusive: exactly one branch must match)
   if (json.anyOf || json.oneOf) {
     const options = (json.anyOf || json.oneOf)!
       .map((s) => jsonSchemaToVLD(s))
       .filter(Boolean);
     if (options.length > 0) {
-      return VldUnion.create(...options);
+      return json.anyOf ? VldUnion.create(...options) : VldXor.create(options as any) as unknown as AnyVldSchema;
     }
   }
 
@@ -1270,15 +1396,9 @@ function jsonSchemaToVLDInner(json: JSONSchemaDefinition): AnyVldSchema {
     return first;
   }
 
-  // Handle not
-  if (json.not) {
-    // For negation, we need special handling
-    return VldAny.create();
-  }
-
   // Handle const
   if (json.const !== undefined) {
-    return VldLiteral.create(json.const as any);
+    return jsonLiteral(json.const);
   }
 
   // Handle enum
@@ -1287,7 +1407,7 @@ function jsonSchemaToVLDInner(json: JSONSchemaDefinition): AnyVldSchema {
       return VldEnum.create(json.enum as any);
     }
     // null / boolean members: a union of literals (VldEnum only holds strings and numbers).
-    const members = json.enum.map((value) => VldLiteral.create(value as any));
+    const members = json.enum.map((value) => jsonLiteral(value));
     return members.length === 1 ? members[0]! : VldUnion.create(...members);
   }
 
@@ -1353,6 +1473,8 @@ function jsonSchemaToVLDInner(json: JSONSchemaDefinition): AnyVldSchema {
         : tuple.rest(restDefinition === undefined || restDefinition === true
           ? VldAny.create()
           : jsonSchemaToVLD(restDefinition as JSONSchemaDefinition));
+    } else if (json.items === false) {
+      arraySchema = VldArray.create(VldNever.create());
     } else if (json.items && !Array.isArray(json.items)) {
       arraySchema = VldArray.create(jsonSchemaToVLD(json.items));
     } else {
@@ -1385,24 +1507,26 @@ function jsonSchemaToVLDInner(json: JSONSchemaDefinition): AnyVldSchema {
         obj = obj.catchall(jsonSchemaToVLD(json.additionalProperties as JSONSchemaDefinition) as any);
       }
 
-      return applyObjectConstraints(obj, json);
+      return applyRequiredKeys(applyPropertyNames(applyObjectConstraints(obj, json), json), json);
     }
     // No properties: a dictionary whose keys follow propertyNames and whose
     // values follow additionalProperties.
-    if (json.propertyNames || (json.additionalProperties && typeof json.additionalProperties === 'object')) {
+    if ((json.propertyNames && json.additionalProperties !== false) || (json.additionalProperties && typeof json.additionalProperties === 'object')) {
       const valueSchema = json.additionalProperties && typeof json.additionalProperties === 'object'
         ? jsonSchemaToVLD(json.additionalProperties as JSONSchemaDefinition)
         : VldAny.create();
       const keySchema = json.propertyNames
         ? jsonSchemaToVLD({ type: 'string', ...(json.propertyNames as JSONSchemaDefinition) })
         : undefined;
-      return applyObjectConstraints(VldRecord.create(valueSchema, keySchema as any), json);
+      // JSON Schema never requires a key just because propertyNames lists it (only "required" does): enumerated keys stay optional.
+      const record = VldRecord.create(valueSchema, keySchema as any);
+      return applyRequiredKeys(applyObjectConstraints(keySchema ? record.partial() : record, json), json);
     }
     if (json.additionalProperties === false) {
-      return applyObjectConstraints(VldObject.create({}).strict(), json);
+      return applyRequiredKeys(applyPropertyNames(applyObjectConstraints(VldObject.create({}).strict(), json), json), json);
     }
     // Empty object schema
-    return applyObjectConstraints(VldObject.create({}), json);
+    return applyRequiredKeys(applyObjectConstraints(VldObject.create({}), json), json);
   }
 
   if (type === 'null') {

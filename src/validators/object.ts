@@ -184,7 +184,8 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
       case VLD_VALIDATOR_TYPES.VOID:
         return 'undefinedValue';
       case VLD_VALIDATOR_TYPES.LITERAL:
-        return 'literal';
+        // The fast path compares with ===, which never matches NaN; the generic literal check does (SameValueZero).
+        return Number.isNaN((validator as any).literal) ? undefined : 'literal';
       case VLD_VALIDATOR_TYPES.ANY:
       case VLD_VALIDATOR_TYPES.UNKNOWN:
         return 'passthrough';

@@ -152,6 +152,15 @@ function literalTest(lit: string, input: string): string {
   return lit === 'NaN' ? `${input} !== ${input}` : `${input} === ${lit}`;
 }
 
+/**
+ * Source for `re.test(subject)` that does not depend on earlier calls: a /g or /y regex keeps
+ * its lastIndex between tests, so the shared instance must be rewound first.
+ */
+function regexTest(c: Compiler, source: string, flags: string, subject = '__v'): string {
+  const id = addRegex(c, source, flags);
+  return /[gy]/.test(flags) ? `(${id}.lastIndex = 0, ${id}.test(${subject}))` : `${id}.test(${subject})`;
+}
+
 /** Register a RegExp with the emitted function and return its local name. */
 function addRegex(c: Compiler, source: string, flags: string): string {
   const id = `__re${c.regexTable.length}`;
@@ -220,7 +229,7 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
             const source = (m as { pattern?: string }).pattern
               ?? (m.value as RegExp)?.source
               ?? String(m.value);
-            extra.push(`${addRegex(c, source, (m as { flags?: string }).flags ?? '')}.test(__v)`);
+            extra.push(regexTest(c, source, (m as { flags?: string }).flags ?? ''));
             break;
           }
           case 'startsWith': extra.push(`__v.startsWith(${JSON.stringify(m.value)})`); break;
@@ -239,7 +248,7 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
           case 'email':
           case 'uuid': {
             const fmt = COMPILABLE_FORMATS[m.kind];
-            extra.push(`${addRegex(c, fmt.source, fmt.flags)}.test(__v)`);
+            extra.push(regexTest(c, fmt.source, fmt.flags));
             break;
           }
           case 'format': {
@@ -249,9 +258,9 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
             }
             if (m.format === 'email' || m.format === 'uuid') {
               const fmt = COMPILABLE_FORMATS[m.format];
-              extra.push(`${addRegex(c, fmt.source, fmt.flags)}.test(__v)`);
+              extra.push(regexTest(c, fmt.source, fmt.flags));
             } else if (m.pattern !== undefined) {
-              extra.push(`${addRegex(c, m.pattern, m.flags ?? '')}.test(__v)`);
+              extra.push(regexTest(c, m.pattern, m.flags ?? ''));
             } else {
               // Composite formats (e.g. `ip` mixes regex and code) cannot be
               // inlined; refuse to compile rather than skipping the check.
@@ -358,7 +367,9 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
   if (kindOf(schema) === 'VldDate') {
     // min/max and other date checks are closures the compiler does not model.
     if (((schema as any)._checks as unknown[] | undefined)?.length) { c.failed = true; return; }
-    c.hoist.push(`{ const __v = ${input}; if (!(__v instanceof Date) || __v.getTime() !== __v.getTime()) ${c.throwOnFail ? "throw" : "return"} ${c.invalid}; ${c.outParam} = __v; }`);
+    // v.date() also accepts numbers and date strings and returns the Date they denote, so the input is not the output.
+    c.rewritesOutput = true;
+    c.hoist.push(`{ const __v = ${input}; const __d = __v instanceof Date ? __v : (typeof __v === "string" || typeof __v === "number") ? new Date(__v) : null; if (__d === null || __d.getTime() !== __d.getTime()) ${c.throwOnFail ? "throw" : "return"} ${c.invalid}; ${c.outParam} = __d; }`);
     return;
   }
   if (kindOf(schema) === 'VldNull') {
@@ -517,11 +528,12 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
   }
   if (kindOf(schema) === 'VldTuple') {
     const items = ((schema as any).validators as Array<VldBase<any, any> | undefined>).filter((x): x is VldBase<any, any> => Boolean(x));
-    // Optional positions shorten the accepted length (interpreter rule): fall back.
-    if (items.some((item) => ['VldOptional', 'VldExactOptional', 'VldNullish', 'VldDefault'].includes(kindOf(item)))) { c.failed = true; return; }
     const rest = (schema as any).restValidator as VldBase<any, any> | undefined;
+    // The runtime tuple accepts shorter input when trailing items are omittable (defaults, optionals
+    // through wrappers, ...) and has no arity check with a rest schema: only exact-arity tuples compile.
+    if (rest || (schema as any)._minLength !== items.length) { c.failed = true; return; }
     const outName = temp(c, 'tup');
-    const lengthCheck = rest ? `${input}.length < ${items.length}` : `${input}.length !== ${items.length}`;
+    const lengthCheck = `${input}.length !== ${items.length}`;
     c.hoist.push(
       `if (!Array.isArray(${input}) || ${lengthCheck}) ${c.throwOnFail ? "throw" : "return"} ${c.invalid};`
     );
@@ -531,14 +543,6 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
         if (!it) { c.failed = true; return; }
         lower(it, `${input}[${i}]`, c);
         if (c.failed) return;
-      }
-      if (rest) {
-        const idxName = temp(c, 'i');
-        c.hoist.push(
-          `for (let ${idxName} = ${items.length}; ${idxName} < ${input}.length; ${idxName}++) {`
-        );
-        lower(rest, `${input}[${idxName}]`, c);
-        c.hoist.push(`}`);
       }
       c.hoist.push(`${c.outParam} = true;`);
       return;
@@ -555,19 +559,6 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
       c.skipOutAssign = prevSkip;
       c.hoist.push(`  ${outName}[${i}] = ${iname}; }`);
     }
-    if (rest) {
-      const idxName = temp(c, 'i');
-      const itName = temp(c, 'it');
-      c.hoist.push(
-        `for (let ${idxName} = ${items.length}; ${idxName} < ${input}.length; ${idxName}++) {`,
-        `  const ${itName} = ${input}[${idxName}];`
-      );
-      const prevSkip = c.skipOutAssign ?? false;
-      c.skipOutAssign = true;
-      lower(rest, itName, c);
-      c.skipOutAssign = prevSkip;
-      c.hoist.push(`  ${outName}[${idxName}] = ${itName}; }`);
-    }
     c.hoist.push(`${c.outParam} = ${outName};`);
     return;
   }
@@ -579,6 +570,8 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
     // back to the runtime parser instead of mis-validating extra keys.
     const objectMode = (schema as any)._config as { strict?: boolean; passthrough?: boolean; catchall?: unknown } | undefined;
     if (objectMode?.strict || objectMode?.passthrough || objectMode?.catchall) { c.failed = true; return; }
+    // Object parsing strips unknown keys: a successful check cannot return the input as-is.
+    c.rewritesOutput = true;
     const outName = temp(c, 'o');
     c.hoist.push(
       `if (typeof ${input} !== "object" || ${input} === null || Array.isArray(${input})) ${c.throwOnFail ? "throw" : "return"} ${c.invalid};`
@@ -621,6 +614,8 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
   if (kindOf(schema) === 'VldRecord') {
     const keyVal = (schema as any).keyValidator as VldBase<any, any>;
     const valVal = (schema as any).valueValidator as VldBase<any, any>;
+    // Record parsing builds a new object (dropping prototype-pollution keys): same as objects.
+    c.rewritesOutput = true;
     const outName = temp(c, 'rec');
     const ksName = temp(c, 'ks');
     const idxName = temp(c, 'i');
@@ -790,16 +785,14 @@ export function applyCompiled<T extends VldBase<any, any>>(
   const originalSafeParse = (schema as any).safeParse.bind(schema);
   const invalidSym = COMPILE_INVALID;
   const validateCompiled = (validateOnly ?? compiled) as CompiledValidator;
-  // When the schema rewrites its output (defaults), a successful check cannot
-  // return the input as-is; the runtime parser must build the result.
+  // When the schema rewrites its output (defaults, stripped object keys), a successful
+  // check cannot return the input as-is; the runtime parser must build the result.
   const rewritesOutput = (validateCompiled as any).__vld_rewrites_output === true;
-  // Compiled parse/safeParse: on success, return the input as-is. This is
-  // the same semantic Zod 4's compiled `parse` uses  -  `compile()` produces
-  // a function that returns true (or throws), and the wrapped parse method
-  // returns the input directly on success. We intentionally do NOT strip
-  // unknown keys here, because (a) Zod's compiled parse also does not
-  // strip, (b) the strip in the uncompiled path remains correct, and
-  // (c) inline stripping would dominate the hot path for wide objects.
+  // Compiled parse/safeParse: on success, return the input as-is when the schema's
+  // output equals its input (primitives, literals, arrays of them, ...). Anything that
+  // rewrites its output (objects strip unknown keys, records drop dangerous keys,
+  // defaults fill values) is flagged `rewritesOutput` and parsed by the runtime, so a
+  // compiled schema returns exactly what the uncompiled one does (and what z.compile does).
   (schema as any).parse = (input: unknown) => {
     if (rewritesOutput || validateCompiled(input) === invalidSym) {
       return originalParse(input);
