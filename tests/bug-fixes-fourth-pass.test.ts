@@ -107,10 +107,12 @@ describe('Fourth Bug Analysis Fixes', () => {
 
   describe('BUG-NEW-019: VldDate.between Validation', () => {
     test('should accept valid min/max dates in between()', () => {
+      // String thresholds stay supported; the VALUE must be a Date (Zod).
       const validator = v.date().between('2024-01-01', '2024-12-31');
 
-      const result = validator.parse('2024-06-15');
+      const result = validator.parse(new Date('2024-06-15'));
       expect(result).toBeInstanceOf(Date);
+      expect(() => validator.parse('2024-06-15')).toThrow();
     });
 
     test('should throw error for invalid min date in between()', () => {

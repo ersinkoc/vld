@@ -150,11 +150,9 @@ describe('Mini API', () => {
       const schema = date();
       const now = new Date();
       expect(schema.parse(now)).toEqual(now);
-      // Date validator accepts strings and numbers (passed to Date constructor)
-      expect(schema.parse('2023-01-01')).toBeInstanceOf(Date);
-      // Invalid date string should throw
+      // Zod: only Date instances pass; strings and numbers are rejected.
+      expect(() => schema.parse('2023-01-01')).toThrow();
       expect(() => schema.parse('not-a-date')).toThrow();
-      // Non-date types should throw
       expect(() => schema.parse(true)).toThrow();
     });
 
@@ -368,15 +366,17 @@ describe('Mini API', () => {
       expect(result.value).toBe('root');
     });
 
-    test('json() creates a JSON validator', () => {
+    test('json() validates JSON-compatible values (Zod)', () => {
       const schema = json();
-      expect(schema.parse('{"a":1}')).toEqual({ a: 1 });
+      expect(schema.parse({ a: 1 })).toEqual({ a: 1 });
+      expect(schema.parse('{"a":1}')).toBe('{"a":1}');
+      expect(schema.safeParse(undefined).success).toBe(false);
     });
 
     test('json() with schema', () => {
       const schema = json(object({ a: number() }));
-      expect(schema.parse('{"a":1}')).toEqual({ a: 1 });
-      expect(() => schema.parse('{"a":"one"}')).toThrow();
+      expect(schema.parse({ a: 1 })).toEqual({ a: 1 });
+      expect(() => schema.parse({ a: 'one' })).toThrow();
     });
   });
 

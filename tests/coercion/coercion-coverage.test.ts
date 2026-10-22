@@ -190,8 +190,8 @@ describe('Coercion Validators - 100% Coverage', () => {
       expect(() => nonpositiveValidator.parse('5')).toThrow();
     });
 
-    it('should handle empty string', () => {
-      expect(() => validator.parse('')).toThrow();
+    it('coerces the empty string to 0n like Zod (BigInt semantics)', () => {
+      expect(validator.parse('')).toBe(0n);
     });
 
     it('should handle other value coercion', () => {
@@ -328,10 +328,9 @@ describe('Coercion Validators - 100% Coverage', () => {
       expect(validator.parse(BigInt(-99999))).toBe('-99999');
     });
 
-    it('should coerce Date to ISO string', () => {
-      // Line 215: Date.toISOString() path
+    it('coerces Date through String() like Zod', () => {
       const date = new Date('2024-01-15T10:30:00.000Z');
-      expect(validator.parse(date)).toBe('2024-01-15T10:30:00.000Z');
+      expect(validator.parse(date)).toBe(String(date));
     });
 
     it('should coerce RegExp to string', () => {
@@ -340,10 +339,9 @@ describe('Coercion Validators - 100% Coverage', () => {
       expect(validator.parse(/^hello$/)).toBe('/^hello$/');
     });
 
-    it('should coerce Error to message', () => {
-      // Line 224: Error.message path
+    it('coerces Error through String() like Zod', () => {
       const error = new Error('Test error message');
-      expect(validator.parse(error)).toBe('Test error message');
+      expect(validator.parse(error)).toBe('Error: Test error message');
     });
 
     it('should coerce Error with empty message to toString', () => {

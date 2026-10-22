@@ -560,7 +560,14 @@ export class VldString extends VldBase<string, string> {
   }
 
   lowercase(): VldString {
-    return this.toLowerCase();
+    // Zod: lowercase is a check (invalid_format); toLowerCase() transforms.
+    return this.derive({
+      checks: [...this.config.checks, (v: string) => v === v.toLowerCase()],
+      transforms: this.config.transforms,
+      errorMessage: this.config.errorMessage,
+      jsonSchema: this.config.jsonSchema,
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'format', format: 'lowercase', message: 'Invalid lowercase' }]
+    });
   }
   
   /**
@@ -577,7 +584,14 @@ export class VldString extends VldBase<string, string> {
   }
 
   uppercase(): VldString {
-    return this.toUpperCase();
+    // Zod: uppercase is a check (invalid_format); toUpperCase() transforms.
+    return this.derive({
+      checks: [...this.config.checks, (v: string) => v === v.toUpperCase()],
+      transforms: this.config.transforms,
+      errorMessage: this.config.errorMessage,
+      jsonSchema: this.config.jsonSchema,
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'format', format: 'uppercase', message: 'Invalid uppercase' }]
+    });
   }
 
   normalize(form?: 'NFC' | 'NFD' | 'NFKC' | 'NFKD'): VldString {
@@ -613,7 +627,9 @@ export class VldString extends VldBase<string, string> {
       checks: [...this.config.checks, (v: string) => v.startsWith(str)],
       transforms: this.config.transforms,
       errorMessage: resolveErrorMessage(message, getMessages().stringStartsWith(str)),
-      jsonSchema: { ...this.config.jsonSchema, affixes: [...(this.config.jsonSchema?.affixes ?? []), { kind: 'startsWith', value: str }] }
+      jsonSchema: { ...this.config.jsonSchema, affixes: [...(this.config.jsonSchema?.affixes ?? []), { kind: 'startsWith', value: str }] },
+      // Zod: affix failures report invalid_format with the affix as format.
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'format', format: 'starts_with', message: resolveErrorMessage(message, getMessages().stringStartsWith(str)) }]
     });
   }
   
@@ -625,7 +641,8 @@ export class VldString extends VldBase<string, string> {
       checks: [...this.config.checks, (v: string) => v.endsWith(str)],
       transforms: this.config.transforms,
       errorMessage: resolveErrorMessage(message, getMessages().stringEndsWith(str)),
-      jsonSchema: { ...this.config.jsonSchema, affixes: [...(this.config.jsonSchema?.affixes ?? []), { kind: 'endsWith', value: str }] }
+      jsonSchema: { ...this.config.jsonSchema, affixes: [...(this.config.jsonSchema?.affixes ?? []), { kind: 'endsWith', value: str }] },
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'format', format: 'ends_with', message: resolveErrorMessage(message, getMessages().stringEndsWith(str)) }]
     });
   }
   
@@ -641,7 +658,8 @@ export class VldString extends VldBase<string, string> {
       checks: [...this.config.checks, (v: string) => v.includes(str, position)],
       transforms: this.config.transforms,
       errorMessage: resolveErrorMessage(message as ErrorParam, getMessages().stringIncludes(str)),
-      jsonSchema: { ...this.config.jsonSchema, affixes: [...(this.config.jsonSchema?.affixes ?? []), { kind: 'includes', value: str }] }
+      jsonSchema: { ...this.config.jsonSchema, affixes: [...(this.config.jsonSchema?.affixes ?? []), { kind: 'includes', value: str }] },
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'format', format: 'includes', message: resolveErrorMessage(message as ErrorParam, getMessages().stringIncludes(str)) }]
     });
   }
   

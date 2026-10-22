@@ -75,10 +75,7 @@ export class VldStringBool extends VldBase<unknown, boolean> {
   parse(value: unknown): boolean {
     // First, ensure we have a string
     if (typeof value !== 'string') {
-      // Also accept actual boolean values for convenience
-      if (typeof value === 'boolean') {
-        return value;
-      }
+      // Zod: stringbool accepts only the configured strings, never a boolean.
       throw new VldError([createInvalidTypeIssue('string', typeof value, getMessages().stringExpected(typeof value, 'string'))]);
     }
 

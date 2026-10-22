@@ -84,7 +84,7 @@ describe('Method Chaining after .refine(), .superRefine(), and .check()', () => 
     });
 
     it('should support .check().max() Zod 4 API chaining', () => {
-      const schema = v.string().check(s => s.endsWith('.com')).max(15);
+      const schema = v.string().refine(s => s.endsWith('.com')).max(15);
       
       expect(schema.parse('test.com')).toBe('test.com');
       expect(() => schema.parse('test.org')).toThrow();

@@ -15,7 +15,7 @@
  */
 
 // Import base class
-import { VldBase, configureSchemaCompositionFactories, resolveErrorMessage, type ErrorParam, type ParseResult, type SchemaMetadata, type SuperRefineContext } from './validators/base';
+import { VldCheck, VldBase, configureSchemaCompositionFactories, resolveErrorMessage, type ErrorParam, type ParseResult, type SchemaMetadata, type SuperRefineContext } from './validators/base';
 import type { Infer, Input, Output } from './validators';
 import { globalRegistry, registry } from './registry';
 import { VldError, expandNestedIssues, type VldIssue } from './errors-core';
@@ -218,6 +218,12 @@ function createTransform<I = unknown, O = I>(
       return transformed as Awaited<O>;
     }
   }) as VldBase<I, Awaited<O>>;
+}
+
+
+/** Zod's z.check(fn): an opaque check object usable inside .check(...). */
+function makeStandaloneCheck<T>(fn: VldCheck<T>): VldCheck<T> {
+  return { _zod: { check: (fn as any)._zod?.check ?? fn } } as VldCheck<T>;
 }
 
 function createRefinement<T = unknown>(
@@ -897,14 +903,16 @@ export const v = {
   int: () => VldNumber.create().int(),
   int32: () => VldNumber.create().int().min(-2147483648).max(2147483647),
   uint32: () => VldNumber.create().uint32(),
-  uint64: () => VldNumber.create().uint64(),
-  int64: () => VldNumber.create().int64(),
+  // Zod: int64 / uint64 are bigint schemas with 64-bit range checks.
+  uint64: (message?: string) => VldBigInt.create().min(0n, message).max(18446744073709551615n, message),
+  int64: (message?: string) => VldBigInt.create().min(-9223372036854775808n, message).max(9223372036854775807n, message),
   float32: () => VldNumber.create().float32(),
   float64: () => VldNumber.create().float64(),
   boolean: () => VldBoolean.create(),
   booleanV2: () => VldBooleanV2.create(),
   date: () => VldDate.create(),
-  dateLegacy: () => VldDate.create(),
+  // The legacy alias keeps vld's pre-Zod-parity coercing behaviour.
+  dateLegacy: () => VldCoerceDate.create(),
   dateV2: () => VldDateV2.create(),
   bigint: () => VldBigInt.create(),
   bigintLegacy: () => VldBigInt.create(),
@@ -1025,12 +1033,13 @@ export const v = {
     message?: string
   ) => VldRefineV2.create(inner, predicate, message),
   check: <T = unknown>(
-    schemaOrPredicate: VldBase<unknown, T> | ((value: T) => boolean | Promise<boolean>),
-    predicateOrMessage?: ((value: T) => boolean | Promise<boolean>) | RefinementMessage,
+    schemaOrPredicate: VldBase<unknown, T> | VldCheck<T>,
+    predicateOrMessage?: VldCheck<T> | RefinementMessage,
     message?: RefinementMessage
   ) => schemaOrPredicate instanceof VldBase
-    ? schemaOrPredicate.check(predicateOrMessage as (value: T) => boolean | Promise<boolean>, messageFromRefinementParam(message))
-    : createRefinement(schemaOrPredicate, predicateOrMessage as RefinementMessage | undefined),
+    ? schemaOrPredicate.check(...([predicateOrMessage, messageFromRefinementParam(message)].filter(c => c !== undefined) as any[]))
+    // Zod: a standalone z.check(fn) returns an opaque check for .check(...).
+    : makeStandaloneCheck(schemaOrPredicate as VldCheck<unknown>),
   superRefine: <T = unknown>(
     schemaOrRefinement: VldBase<unknown, T> | ((value: T, ctx: SuperRefineContext) => void | Promise<void>),
     refinement?: (value: T, ctx: SuperRefineContext) => void | Promise<void>
@@ -1349,8 +1358,8 @@ export const vV2 = {
   int: () => VldNumberV2.create().int(),
   int32: () => VldNumberV2.create().int().min(-2147483648).max(2147483647),
   uint32: () => VldNumberV2.create().uint32(),
-  uint64: () => VldNumberV2.create().uint64(),
-  int64: () => VldNumberV2.create().int64(),
+  uint64: (message?: string) => VldBigInt.create().min(0n, message).max(18446744073709551615n, message),
+  int64: (message?: string) => VldBigInt.create().min(-9223372036854775808n, message).max(9223372036854775807n, message),
   float32: () => VldNumberV2.create().float32(),
   float64: () => VldNumberV2.create().float64(),
   array: <T>(item: VldBase<unknown, T>) => VldArrayV2.create(item),

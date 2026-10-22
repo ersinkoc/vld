@@ -7,13 +7,13 @@ import { v } from '../../src';
 
 describe('VldDate Coverage Tests', () => {
   describe('safeParse() with coercible non-Date inputs', () => {
-    it('should safely parse valid date strings and report invalid strings', () => {
+    it('rejects non-Date inputs with invalid_type (Zod)', () => {
       const schema = v.date();
       const result = schema.safeParse('2024-01-01T00:00:00.000Z');
 
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.toISOString()).toBe('2024-01-01T00:00:00.000Z');
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues[0]).toEqual(expect.objectContaining({ code: 'invalid_type' }));
       }
 
       const invalid = schema.safeParse('not-a-date');

@@ -126,17 +126,17 @@ export class VldCoerceString extends VldString {
     } else if (typeof value === 'object') {
       // Objects: only allow specific safe object types
       if (value instanceof Date) {
-        // Dates: convert to ISO string
-        coerced = value.toISOString();
+        // Zod: String(date) - the locale format, and 'Invalid Date' for NaN dates.
+        coerced = String(value);
       } else if (Array.isArray(value)) {
-        // Arrays: convert to comma-separated string (original behavior)
-        coerced = value.join(',');
+        // Arrays: String([a,b]) is the same comma-joined form as Zod.
+        coerced = String(value);
       } else if (value instanceof RegExp) {
         // RegExp: convert to string representation
         coerced = value.toString();
       } else if (value instanceof Error) {
-        // Errors: use message property (safe)
-        coerced = value.message || value.toString();
+        // Zod: String(error) includes the name ('Error: message').
+        coerced = String(value);
       } else {
         // For plain objects, use the original String() behavior for backwards compatibility
         coerced = String(value);

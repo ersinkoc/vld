@@ -392,7 +392,8 @@ describe('New Advanced Features Tests', () => {
         const schema = v.coerce.bigint();
         
         expect(() => schema.parse('not-a-number')).toThrow('Cannot coerce "not-a-number" to bigint');
-        expect(() => schema.parse('')).toThrow('Cannot coerce "" to bigint');
+        // Zod: BigInt('') is 0n.
+        expect(schema.parse('')).toBe(0n);
       });
 
       it('should reject null and undefined', () => {

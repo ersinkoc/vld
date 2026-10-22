@@ -61,18 +61,18 @@ describe('All Validators - Comprehensive Tests', () => {
       expect(validator.parse(past)).toEqual(past);
     });
 
-    it('should parse date strings', () => {
+    it('rejects date strings (Zod: only Date instances)', () => {
       const validator = VldDate.create();
-      const result = validator.parse('2023-06-15');
-      expect(result).toBeInstanceOf(Date);
-      expect(result.toISOString()).toContain('2023-06-15');
+      expect(() => validator.parse('2023-06-15')).toThrow();
+      // z.date() equivalent accepts nothing else; use coerce-style wrapping elsewhere.
     });
 
     it('should parse timestamps', () => {
       const validator = VldDate.create();
       const timestamp = Date.now();
-      const result = validator.parse(timestamp);
-      expect(result.getTime()).toBe(timestamp);
+      // Zod: only Date instances; coerce for numbers.
+      expect(() => validator.parse(timestamp)).toThrow();
+      expect(new Date(timestamp).getTime()).toBe(timestamp);
     });
 
     it('should reject invalid dates', () => {

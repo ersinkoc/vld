@@ -262,8 +262,10 @@ describe('vV2 factory full coverage', () => {
     expect(vV2.int().parse(1)).toBe(1);
     expect(vV2.int32().parse(-100)).toBe(-100);
     expect(vV2.uint32().parse(100)).toBe(100);
-    expect(vV2.uint64().parse(Number.MAX_SAFE_INTEGER)).toBe(Number.MAX_SAFE_INTEGER);
-    expect(vV2.int64().parse(Number.MAX_SAFE_INTEGER)).toBe(Number.MAX_SAFE_INTEGER);
+    // Zod: int64 / uint64 are bigint schemas with 64-bit range checks.
+    expect(vV2.uint64().parse(18446744073709551615n)).toBe(18446744073709551615n);
+    expect(vV2.int64().parse(9223372036854775807n)).toBe(9223372036854775807n);
+    expect(vV2.uint64().safeParse(Number.MAX_SAFE_INTEGER).success).toBe(false);
     expect(vV2.float32().parse(1.5)).toBe(1.5);
     expect(vV2.float64().parse(1.5)).toBe(1.5);
   });

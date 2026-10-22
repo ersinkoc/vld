@@ -70,8 +70,11 @@ describe('Zod composition compatibility', () => {
       expect(schema.parse(value)).toBe(value);
     }
     expect(() => v.string().uuidv4({ error: 'bad uuid' }).parse('bad')).toThrow('bad uuid');
-    expect(v.string().lowercase().parse('ABC')).toBe('abc');
-    expect(v.string().uppercase().parse('abc')).toBe('ABC');
+    // Zod: lowercase/uppercase are checks; the transforms are toLowerCase/toUpperCase.
+    expect(v.string().lowercase().safeParse('ABC').success).toBe(false);
+    expect(v.string().uppercase().safeParse('abc').success).toBe(false);
+    expect(v.string().toLowerCase().parse('ABC')).toBe('abc');
+    expect(v.string().toUpperCase().parse('abc')).toBe('ABC');
     expect(v.string().normalize('NFC').parse('e\u0301')).toBe('\u00e9');
     expect(v.string().normalize().parse('\u00e9')).toBe('\u00e9');
     expect(v.string().slugify().parse(' Hello, New_World! ')).toBe('hello-new-world');

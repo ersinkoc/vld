@@ -133,12 +133,13 @@ describe('Zod 4 error issue coverage', () => {
       }
     });
 
-    it('falls back to custom code for startsWith failure', () => {
+    it('reports invalid_format for startsWith failure (Zod)', () => {
       const r = v.string().startsWith('abc').safeParse('xyz');
       expect(r.success).toBe(false);
       if (!r.success) {
         const issue = firstIssue(r as any);
-        expect(issue.code).toBe('custom');
+        expect(issue.code).toBe('invalid_format');
+        expect(issue.format).toBe('starts_with');
       }
     });
 

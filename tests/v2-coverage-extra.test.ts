@@ -348,10 +348,10 @@ describe('VLD public API surface (index.ts uncovered lines)', () => {
     expect(v.string().safeParse(42).success).toBe(false);
   });
 
-  it('v.json() schema', () => {
+  it('v.json() validates JSON-compatible values (Zod)', () => {
     const j = v.json();
-    expect(j.parse('"hello"')).toBe('hello');
-    expect(() => j.parse('"unterminated')).toThrow();
+    expect(j.parse('hello')).toBe('hello');
+    expect(() => j.parse(undefined)).toThrow();
   });
 
   it('v.symbol() / v.function()', () => {
@@ -435,8 +435,9 @@ describe('VLD public API surface (index.ts uncovered lines)', () => {
     expect(vV2.int().parse(1)).toBe(1);
     expect(vV2.int32().parse(-100)).toBe(-100);
     expect(vV2.uint32().parse(100)).toBe(100);
-    expect(vV2.uint64().parse(Number.MAX_SAFE_INTEGER)).toBe(Number.MAX_SAFE_INTEGER);
-    expect(vV2.int64().parse(Number.MAX_SAFE_INTEGER)).toBe(Number.MAX_SAFE_INTEGER);
+    // Zod: int64 / uint64 are bigint schemas with 64-bit range checks.
+    expect(vV2.uint64().parse(18446744073709551615n)).toBe(18446744073709551615n);
+    expect(vV2.int64().parse(-9223372036854775808n)).toBe(-9223372036854775808n);
     expect(vV2.float32().parse(1.5)).toBe(1.5);
     expect(vV2.float64().parse(1.5)).toBe(1.5);
   });
@@ -447,11 +448,14 @@ describe('VLD public API surface (index.ts uncovered lines)', () => {
     expect(() => r.parse(-1)).toThrow(/must be positive/);
   });
 
-  it('v.check (legacy alias for refine with VldBase)', () => {
-    // v.check(schema, predicate, message) form
-    const c = v.check(v.string().min(2), (s: string) => s.length > 3, 'must be > 3');
+  it('v.check (Zod ctx contract over a schema)', () => {
+    // v.check(schema, fn, message) form: fn receives { value, issues }
+    const c = v.check(v.string().min(2), ({ value, issues }: { value: string; issues: any[] }) => {
+      if (value.length <= 3) issues.push({ code: 'custom', message: 'must be > 3' });
+    }) as any;
     expect(c.parse('hello')).toBe('hello');
     expect(() => c.parse('ab')).toThrow();
+    expect(() => c.parse('abc')).toThrow();
   });
 
   it('v.overwrite (legacy transform factory)', () => {

@@ -455,7 +455,17 @@ function convertSchemaToJSONSchema(schema: AnyVldSchema, options: ToJSONSchemaOp
   }
 
   if (schema.constructor.name === 'VldJson') {
-    return withMetadata(schema, {}, options); // Any JSON
+    // Zod: the recursive json union, self-referencing through $ref: '#'.
+    return withMetadata(schema, {
+      anyOf: [
+        { type: 'string' },
+        { type: 'number' },
+        { type: 'boolean' },
+        { type: 'null' },
+        { type: 'array', items: { $ref: '#' } },
+        { type: 'object', propertyNames: { type: 'string' }, additionalProperties: { $ref: '#' } },
+      ],
+    }, options);
   }
 
   if (schema.constructor.name === 'VldAny') {

@@ -244,7 +244,8 @@ describe('Scalar validator fast paths', () => {
 
     expect(stringBool.parse('YES')).toBe(true);
     expect(stringBool.parse('disabled')).toBe(false);
-    expect(stringBool.parse(true)).toBe(true);
+    // Zod: only the configured strings pass, never a boolean.
+    expect(stringBool.safeParse(true).success).toBe(false);
     expect(stringBool.safeParse('maybe').success).toBe(false);
 
     expect(caseSensitive.parse('YES')).toBe(true);

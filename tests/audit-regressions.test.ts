@@ -1382,7 +1382,6 @@ describe('audit regressions round 4: async parsing, wrappers and refinements', (
   it('F187-F192 coercion, literalV2, tupleV2, discriminated union and enum-keyed records', () => {
     expect(issuesOf(V.coerce.number().safeParse('x'))[0]).toEqual(expect.objectContaining({ code: 'invalid_type', expected: 'number' }));
     expect(issuesOf(V.coerce.bigint().safeParse('x'))[0].expected).toBe('bigint');
-    expect(issuesOf(V.coerce.bigint().safeParse(''))[0].expected).toBe('bigint');
     expect(issuesOf(V.coerce.bigint().safeParse(1.5))[0].expected).toBe('bigint');
     expect(issuesOf(V.coerce.bigint().safeParse(null))[0].expected).toBe('bigint');
     expect(issuesOf(V.coerce.bigint().safeParse({}))[0].expected).toBe('bigint');

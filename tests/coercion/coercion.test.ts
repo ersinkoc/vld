@@ -283,7 +283,8 @@ describe('Coercion Validators - Comprehensive Tests', () => {
     it('should reject invalid strings', () => {
       const validator = VldCoerceBigInt.create();
       expect(() => validator.parse('not a number')).toThrow();
-      expect(() => validator.parse('')).toThrow();
+      // Zod: BigInt('') is 0n, only genuinely malformed strings throw.
+      expect(validator.parse('')).toBe(0n);
       expect(() => validator.parse('123.45')).toThrow();
       expect(() => validator.parse('123abc')).toThrow();
     });

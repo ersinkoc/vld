@@ -889,32 +889,26 @@ export abstract class VldBase<TInput, TOutput = TInput> {
    * @param message Optional custom error message
    * @returns A new refined validator
    */
-  check<TRefined extends TOutput>(
-    predicate: (value: TOutput) => value is TRefined,
-    message?: ErrorParam | CustomErrorParams | ((val: TOutput) => CustomErrorParams | string)
-  ): VldRefine<TInput, TOutput, TRefined>;
-  check(
-    predicate: (value: TOutput) => boolean | Promise<boolean>,
-    message?: ErrorParam | CustomErrorParams | ((val: TOutput) => CustomErrorParams | string)
-  ): VldRefine<TInput, TOutput, TOutput>;
-  check(
-    predicate: (value: TOutput) => boolean | Promise<boolean>,
-    message?: ErrorParam | CustomErrorParams | ((val: TOutput) => CustomErrorParams | string)
-  ): VldRefine<TInput, TOutput, TOutput> {
-    // Zod's .check() also takes check schemas - z.minimum(5), z.minLength(2),
-    // z.superRefine(...) - one or several; each validates the output value.
-    if ((predicate as unknown) instanceof VldBase) {
-      const checks = [predicate, message].filter((c): c is any => c instanceof VldBase) as VldBase<any, any>[];
-      return this.superRefine((value, ctx) => {
-        for (const checkSchema of checks) {
-          const result = checkSchema.safeParse(value);
+  /**
+   * Zod's `.check()`: a check function receives `{ value, issues }` and
+   * fails by pushing raw issues onto `issues`; the return value is ignored.
+   * Check schemas (z.minimum(5), z.superRefine(...), any VldBase) validate
+   * the output value directly - one or several.
+   */
+  check(...checks: Array<VldCheck<TOutput> | VldBase<any, any>>): VldSuperRefine<TInput, TOutput> {
+    const plain = checks.filter((c): c is VldCheck<TOutput> => typeof c === 'function' || (c as any)?._zod?.check !== undefined);
+    const schemas = checks.filter((c): c is VldBase<any, any> => (c as unknown) instanceof VldBase);
+    const schemaRunner: VldCheck<TOutput> = schemas.length > 0
+      ? payload => {
+        for (const checkSchema of schemas) {
+          const result = checkSchema.safeParse(payload.value);
           if (!result.success) {
-            for (const issue of result.error.issues) ctx.addIssue(issue);
+            for (const issue of result.error.issues) payload.issues.push({ ...issue });
           }
         }
-      }) as unknown as VldRefine<TInput, TOutput, TOutput>;
-    }
-    return this.refine(predicate, message);
+      }
+      : () => undefined;
+    return this.with(schemaRunner, ...plain);
   }
 
   /**

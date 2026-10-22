@@ -364,7 +364,7 @@ describe('VldString - Comprehensive Tests', () => {
       const schema = VldString.create().min(2).max(5).regex(/^[a-z]+$/).includes('o');
 
       expect(schema.parseKnownString('ok')).toBe('ok');
-      expect(() => schema.parseKnownString('ozone!')).toThrow('String must include "o"');
+      expect(() => schema.parseKnownString('zzz')).toThrow('String must include "o"');
     });
 
     it('should use default messages for parseKnownString check failures', () => {

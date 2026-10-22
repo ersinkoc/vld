@@ -1,9 +1,38 @@
 import { VldBase, ParseResult, VLD_VALIDATOR_TYPES, ensureVldError } from './base';
-import { getMessages } from '../locales/runtime';
+import { VldError, createInvalidTypeIssue, getTypeName, type VldIssue } from '../errors-core';
+
+/** Zod's json union options, in order: string, number, boolean, null, array, record. */
+const JSON_OPTION_TYPES = ['string', 'number', 'boolean', 'null', 'array', 'record'] as const;
+
+function isPlainObjectLike(value: unknown): boolean {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return false;
+  }
+  // JSON.parse output is a plain object: Object.prototype or null prototype.
+  const proto = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+}
+
+function isJsonValue(value: unknown): boolean {
+  if (value === null || typeof value === 'string' || typeof value === 'boolean') {
+    return true;
+  }
+  if (typeof value === 'number') {
+    return Number.isFinite(value);
+  }
+  if (Array.isArray(value)) {
+    return value.every(isJsonValue);
+  }
+  if (isPlainObjectLike(value)) {
+    return Object.values(value as Record<string, unknown>).every(isJsonValue);
+  }
+  return false;
+}
 
 /**
- * Immutable JSON validator that validates and parses JSON strings
- * Accepts both strings (which are parsed) and already-parsed objects
+ * Immutable JSON validator: validates that a value is JSON-compatible
+ * (the shapes JSON.parse can produce), matching Zod's `z.json()`.
+ * Strings are NOT parsed; use a codec for that.
  */
 export class VldJson<T = unknown> extends VldBase<unknown, T> {
   private constructor(
@@ -20,34 +49,29 @@ export class VldJson<T = unknown> extends VldBase<unknown, T> {
   }
 
   /**
-   * Parse and validate a JSON value
+   * Validate a JSON-compatible value
    */
   parse(value: unknown): T {
-    let parsed: unknown;
-
-    // If it's a string, try to parse it as JSON first
-    if (typeof value === 'string') {
-      try {
-        parsed = JSON.parse(value);
-      } catch {
-        throw new Error(getMessages().invalidJson);
-      }
-    } else {
-      // Not a string - assume it's already parsed
-      parsed = value;
+    if (!isJsonValue(value)) {
+      // Zod reports one top-level invalid_union listing every option's
+      // invalid_type issue, wherever in the value the failure occurred.
+      throw new VldError([{
+        code: 'invalid_union',
+        path: [],
+        errors: JSON_OPTION_TYPES.map(expected => [createInvalidTypeIssue(expected, getTypeName(value))]),
+        message: 'Invalid input',
+      } as VldIssue]);
     }
 
-    // If we have a schema, validate against it
     if (this.schema) {
-      return this.schema.parse(parsed);
+      return this.schema.parse(value);
     }
 
-    // No schema - just return the parsed value
-    return parsed as T;
+    return value as T;
   }
 
   /**
-   * Safely parse and validate a JSON value
+   * Safely validate a JSON-compatible value
    */
   safeParse(value: unknown): ParseResult<T> {
     try {
@@ -58,6 +82,17 @@ export class VldJson<T = unknown> extends VldBase<unknown, T> {
         error: ensureVldError(error)
       };
     }
+  }
+
+  /** Async parse: the value check is sync; a provided schema runs async. */
+  override async parseAsync(value: unknown): Promise<T> {
+    if (!isJsonValue(value)) {
+      return this.parse(value);
+    }
+    if (this.schema) {
+      return this.schema.parseAsync(value);
+    }
+    return value as T;
   }
 
   /**

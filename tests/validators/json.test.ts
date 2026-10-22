@@ -1,5 +1,5 @@
 /**
- * Tests for v.json() - JSON value validation
+ * Tests for v.json() - JSON-compatible value validation (Zod's z.json())
  */
 
 import { v } from '../../src';
@@ -8,36 +8,44 @@ describe('v.json()', () => {
   describe('without schema', () => {
     const jsonValidator = v.json();
 
-    it('should accept valid JSON strings', () => {
-      expect(jsonValidator.parse('{"key":"value"}')).toEqual({ key: 'value' });
-      expect(jsonValidator.parse('["a","b","c"]')).toEqual(['a', 'b', 'c']);
-      expect(jsonValidator.parse('"hello"')).toBe('hello');
-      expect(jsonValidator.parse('123')).toBe(123);
-      expect(jsonValidator.parse('true')).toBe(true);
-      expect(jsonValidator.parse('null')).toBe(null);
-      expect(jsonValidator.parse('{}')).toEqual({});
-      expect(jsonValidator.parse('[]')).toEqual([]);
-    });
-
-    it('should reject invalid JSON strings', () => {
-      expect(() => jsonValidator.parse('{"invalid": }')).toThrow();
-      expect(() => jsonValidator.parse('not json')).toThrow();
-      expect(() => jsonValidator.parse('{\'single\': \'quotes\'}')).toThrow();
-    });
-
-    it('should accept already-parsed values', () => {
-      expect(jsonValidator.parse({ key: 'value' })).toEqual({ key: 'value' });
-      expect(jsonValidator.parse([1, 2, 3])).toEqual([1, 2, 3]);
-      // Strings are assumed to be JSON that needs parsing, so plain strings are rejected
-      expect(() => jsonValidator.parse('string')).toThrow();
-      expect(jsonValidator.parse(42)).toBe(42);
+    it('accepts JSON-compatible primitive values unchanged (Zod)', () => {
+      // Zod: strings are JSON-compatible values, they are NOT parsed.
+      expect(jsonValidator.parse('{"key":"value"}')).toBe('{"key":"value"}');
+      expect(jsonValidator.parse('"hello"')).toBe('"hello"');
+      expect(jsonValidator.parse('not json')).toBe('not json');
+      expect(jsonValidator.parse(123)).toBe(123);
       expect(jsonValidator.parse(true)).toBe(true);
       expect(jsonValidator.parse(null)).toBe(null);
+    });
+
+    it('accepts arrays and plain objects, recursively', () => {
+      expect(jsonValidator.parse({ key: 'value' })).toEqual({ key: 'value' });
+      expect(jsonValidator.parse([1, 2, 3])).toEqual([1, 2, 3]);
+      expect(jsonValidator.parse({ a: [true, null, { b: ['x'] }] })).toEqual({ a: [true, null, { b: ['x'] }] });
+      expect(jsonValidator.parse(Object.create(null))).toBeDefined();
+      expect(jsonValidator.parse([])).toEqual([]);
+    });
+
+    it('rejects non-JSON values with invalid_union (Zod)', () => {
+      for (const bad of [undefined, () => {}, Symbol('s'), 10n, new Date(), new Map(), /x/]) {
+        const result = jsonValidator.safeParse(bad);
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.issues[0]).toEqual(expect.objectContaining({ code: 'invalid_union' }));
+        }
+      }
+    });
+
+    it('rejects non-finite numbers and nested non-JSON values', () => {
+      expect(jsonValidator.safeParse(NaN).success).toBe(false);
+      expect(jsonValidator.safeParse(Infinity).success).toBe(false);
+      expect(jsonValidator.safeParse({ a: [() => {}] }).success).toBe(false);
+      expect(jsonValidator.safeParse([undefined]).success).toBe(false);
     });
   });
 
   describe('with schema validation', () => {
-    it('should validate parsed JSON against schema', () => {
+    it('validates a JSON value against the schema', () => {
       const userSchema = v.object({
         name: v.string(),
         age: v.int().min(0)
@@ -45,73 +53,59 @@ describe('v.json()', () => {
 
       const jsonValidator = v.json(userSchema);
 
-      const validJson = '{"name":"John","age":30}';
-      expect(jsonValidator.parse(validJson)).toEqual({ name: 'John', age: 30 });
+      expect(jsonValidator.parse({ name: 'John', age: 30 })).toEqual({ name: 'John', age: 30 });
+      expect(() => jsonValidator.parse({ name: 'John' })).toThrow();
+      expect(() => jsonValidator.parse({ name: 'John', age: 'thirty' })).toThrow();
     });
 
-    it('should reject when parsed JSON does not match schema', () => {
-      const userSchema = v.object({
-        name: v.string(),
-        age: v.number()
-      });
-
-      const jsonValidator = v.json(userSchema);
-
-      // Missing required field
-      expect(() => jsonValidator.parse('{"name":"John"}')).toThrow();
-
-      // Wrong type
-      expect(() => jsonValidator.parse('{"name":"John","age":"thirty"}')).toThrow();
-    });
-
-    it('should work with array schemas', () => {
+    it('works with array schemas', () => {
       const numberArraySchema = v.array(v.int());
       const jsonValidator = v.json(numberArraySchema);
 
-      expect(jsonValidator.parse('[1,2,3]')).toEqual([1, 2, 3]);
-      expect(() => jsonValidator.parse('[1,2,"three"]')).toThrow();
+      expect(jsonValidator.parse([1, 2, 3])).toEqual([1, 2, 3]);
+      expect(() => jsonValidator.parse([1, 2, 'three'])).toThrow();
     });
 
-    it('should work with union schemas', () => {
+    it('works with union schemas', () => {
       const schema = v.union(v.string(), v.int());
       const jsonValidator = v.json(schema);
 
-      expect(jsonValidator.parse('"hello"')).toBe('hello');
-      expect(jsonValidator.parse('42')).toBe(42);
-      expect(() => jsonValidator.parse('true')).toThrow();
+      expect(jsonValidator.parse('hello')).toBe('hello');
+      expect(jsonValidator.parse(42)).toBe(42);
+      expect(() => jsonValidator.parse(true)).toThrow();
     });
   });
 
   describe('withSchema method', () => {
-    it('should add schema to existing validator', () => {
+    it('adds a schema to an existing validator', () => {
       const jsonValidator = v.json();
       const withSchema = jsonValidator.withSchema(v.object({
         id: v.int(),
         active: v.boolean()
       }));
 
-      expect(withSchema.parse('{"id":123,"active":true}')).toEqual({ id: 123, active: true });
-      expect(() => withSchema.parse('{"id":"not an int","active":true}')).toThrow();
+      expect(withSchema.parse({ id: 123, active: true })).toEqual({ id: 123, active: true });
+      expect(() => withSchema.parse({ id: 'not an int', active: true })).toThrow();
     });
   });
 
   describe('method chaining', () => {
-    it('should work with optional', () => {
+    it('works with optional', () => {
       const optionalJson = v.json().optional();
-      expect(optionalJson.parse('{"key":"value"}')).toEqual({ key: 'value' });
+      expect(optionalJson.parse({ key: 'value' })).toEqual({ key: 'value' });
       expect(optionalJson.parse(undefined)).toBe(undefined);
     });
 
-    it('should work with nullable', () => {
+    it('works with nullable', () => {
       const nullableJson = v.json().nullable();
-      expect(nullableJson.parse('{"key":"value"}')).toEqual({ key: 'value' });
+      expect(nullableJson.parse({ key: 'value' })).toEqual({ key: 'value' });
       expect(nullableJson.parse(null)).toBe(null);
     });
 
-    it('should work with refine', () => {
+    it('works with refine', () => {
       const nonEmptyJson = v.json().refine(
         (val) => {
-          if (typeof val === 'object' && val !== null) {
+          if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
             return Object.keys(val).length > 0;
           }
           return true;
@@ -119,11 +113,11 @@ describe('v.json()', () => {
         'JSON must not be empty object'
       );
 
-      expect(nonEmptyJson.parse('{"key":"value"}')).toEqual({ key: 'value' });
-      expect(() => nonEmptyJson.parse('{}')).toThrow();
+      expect(nonEmptyJson.parse({ key: 'value' })).toEqual({ key: 'value' });
+      expect(() => nonEmptyJson.parse({})).toThrow();
     });
 
-    it('should work with transform', () => {
+    it('works with transform', () => {
       const uppercaseJson = v.json().transform((val) => {
         if (typeof val === 'string') {
           return val.toUpperCase();
@@ -131,7 +125,7 @@ describe('v.json()', () => {
         return val;
       });
 
-      const result = uppercaseJson.safeParse('"hello"');
+      const result = uppercaseJson.safeParse('hello');
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data).toBe('HELLO');
@@ -142,25 +136,25 @@ describe('v.json()', () => {
   describe('safeParse', () => {
     const jsonValidator = v.json();
 
-    it('should return success for valid JSON', () => {
-      const result = jsonValidator.safeParse('{"test": true}');
+    it('returns success for JSON-compatible values', () => {
+      const result = jsonValidator.safeParse({ test: true });
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data).toEqual({ test: true });
       }
     });
 
-    it('should return failure for invalid JSON', () => {
-      const result = jsonValidator.safeParse('{"invalid": }');
+    it('returns failure with invalid_union for non-JSON values', () => {
+      const result = jsonValidator.safeParse(undefined);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error).toBeInstanceOf(Error);
+        expect(result.error.issues[0]!.code).toBe('invalid_union');
       }
     });
   });
 
   describe('integration with other validators', () => {
-    it('should work in object schemas', () => {
+    it('works in object schemas', () => {
       const configSchema = v.object({
         metadata: v.json(v.object({
           version: v.string(),
@@ -169,7 +163,7 @@ describe('v.json()', () => {
       });
 
       const result = configSchema.safeParse({
-        metadata: '{"version":"1.0.0","enabled":true}'
+        metadata: { version: '1.0.0', enabled: true }
       });
 
       expect(result.success).toBe(true);
@@ -178,10 +172,10 @@ describe('v.json()', () => {
       }
     });
 
-    it('should work in arrays', () => {
+    it('works in arrays', () => {
       const jsonArray = v.array(v.json(v.int()));
 
-      const result = jsonArray.safeParse(['1', '2', '3']);
+      const result = jsonArray.safeParse([1, 2, 3]);
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data).toEqual([1, 2, 3]);
@@ -190,7 +184,7 @@ describe('v.json()', () => {
   });
 
   describe('complex use cases', () => {
-    it('should validate nested JSON structures', () => {
+    it('validates deeply nested JSON structures', () => {
       const schema = v.object({
         users: v.array(v.object({
           id: v.int(),
@@ -201,60 +195,40 @@ describe('v.json()', () => {
 
       const jsonValidator = v.json(schema);
 
-      const input = JSON.stringify({
+      const input = {
         users: [
           { id: 1, name: 'Alice', tags: ['admin', 'user'] },
           { id: 2, name: 'Bob', tags: ['user'] }
         ]
-      });
+      };
 
-      const result = jsonValidator.parse(input);
-      expect(result).toEqual({
-        users: [
-          { id: 1, name: 'Alice', tags: ['admin', 'user'] },
-          { id: 2, name: 'Bob', tags: ['user'] }
-        ]
-      });
-    });
-
-    it('should handle JSON with special characters', () => {
-      const jsonValidator = v.json();
-
-      const withSpecialChars = '{"message":"Hello\\nWorld\\t!"}';
-      expect(jsonValidator.parse(withSpecialChars)).toEqual({
-        message: 'Hello\nWorld\t!'
-      });
-    });
-
-    it('should handle Unicode in JSON', () => {
-      const jsonValidator = v.json();
-
-      const unicodeJson = '{"text":"Hello 世界 🌍"}';
-      expect(jsonValidator.parse(unicodeJson)).toEqual({
-        text: 'Hello 世界 🌍'
-      });
+      expect(jsonValidator.parse(input)).toEqual(input);
     });
   });
 
-  describe('error messages', () => {
-    it('should provide descriptive error for invalid JSON', () => {
+  describe('error shape', () => {
+    it('lists every union option in the invalid_union issue (Zod)', () => {
       const jsonValidator = v.json();
-      const result = jsonValidator.safeParse('not valid json');
+      const result = jsonValidator.safeParse(undefined);
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.message).toContain('JSON');
+        const issue = result.error.issues[0] as any;
+        expect(issue.errors).toHaveLength(6);
+        expect(issue.errors.map((optionIssues: any[]) => optionIssues[0].expected)).toEqual([
+          'string', 'number', 'boolean', 'null', 'array', 'record'
+        ]);
       }
     });
 
-    it('should include schema validation errors', () => {
+    it('includes schema validation errors', () => {
       const schema = v.object({
         name: v.string(),
         count: v.number()
       });
 
       const jsonValidator = v.json(schema);
-      const result = jsonValidator.safeParse('{"name":"test"}');
+      const result = jsonValidator.safeParse({ name: 'test' });
 
       expect(result.success).toBe(false);
       if (!result.success) {

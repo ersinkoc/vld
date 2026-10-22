@@ -36,9 +36,9 @@ describe('v.stringbool()', () => {
       expect(stringBoolValidator.parse('DISABLED')).toBe(false);
     });
 
-    it('should accept actual boolean values', () => {
-      expect(stringBoolValidator.parse(true)).toBe(true);
-      expect(stringBoolValidator.parse(false)).toBe(false);
+    it('rejects actual boolean values (Zod: strings only)', () => {
+      expect(stringBoolValidator.safeParse(true).success).toBe(false);
+      expect(stringBoolValidator.safeParse(false).success).toBe(false);
     });
 
     it('should reject invalid string values', () => {

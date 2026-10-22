@@ -279,8 +279,10 @@ describe('Base Validators Coverage Tests', () => {
       expect(resolveErrorMessage({ error: () => undefined }, 'fallback')).toBe('fallback');
     });
 
-    it('should route check() through the refine implementation', () => {
-      const schema = v.string().check(value => value.startsWith('ok'), 'Must start with ok');
+    it('routes check() through the Zod ctx contract', () => {
+      const schema = v.string().check(({ value, issues }) => {
+        if (!value.startsWith('ok')) issues.push({ code: 'custom', message: 'Must start with ok' });
+      });
 
       expect(schema.parse('ok-value')).toBe('ok-value');
       expect(schema.safeParse('bad-value').success).toBe(false);

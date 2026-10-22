@@ -60,13 +60,10 @@ export class VldCoerceBigInt extends VldBigInt {
     
     // Handle string values
     if (typeof value === 'string') {
-      const trimmed = value.trim();
-      if (trimmed === '') {
-        throw coercionError(value, 'string');
-      }
+      // Zod: plain BigInt() semantics - BigInt('') is 0n, whitespace trims.
       let coerced: bigint;
       try {
-        coerced = BigInt(trimmed);
+        coerced = BigInt(value);
       } catch {
         throw coercionError(value, 'string');
       }

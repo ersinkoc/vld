@@ -97,6 +97,43 @@ container-reporting divergences which are closed here as well.
   `default`/`catch` schemas lead with the `default` key. The differential
   sweep now reports zero diffs.
 
+### Changed (final documented divergences closed - full Zod alignment)
+
+- **`v.json()` validates JSON-compatible values** (Zod's `z.json()`): a
+  recursive string / finite number / boolean / null / plain-object / array
+  check. Strings are no longer parsed; failures report one top-level
+  `invalid_union` listing every option's issue. `toJSONSchema` emits Zod's
+  recursive anyOf with `$ref: "#"`.
+- **`int64()` / `uint64()` are bigint schemas** with Zod's 64-bit range
+  checks (`-2^63..2^63-1` and `0..2^64-1`, `too_small` / `too_big` with
+  origin `bigint`). `v.dateLegacy()` keeps the old coercing date behaviour.
+- **`v.date()` accepts only Date instances** (Zod); use `v.coerce.date()` or
+  `v.dateLegacy()` for string / number input. The compiled validator agrees.
+- **`v.stringbool()` rejects actual booleans** (Zod: only the configured
+  strings pass).
+- **`lowercase()` / `uppercase()` are checks** reporting
+  `invalid_format` (Zod); `toLowerCase()` / `toUpperCase()` remain the
+  transforms. Affix checks (`startsWith` / `endsWith` / `includes`) report
+  `invalid_format` with `starts_with` / `ends_with` / `includes`.
+- **`.check(fn)` uses Zod's ctx contract**: the function receives
+  `{ value, issues }` and fails by pushing raw issues; the return value is
+  ignored. Check schemas (`z.minimum(5)`, any VldBase) still validate the
+  output value. A standalone `v.check(fn)` now returns an opaque check for
+  `.check(...)` (Zod); the previous boolean-predicate form moved to
+  `.refine(fn)`.
+- **`stringV2().length(n)` reports `too_small` when short** (Zod) and
+  `regexes.datetime` is the strict RFC 3339 form; `isValidIPv6` rejects
+  zone IDs.
+- **Coercion edge semantics follow the JS constructors** (Zod):
+  `coerce.bigint('')` is `0n` (`BigInt('')`), `coerce.string(date)` uses
+  `String(date)` (locale format, `'Invalid Date'`), and errors stringify
+  with their name (`'Error: message'`).
+
+With this round every behavioral sweep against zod 4.6.7 reports zero
+divergences (formats, types, r3, r4, size gate, fromJSONSchema,
+toJSONSchema). Remaining known differences are message-text level only
+(union summaries, locale wording).
+
 ### Fixed
 
 - Zod #6652 (size before elements) and #6645 (record output/input typing)

@@ -105,10 +105,10 @@ describe('src/index.ts - Full Function Coverage', () => {
       expect(v.int().parse(5)).toBe(5);
       expect(v.int32().parse(100)).toBe(100);
       expect(v.uint32().parse(3000)).toBe(3000);
-      // uint64 and int64 are number-based (not BigInt)
-      expect(v.uint64().parse(123)).toBe(123);
-      expect(v.int64().parse(456)).toBe(456);
-      expect(v.int64().parse(-456)).toBe(-456);
+      // Zod: uint64 and int64 are bigint schemas with 64-bit range checks.
+      expect(v.uint64().parse(123n)).toBe(123n);
+      expect(v.int64().parse(456n)).toBe(456n);
+      expect(v.int64().parse(-456n)).toBe(-456n);
       expect(v.float32().parse(1.5)).toBe(1.5);
       expect(v.float64().parse(2.5)).toBe(2.5);
       expect(v.boolean().parse(true)).toBe(true);
@@ -280,11 +280,15 @@ describe('src/index.ts - Full Function Coverage', () => {
       // refine with schema
       const r2 = v.refine(v.string(), (s: unknown) => (s as string).length > 2, 'too short');
       expect(r2.parse('hello')).toBe('hello');
-      // check as standalone
-      const c = v.check((s: string) => s.length > 0, 'empty');
-      expect(c.safeParse('').success).toBe(false);
+      // check as standalone: a Zod-style opaque check for .check(...)
+      const c = v.check(({ value, issues }: { value: string; issues: any[] }) => {
+        if (value.length === 0) issues.push({ code: 'custom', message: 'empty' });
+      });
+      expect(v.string().check(c as any).safeParse('').success).toBe(false);
       // check with schema
-      const c2 = v.check(v.string(), (s: unknown) => (s as string).length > 0, 'empty');
+      const c2 = v.check(v.string(), ({ value, issues }: { value: string; issues: any[] }) => {
+        if (value.length === 0) issues.push({ code: 'custom', message: 'empty' });
+      }) as any;
       expect(c2.parse('x')).toBe('x');
       // superRefine standalone
       const sr = v.superRefine((val: string, ctx) => {
@@ -313,9 +317,9 @@ describe('src/index.ts - Full Function Coverage', () => {
       expect(lz.parse('hi')).toBe('hi');
 
       const js = v.json();
-      expect(js.parse('{"a":1}')).toEqual({ a: 1 });
+      expect(js.parse({ a: 1 })).toEqual({ a: 1 });
       const js2 = v.json(v.object({ x: v.number() }));
-      expect(js2.parse('{"x":5}')).toEqual({ x: 5 });
+      expect(js2.parse({ x: 5 })).toEqual({ x: 5 });
     });
 
     it('should exercise custom, file, function, preprocess', () => {

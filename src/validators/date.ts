@@ -99,9 +99,8 @@ export class VldDate extends VldBase<Date, Date> {
 
     if (value instanceof Date) {
       date = value;
-    } else if (typeof value === 'string' || typeof value === 'number') {
-      date = new Date(value);
     } else {
+      // Zod: only Date instances; use v.coerce.date() for string/number input.
       throw dateTypeError(value, this.config.errorMessage || getMessages().invalidDate);
     }
 

@@ -369,7 +369,7 @@ function lower(schema: VldBase<any, any>, input: string, c: Compiler): void {
     if (((schema as any)._checks as unknown[] | undefined)?.length) { c.failed = true; return; }
     // v.date() also accepts numbers and date strings and returns the Date they denote, so the input is not the output.
     c.rewritesOutput = true;
-    c.hoist.push(`{ const __v = ${input}; const __d = __v instanceof Date ? __v : (typeof __v === "string" || typeof __v === "number") ? new Date(__v) : null; if (__d === null || __d.getTime() !== __d.getTime()) ${c.throwOnFail ? "throw" : "return"} ${c.invalid}; ${c.outParam} = __d; }`);
+    c.hoist.push(`{ const __v = ${input}; const __d = __v instanceof Date ? __v : null; if (__d === null || __d.getTime() !== __d.getTime()) ${c.throwOnFail ? "throw" : "return"} ${c.invalid}; ${c.outParam} = __d; }`);
     return;
   }
   if (kindOf(schema) === 'VldNull') {

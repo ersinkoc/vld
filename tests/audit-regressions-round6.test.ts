@@ -157,16 +157,16 @@ describe('F221: compiled regex checks are independent of earlier calls', () => {
 });
 
 describe('F222: compiled date schemas accept what v.date() accepts', () => {
-  it('coerces numbers and date strings like the runtime and keeps union option order', () => {
+  it('accepts exactly what v.date() accepts and keeps union option order', () => {
     const compiled = v.compile(v.date());
-    for (const input of [0, 1700000000000, '2024-01-01']) expect(v.validate(compiled, input)).toBe(true);
+    // Zod: only Date instances; numbers and date strings are rejected.
+    for (const input of [0, 1700000000000, '2024-01-01']) expect(v.validate(compiled, input)).toBe(false);
     for (const input of ['not a date', NaN, true, null, undefined, {}, new Date(NaN)]) expect(v.validate(compiled, input)).toBe(false);
     expect(v.validate(compiled, new Date(5))).toBe(true);
-    expect(compiled.parse(5)).toEqual(new Date(5));
     const union = v.compile(v.union([v.date(), v.any()]));
-    expect(union.parse(5)).toEqual(new Date(5));
-    expect(v.compile(v.array(v.union([v.date(), v.any()]))).parse([2])).toEqual([new Date(2)]);
-    expect(v.compile(v.object({ d: v.date() })).parse({ d: '2024-01-01' }).d).toEqual(new Date('2024-01-01'));
+    expect(union.parse(5)).toBe(5);
+    expect(v.compile(v.array(v.union([v.date(), v.any()]))).parse([2])).toEqual([2]);
+    expect(v.compile(v.object({ d: v.date() })).parse({ d: new Date(0) }).d).toEqual(new Date(0));
   });
 });
 

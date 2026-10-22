@@ -1,7 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 import {
   catch as catchSchema,
-  check,
   clone,
   config,
   core,
@@ -146,7 +145,9 @@ describe('Zod 4 parity additions', () => {
     await expect(refine(async (value: string) => value.startsWith('v'), { error: 'Async failed' }).safeParseAsync('bad')).resolves.toMatchObject({
       success: false
     });
-    expect(check((value: string) => value.length > 2).parse('vld')).toBe('vld');
+    expect(string().check(({ value, issues }: any) => {
+      if (value.length <= 2) issues.push({ code: 'custom' });
+    }).parse('vld')).toBe('vld');
     expect(superRefine(string(), (value, ctx) => {
       if (!value.includes('-')) {
         ctx.addIssue({ message: 'Expected hyphen' });
@@ -344,8 +345,9 @@ describe('Zod 4 parity additions', () => {
     expect(() => v.nativeEnum({})).toThrow('nativeEnum requires at least one string or number value');
 
     expect(v.uint32().parse(1)).toBe(1);
-    expect(v.uint64().parse(1)).toBe(1);
-    expect(v.int64().parse(1)).toBe(1);
+    // Zod: uint64 / int64 are bigint schemas.
+    expect(v.uint64().parse(1n)).toBe(1n);
+    expect(v.int64().parse(1n)).toBe(1n);
     expect(v.float32().parse(1.5)).toBe(1.5);
     expect(v.float64().parse(1.5)).toBe(1.5);
     expect(v.exactOptional(v.string()).safeParse(undefined).success).toBe(false);
@@ -357,8 +359,10 @@ describe('Zod 4 parity additions', () => {
     expect(v.meta(v.string()).meta()).toEqual({});
     expect(v.prefault(v.string(), () => 'lazy')).toBeDefined();
     expect(v.prefault(v.string(), () => 'lazy').parse(undefined)).toBe('lazy');
-    expect(v.check(v.string(), value => value.startsWith('v')).parse('vld')).toBe('vld');
-    expect(() => v.check((value: string) => value.startsWith('v')).parse('bad')).toThrow('Refinement check failed');
+    expect((v.check(v.string(), ({ value, issues }: any) => { if (!value.startsWith('v')) issues.push({ code: 'custom' }); }) as any).parse('vld')).toBe('vld');
+    // Zod: a standalone z.check(fn) is a check object consumed by .check(...).
+    const standalone = v.check(({ value, issues }: any) => { if (!value.startsWith('v')) issues.push({ code: 'custom', message: 'Refinement check failed' }); });
+    expect(v.string().check(standalone as any).safeParse('bad').success).toBe(false);
     expect(v.superRefine((value: string, ctx) => {
       if (value !== 'ok') {
         ctx.addIssue({ message: 'Expected ok' });
