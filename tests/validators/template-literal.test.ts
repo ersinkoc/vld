@@ -17,7 +17,8 @@ describe('v.templateLiteral()', () => {
       const schema = v.templateLiteral('user-', v.string());
 
       expect(() => schema.parse('admin')).toThrow();
-      expect(() => schema.parse('user-')).toThrow();
+      // Zod: a bare z.string() slot matches the empty string, so 'user-' is valid.
+      expect(schema.parse('user-')).toBe('user-');
     });
 
     it('should work with multiple components', () => {
@@ -34,7 +35,8 @@ describe('v.templateLiteral()', () => {
 
       expect(schema.parse('id-123')).toBe('id-123');
       expect(schema.parse('id-45.67')).toBe('id-45.67');
-      expect(() => schema.parse('id-')).toThrow();
+      // Zod: the bare string slot also matches empty.
+      expect(schema.parse('id-')).toBe('id-');
     });
 
     it('should work with literal values', () => {
@@ -305,10 +307,13 @@ describe('v.templateLiteral()', () => {
       expect(schema.parse('anything')).toBe('anything');
     });
 
-    it('should reject empty strings when validator requires content', () => {
+    it('accepts an empty bare-string slot like Zod', () => {
       const schema = v.templateLiteral('prefix-', v.string());
 
-      expect(() => schema.parse('prefix-')).toThrow();
+      // Zod: a bare z.string() slot matches the empty string; require content
+      // explicitly with v.string().min(1).
+      expect(schema.parse('prefix-')).toBe('prefix-');
+      expect(() => v.templateLiteral('prefix-', v.string().min(1)).parse('prefix-')).toThrow();
     });
 
     it('should work with VldVoid validator (undefined pattern)', () => {

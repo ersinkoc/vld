@@ -101,23 +101,17 @@ export class VldArray<T> extends VldBase<unknown[], T[]> {
   }
 
   private parseArrayValue(value: unknown[]): T[] {
-    // Validate length constraints
-    if (this.config.exactLength !== undefined && value.length !== this.config.exactLength) {
-      const message = this.config.lengthMessage || getMessages().arrayLength(this.config.exactLength);
-      // Too many items is too_big, too few is too_small.
-      throw value.length > this.config.exactLength
-        ? createArrayTooBigError(this.config.exactLength, message)
-        : createArrayTooSmallError(this.config.exactLength, message);
+    const { exactLength, minLength, maxLength } = this.config;
+
+    // Zod 4.6.6+: an array over its upper size bound fails before any element is
+    // parsed, so no element issue is reported alongside the size issue.
+    if (exactLength !== undefined && value.length > exactLength) {
+      throw createArrayTooBigError(exactLength, this.config.lengthMessage || getMessages().arrayLength(exactLength));
     }
-    
-    if (this.config.minLength !== undefined && value.length < this.config.minLength) {
-      throw createArrayTooSmallError(this.config.minLength, this.config.minMessage || getMessages().arrayMin(this.config.minLength));
+    if (maxLength !== undefined && value.length > maxLength) {
+      throw createArrayTooBigError(maxLength, this.config.maxMessage || getMessages().arrayMax(maxLength));
     }
-    
-    if (this.config.maxLength !== undefined && value.length > this.config.maxLength) {
-      throw createArrayTooBigError(this.config.maxLength, this.config.maxMessage || getMessages().arrayMax(this.config.maxLength));
-    }
-    
+
     const length = value.length;
     const result = new Array<T>(length);
     const simpleItemMode = this._simpleItemMode;
@@ -128,48 +122,81 @@ export class VldArray<T> extends VldBase<unknown[], T[]> {
         switch (simpleItemMode) {
           case 'string':
             if (typeof item !== 'string') {
-              throw new Error(getMessages().arrayItem(i, getMessages().invalidString));
+              this.throwArrayIssues(value, i);
             }
             result[i] = item as T;
             break;
           case 'number':
             if (typeof item !== 'number' || !Number.isFinite(item)) {
-              throw new Error(getMessages().arrayItem(i, getMessages().invalidNumber));
+              this.throwArrayIssues(value, i);
             }
             result[i] = item as T;
             break;
           case 'boolean':
             if (typeof item !== 'boolean') {
-              throw new Error(getMessages().arrayItem(i, getMessages().invalidBoolean));
+              this.throwArrayIssues(value, i);
             }
             result[i] = item as T;
             break;
         }
       }
-
-      if (this.config.unique) {
-        this.checkUnique(result);
-      }
-
-      return result;
-    }
-
-    // Validate each item without allocating a ParseResult object per element.
-    for (let i = 0; i < length; i++) {
-      try {
-        result[i] = this.config.itemValidator.parse(value[i]);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        throw new Error(getMessages().arrayItem(i, message));
+    } else {
+      // Validate each item without allocating a ParseResult object per element;
+      // the first failure re-collects every remaining issue with its index (Zod).
+      for (let i = 0; i < length; i++) {
+        try {
+          result[i] = this.config.itemValidator.parse(value[i]);
+        } catch {
+          this.throwArrayIssues(value, i);
+        }
       }
     }
-    
+
+    // Lower bounds run after element parsing (Zod): an undersized array reports
+    // its size issue alongside — not instead of — any element issue.
+    if (exactLength !== undefined && length < exactLength) {
+      throw createArrayTooSmallError(exactLength, this.config.lengthMessage || getMessages().arrayLength(exactLength));
+    }
+    if (minLength !== undefined && length < minLength) {
+      throw createArrayTooSmallError(minLength, this.config.minMessage || getMessages().arrayMin(minLength));
+    }
+
     // Check uniqueness if required - optimized with Map-based approach
     if (this.config.unique) {
       this.checkUnique(result);
     }
-    
+
     return result;
+  }
+
+  /**
+   * Re-validates `value` from `startIndex` in issue-collection mode and throws a
+   * VldError carrying one issue per failing element (path `[index, ...]`) plus
+   * any pending lower-bound size issue, matching Zod's reporting order.
+   */
+  private throwArrayIssues(value: unknown[], startIndex: number): never {
+    const issues: VldIssue[] = [];
+    for (let i = startIndex; i < value.length; i++) {
+      const item = this.config.itemValidator.safeParse(value[i]);
+      if (!item.success) {
+        issues.push(...nestIssues(item.error, i, message => message));
+      }
+    }
+    const { exactLength, minLength } = this.config;
+    if (exactLength !== undefined && value.length < exactLength) {
+      issues.push({
+        code: 'too_small', path: [], origin: 'array',
+        minimum: exactLength, inclusive: true,
+        message: this.config.lengthMessage || getMessages().arrayLength(exactLength),
+      });
+    } else if (minLength !== undefined && value.length < minLength) {
+      issues.push({
+        code: 'too_small', path: [], origin: 'array',
+        minimum: minLength, inclusive: true,
+        message: this.config.minMessage || getMessages().arrayMin(minLength),
+      });
+    }
+    throw new VldError(issues);
   }
   
   /**
@@ -192,12 +219,9 @@ export class VldArray<T> extends VldBase<unknown[], T[]> {
       return this.parse(value);
     }
     const { exactLength, minLength, maxLength } = this.config;
-    if (exactLength !== undefined && value.length !== exactLength) {
-      const message = this.config.lengthMessage!;
-      throw value.length > exactLength ? createArrayTooBigError(exactLength, message) : createArrayTooSmallError(exactLength, message);
-    }
-    if (minLength !== undefined && value.length < minLength) {
-      throw createArrayTooSmallError(minLength, this.config.minMessage!);
+    // Zod 4.6.6+: upper bounds gate before any element is parsed.
+    if (exactLength !== undefined && value.length > exactLength) {
+      throw createArrayTooBigError(exactLength, this.config.lengthMessage!);
     }
     if (maxLength !== undefined && value.length > maxLength) {
       throw createArrayTooBigError(maxLength, this.config.maxMessage!);
@@ -207,7 +231,13 @@ export class VldArray<T> extends VldBase<unknown[], T[]> {
     for (let i = 0; i < value.length; i++) {
       const item = await this.config.itemValidator.safeParseAsync(value[i]);
       if (item.success) result[i] = item.data;
-      else issues.push(...nestIssues(item.error, i, message => getMessages().arrayItem(i, message)));
+      else issues.push(...nestIssues(item.error, i, message => message));
+    }
+    // Lower bounds run after element parsing (Zod): appended alongside element issues.
+    if (exactLength !== undefined && value.length < exactLength) {
+      issues.push({ code: 'too_small', path: [], origin: 'array', minimum: exactLength, inclusive: true, message: this.config.lengthMessage! });
+    } else if (minLength !== undefined && value.length < minLength) {
+      issues.push({ code: 'too_small', path: [], origin: 'array', minimum: minLength, inclusive: true, message: this.config.minMessage! });
     }
     if (issues.length > 0) throw new VldError(issues);
     if (this.config.unique) this.checkUnique(result);

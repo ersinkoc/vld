@@ -297,7 +297,14 @@ describe('Zod 4 parity additions', () => {
         expect(collectionResult.error).toBeInstanceOf(VldError);
         expect(v.treeifyError(collectionResult.error as VldError)).toHaveProperty('errors');
         expect(v.prettifyError(collectionResult.error as VldError)).toContain(collectionResult.error.message);
-        expect(v.flattenError(collectionResult.error as VldError).formErrors).toContain(collectionResult.error.message);
+        // Zod-shape element issues carry paths, so flattenError files them under
+        // fieldErrors; the message still surfaces in the flattened structure.
+        const flattened = v.flattenError(collectionResult.error as VldError);
+        const flattenedMessages = [
+          ...flattened.formErrors,
+          ...Object.values(flattened.fieldErrors ?? {}).flat(),
+        ];
+        expect(flattenedMessages).toContain(collectionResult.error.message);
       }
     }
 
@@ -320,7 +327,11 @@ describe('Zod 4 parity additions', () => {
         expect(scalarResult.error).toBeInstanceOf(VldError);
         expect(v.treeifyError(scalarResult.error as VldError)).toHaveProperty('errors');
         expect(v.prettifyError(scalarResult.error as VldError)).toContain(scalarResult.error.message);
-        expect(v.flattenError(scalarResult.error as VldError).formErrors).toContain(scalarResult.error.message);
+        const flattenedScalar = v.flattenError(scalarResult.error as VldError);
+        expect([
+          ...flattenedScalar.formErrors,
+          ...Object.values(flattenedScalar.fieldErrors ?? {}).flat(),
+        ]).toContain(scalarResult.error.message);
       }
     }
   });
@@ -452,7 +463,7 @@ describe('Zod 4 parity additions', () => {
     expect(json.description).toBe('Public profile payload');
     expect(json.examples).toEqual([{ email: 'test@example.com', displayName: 'Test User' }]);
     expect(json.required).toEqual(['email']);
-    expect(json.properties?.['email']).toEqual({ type: 'string', format: 'email' });
+    expect(json.properties?.['email']).toEqual(expect.objectContaining({ type: 'string', format: 'email', pattern: expect.any(String) }));
   });
 
   it('keeps .meta() and .describe() backward compatible while feeding JSON Schema', () => {

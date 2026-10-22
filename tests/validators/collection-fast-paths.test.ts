@@ -95,7 +95,12 @@ describe('Collection validator fast paths', () => {
     const set = v.set(v.array(v.string()));
 
     expect((set as any).getSimpleItemMode({ isSimple: true, validatorType: 'unsupported' })).toBeUndefined();
-    expect((set as any).getSimpleItemError('value')).toBe('Invalid set');
+    // Members of a non-simple item schema still report root-path issues (Zod).
+    const r = set.safeParse(new Set([1]));
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(r.error.issues[0]).toEqual(expect.objectContaining({ code: 'invalid_type', path: [] }));
+    }
   });
 
   it('should keep complex set items on the generic validator path', () => {

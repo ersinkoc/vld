@@ -496,7 +496,12 @@ describe('New Advanced Features Tests', () => {
       
       const intersectionSchema = v.intersection(literalA, literalB);
       
-      expect(() => intersectionSchema.parse('test1')).toThrow('Intersection validation failed');
+      // Zod: the failing side's issues surface directly (invalid_value here).
+      const rejected = intersectionSchema.safeParse('test1');
+      expect(rejected.success).toBe(false);
+      if (!rejected.success) {
+        expect(rejected.error.issues[0]).toEqual(expect.objectContaining({ code: 'invalid_value' }));
+      }
     });
 
     it('should reject when first validator fails', () => {
@@ -505,7 +510,12 @@ describe('New Advanced Features Tests', () => {
       
       const intersectionSchema = v.intersection(stringSchema, numberSchema);
       
-      expect(() => intersectionSchema.parse('not-a-number')).toThrow('Intersection validation failed');
+      // Zod: the failing side's issues surface directly (invalid_type here).
+      const rejected = intersectionSchema.safeParse('not-a-number');
+      expect(rejected.success).toBe(false);
+      if (!rejected.success) {
+        expect(rejected.error.issues[0]).toEqual(expect.objectContaining({ code: 'invalid_type', expected: 'number' }));
+      }
     });
 
     it('should reject when second validator fails', () => {
@@ -521,13 +531,8 @@ describe('New Advanced Features Tests', () => {
       const intersectionSchema = v.intersection(userSchema, adminSchema);
       
       // Missing required 'level' property for adminSchema
-      const invalid = {
-        name: 'John',
-        role: 'admin'
-        // missing level
-      };
-      
-      expect(() => intersectionSchema.parse(invalid)).toThrow('Intersection validation failed');
+      const rejectedSide = intersectionSchema.safeParse({ name: 'Test', role: 'admin' });
+      expect(rejectedSide.success).toBe(false);
     });
 
     it('should work with safeParse', () => {

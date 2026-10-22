@@ -145,7 +145,8 @@ describe('toJSONSchema - VLD -> JSON Schema', () => {
     it('handles passthrough / loose object', () => {
       const schema = v.looseObject({ a: v.number() });
       const result = toJSONSchema(schema);
-      expect(result).toMatchObject({ additionalProperties: true });
+      // Zod models passthrough as the permissive empty schema.
+      expect(result.additionalProperties).toEqual({});
     });
 
     it('handles catchall on object', () => {
@@ -172,9 +173,9 @@ describe('toJSONSchema - VLD -> JSON Schema', () => {
   // UNION, LITERAL, ENUM
   // ==============================
   describe('Union / Literal / Enum', () => {
-    it('converts VldUnion to anyOf', () => {
+    it('converts a primitive VldUnion to a type array (Zod)', () => {
       expect(toJSONSchema(v.union(v.string(), v.number()))).toMatchObject({
-        anyOf: [{ type: 'string' }, { type: 'number' }]
+        type: ['string', 'number']
       });
     });
 

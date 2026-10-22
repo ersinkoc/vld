@@ -56,6 +56,10 @@ export interface VldIssue {
   discriminator?: string;
   /** Extra context, e.g. "No matching discriminator". */
   note?: string;
+  /** Nested issues of an `invalid_key` / `invalid_element` issue (Zod map entries). */
+  issues?: VldIssue[];
+  /** Offending key of an `invalid_element` issue (Zod map entries). */
+  key?: unknown;
 }
 
 /**
@@ -116,11 +120,11 @@ export function getTypeName(value: unknown): string {
  * Build a Zod 4-compatible `invalid_type` issue.
  */
 export function createInvalidTypeIssue(expected: string, received: string, message?: string): VldIssue {
+  // Zod 4 exposes `expected` only; the received type lives in the message.
   return {
     code: 'invalid_type',
     path: [],
     expected,
-    received,
     message: message ?? `Invalid input: expected ${expected}, received ${received}`,
   };
 }

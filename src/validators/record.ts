@@ -1,7 +1,7 @@
 import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
 import { getMessages } from '../locales/runtime';
 import { isDangerousKey } from '../utils/security';
-import { VldError, stringifyForMessage, nestIssues, type VldIssue, createInvalidTypeIssue, getTypeName } from '../errors-core';
+import { VldError, nestIssues, type VldIssue, createInvalidTypeIssue, getTypeName } from '../errors-core';
 
 /**
  * Zod's record input check (isPlainObject): plain / null-prototype objects and
@@ -28,10 +28,6 @@ type SimpleRecordValueMode =
   | 'literal'
   | 'passthrough'
   | undefined;
-
-function createRecordError(message: string): VldError {
-  return new VldError([{ code: 'invalid_object', path: [], message }]);
-}
 
 /**
  * Immutable record validator for key-value pairs
@@ -147,29 +143,6 @@ export class VldRecord<T, K extends PropertyKey = string> extends VldBase<unknow
     }
   }
 
-  private getSimpleValueError(received: unknown): string {
-    switch (this._simpleValueMode) {
-      case 'string':
-        return getMessages().invalidString;
-      case 'number':
-        return getMessages().invalidNumber;
-      case 'boolean':
-        return getMessages().invalidBoolean;
-      case 'bigint':
-        return getMessages().invalidBigint;
-      case 'symbol':
-        return getMessages().invalidSymbol;
-      case 'null':
-        return `Expected null, received ${typeof received}`;
-      case 'undefinedValue':
-        return getMessages().expectedUndefined;
-      case 'literal':
-        return getMessages().literalExpected(stringifyForMessage(this._simpleValue), stringifyForMessage(received));
-      default:
-        return getMessages().invalidRecord;
-    }
-  }
-  
   /**
    * Parse and validate a record value
    * BUG-NEW-018 FIX: Use comprehensive dangerous key protection
@@ -209,49 +182,49 @@ export class VldRecord<T, K extends PropertyKey = string> extends VldBase<unknow
         switch (simpleMode) {
           case 'string':
             if (typeof val !== 'string') {
-              throw new Error(getMessages().objectField(key, getMessages().invalidString));
+              this.throwRecordIssues(obj);
             }
             result[key] = val as T;
             continue;
           case 'number':
             if (typeof val !== 'number' || !Number.isFinite(val)) {
-              throw new Error(getMessages().objectField(key, getMessages().invalidNumber));
+              this.throwRecordIssues(obj);
             }
             result[key] = val as T;
             continue;
           case 'boolean':
             if (typeof val !== 'boolean') {
-              throw new Error(getMessages().objectField(key, getMessages().invalidBoolean));
+              this.throwRecordIssues(obj);
             }
             result[key] = val as T;
             continue;
           case 'bigint':
             if (typeof val !== 'bigint') {
-              throw new Error(getMessages().objectField(key, getMessages().invalidBigint));
+              this.throwRecordIssues(obj);
             }
             result[key] = val as T;
             continue;
           case 'symbol':
             if (typeof val !== 'symbol') {
-              throw new Error(getMessages().objectField(key, getMessages().invalidSymbol));
+              this.throwRecordIssues(obj);
             }
             result[key] = val as T;
             continue;
           case 'null':
             if (val !== null) {
-              throw new Error(getMessages().objectField(key, this.getSimpleValueError(val)));
+              this.throwRecordIssues(obj);
             }
             result[key] = null as T;
             continue;
           case 'undefinedValue':
             if (val !== undefined) {
-              throw new Error(getMessages().objectField(key, getMessages().expectedUndefined));
+              this.throwRecordIssues(obj);
             }
             result[key] = undefined as T;
             continue;
           case 'literal':
             if (val !== this._simpleValue) {
-              throw new Error(getMessages().objectField(key, this.getSimpleValueError(val)));
+              this.throwRecordIssues(obj);
             }
             result[key] = this._simpleValue as T;
             continue;
@@ -263,12 +236,28 @@ export class VldRecord<T, K extends PropertyKey = string> extends VldBase<unknow
 
       try {
         result[key] = this.valueValidator.parse(val);
-      } catch (error) {
-        throw new Error(getMessages().objectField(key, (error as Error).message));
+      } catch {
+        this.throwRecordIssues(obj);
       }
     }
 
     return result as Record<K, T>;
+  }
+
+  /**
+   * Re-validates every entry in issue-collection mode and throws a VldError
+   * with one nested issue per failing value at path `[key]` (Zod).
+   */
+  private throwRecordIssues(obj: Record<string, unknown>): never {
+    const issues: VldIssue[] = [];
+    for (const key of Object.keys(obj)) {
+      if (isDangerousKey(key)) continue;
+      const item = this.valueValidator.safeParse(obj[key]);
+      if (!item.success) {
+        issues.push(...nestIssues(item.error, key, message => message));
+      }
+    }
+    throw new VldError(issues);
   }
 
   private parseKeyedRecord(obj: Record<string, unknown>): Record<K, T> {
@@ -303,18 +292,10 @@ export class VldRecord<T, K extends PropertyKey = string> extends VldBase<unknow
         }
       }
       if (!parsedKey.success) {
-        throw new VldError([{
-          code: 'invalid_key',
-          path: [String(rawKey)],
-          message: parsedKey.error.message
-        }]);
+        this.throwKeyedRecordIssues(obj);
       }
       if (typeof parsedKey.data !== 'string' && typeof parsedKey.data !== 'number' && typeof parsedKey.data !== 'symbol') {
-        throw new VldError([{
-          code: 'invalid_key',
-          path: [String(rawKey)],
-          message: 'Record key transform must return a property key'
-        }]);
+        this.throwKeyedRecordIssues(obj);
       }
       if (typeof parsedKey.data === 'string' && isDangerousKey(parsedKey.data)) {
         continue;
@@ -322,25 +303,40 @@ export class VldRecord<T, K extends PropertyKey = string> extends VldBase<unknow
 
       try {
         result[parsedKey.data] = this.valueValidator.parse(obj[rawKey as keyof typeof obj]);
-      } catch (error) {
-        throw new Error(getMessages().objectField(String(rawKey), (error as Error).message));
+      } catch {
+        this.throwKeyedRecordIssues(obj);
       }
     }
 
     // Every key of a finite key set must be present unless the value schema
-    // accepts undefined (partialRecord wraps values in optional()).
+    // accepts undefined (partialRecord wraps values in optional()). Zod runs
+    // the key schema on the declared key first: a key it rejects is an
+    // invalid_key issue, not a value issue.
     if (finiteKeys !== undefined) {
+      const missingIssues: VldIssue[] = [];
       for (const key of finiteKeys) {
         if ((typeof key !== 'string' && typeof key !== 'number') || Object.prototype.hasOwnProperty.call(obj, String(key))) {
           continue;
         }
+        const keyResult = this.keyValidator!.safeParse(key);
+        if (!keyResult.success) {
+          missingIssues.push({
+            code: 'invalid_key', origin: 'record', path: [String(key)],
+            message: 'Invalid key in record', issues: keyResult.error.issues,
+          });
+          continue;
+        }
         const missing = this.valueValidator.safeParse(undefined);
         if (!missing.success) {
-          throw new VldError(nestIssues(missing.error, String(key), message => getMessages().objectField(String(key), message)));
+          missingIssues.push(...nestIssues(missing.error, String(key), message => message));
+          continue;
         }
         if (missing.data !== undefined) {
           result[key as K] = missing.data;
         }
+      }
+      if (missingIssues.length > 0) {
+        throw new VldError(missingIssues);
       }
     }
     if (unrecognized.length > 0) {
@@ -348,6 +344,84 @@ export class VldRecord<T, K extends PropertyKey = string> extends VldBase<unknow
     }
 
     return result;
+  }
+
+  /**
+   * Re-validates a keyed record in issue-collection mode and throws a VldError
+   * matching Zod: an invalid key becomes one `invalid_key` issue at `[key]`
+   * with origin `record` and the nested key issues; a failing value nests its
+   * issues at `[key]`; missing exhaustive keys and unrecognized keys follow.
+   */
+  private throwKeyedRecordIssues(obj: Record<string, unknown>): never {
+    const issues: VldIssue[] = [];
+    const finiteKeys = this.keyValidator === undefined ? undefined : finiteKeyValues(this.keyValidator);
+    const finiteKeySet = finiteKeys === undefined ? undefined : new Set(finiteKeys.filter(key => typeof key === 'string' || typeof key === 'number').map(String));
+    const unrecognized: string[] = [];
+
+    for (const rawKey of Reflect.ownKeys(obj)) {
+      if (!Object.prototype.propertyIsEnumerable.call(obj, rawKey)) {
+        continue;
+      }
+      if (typeof rawKey === 'string' && isDangerousKey(rawKey)) {
+        continue;
+      }
+      if (finiteKeySet !== undefined && typeof rawKey === 'string' && !finiteKeySet.has(rawKey)) {
+        unrecognized.push(rawKey);
+        continue;
+      }
+      let parsedKey = this.keyValidator!.safeParse(rawKey);
+      if (!parsedKey.success && typeof rawKey === 'string' && rawKey !== '' && String(Number(rawKey)) === rawKey) {
+        const numericKey = this.keyValidator!.safeParse(Number(rawKey));
+        if (numericKey.success) {
+          parsedKey = numericKey;
+        }
+      }
+      if (!parsedKey.success) {
+        issues.push({
+          code: 'invalid_key', origin: 'record', path: [String(rawKey)],
+          message: 'Invalid key in record', issues: parsedKey.error.issues,
+        });
+        continue;
+      }
+      if (typeof parsedKey.data !== 'string' && typeof parsedKey.data !== 'number' && typeof parsedKey.data !== 'symbol') {
+        issues.push({
+          code: 'invalid_key', origin: 'record', path: [String(rawKey)],
+          message: 'Record key transform must return a property key',
+        });
+        continue;
+      }
+      if (typeof parsedKey.data === 'string' && isDangerousKey(parsedKey.data)) {
+        continue;
+      }
+      const item = this.valueValidator.safeParse(obj[rawKey as keyof typeof obj]);
+      if (!item.success) {
+        issues.push(...nestIssues(item.error, String(rawKey), message => message));
+      }
+    }
+
+    if (finiteKeys !== undefined) {
+      for (const key of finiteKeys) {
+        if ((typeof key !== 'string' && typeof key !== 'number') || Object.prototype.hasOwnProperty.call(obj, String(key))) {
+          continue;
+        }
+        const keyResult = this.keyValidator!.safeParse(key);
+        if (!keyResult.success) {
+          issues.push({
+            code: 'invalid_key', origin: 'record', path: [String(key)],
+            message: 'Invalid key in record', issues: keyResult.error.issues,
+          });
+          continue;
+        }
+        const missing = this.valueValidator.safeParse(undefined);
+        if (!missing.success) {
+          issues.push(...nestIssues(missing.error, String(key), message => message));
+        }
+      }
+    }
+    if (unrecognized.length > 0) {
+      issues.push({ code: 'unrecognized_keys', path: [], keys: unrecognized, message: getMessages().unexpectedKeys(unrecognized) });
+    }
+    throw new VldError(issues);
   }
   
   /**
@@ -357,10 +431,8 @@ export class VldRecord<T, K extends PropertyKey = string> extends VldBase<unknow
     try {
       return { success: true, data: this.parse(value) };
     } catch (error) {
-      if (error instanceof VldError) {
-        return { success: false, error };
-      }
-      return { success: false, error: createRecordError((error as Error).message) };
+      // Every parse failure path throws VldError.
+      return { success: false, error: error as VldError };
     }
   }
 
@@ -393,7 +465,7 @@ export class VldRecord<T, K extends PropertyKey = string> extends VldBase<unknow
           if (numericKey.success) parsedKey = numericKey;
         }
         if (!parsedKey.success) {
-          issues.push({ code: 'invalid_key', path: [String(rawKey)], message: parsedKey.error.message });
+          issues.push({ code: 'invalid_key', origin: 'record', path: [String(rawKey)], message: 'Invalid key in record', issues: parsedKey.error.issues });
           continue;
         }
         key = parsedKey.data as PropertyKey;
@@ -401,12 +473,18 @@ export class VldRecord<T, K extends PropertyKey = string> extends VldBase<unknow
       }
       const item = await this.valueValidator.safeParseAsync(obj[rawKey]);
       if (item.success) result[key] = item.data;
-      else issues.push(...nestIssues(item.error, String(rawKey), message => getMessages().objectField(String(rawKey), message)));
+      else issues.push(...nestIssues(item.error, String(rawKey), message => message));
     }
     for (const key of finiteKeys ?? []) {
       if ((typeof key !== 'string' && typeof key !== 'number') || Object.prototype.hasOwnProperty.call(obj, String(key))) continue;
+      // Zod runs the key schema on the declared key first (invalid_key on failure).
+      const keyResult = await keyValidator!.safeParseAsync(key);
+      if (!keyResult.success) {
+        issues.push({ code: 'invalid_key', origin: 'record', path: [String(key)], message: 'Invalid key in record', issues: keyResult.error.issues });
+        continue;
+      }
       const missing = await this.valueValidator.safeParseAsync(undefined);
-      if (!missing.success) issues.push(...nestIssues(missing.error, String(key), message => getMessages().objectField(String(key), message)));
+      if (!missing.success) issues.push(...nestIssues(missing.error, String(key), message => message));
       else if (missing.data !== undefined) result[key] = missing.data;
     }
     if (unrecognized.length > 0) {
@@ -496,7 +574,7 @@ class VldLooseRecord<T, K extends PropertyKey = string> extends VldBase<unknown,
     try {
       return { success: true, data: this.parse(value) };
     } catch (error) {
-      return { success: false, error: error instanceof VldError ? error : createRecordError((error as Error).message) };
+      return { success: false, error: error as VldError };
     }
   }
 

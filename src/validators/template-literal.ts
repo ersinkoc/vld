@@ -86,14 +86,13 @@ export class VldTemplateLiteral extends VldBase<unknown, string> {
  */
 function getPatternForValidator(validator: VldBase<any, any>): string {
   // For template literals, we need to identify the validator type
-  // and return an appropriate capture group pattern.
-  // Value sets (literal / enum / union) and string length bounds are encoded
-  // as Zod does; otherwise "purple-car" would match `${'red' | 'blue'}-car`.
+  // and return the matching pattern. Zod emits multi-value sets as capture
+  // groups (nested per option for unions) and single-entity types bare.
   if ((validator instanceof VldLiteral && !validator.values.includes(undefined as never)) || validator instanceof VldEnum) {
     return '(' + [...validator.values].map(v => escapeForPattern(String(v))).join('|') + ')';
   }
   if (validator instanceof VldUnion) {
-    return '(' + validator.options.map((option: VldBase<any, any>) => getPatternForValidator(option)).join('|') + ')';
+    return '(' + validator.options.map((option: VldBase<any, any>) => '(' + getPatternForValidator(option) + ')').join('|') + ')';
   }
   if (validator instanceof VldOptional) {
     return '(' + getPatternForValidator((validator as any).baseValidator) + ')?';
@@ -102,8 +101,8 @@ function getPatternForValidator(validator: VldBase<any, any>): string {
     return '(' + getPatternForValidator((validator as any).baseValidator) + '|null)' + (validator instanceof VldNullish ? '?' : '');
   }
   if (validator instanceof VldString) {
-    // Non-empty unless min(0) is explicit; [\s\S] also matches newlines.
-    return '([\\s\\S]{' + (validator.minLength ?? 1) + ',' + (validator.maxLength ?? '') + '})';
+    // Zod's default is {0,}; min(0) is explicit. [\s\S] also matches newlines.
+    return '[\\s\\S]{' + (validator.minLength ?? 0) + ',' + (validator.maxLength ?? '') + '}';
   }
 
   switch (validator.validatorType) {
@@ -112,13 +111,15 @@ function getPatternForValidator(validator: VldBase<any, any>): string {
       return '([\\s\\S]+)';
     case VLD_VALIDATOR_TYPES.NUMBER:
     case VLD_VALIDATOR_TYPES.COERCE_NUMBER:
-      return '(-?\\d+(?:\\.\\d+)?)';
+      // Zod emits the number form bare, with a non-capturing fraction group.
+      return '-?\\d+(?:\\.\\d+)?';
     case VLD_VALIDATOR_TYPES.BIGINT:
     case VLD_VALIDATOR_TYPES.COERCE_BIGINT:
-      return '(-?\\d+)';
+      // Zod's template bigint accepts the trailing n of a BigInt literal.
+      return '-?\\d+n?';
     case VLD_VALIDATOR_TYPES.BOOLEAN:
     case VLD_VALIDATOR_TYPES.COERCE_BOOLEAN:
-      return '(true|false)';
+      return '(?:true|false)';
     case VLD_VALIDATOR_TYPES.NULL:
       return '(null)';
     case VLD_VALIDATOR_TYPES.UNDEFINED:

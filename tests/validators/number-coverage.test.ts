@@ -227,7 +227,7 @@ describe('VldNumber Coverage Tests', () => {
         const issue = (result.error as any).issues[0];
         expect(issue.code).toBe('invalid_type');
         expect(issue.expected).toBe('number');
-        expect(issue.received).toBe('string');
+        expect(issue.message).toContain('number');
       }
     });
   });

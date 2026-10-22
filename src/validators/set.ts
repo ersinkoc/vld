@@ -1,6 +1,6 @@
 import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
 import { getMessages } from '../locales/runtime';
-import { VldError, type VldIssue, stringifyForMessage, nestIssues, createInvalidTypeIssue, getTypeName } from '../errors-core';
+import { VldError, type VldIssue, createInvalidTypeIssue, getTypeName } from '../errors-core';
 
 type SimpleSetItemMode =
   | 'string'
@@ -28,10 +28,6 @@ function sizeIssue(origin: 'set' | 'map', check: SizeCheck<any>, actual: number)
     return { code: 'too_small', path: [], origin, minimum: limit, inclusive: true, message: check.message };
   }
   return { code: 'too_big', path: [], origin, maximum: limit, inclusive: true, message: check.message };
-}
-
-function createSetError(message: string): VldError {
-  return new VldError([{ code: 'invalid_type', path: [], message }]);
 }
 
 /**
@@ -100,29 +96,6 @@ export class VldSet<T> extends VldBase<unknown, Set<T>> {
     }
   }
 
-  private getSimpleItemError(received: unknown): string {
-    switch (this._simpleItemMode) {
-      case 'string':
-        return getMessages().invalidString;
-      case 'number':
-        return getMessages().invalidNumber;
-      case 'boolean':
-        return getMessages().invalidBoolean;
-      case 'bigint':
-        return getMessages().invalidBigint;
-      case 'symbol':
-        return getMessages().invalidSymbol;
-      case 'null':
-        return `Expected null, received ${typeof received}`;
-      case 'undefinedValue':
-        return getMessages().expectedUndefined;
-      case 'literal':
-        return getMessages().literalExpected(stringifyForMessage(this._simpleItemValue), stringifyForMessage(received));
-      default:
-        return getMessages().invalidSet;
-    }
-  }
-  
   /**
    * Parse and validate a Set value
    */
@@ -139,62 +112,70 @@ export class VldSet<T> extends VldBase<unknown, Set<T>> {
    * @internal Used by object validators to avoid duplicate hot-path checks.
    */
   parseKnownSet(value: Set<unknown>): Set<T> {
+    // Zod 4.6.6+: a set over its upper size bound fails before any member is
+    // parsed, so no member issue is reported alongside the size issue.
+    for (const check of this._checks) {
+      if ((check.kind === 'max' || check.kind === 'size') && value.size > check.value!) {
+        throw new VldError([sizeIssue('set', check, value.size)]);
+      }
+    }
+
     const result = new Set<T>();
     const simpleMode = this._simpleItemMode;
 
     if (simpleMode === 'string') {
       for (const item of value) {
         if (typeof item !== 'string') {
-          throw new Error(this.getSimpleItemError(item));
+          this.throwSetIssues(value);
         }
         result.add(item as T);
       }
     } else if (simpleMode === 'number') {
       for (const item of value) {
         if (typeof item !== 'number' || !Number.isFinite(item)) {
-          throw new Error(this.getSimpleItemError(item));
+          this.throwSetIssues(value);
         }
         result.add(item as T);
       }
     } else if (simpleMode === 'boolean') {
       for (const item of value) {
         if (typeof item !== 'boolean') {
-          throw new Error(this.getSimpleItemError(item));
+          this.throwSetIssues(value);
         }
         result.add(item as T);
       }
     } else if (simpleMode === 'bigint') {
       for (const item of value) {
         if (typeof item !== 'bigint') {
-          throw new Error(this.getSimpleItemError(item));
+          this.throwSetIssues(value);
         }
         result.add(item as T);
       }
     } else if (simpleMode === 'symbol') {
       for (const item of value) {
         if (typeof item !== 'symbol') {
-          throw new Error(this.getSimpleItemError(item));
+          this.throwSetIssues(value);
         }
         result.add(item as T);
       }
     } else if (simpleMode === 'null') {
       for (const item of value) {
         if (item !== null) {
-          throw new Error(this.getSimpleItemError(item));
+          this.throwSetIssues(value);
         }
         result.add(null as T);
       }
     } else if (simpleMode === 'undefinedValue') {
       for (const item of value) {
         if (item !== undefined) {
-          throw new Error(this.getSimpleItemError(item));
+          this.throwSetIssues(value);
         }
         result.add(undefined as T);
       }
     } else if (simpleMode === 'literal') {
       for (const item of value) {
         if (item !== this._simpleItemValue) {
-          throw new Error(this.getSimpleItemError(item));
+          this.throwSetIssues(value);
         }
         result.add(this._simpleItemValue as T);
       }
@@ -206,41 +187,74 @@ export class VldSet<T> extends VldBase<unknown, Set<T>> {
       for (const item of value) {
         try {
           result.add(this.itemValidator.parse(item));
-        } catch (error) {
-          throw new Error((error as Error).message);
+        } catch {
+          this.throwSetIssues(value);
         }
       }
     }
-    
+
+    // Lower bounds run after member parsing (Zod).
     for (const check of this._checks) {
       if (!check.fn(result)) {
         throw check.kind ? new VldError([sizeIssue('set', check, result.size)]) : new Error(check.message);
       }
     }
-    
+
     return result;
   }
-  
+
+  /**
+   * Re-validates every member in issue-collection mode and throws a VldError
+   * carrying one issue per failing member at the set's root path (Zod reports
+   * set members without an index segment) plus any pending lower-bound issue.
+   * Size checks see the set of successfully parsed members, as in Zod.
+   */
+  private throwSetIssues(value: Set<unknown>): never {
+    const issues: VldIssue[] = [];
+    const parsed = new Set<T>();
+    for (const item of value) {
+      const result = this.itemValidator.safeParse(item);
+      if (result.success) {
+        parsed.add(result.data);
+      } else {
+        // Zod still adds the raw member to the output, so size checks see it.
+        parsed.add(item as T);
+        issues.push(...result.error.issues);
+      }
+    }
+    for (const check of this._checks) {
+      if ((check.kind === 'min' || check.kind === 'size') && !check.fn(parsed)) {
+        issues.push(sizeIssue('set', check, parsed.size));
+      }
+    }
+    throw new VldError(issues);
+  }
+
   /** Async parse: each item goes through the item schema's parseAsync. */
   override async parseAsync(value: unknown): Promise<Set<T>> {
     if (!(value instanceof Set)) {
       return this.parse(value);
     }
+    // Zod 4.6.6+: upper bounds gate before any member is parsed.
+    for (const check of this._checks) {
+      if ((check.kind === 'max' || check.kind === 'size') && value.size > check.value!) {
+        throw new VldError([sizeIssue('set', check, value.size)]);
+      }
+    }
     const result = new Set<T>();
     const issues: VldIssue[] = [];
-    let index = 0;
     for (const item of value) {
       const parsed = await this.itemValidator.safeParseAsync(item);
       if (parsed.success) result.add(parsed.data);
-      else issues.push(...nestIssues(parsed.error, index, message => message));
-      index++;
+      else issues.push(...parsed.error.issues);
     }
-    if (issues.length > 0) throw new VldError(issues);
+    // Lower bounds run after member parsing (Zod): appended alongside member issues.
     for (const check of this._checks) {
-      if (!check.fn(result)) {
-        throw check.kind ? new VldError([sizeIssue('set', check, result.size)]) : new Error(check.message);
+      if ((check.kind === 'min' || check.kind === 'size') && !check.fn(result)) {
+        issues.push(sizeIssue('set', check, result.size));
       }
     }
+    if (issues.length > 0) throw new VldError(issues);
     return result;
   }
 
@@ -251,10 +265,8 @@ export class VldSet<T> extends VldBase<unknown, Set<T>> {
     try {
       return { success: true, data: this.parse(value) };
     } catch (error) {
-      if (error instanceof VldError) {
-        return { success: false, error };
-      }
-      return { success: false, error: createSetError((error as Error).message) };
+      // Every parse failure path throws VldError.
+      return { success: false, error: error as VldError };
     }
   }
 

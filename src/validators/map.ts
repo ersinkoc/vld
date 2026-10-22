@@ -31,10 +31,6 @@ function sizeIssue(origin: 'set' | 'map', check: SizeCheck<any>, actual: number)
   return { code: 'too_big', path: [], origin, maximum: limit, inclusive: true, message: check.message };
 }
 
-function createMapError(message: string): VldError {
-  return new VldError([{ code: 'invalid_type', path: [], message }]);
-}
-
 /**
  * Immutable Map validator
  */
@@ -207,6 +203,14 @@ export class VldMap<K, V> extends VldBase<unknown, Map<K, V>> {
    * @internal Used by object validators to avoid duplicate hot-path checks.
    */
   parseKnownMap(value: Map<unknown, unknown>): Map<K, V> {
+    // Zod 4.6.6+: a map over its upper size bound fails before any entry is
+    // parsed, so no entry issue is reported alongside the size issue.
+    for (const check of this._checks) {
+      if ((check.kind === 'max' || check.kind === 'size') && value.size > check.value!) {
+        throw new VldError([sizeIssue('map', check, value.size)]);
+      }
+    }
+
     const result = new Map<K, V>();
     const simpleKeyMode = this._simpleKeyMode;
     const simpleValueMode = this._simpleValueMode;
@@ -214,20 +218,20 @@ export class VldMap<K, V> extends VldBase<unknown, Map<K, V>> {
     if (simpleKeyMode === 'string' && simpleValueMode === 'number') {
       for (const [key, val] of value) {
         if (typeof key !== 'string') {
-          throw new Error(this.getSimpleItemError(simpleKeyMode, this._simpleKeyValue, key));
+          this.throwMapIssues(value);
         }
         if (typeof val !== 'number' || !Number.isFinite(val)) {
-          throw new Error(this.getSimpleItemError(simpleValueMode, this._simpleValueValue, val));
+          this.throwMapIssues(value);
         }
         result.set(key as K, val as V);
       }
     } else if (simpleKeyMode === 'string' && simpleValueMode === 'string') {
       for (const [key, val] of value) {
         if (typeof key !== 'string') {
-          throw new Error(this.getSimpleItemError(simpleKeyMode, this._simpleKeyValue, key));
+          this.throwMapIssues(value);
         }
         if (typeof val !== 'string') {
-          throw new Error(this.getSimpleItemError(simpleValueMode, this._simpleValueValue, val));
+          this.throwMapIssues(value);
         }
         result.set(key as K, val as V);
       }
@@ -236,9 +240,13 @@ export class VldMap<K, V> extends VldBase<unknown, Map<K, V>> {
       const valueMode = simpleValueMode as ConcreteSimpleMapItemMode;
 
       for (const [key, val] of value) {
-        const validKey = this.parseSimpleItem<K>(keyMode, this._simpleKeyValue, key);
-        const validValue = this.parseSimpleItem<V>(valueMode, this._simpleValueValue, val);
-        result.set(validKey, validValue);
+        try {
+          const validKey = this.parseSimpleItem<K>(keyMode, this._simpleKeyValue, key);
+          const validValue = this.parseSimpleItem<V>(valueMode, this._simpleValueValue, val);
+          result.set(validKey, validValue);
+        } catch {
+          this.throwMapIssues(value);
+        }
       }
     } else {
       for (const [key, val] of value) {
@@ -250,44 +258,100 @@ export class VldMap<K, V> extends VldBase<unknown, Map<K, V>> {
             ? this.valueValidator.parse(val)
             : this.parseSimpleItem<V>(simpleValueMode as ConcreteSimpleMapItemMode, this._simpleValueValue, val);
           result.set(validKey, validValue);
-        } catch (error) {
-          throw new Error((error as Error).message);
+        } catch {
+          this.throwMapIssues(value);
         }
       }
     }
-    
+
+    // Lower bounds run after entry parsing (Zod).
     for (const check of this._checks) {
       if (!check.fn(result)) {
         throw check.kind ? new VldError([sizeIssue('map', check, result.size)]) : new Error(check.message);
       }
     }
-    
+
     return result;
   }
-  
+
+  /**
+   * Re-validates every entry in issue-collection mode and throws a VldError
+   * matching Zod's `handleMapResult`: failures on a property-key-shaped key are
+   * prefixed with that key; failures on other keys collapse into a single
+   * `invalid_key` / `invalid_element` issue at the root. Lower-bound size
+   * issues are appended after the entry issues.
+   */
+  private throwMapIssues(value: Map<unknown, unknown>): never {
+    const issues: VldIssue[] = [];
+    const parsed = new Map<K, V>();
+    for (const [key, val] of value) {
+      const parsedKey = this.keyValidator.safeParse(key);
+      const parsedValue = this.valueValidator.safeParse(val);
+      if (!parsedKey.success) {
+        issues.push(...this.mapEntryIssues(parsedKey.error, key));
+      }
+      if (!parsedValue.success) {
+        issues.push(...this.mapEntryIssues(parsedValue.error, key, 'invalid_element'));
+      }
+      // Zod still writes the raw entry into the output on failure, so size
+      // checks see every input entry.
+      parsed.set(
+        parsedKey.success ? parsedKey.data : key as K,
+        parsedValue.success ? parsedValue.data : val as V
+      );
+    }
+    // Size checks see one entry per input entry, as in Zod.
+    for (const check of this._checks) {
+      if ((check.kind === 'min' || check.kind === 'size') && !check.fn(parsed)) {
+        issues.push(sizeIssue('map', check, parsed.size));
+      }
+    }
+    throw new VldError(issues);
+  }
+
+  /** @internal Shared with parseAsync: Zod's key/value issue placement rules. */
+  private mapEntryIssues(error: VldError, key: unknown, kind?: 'invalid_element'): VldIssue[] {
+    if (typeof key === 'string' || typeof key === 'number' || typeof key === 'symbol') {
+      // Property-key-shaped keys prefix the entry's issues (Zod prefixIssues).
+      return nestIssues(error, key as string | number, message => message);
+    }
+    return [{
+      code: kind === 'invalid_element' ? 'invalid_element' : 'invalid_key',
+      origin: 'map',
+      path: [],
+      message: kind === 'invalid_element' ? `Invalid value in map` : `Invalid key in map`,
+      issues: error.issues,
+      ...(kind === 'invalid_element' ? { key } : {}),
+    }];
+  }
+
   /** Async parse: keys and values go through their schemas' parseAsync. */
   override async parseAsync(value: unknown): Promise<Map<K, V>> {
     if (!(value instanceof Map)) {
       return this.parse(value);
     }
-    const result = new Map<K, V>();
-    const issues: VldIssue[] = [];
-    let index = 0;
-    for (const [key, val] of value) {
-      const segment = typeof key === 'string' || typeof key === 'number' ? key : index;
-      const parsedKey = await this.keyValidator.safeParseAsync(key);
-      const parsedValue = await this.valueValidator.safeParseAsync(val);
-      if (!parsedKey.success) issues.push(...nestIssues(parsedKey.error, segment, message => message).map(issue => ({ ...issue, code: 'invalid_key' as const })));
-      if (!parsedValue.success) issues.push(...nestIssues(parsedValue.error, segment, message => message));
-      if (parsedKey.success && parsedValue.success) result.set(parsedKey.data, parsedValue.data);
-      index++;
-    }
-    if (issues.length > 0) throw new VldError(issues);
+    // Zod 4.6.6+: upper bounds gate before any entry is parsed.
     for (const check of this._checks) {
-      if (!check.fn(result)) {
-        throw check.kind ? new VldError([sizeIssue('map', check, result.size)]) : new Error(check.message);
+      if ((check.kind === 'max' || check.kind === 'size') && value.size > check.value!) {
+        throw new VldError([sizeIssue('map', check, value.size)]);
       }
     }
+    const result = new Map<K, V>();
+    const issues: VldIssue[] = [];
+    for (const [key, val] of value) {
+      const parsedKey = await this.keyValidator.safeParseAsync(key);
+      const parsedValue = await this.valueValidator.safeParseAsync(val);
+      if (!parsedKey.success) issues.push(...this.mapEntryIssues(parsedKey.error, key));
+      if (!parsedValue.success) issues.push(...this.mapEntryIssues(parsedValue.error, key, 'invalid_element'));
+      if (parsedKey.success && parsedValue.success) result.set(parsedKey.data, parsedValue.data);
+    }
+    // Lower bounds run after entry parsing (Zod): appended alongside entry issues.
+    for (const check of this._checks) {
+      if ((check.kind === 'min' || check.kind === 'size') && !check.fn(result)) {
+        issues.push(sizeIssue('map', check, result.size));
+      }
+    }
+    if (issues.length > 0) throw new VldError(issues);
     return result;
   }
 
@@ -298,10 +362,8 @@ export class VldMap<K, V> extends VldBase<unknown, Map<K, V>> {
     try {
       return { success: true, data: this.parse(value) };
     } catch (error) {
-      if (error instanceof VldError) {
-        return { success: false, error };
-      }
-      return { success: false, error: createMapError((error as Error).message) };
+      // Every parse failure path throws VldError.
+      return { success: false, error: error as VldError };
     }
   }
 

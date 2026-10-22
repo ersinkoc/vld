@@ -54,17 +54,21 @@ describe('VldTuple optimized paths', () => {
     expect(schema.safeParse({ pair: ['x', '1'] }).success).toBe(false);
   });
 
-  it('should expose expected simple item errors for all optimized modes', () => {
+  it('reports per-position issues for every optimized mode (Zod paths)', () => {
     const schema = v.tuple(v.string());
-
     expect((schema as any).getSimpleItemMode({ isSimple: true, validatorType: 'unsupported' }, 'unsupported')).toBeUndefined();
-    expect((schema as any).getSimpleItemError('string')).toBe('Invalid string');
-    expect((schema as any).getSimpleItemError('number')).toBe('Invalid number');
-    expect((schema as any).getSimpleItemError('boolean')).toBe('Invalid boolean');
-    expect((schema as any).getSimpleItemError('bigint')).toBe('Invalid bigint');
-    expect((schema as any).getSimpleItemError('symbol')).toBe('Invalid symbol');
-    expect((schema as any).getSimpleItemError('null', undefined, undefined)).toBe('Expected null, received undefined');
-    expect((schema as any).getSimpleItemError('undefinedValue')).toBe('Expected undefined');
-    expect((schema as any).getSimpleItemError(undefined)).toBe('Invalid tuple');
+    // The optimized paths re-collect through the item schema, so each failing
+    // position carries an issue with the item's own code, path and expected.
+    const r = v.tuple([v.string(), v.number(), v.boolean(), v.bigint(), v.symbol()]).safeParse([1, 'x', 'y', 'z', 1]);
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(r.error.issues.map((i: any) => [i.code, i.path, i.expected])).toEqual([
+        ['invalid_type', [0], 'string'],
+        ['invalid_type', [1], 'number'],
+        ['invalid_type', [2], 'boolean'],
+        ['invalid_type', [3], 'bigint'],
+        ['invalid_type', [4], 'symbol'],
+      ]);
+    }
   });
 });

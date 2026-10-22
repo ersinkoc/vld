@@ -422,7 +422,7 @@ describe('audit regressions round 2: JSON Schema', () => {
     expect(js(v.literal('a').nullable())).toEqual({ anyOf: [{ type: 'string', const: 'a' }, { type: 'null' }] });
     expect(js(v.nullable(v.nullable(v.string()))).type).toEqual(['string', 'null']);
     expect(js(v.enum(['a', 'b']).nullish()).anyOf).toHaveLength(2);
-    expect(js(v.union([v.string(), v.number()]).nullish()).anyOf[1]).toEqual({ type: 'null' });
+    expect(js(v.union([v.string(), v.number()]).nullish()).type).toEqual(['string', 'number', 'null']);
   });
 
   it('F58/F59 literals: every value; undefined / bigint are unrepresentable', () => {
@@ -450,7 +450,8 @@ describe('audit regressions round 2: JSON Schema', () => {
     expect(js(v.intersection(v.object({ a: v.string() }), v.object({ b: v.string() })))).toEqual({
       type: 'object', properties: { a: { type: 'string' }, b: { type: 'string' } }, required: ['a', 'b'], additionalProperties: false
     });
-    expect(js(v.intersection(v.object({ a: v.string() }).passthrough(), v.object({ b: v.string() }))).additionalProperties).toBe(true);
+    // Zod drops permissive additionalProperties when merging intersections.
+    expect(js(v.intersection(v.object({ a: v.string() }).passthrough(), v.object({ b: v.string() })))).not.toHaveProperty('additionalProperties');
     expect(js(v.intersection(v.string().min(2), v.string().max(4))).allOf).toHaveLength(2);
     expect(js(v.discriminatedUnion('t', [v.object({ t: v.literal('a') }), v.object({ t: v.literal('b') })])).oneOf).toHaveLength(2);
     expect(js((v as any).templateLiteral(['id-', v.number()]))).toMatchObject({ type: 'string' });
@@ -1094,13 +1095,16 @@ describe('audit regressions round 4: async parsing, wrappers and refinements', (
     expect(await map.parseAsync(new Map([['k', 'ab']]))).toEqual(new Map([['k', 'ab']]));
     await expect(map.parseAsync({})).rejects.toThrow();
     const badMap = issuesOf(await V.map(V.string(), asyncStr).safeParseAsync(new Map<any, any>([[1, 'ab'], ['k', 'x'], [{}, 'ab']])));
-    expect(badMap.map((i: any) => [i.code, i.path])).toEqual([['invalid_key', [1]], ['custom', ['k']], ['invalid_key', [2]]]);
+    // Zod: a primitive bad key nests its issues at [key]; a non-primitive key
+    // collapses into one invalid_key issue at the map root.
+    expect(badMap.map((i: any) => [i.code, i.path])).toEqual([['invalid_type', [1]], ['custom', ['k']], ['invalid_key', []]]);
     expect(issuesOf(await V.map(V.string(), V.string()).min(2).safeParseAsync(new Map([['a', 'b']])))[0].code).toBe('too_small');
 
     const set = V.set(asyncStr);
     expect(await set.parseAsync(new Set(['ab']))).toEqual(new Set(['ab']));
     await expect(set.parseAsync([])).rejects.toThrow();
-    expect(issuesOf(await set.safeParseAsync(new Set(['ab', 'x'])))[0].path).toEqual([1]);
+    // Zod: set member issues carry no index segment.
+    expect(issuesOf(await set.safeParseAsync(new Set(['ab', 'x'])))[0].path).toEqual([]);
     expect(issuesOf(await V.set(V.string()).max(1).safeParseAsync(new Set(['a', 'b'])))[0].code).toBe('too_big');
 
     const rec = V.record(V.string(), asyncStr);
@@ -1256,10 +1260,10 @@ describe('audit regressions round 4: async parsing, wrappers and refinements', (
     expect(v.toJSONSchema(V.stringV2().min(2).startsWith('a').endsWith('z').includes('m'))).toEqual(expect.objectContaining({ minLength: 2, pattern: '^a.*' }));
     expect(v.toJSONSchema(V.numberV2().int().min(1))).toEqual(expect.objectContaining({ type: 'integer', minimum: 1 }));
     expect(v.toJSONSchema(V.recordV2(V.numberV2()))).toEqual(expect.objectContaining({ additionalProperties: { type: 'number' } }));
-    expect(v.toJSONSchema(V.unionV2(V.stringV2(), V.numberV2()))).toEqual(expect.objectContaining({ anyOf: [{ type: 'string' }, { type: 'number' }] }));
+    expect(v.toJSONSchema(V.unionV2(V.stringV2(), V.numberV2()))).toEqual(expect.objectContaining({ type: ['string', 'number'] }));
     expect(v.toJSONSchema(V.intersectionV2(V.object({ a: V.string() }), V.object({ b: V.number() })))).toBeDefined();
     expect(v.toJSONSchema(V.literalV2('x'))).toEqual(expect.objectContaining({ const: 'x' }));
-    expect(v.toJSONSchema(V.enumV2(['a']))).toEqual(expect.objectContaining({ enum: ['a'] }));
+    expect(v.toJSONSchema(V.enumV2(['a']))).toEqual(expect.objectContaining({ type: 'string', enum: ['a'] }));
     expect(v.toJSONSchema(V.object({ a: V.optionalV2(V.stringV2()) }))).toEqual(expect.objectContaining({ properties: { a: { type: 'string' } } }));
     expect(v.toJSONSchema(V.nullableV2(V.stringV2()))).toEqual(expect.objectContaining({ type: ['string', 'null'] }));
     expect(v.toJSONSchema(V.nullishV2(V.stringV2()))).toEqual(expect.objectContaining({ type: ['string', 'null'] }));
@@ -1346,7 +1350,7 @@ describe('audit regressions round 4: async parsing, wrappers and refinements', (
     expect(issuesOf(V.date().max(new Date(1000)).safeParse(new Date(2000)))[0].code).toBe('too_big');
     expect(issuesOf(V.date().between(new Date(10), new Date(20)).safeParse(new Date(30)))[0].code).toBe('too_big');
     expect(issuesOf(V.date().between(new Date(10), new Date(20)).safeParse(new Date(1)))[0].code).toBe('too_small');
-    expect(issuesOf(V.date().safeParse(new Date(NaN)))[0].received).toBe('Invalid Date');
+    expect(issuesOf(V.date().safeParse(new Date(NaN)))[0].message).toContain('Invalid date');
     expect(issuesOf(V.date().safeParse({}))[0].expected).toBe('date');
     expect(issuesOf(V.coerce.date().min(new Date('2024-01-01'), 'early').safeParse('2023-01-01'))[0].message).toBe('early');
     expect(issuesOf(V.tuple([V.string()]).safeParse([]))[0].code).toBe('too_small');
@@ -1373,7 +1377,7 @@ describe('audit regressions round 4: async parsing, wrappers and refinements', (
   });
 
   it('F187-F192 coercion, literalV2, tupleV2, discriminated union and enum-keyed records', () => {
-    expect(issuesOf(V.coerce.number().safeParse('x'))[0]).toEqual(expect.objectContaining({ code: 'invalid_type', expected: 'number', received: 'NaN' }));
+    expect(issuesOf(V.coerce.number().safeParse('x'))[0]).toEqual(expect.objectContaining({ code: 'invalid_type', expected: 'number' }));
     expect(issuesOf(V.coerce.bigint().safeParse('x'))[0].expected).toBe('bigint');
     expect(issuesOf(V.coerce.bigint().safeParse(''))[0].expected).toBe('bigint');
     expect(issuesOf(V.coerce.bigint().safeParse(1.5))[0].expected).toBe('bigint');

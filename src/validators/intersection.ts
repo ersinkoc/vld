@@ -109,13 +109,6 @@ export function withoutKeys(value: unknown, keys: readonly string[]): unknown {
   return copy;
 }
 
-/** An error that is only "unrecognized keys at the root" stays a structured error, so an enclosing intersection can reconcile it. */
-function isUnrecognizedKeysError(error: unknown): error is VldError {
-  if (!(error instanceof VldError)) return false;
-  const side = intersectionSide({ success: false, error });
-  return !side.ok && side.keys !== undefined;
-}
-
 function createIntersectionError(message: string): VldError {
   return new VldError([{ code: 'invalid_type', path: [], message }]);
 }
@@ -148,33 +141,46 @@ export class VldIntersection<A, B> extends VldBase<unknown, A & B> {
    * Parse and validate a value against both validators
    */
   parse(value: unknown): A & B {
+    // Both validators must pass. Zod reports a failing side's own issues with
+    // their paths (both sides' issues when both fail).
+    const left = intersectionSide(this.validatorA.safeParse(value));
+    const right = intersectionSide(this.validatorB.safeParse(value));
+    // Zod concatenates both sides' issues when both fail structurally.
+    if (!left.ok && !left.keys && !right.ok && !right.keys) {
+      throw new VldError([...left.error.issues, ...right.error.issues]);
+    }
+    const plan = planIntersection(left, right);
+    if (plan === undefined) {
+      return intersectResults((left as { data: unknown }).data, (right as { data: unknown }).data) as A & B;
+    }
     try {
-      // Both validators must pass
-      const left = intersectionSide(this.validatorA.safeParse(value));
-      const right = intersectionSide(this.validatorB.safeParse(value));
-      const plan = planIntersection(left, right);
-      if (plan === undefined) return intersectResults((left as { data: unknown }).data, (right as { data: unknown }).data) as A & B;
       const resultA = left.ok ? left.data : this.validatorA.parse(withoutKeys(value, plan.left));
       const resultB = right.ok ? right.data : this.validatorB.parse(withoutKeys(value, plan.right));
       return intersectResults(resultA, resultB) as A & B;
     } catch (error) {
-      if (isUnrecognizedKeysError(error)) throw error;
+      if (error instanceof VldError) throw error;
       throw new Error(getMessages().intersectionError((error as Error).message));
     }
   }
   
   /** Async parse: both sides run their parseAsync, then the outputs are combined. */
   override async parseAsync(value: unknown): Promise<A & B> {
+    const left = intersectionSide(await this.validatorA.safeParseAsync(value));
+    const right = intersectionSide(await this.validatorB.safeParseAsync(value));
+    // Zod concatenates both sides' issues when both fail structurally.
+    if (!left.ok && !left.keys && !right.ok && !right.keys) {
+      throw new VldError([...left.error.issues, ...right.error.issues]);
+    }
+    const plan = planIntersection(left, right);
+    if (plan === undefined) {
+      return intersectResults((left as { data: unknown }).data, (right as { data: unknown }).data) as A & B;
+    }
     try {
-      const left = intersectionSide(await this.validatorA.safeParseAsync(value));
-      const right = intersectionSide(await this.validatorB.safeParseAsync(value));
-      const plan = planIntersection(left, right);
-      if (plan === undefined) return intersectResults((left as { data: unknown }).data, (right as { data: unknown }).data) as A & B;
       const resultA = left.ok ? left.data : await this.validatorA.parseAsync(withoutKeys(value, plan.left));
       const resultB = right.ok ? right.data : await this.validatorB.parseAsync(withoutKeys(value, plan.right));
       return intersectResults(resultA, resultB) as A & B;
     } catch (error) {
-      if (isUnrecognizedKeysError(error)) throw error;
+      if (error instanceof VldError) throw error;
       throw new Error(getMessages().intersectionError((error as Error).message));
     }
   }
@@ -186,7 +192,7 @@ export class VldIntersection<A, B> extends VldBase<unknown, A & B> {
     try {
       return { success: true, data: this.parse(value) };
     } catch (error) {
-      if (isUnrecognizedKeysError(error)) return { success: false, error };
+      if (error instanceof VldError) return { success: false, error };
       return { success: false, error: createIntersectionError((error as Error).message) };
     }
   }

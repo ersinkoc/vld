@@ -5,6 +5,78 @@ All notable changes to VLD will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Parity baseline moved to **zod 4.6.7**. Zod 4.6.6 introduced the container
+size gate and a record typing fix; porting it surfaced a family of older
+container-reporting divergences which are closed here as well.
+
+### Changed (Zod 4.6.6 port)
+
+- **Arrays, sets and maps over an upper size bound now fail before any
+  element is parsed** (Zod 4.6.6 `capSize`): `array/set/map.max()` and
+  `.length()`/`.size()` on oversized input report only the `too_big` issue and
+  never parse members - in the sync, async and compiled paths.
+- **Lower bounds now run after member parsing** (Zod): an undersized
+  `array/set/map` reports its `too_small` issue alongside - not instead of -
+  the member issues, in the sync and async paths.
+- **Rest-less tuples gate arity first**: an undersized tuple reports only
+  `too_small` (elements never parsed); an oversized one reports `too_big`
+  before any element issue. A tuple **with** a rest schema performs no arity
+  check: omitted slots run through their schemas with `undefined` (Zod).
+- **Record exhaustive keys run through the key schema first** (Zod): a
+  declared enum key the key schema rejects (e.g. `.refine(() => false)`)
+  produces an `invalid_key` issue at `[key]` with origin `record`, not a value
+  issue. Numeric-string keys keep their numeric retry in collection mode.
+
+### Changed (container issue reporting, Zod-exact)
+
+- Sync `array`/`tuple`/`record`/`map`/`set` failures now re-collect through
+  the member schemas, so every failing member carries its own issue with the
+  full path (`[index, ...]`, `["key", ...]`) and `expected`, instead of one
+  flattened container issue at the root. Nested cases such as
+  `invalid_type@[0,"a"]` now match Zod exactly (sync and async agree).
+- Map entries follow Zod's `handleMapResult`: failures on a property-key-shaped
+  key are prefixed with that key; failures on other keys collapse into one
+  `invalid_key` / `invalid_element` issue at the map root carrying the nested
+  issues (and `key` for `invalid_element`). Async map keys no longer produce
+  `invalid_key` for primitive keys.
+- Set member issues carry no index segment (Zod), in both paths.
+- Intersections surface the failing side's own issues (concatenated when both
+  sides fail structurally) instead of a wrapped "Intersection validation
+  failed" error; unrecognized-key reconciliation is unchanged.
+- `invalid_type` issues no longer expose a `received` field (Zod 4 exposes
+  `expected` only; the received type stays in the message), and object field
+  issues now carry `expected` for simple-mode fields.
+
+### Changed (JSON Schema output, Zod-exact)
+
+- Format checks emit Zod's exact `pattern` alongside `format` (email, uuid,
+  date, time, ipv4, ipv6, cidrv6, ...); `time` emits the pattern without a
+  format keyword and `jwt` the format without a pattern, as in Zod.
+- Primitive unions collapse to a `type` array; string enums emit
+  `type: "string"` with `enum`; `literal(null)` adds `const: null`;
+  passthrough objects use the permissive empty schema (`{}`) instead of
+  `true`; records always emit `propertyNames` (`{type:"string"}` for plain
+  string keys); merged intersections drop permissive `additionalProperties`;
+  `$schema` leads the document.
+- Template-literal patterns follow Zod's exact forms: bare number/bigint
+  (bigint accepts the trailing `n`), non-capturing boolean alternation,
+  nested capturing groups for unions, and `{0,}` for a bare string slot -
+  which means `templateLiteral('prefix-', v.string())` now accepts
+  `'prefix-'` (use `v.string().min(1)` for the old behaviour).
+- The unrepresentable-transform error message matches Zod's wording
+  ("Transforms cannot be represented in JSON Schema").
+
+### Fixed
+
+- Zod #6652 (size before elements) and #6645 (record output/input typing)
+  were reviewed against VLD's own type surface; record inference needed no
+  change, the runtime behaviour is covered above.
+- Coverage restored to 100% statements/functions/lines and >=99% branches with
+  the new collector paths; `npm run benchmark:guard` passes (average 5.6x
+  faster than Zod).
+
 ## [3.0.10] - 2026-09-15
 
 ### Changed

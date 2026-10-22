@@ -196,7 +196,9 @@ describe('Validators - Edge Cases for 100% Coverage', () => {
     it('should throw error for different primitive values', () => {
       const validator = v.intersection(v.literal('a'), v.literal('b'));
 
-      expect(() => validator.parse('a')).toThrow('Intersection validation failed');
+      // Zod: the failing side's issues surface directly.
+      const rejected = validator.safeParse('a');
+      expect(rejected.success).toBe(false);
     });
 
     it('should throw error for object and primitive intersection', () => {
@@ -205,7 +207,9 @@ describe('Validators - Edge Cases for 100% Coverage', () => {
         v.string()
       );
 
-      expect(() => validator.parse({ a: 'test' })).toThrow('Intersection validation failed');
+      // Zod: the failing side's issues surface directly.
+      const rejectedObject = validator.safeParse({ a: 'test' });
+      expect(rejectedObject.success).toBe(false);
     });
 
     it('should throw error for primitive and object intersection', () => {
@@ -214,7 +218,9 @@ describe('Validators - Edge Cases for 100% Coverage', () => {
         v.object({ value: v.number() })
       );
 
-      expect(() => validator.parse(42)).toThrow('Intersection validation failed');
+      // Zod: the failing side's issues surface directly (invalid_type here).
+      const rejected = validator.safeParse(42);
+      expect(rejected.success).toBe(false);
     });
   });
 

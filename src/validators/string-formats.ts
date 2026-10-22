@@ -314,7 +314,7 @@ export const isValidUrl = (value: string): boolean => HTTP_URL_PREFIX.test(value
 export const uuid = (options?: { version?: UUIDVersion }): VldStringFormat => {
   const version = options?.version === undefined ? undefined : Number(options.version.slice(1));
   const pattern = uuidRegex(version);
-  return VldStringFormat.create('uuid', value => testRegex(pattern, value));
+  return VldStringFormat.create('uuid', value => testRegex(pattern, value), undefined, undefined, pattern.source);
 };
 
 export const uuidv4 = (): VldStringFormat => VldStringFormat.create('uuid', value => testRegex(REGEXES.uuid4, value));
@@ -347,8 +347,8 @@ export const nanoid = (): VldStringFormat => VldStringFormat.create('nanoid', va
 export const cuid = (): VldStringFormat => VldStringFormat.create('cuid', value => testRegex(REGEXES.cuid, value));
 export const cuid2 = (): VldStringFormat => VldStringFormat.create('cuid2', value => testRegex(REGEXES.cuid2, value));
 export const ulid = (): VldStringFormat => VldStringFormat.create('ulid', value => testRegex(REGEXES.ulid, value));
-export const ipv4 = (): VldStringFormat => VldStringFormat.create('ipv4', value => testRegex(REGEXES.ipv4, value));
-export const ipv6 = (): VldStringFormat => VldStringFormat.create('ipv6', isValidIPv6Address);
+export const ipv4 = (): VldStringFormat => VldStringFormat.create('ipv4', value => testRegex(REGEXES.ipv4, value), undefined, undefined, REGEXES.ipv4.source);
+export const ipv6 = (): VldStringFormat => VldStringFormat.create('ipv6', isValidIPv6Address, undefined, undefined, '^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))$');
 export const mac = (options?: { delimiter?: string }): VldStringFormat => {
   const pattern = REGEXES.mac(options?.delimiter);
   return VldStringFormat.create('mac', value => testRegex(pattern, value));
@@ -356,7 +356,7 @@ export const mac = (options?: { delimiter?: string }): VldStringFormat => {
 export const cidrv4 = (): VldStringFormat => VldStringFormat.create('cidrv4', value => testRegex(REGEXES.cidrv4, value));
 // Number('') / Number(' 64') / Number('1e2') / Number('0x40') all parse, so the
 // prefix is matched as canonical digits instead.
-export const cidrv6 = (): VldStringFormat => VldStringFormat.create('cidrv6', isValidCidrV6);
+export const cidrv6 = (): VldStringFormat => VldStringFormat.create('cidrv6', isValidCidrV6, undefined, undefined, '^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)\/(12[0-8]|1[01][0-9]|[1-9]?[0-9])$');
 export const e164 = (): VldStringFormat => VldStringFormat.create('e164', value => testRegex(REGEXES.e164, value));
 export const xid = (): VldStringFormat => VldStringFormat.create('xid', value => testRegex(REGEXES.xid, value));
 export const guid = (): VldStringFormat => VldStringFormat.create('guid', value => testRegex(REGEXES.guid, value));
@@ -460,7 +460,7 @@ export const iso = {
   ZodISODateTime: VldStringFormat,
   ZodISODuration: VldStringFormat,
   ZodISOTime: VldStringFormat,
-  date: () => VldStringFormat.create('date', value => testRegex(REGEXES.date, value)),
+  date: () => VldStringFormat.create('date', value => testRegex(REGEXES.date, value), undefined, undefined, REGEXES.date.source),
   time: (options: ISOTimeOptions = {}) => {
     const pattern = REGEXES.time(options);
     return VldStringFormat.create('time', value => testRegex(pattern, value));

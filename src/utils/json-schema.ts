@@ -126,14 +126,19 @@ export function toJSONSchema<T>(
     normalizedOptions
   );
   const target = normalizedOptions.target || 'draft-2020-12';
+  let schemaId: string | undefined;
   if (target === 'draft-04') {
-    result.$schema ??= 'http://json-schema.org/draft-04/schema#';
+    schemaId = 'http://json-schema.org/draft-04/schema#';
   } else if (target === 'draft-07') {
-    result.$schema ??= 'http://json-schema.org/draft-07/schema#';
+    schemaId = 'http://json-schema.org/draft-07/schema#';
   } else if (target === 'draft-2019-09') {
-    result.$schema ??= 'https://json-schema.org/draft/2019-09/schema';
+    schemaId = 'https://json-schema.org/draft/2019-09/schema';
   } else if (target === 'draft-2020-12') {
-    result.$schema ??= 'https://json-schema.org/draft/2020-12/schema';
+    schemaId = 'https://json-schema.org/draft/2020-12/schema';
+  }
+  if (schemaId !== undefined) {
+    // Zod leads the document with $schema; preserve that key order.
+    return { $schema: schemaId, ...result };
   }
   return result;
 }
@@ -487,7 +492,7 @@ function convertSchemaToJSONSchema(schema: AnyVldSchema, options: ToJSONSchemaOp
 
   // Handle transform types
   if (schema.constructor.name === 'VldTransform') {
-    return unrepresentable(schema, options, 'Transform', () => schemaToJSONSchema(unwrapInner(schemaAny), options));
+    return unrepresentable(schema, options, 'Transforms', () => schemaToJSONSchema(unwrapInner(schemaAny), options));
   }
 
   // Handle meta types - unwrap metadata
@@ -534,7 +539,16 @@ function convertSchemaToJSONSchema(schema: AnyVldSchema, options: ToJSONSchemaOp
   // Handle string format validators
   if (schema.constructor.name === 'VldStringFormat') {
     const formatSchema = schema as any;
-    return withMetadata(schema, { type: 'string', format: jsonFormatName(formatSchema._format) }, options);
+    const format = jsonFormatName(formatSchema._format);
+    // Zod emits the pattern alongside the format for regex-backed formats
+    // (and no format keyword for time, which has none in JSON Schema).
+    const definition: JSONSchemaDefinition =
+      format === 'time' && formatSchema._patternSource
+        ? { type: 'string', pattern: formatSchema._patternSource }
+        : formatSchema._patternSource
+          ? { type: 'string', format, pattern: formatSchema._patternSource }
+          : { type: 'string', format };
+    return withMetadata(schema, definition, options);
   }
 
   if (schema.constructor.name === 'VldDiscriminatedUnion') {
@@ -607,7 +621,7 @@ function buildV2Schema(schema: any, target: string, options: ToJSONSchemaOptions
     case 'refine':
       return schemaToJSONSchema(def.inner, options);
     case 'transform':
-      return unrepresentable(schema, options, 'Transform', () => schemaToJSONSchema(def.inner, options));
+      return unrepresentable(schema, options, 'Transforms', () => schemaToJSONSchema(def.inner, options));
     default:
       return undefined;
   }
@@ -869,7 +883,8 @@ function buildObjectSchema(schema: any, options: ToJSONSchemaOptions): JSONSchem
 
   // Handle passthrough mode
   if (schema._passthrough || schema._loose || schema.config?.passthrough) {
-    result.additionalProperties = true;
+    // Zod models passthrough as the permissive empty schema, not boolean true.
+    result.additionalProperties = {};
   } else if (schema.config?.catchall) {
     result.additionalProperties = schemaToJSONSchema(schema.config.catchall, options);
   } else if (options.io !== 'input' || schema.config?.strict) {
@@ -890,9 +905,16 @@ function isOmittable(schema: AnyVldSchema, options: ToJSONSchemaOptions): boolea
  */
 function buildUnionSchema(schema: any, options: ToJSONSchemaOptions): JSONSchemaDefinition {
   const validators = schema._validators || schema._options || schema.validators || [];
-  return {
-    anyOf: validators.map((v: AnyVldSchema) => schemaToJSONSchema(v, options))
-  };
+  const schemas = validators.map((v: AnyVldSchema) => schemaToJSONSchema(v, options));
+  // Zod collapses a union of primitive type schemas into a type array.
+  const types: string[] = [];
+  for (const sub of schemas) {
+    if (!sub || typeof sub !== 'object' || Array.isArray(sub)) return { anyOf: schemas };
+    const keys = Object.keys(sub);
+    if (keys.length !== 1 || keys[0] !== 'type' || Array.isArray((sub as any).type)) return { anyOf: schemas };
+    types.push((sub as any).type as string);
+  }
+  return types.length > 0 ? { type: types } : { anyOf: schemas };
 }
 
 /**
@@ -912,7 +934,7 @@ function buildLiteralSchema(schema: any, options: ToJSONSchemaOptions): JSONSche
     return only !== undefined && only !== 'null' ? { type: only, enum: [...values] } : { enum: [...values] };
   }
   const value = values[0];
-  if (value === null) return { type: 'null' };
+  if (value === null) return { type: 'null', const: null };
   if (typeof value === 'string') return { type: 'string', const: value };
   if (typeof value === 'number') return { type: 'number', const: value };
   if (typeof value === 'boolean') return { type: 'boolean', const: value };
@@ -925,6 +947,11 @@ function buildLiteralSchema(schema: any, options: ToJSONSchemaOptions): JSONSche
 function buildEnumSchema(schema: any): JSONSchemaDefinition {
   const values = schema._values || schema.values;
   if (Array.isArray(values)) {
+    const types = new Set(values.map((item: unknown) => (item === null ? 'null' : typeof item)));
+    if (types.size === 1 && (types.has('string') || types.has('number'))) {
+      // Zod emits the member type alongside the enum values.
+      return { type: [...types][0] as string, enum: [...values] };
+    }
     return { enum: [...values] };
   }
   return {};
@@ -943,9 +970,11 @@ function buildRecordSchema(schema: any, options: ToJSONSchemaOptions): JSONSchem
     const keyValidator = schema.keyValidator;
     if (keyValidator) {
       const keySchema = schemaToJSONSchema(keyValidator, options);
-      // A plain string key adds nothing; anything stricter is kept.
+      // Zod always emits propertyNames; a plain string key becomes {type:'string'}.
       if (!(Object.keys(keySchema).length === 1 && keySchema.type === 'string')) {
         result.propertyNames = keySchema;
+      } else {
+        result.propertyNames = { type: 'string' };
       }
       // Enum / literal keys: every key is required unless the value accepts undefined.
       const finiteKeys = keyValidator.constructor.name === 'VldEnum' || keyValidator.constructor.name === 'VldLiteral'
@@ -1052,17 +1081,17 @@ function mergeObjectSchemas(a: JSONSchemaDefinition, b: JSONSchemaDefinition): J
   const plainObject = (d: JSONSchemaDefinition) =>
     d.type === 'object' && d.properties !== undefined && Object.keys(d).every((key) =>
       key === 'type' || key === 'properties' || key === 'required' || key === 'additionalProperties') &&
-    (d.additionalProperties === undefined || typeof d.additionalProperties === 'boolean');
+    (d.additionalProperties === undefined || typeof d.additionalProperties === 'boolean' ||
+      (typeof d.additionalProperties === 'object' && Object.keys(d.additionalProperties).length === 0));
   if (!plainObject(a) || !plainObject(b)) {
     return undefined;
   }
   const required = [...new Set([...(a.required ?? []), ...(b.required ?? [])])];
   const result: JSONSchemaDefinition = { type: 'object', properties: { ...a.properties, ...b.properties } };
   if (required.length > 0) result.required = required;
+  // Zod drops permissive additionalProperties sides when merging intersections.
   if (a.additionalProperties === false && b.additionalProperties === false) {
     result.additionalProperties = false;
-  } else if (a.additionalProperties === true || b.additionalProperties === true) {
-    result.additionalProperties = true;
   }
   return result;
 }

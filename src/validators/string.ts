@@ -399,7 +399,7 @@ export class VldString extends VldBase<string, string> {
       checks: [...this.config.checks, (v: string) => REGEX_PATTERNS.email.test(v)],
       transforms: this.config.transforms,
       errorMessage: resolveErrorMessage(message, getMessages().stringEmail),
-      jsonSchema: { ...this.config.jsonSchema, format: 'email' },
+      jsonSchema: { ...this.config.jsonSchema, format: 'email', pattern: "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$" },
       checkMetas: [...this._metasForExistingChecks(), { kind: 'format', format: 'email', message: resolveErrorMessage(message, getMessages().stringEmail) }]
     });
   }
@@ -425,7 +425,7 @@ export class VldString extends VldBase<string, string> {
       checks: [...this.config.checks, (v: string) => REGEX_PATTERNS.uuid.test(v)],
       transforms: this.config.transforms,
       errorMessage: resolveErrorMessage(message, getMessages().stringUuid),
-      jsonSchema: { ...this.config.jsonSchema, format: 'uuid' },
+      jsonSchema: { ...this.config.jsonSchema, format: 'uuid', pattern: REGEX_PATTERNS.uuid.source },
       checkMetas: [...this._metasForExistingChecks(), { kind: 'format', format: 'uuid', message: resolveErrorMessage(message, getMessages().stringUuid) }]
     });
   }
@@ -446,7 +446,16 @@ export class VldString extends VldBase<string, string> {
   emoji(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.emoji, 'emoji', message); }
   base64(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.base64, 'base64', message); }
   base64url(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.base64url, 'base64url', message); }
-  jwt(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.jwt, 'jwt', message); }
+  jwt(message?: ErrorParam): VldString {
+    // Zod's JSON Schema carries the jwt format without a pattern.
+    return this.derive({
+      checks: [...this.config.checks, (value: string) => REGEX_PATTERNS.jwt.test(value)],
+      transforms: this.config.transforms,
+      errorMessage: resolveErrorMessage(message, `Invalid jwt`),
+      jsonSchema: { ...this.config.jsonSchema, format: 'jwt' },
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'format', format: 'jwt', message: resolveErrorMessage(message, `Invalid jwt`) }]
+    });
+  }
   nanoid(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.nanoid, 'nanoid', message); }
   cuid(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.cuid, 'cuid', message); }
   cuid2(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.cuid2, 'cuid2', message); }
@@ -457,7 +466,7 @@ export class VldString extends VldBase<string, string> {
       checks: [...this.config.checks, isValidCidrV6],
       transforms: this.config.transforms,
       errorMessage: resolveErrorMessage(message, 'Invalid cidrv6'),
-      jsonSchema: { ...this.config.jsonSchema, format: 'cidrv6' },
+      jsonSchema: { ...this.config.jsonSchema, format: 'cidrv6', pattern: '^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))/(12[0-8]|1[01][0-9]|[1-9]?[0-9])$' },
       checkMetas: [...this._metasForExistingChecks(), { kind: 'format', format: 'cidrv6', message: resolveErrorMessage(message, 'Invalid cidrv6') }]
     });
   }
@@ -468,11 +477,20 @@ export class VldString extends VldBase<string, string> {
   date(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.isoDate, 'date', message); }
   time(params?: ErrorParam | (ISOTimeOptions & { message?: string })): VldString {
     const options = isoFormatOptions<ISOTimeOptions>(params);
-    return this.format(options?.precision !== undefined ? FORMAT_REGEXES.time(options) : REGEX_PATTERNS.isoTime, 'time', params as ErrorParam);
+    const pattern = options?.precision !== undefined ? FORMAT_REGEXES.time(options) : REGEX_PATTERNS.isoTime;
+    // Zod's JSON Schema carries the pattern but no format keyword for time.
+    return this.derive({
+      checks: [...this.config.checks, (value: string) => pattern.test(value)],
+      transforms: this.config.transforms,
+      errorMessage: resolveErrorMessage(params as ErrorParam, `Invalid time`),
+      jsonSchema: { ...this.config.jsonSchema, pattern: pattern.source },
+      checkMetas: [...this._metasForExistingChecks(), { kind: 'format', format: 'time', pattern: pattern.source, flags: pattern.flags, message: resolveErrorMessage(params as ErrorParam, `Invalid time`) }]
+    });
   }
   datetime(params?: ErrorParam | (ISODateTimeOptions & { message?: string })): VldString {
     const options = isoFormatOptions<ISODateTimeOptions>(params);
-    return this.format(options ? isoDateTimeRegex(options) : REGEX_PATTERNS.isoDateTime, 'datetime', params as ErrorParam);
+    const pattern = options ? isoDateTimeRegex(options) : isoDateTimeRegex({});
+    return this.format(pattern, 'datetime', params as ErrorParam);
   }
   duration(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.isoDuration, 'duration', message); }
   
@@ -631,7 +649,7 @@ export class VldString extends VldBase<string, string> {
       checks: [...this.config.checks, (v: string) => REGEX_PATTERNS.ipv4.test(v)],
       transforms: this.config.transforms,
       errorMessage: resolveErrorMessage(message, getMessages().stringIpv4),
-      jsonSchema: { ...this.config.jsonSchema, format: 'ipv4' },
+      jsonSchema: { ...this.config.jsonSchema, format: 'ipv4', pattern: REGEX_PATTERNS.ipv4.source },
       checkMetas: [...this._metasForExistingChecks(), { kind: 'format', format: 'ipv4', message: resolveErrorMessage(message, getMessages().stringIpv4) }]
     });
   }
@@ -647,7 +665,7 @@ export class VldString extends VldBase<string, string> {
       }],
       transforms: this.config.transforms,
       errorMessage: resolveErrorMessage(message, getMessages().stringIpv6),
-      jsonSchema: { ...this.config.jsonSchema, format: 'ipv6' },
+      jsonSchema: { ...this.config.jsonSchema, format: 'ipv6', pattern: '^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))$' },
       checkMetas: [...this._metasForExistingChecks(), { kind: 'format', format: 'ipv6', message: resolveErrorMessage(message, getMessages().stringIpv6) }]
     });
   }

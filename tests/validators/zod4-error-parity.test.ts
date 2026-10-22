@@ -161,7 +161,7 @@ describe('Zod 4 error issue coverage', () => {
         expect(e).toBeInstanceOf(VldError);
         expect(thrownIssue(e).code).toBe('invalid_type');
         expect(thrownIssue(e).expected).toBe('string');
-        expect(thrownIssue(e).received).toBe('number');
+        expect(thrownIssue(e).message).toContain('number');
       }
     });
   });
@@ -198,7 +198,7 @@ describe('Zod 4 error issue coverage', () => {
         const issue = firstIssue(r as any);
         expect(issue.code).toBe('invalid_type');
         expect(issue.expected).toBe('int');
-        expect(issue.received).toBe('number');
+        expect(issue.message).toContain('Number');
       }
     });
 
@@ -275,7 +275,7 @@ describe('Zod 4 error issue coverage', () => {
         const issue = firstIssue(r as any);
         expect(issue.code).toBe('invalid_type');
         expect(issue.expected).toBe('number');
-        expect(issue.received).toBe('Infinity');
+        expect(issue.message).toContain('Infinity');
       }
     });
 
@@ -283,7 +283,7 @@ describe('Zod 4 error issue coverage', () => {
       const r = v.number().safeParse(-Infinity);
       expect(r.success).toBe(false);
       if (!r.success) {
-        expect(firstIssue(r as any).received).toBe('-Infinity');
+        expect(firstIssue(r as any).message).toContain('-Infinity');
       }
     });
 
@@ -291,7 +291,7 @@ describe('Zod 4 error issue coverage', () => {
       const r = v.number().safeParse(NaN);
       expect(r.success).toBe(false);
       if (!r.success) {
-        expect(firstIssue(r as any).received).toBe('nan');
+        expect(firstIssue(r as any).message).toContain('nan');
       }
     });
 
@@ -335,7 +335,6 @@ describe('Zod 4 error issue coverage', () => {
         const issue = firstIssue(r as any);
         expect(issue.code).toBe('invalid_type');
         expect(issue.expected).toBe('array');
-        expect(issue.received).toBe('string');
       }
     });
   });
@@ -390,7 +389,7 @@ describe('Zod 4 error issue coverage', () => {
         const issue = firstIssue(r as any);
         expect(issue.code).toBe('invalid_type');
         expect(issue.expected).toBe('boolean');
-        expect(issue.received).toBe('string');
+        expect(issue.message).toContain('string');
       }
     });
 
@@ -519,7 +518,7 @@ describe('Zod 4 error issue coverage', () => {
       const r = v.string().safeParse(new Date());
       expect(r.success).toBe(false);
       if (!r.success) {
-        expect(firstIssue(r as any).received).toBe('date');
+        expect(firstIssue(r as any).message).toContain('date');
       }
     });
 
@@ -527,7 +526,7 @@ describe('Zod 4 error issue coverage', () => {
       const r = v.string().safeParse(new Map());
       expect(r.success).toBe(false);
       if (!r.success) {
-        expect(firstIssue(r as any).received).toBe('map');
+        expect(firstIssue(r as any).message).toContain('map');
       }
     });
 
@@ -535,7 +534,7 @@ describe('Zod 4 error issue coverage', () => {
       const r = v.string().safeParse(new Set());
       expect(r.success).toBe(false);
       if (!r.success) {
-        expect(firstIssue(r as any).received).toBe('set');
+        expect(firstIssue(r as any).message).toContain('set');
       }
     });
 
@@ -543,7 +542,7 @@ describe('Zod 4 error issue coverage', () => {
       const r = v.string().safeParse(BigInt(123));
       expect(r.success).toBe(false);
       if (!r.success) {
-        expect(firstIssue(r as any).received).toBe('bigint');
+        expect(firstIssue(r as any).message).toContain('bigint');
       }
     });
 
@@ -551,7 +550,7 @@ describe('Zod 4 error issue coverage', () => {
       const r = v.string().safeParse(Symbol('test'));
       expect(r.success).toBe(false);
       if (!r.success) {
-        expect(firstIssue(r as any).received).toBe('symbol');
+        expect(firstIssue(r as any).message).toContain('symbol');
       }
     });
   });

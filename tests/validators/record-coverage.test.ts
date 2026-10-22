@@ -113,23 +113,28 @@ describe('VldRecord Coverage Tests', () => {
     });
 
     describe('simple value mode helpers', () => {
-      it('should expose expected simple value errors for all optimized modes', () => {
-        const helpers = [
-          { schema: v.record(v.string()), message: 'Invalid string' },
-          { schema: v.record(v.number()), message: 'Invalid number' },
-          { schema: v.record(v.boolean()), message: 'Invalid boolean' },
-          { schema: v.record(v.bigint()), message: 'Invalid bigint' },
-          { schema: v.record(v.symbol()), message: 'Invalid symbol' },
-          { schema: v.record(v.undefined()), message: 'Expected undefined' }
+      it('reports per-key issues for every optimized mode (Zod paths)', () => {
+        const cases: Array<[any, any, string]> = [
+          [v.record(v.string()), 1, 'string'],
+          [v.record(v.number()), 'x', 'number'],
+          [v.record(v.boolean()), 'x', 'boolean'],
+          [v.record(v.bigint()), 1, 'bigint'],
+          [v.record(v.symbol()), 'x', 'symbol'],
+          [v.record(v.undefined()), 'x', 'undefined'],
+          [v.record(v.null()), 'x', 'null'],
         ];
 
-        for (const { schema, message } of helpers) {
-          expect((schema as any).getSimpleValueError('received')).toBe(message);
+        for (const [schema, bad, expected] of cases) {
+          const r = schema.safeParse({ a: bad });
+          expect(r.success).toBe(false);
+          if (!r.success) {
+            expect(r.error.issues[0]).toEqual(expect.objectContaining({ code: 'invalid_type', path: ['a'], expected }));
+          }
         }
 
-        expect((v.record(v.null()) as any).getSimpleValueError(undefined)).toBe('Expected null, received undefined');
         expect((v.record(v.string()) as any).getSimpleValueMode({ isSimple: true, validatorType: 'unsupported' })).toBeUndefined();
-        expect((v.record(v.array(v.string())) as any).getSimpleValueError('received')).toBe('Invalid record');
+        const complex = v.record(v.array(v.string())).safeParse({ a: 1 });
+        expect(complex.success).toBe(false);
       });
     });
   });

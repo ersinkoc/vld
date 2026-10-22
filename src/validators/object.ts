@@ -81,11 +81,41 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
       return messageOrError;
     }
     const message = messageOrError instanceof Error ? messageOrError.message : String(messageOrError);
+    const expected = this.expectedForField(fieldKey);
     return new VldError([{
       code: 'invalid_type',
       path: fieldKey !== undefined ? [fieldKey] : [],
+      ...(expected !== undefined ? { expected } : {}),
       message: fieldKey !== undefined && !message.startsWith('Invalid field') ? getMessages().objectField(String(fieldKey), message) : message
     }]);
+  }
+
+  /** Zod's `expected` for a simple-mode field failure; inner schemas already carry it. */
+  private expectedForField(fieldKey?: string | number): string | undefined {
+    if (fieldKey === undefined) {
+      return undefined;
+    }
+    const index = this._shapeKeys.indexOf(String(fieldKey));
+    if (index < 0) {
+      return undefined;
+    }
+    return VldObject.expectedForMode(this._simpleFieldModes[index]);
+  }
+
+  private static expectedForMode(mode: string | undefined): string | undefined {
+    switch (mode) {
+      case 'string':
+      case 'number':
+      case 'boolean':
+      case 'bigint':
+      case 'symbol':
+      case 'null':
+        return mode;
+      case 'undefinedValue':
+        return 'undefined';
+      default:
+        return undefined;
+    }
   }
 
   /**
@@ -454,6 +484,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
             throw new VldError([{
               code: 'invalid_type',
               path: [key],
+              expected: 'undefined',
               message: getMessages().objectField(key, getMessages().requiredField(key))
             }]);
           }
@@ -810,6 +841,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
           issues.push({
             code: 'invalid_type',
             path: [key],
+            ...(simpleMode === 'undefinedValue' ? { expected: 'undefined' as const } : {}),
             message: getMessages().objectField(key, getMessages().requiredField(key))
           });
           continue;
@@ -833,9 +865,11 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
           continue;
         }
 
+        const expected = VldObject.expectedForMode(simpleMode);
         issues.push({
           code: 'invalid_type',
           path: [key],
+          ...(expected !== undefined ? { expected } : {}),
           message: getMessages().objectField(key, this.getSimpleFieldError(simpleMode, this._simpleFieldValues[i], fieldValue))
         });
         continue;
@@ -955,7 +989,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
       const key = this._shapeKeys[i]!;
       const simpleMode = this._simpleFieldModes[i];
       if ((simpleMode === 'passthrough' || simpleMode === 'undefinedValue') && !Object.prototype.hasOwnProperty.call(obj, key)) {
-        issues.push({ code: 'invalid_type', path: [key], message: getMessages().objectField(key, getMessages().requiredField(key)) });
+        issues.push({ code: 'invalid_type', path: [key], ...(simpleMode === 'undefinedValue' ? { expected: 'undefined' as const } : {}), message: getMessages().objectField(key, getMessages().requiredField(key)) });
         continue;
       }
       let fieldResult: ParseResult<unknown>;

@@ -2,7 +2,7 @@ import { VldBase, ParseResult, VLD_VALIDATOR_TYPES, isAsyncRequiredError } from 
 import type { VldOptional, VldExactOptional, VldNullish } from './base';
 import type { VldOptionalV2, VldNullishV2 } from './wrapper-v2';
 import { getMessages } from '../locales/runtime';
-import { VldError, stringifyForMessage, nestIssues, createInvalidTypeIssue, getTypeName, type VldIssue } from '../errors-core';
+import { VldError, nestIssues, createInvalidTypeIssue, getTypeName, type VldIssue } from '../errors-core';
 
 /**
  * Zod's optin / optout ladder for one tuple item: `optin` says whether an omitted slot is
@@ -187,28 +187,6 @@ export class VldTuple<
     }
   }
 
-  private getSimpleItemError(mode: SimpleTupleItemMode, expected?: unknown, received?: unknown): string {
-    switch (mode) {
-      case 'string':
-        return getMessages().invalidString;
-      case 'number':
-        return getMessages().invalidNumber;
-      case 'boolean':
-        return getMessages().invalidBoolean;
-      case 'bigint':
-        return getMessages().invalidBigint;
-      case 'symbol':
-        return getMessages().invalidSymbol;
-      case 'null':
-        return `Expected null, received ${typeof received}`;
-      case 'undefinedValue':
-        return getMessages().expectedUndefined;
-      case 'literal':
-        return getMessages().literalExpected(stringifyForMessage(expected), stringifyForMessage(received));
-      default:
-        return getMessages().invalidTuple;
-    }
-  }
   
   /**
    * Create a new tuple validator
@@ -245,9 +223,16 @@ export class VldTuple<
    * @internal Used by object validators to avoid duplicate hot-path checks.
    */
   parseKnownTuple(value: unknown[]): TupleOutput<T, TRest> {
-    if (this.isInvalidParseLength(value.length)) {
-      throw this.lengthError(value.length);
+    const len = value.length;
+    // Zod: an undersized rest-less tuple reports only its arity issue; elements
+    // are never parsed. A tuple with a rest schema performs no arity check:
+    // omitted slots run through their schemas with undefined.
+    if (this.restValidator === null && len < this._minLength) {
+      throw this.lengthError(len);
     }
+    // Zod: an oversized (rest-less) tuple reports too_big before any element issue.
+    const oversizeIssue: VldIssue[] | null =
+      this.restValidator === null && len > this._length ? [this.lengthError(len).issues[0]!] : null;
 
     const result = new Array(value.length);
     // Omitted trailing optional items stay omitted.
@@ -260,50 +245,50 @@ export class VldTuple<
         switch (simpleMode) {
           case 'string':
             if (typeof item !== 'string') {
-              throw new Error(getMessages().arrayItem(i, getMessages().invalidString));
+              this.throwTupleIssues(value, oversizeIssue);
             }
             result[i] = item;
             continue;
           case 'number':
             if (typeof item !== 'number' || !Number.isFinite(item)) {
-              throw new Error(getMessages().arrayItem(i, getMessages().invalidNumber));
+              this.throwTupleIssues(value, oversizeIssue);
             }
             result[i] = item;
             continue;
           case 'boolean':
             if (typeof item !== 'boolean') {
-              throw new Error(getMessages().arrayItem(i, getMessages().invalidBoolean));
+              this.throwTupleIssues(value, oversizeIssue);
             }
             result[i] = item;
             continue;
           case 'bigint':
             if (typeof item !== 'bigint') {
-              throw new Error(getMessages().arrayItem(i, getMessages().invalidBigint));
+              this.throwTupleIssues(value, oversizeIssue);
             }
             result[i] = item;
             continue;
           case 'symbol':
             if (typeof item !== 'symbol') {
-              throw new Error(getMessages().arrayItem(i, getMessages().invalidSymbol));
+              this.throwTupleIssues(value, oversizeIssue);
             }
             result[i] = item;
             continue;
           case 'null':
             if (item !== null) {
-              throw new Error(getMessages().arrayItem(i, this.getSimpleItemError(simpleMode, undefined, item)));
+              this.throwTupleIssues(value, oversizeIssue);
             }
             result[i] = null;
             continue;
           case 'undefinedValue':
             if (item !== undefined) {
-              throw new Error(getMessages().arrayItem(i, getMessages().expectedUndefined));
+              this.throwTupleIssues(value, oversizeIssue);
             }
             result[i] = undefined;
             continue;
           case 'literal': {
             const literal = this._simpleItemValues[i];
             if (item !== literal) {
-              throw new Error(getMessages().arrayItem(i, this.getSimpleItemError(simpleMode, literal, item)));
+              this.throwTupleIssues(value, oversizeIssue);
             }
             result[i] = literal;
             continue;
@@ -317,8 +302,8 @@ export class VldTuple<
       try {
         const validator = this.validators[i]!;
         result[i] = validator.parse(item);
-      } catch (error) {
-        throw new Error(getMessages().arrayItem(i, (error as Error).message));
+      } catch {
+        this.throwTupleIssues(value, oversizeIssue);
       }
     }
 
@@ -326,10 +311,14 @@ export class VldTuple<
       for (let i = this._length; i < value.length; i++) {
         try {
           result[i] = this.restValidator.parse(value[i]);
-        } catch (error) {
-          throw new Error(getMessages().arrayItem(i, (error as Error).message));
+        } catch {
+          this.throwTupleIssues(value, oversizeIssue);
         }
       }
+    }
+
+    if (oversizeIssue) {
+      throw new VldError(oversizeIssue);
     }
 
     for (let i = value.length; i < this._length; i++) {
@@ -344,7 +333,7 @@ export class VldTuple<
           result.length = i;
           break;
         }
-        throw new Error(getMessages().arrayItem(i, item.error.message));
+        throw new VldError(nestIssues(item.error, i, message => message));
       }
       result[i] = item.data;
     }
@@ -356,6 +345,31 @@ export class VldTuple<
   /** Zod: an omitted optional item in the optional-out tail ends the output there. */
   private truncatesAt(index: number): boolean {
     return index >= this._optoutStart && this._shapes[index]!.optin === 'optional';
+  }
+
+  /**
+   * Re-validates every item in issue-collection mode and throws a VldError with
+   * one issue per failing position at path `[index, ...]`, after any leading
+   * arity issue (Zod reports an oversized tuple's too_big first).
+   */
+  private throwTupleIssues(value: unknown[], lead: VldIssue[] | null): never {
+    const issues: VldIssue[] = [...(lead ?? [])];
+    const itemCount = Math.min(this._length, value.length);
+    for (let i = 0; i < itemCount; i++) {
+      const item = this.validators[i]!.safeParse(value[i]);
+      if (!item.success) {
+        issues.push(...nestIssues(item.error, i, message => message));
+      }
+    }
+    if (this.restValidator) {
+      for (let i = this._length; i < value.length; i++) {
+        const item = this.restValidator.safeParse(value[i]);
+        if (!item.success) {
+          issues.push(...nestIssues(item.error, i, message => message));
+        }
+      }
+    }
+    throw new VldError(issues);
   }
 
   /** Zod: omitted trailing slots that produced `undefined` are not part of the output. */
@@ -392,7 +406,7 @@ export class VldTuple<
       const validator = i < itemCount ? this.validators[i]! : this.restValidator!;
       const item = await validator.safeParseAsync(value[i]);
       if (item.success) result[i] = item.data;
-      else issues.push(...nestIssues(item.error, i, message => getMessages().arrayItem(i, message)));
+      else issues.push(...nestIssues(item.error, i, message => message));
     }
     for (let i = value.length; i < this._length; i++) {
       if (this.truncatesAt(i)) {
