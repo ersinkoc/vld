@@ -1,4 +1,4 @@
-import { VldBase, ParseResult, VldOptional, VldExactOptional, VLD_VALIDATOR_TYPES } from './base';
+import { VldBase, ParseResult, VldOptional, VldExactOptional, VldDefault, VldCatch, VLD_VALIDATOR_TYPES } from './base';
 import { getMessages } from '../locales/runtime';
 import { VldEnum } from './enum';
 import { isDangerousKey } from '../utils/security';
@@ -51,6 +51,8 @@ interface ObjectValidatorConfig<T extends Record<string, any>> {
   readonly passthrough?: boolean;
   readonly catchall?: VldBase<unknown, any>;
   readonly errorMessage?: string | undefined;
+  /** Keys that must be present after .required() (defaulted / caught fields). */
+  readonly requiredPresence?: Set<string> | true;
 }
 
 /**
@@ -68,6 +70,27 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
   private readonly _canUseSimpleObjectFastPath: boolean;
   private readonly _canUseSafeParseFastPath: boolean;
   private readonly _hasProtoKey: boolean;
+
+
+  /** Zod: after .required(), a defaulted / caught key must be present. */
+  private missingRequiredPresence(validator: unknown, key: string, obj: Record<string, unknown>): boolean {
+    const required = this._config.requiredPresence;
+    if (required === undefined) {
+      return false;
+    }
+    if (required !== true && !required.has(key)) {
+      return false;
+    }
+    return (validator instanceof VldDefault || validator instanceof VldCatch)
+      && !Object.prototype.hasOwnProperty.call(obj, key);
+  }
+
+  private requiredPresenceIssue(key: string): VldIssue {
+    return {
+      code: 'invalid_type', path: [key], expected: 'nonoptional',
+      message: getMessages().objectField(key, getMessages().requiredField(key)),
+    };
+  }
 
   private createSafeParseError(messageOrError: unknown, fieldKey?: string | number): VldError {
     if (messageOrError instanceof VldError) {
@@ -703,6 +726,13 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
         }
 
         const validator = this.getFieldValidator(currentKey, i);
+        // Zod: an exactOptional key may be absent; the field is never invoked.
+        if (validator instanceof VldExactOptional && !Object.prototype.hasOwnProperty.call(obj, currentKey)) {
+          continue;
+        }
+        if (this.missingRequiredPresence(validator, currentKey, obj as Record<string, unknown>)) {
+          throw new VldError([this.requiredPresenceIssue(currentKey)]);
+        }
         const fieldResult = this.parseCheckedField(validator, this._validatorTypes[i]!, obj[currentKey]);
         // An optional key that is absent from the input stays absent in the output.
         if (fieldResult !== undefined || currentKey in obj) {
@@ -883,6 +913,14 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
         issues.push(...err.issues);
         continue;
       }
+      // Zod: an exactOptional key may be absent; the field is never invoked.
+      if (validator instanceof VldExactOptional && !Object.prototype.hasOwnProperty.call(obj, key)) {
+        continue;
+      }
+      if (this.missingRequiredPresence(validator, key, obj)) {
+        issues.push(this.requiredPresenceIssue(key));
+        continue;
+      }
       try {
         if (validator instanceof VldBase && LEAF_FIELD_TYPES.has(this._validatorTypes[i]!)) {
           const fieldResult = this.parseCheckedField(validator, this._validatorTypes[i]!, fieldValue);
@@ -994,7 +1032,16 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
       }
       let fieldResult: ParseResult<unknown>;
       try {
-        fieldResult = await this.getFieldValidator(key, i).safeParseAsync(obj[key]);
+        const asyncValidator = this.getFieldValidator(key, i);
+        // Zod: an exactOptional key may be absent; the field is never invoked.
+        if (asyncValidator instanceof VldExactOptional && !Object.prototype.hasOwnProperty.call(obj, key)) {
+          continue;
+        }
+        if (this.missingRequiredPresence(asyncValidator, key, obj)) {
+          issues.push(this.requiredPresenceIssue(key));
+          continue;
+        }
+        fieldResult = await asyncValidator.safeParseAsync(obj[key]);
       } catch (error) {
         issues.push(...this.createSafeParseError(error, key).issues);
         continue;
@@ -1343,9 +1390,21 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
         requiredShape[key] = validator;
       }
     }
+    // Zod: .required() removes the omittability of defaulted and caught fields
+    // too, so those keys must be present (an explicit undefined still lets the
+    // default run).
+    const presenceKeys = new Set<string>();
+    for (const key in requiredShape) {
+      const presenceValidator = requiredShape[key];
+      if (presenceValidator instanceof VldDefault || presenceValidator instanceof VldCatch) {
+        presenceKeys.add(key);
+      }
+    }
+    const presence = presenceKeys.size > 0 ? (selected === undefined ? true : presenceKeys) : undefined;
     return new VldObject({
       ...this._config,
-      shape: requiredShape
+      shape: requiredShape,
+      ...(presence !== undefined ? { requiredPresence: presence } : {})
     }) as any;
   }
 

@@ -348,7 +348,7 @@ describe('Zod 4 parity additions', () => {
     expect(v.int64().parse(1)).toBe(1);
     expect(v.float32().parse(1.5)).toBe(1.5);
     expect(v.float64().parse(1.5)).toBe(1.5);
-    expect(v.exactOptional(v.string()).parse(undefined)).toBeUndefined();
+    expect(v.exactOptional(v.string()).safeParse(undefined).success).toBe(false);
 
     expect(v.transform(v.string()).parse('same')).toBe('same');
     expect(v.describe('Root description').meta()).toMatchObject({ description: 'Root description' });

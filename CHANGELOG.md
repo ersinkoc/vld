@@ -68,6 +68,35 @@ container-reporting divergences which are closed here as well.
 - The unrepresentable-transform error message matches Zod's wording
   ("Transforms cannot be represented in JSON Schema").
 
+### Changed (documented divergences closed)
+
+- **`exactOptional` now matches Zod end to end**: parsed directly it
+  delegates to the inner schema (so `exactOptional(string)` rejects
+  `undefined`), an object field may still be omitted entirely, and an
+  explicit `{ a: undefined }` is rejected with `invalid_type@["a"]`.
+  Inside an object the field is never invoked when the key is absent.
+- **`.required()` requires key presence for defaulted and caught fields**
+  (Zod): a missing key reports `invalid_type@["a"]` with
+  `expected: "nonoptional"`; an explicit `undefined` still lets the default
+  run. Applies to the masked form too.
+- **`string().jwt()` validates the token header** (Zod): the base64 header
+  must decode to a JSON object with an `alg` (and `typ "JWT"` when present);
+  `{ alg }` is honoured. The regex-only shortcut is gone.
+- **`string().url()` accepts every WHATWG-parseable scheme** (Zod): ftp,
+  mailto and friends pass; `hostname` / `protocol` constraint options were
+  added. `stringV2().url()` follows via the shared predicate.
+- **`stringV2().length(n)` reports `too_small` when the string is short**
+  (it always reported `too_big`); `exact: true` joins the issue like Zod.
+- **`regexes.datetime` is the strict RFC 3339 form** (seconds required with
+  `Z` or an offset); the lenient builder was removed.
+- **`isValidIPv6` rejects zone IDs** (`fe80::1%eth0`), agreeing with the
+  format validators and Zod.
+- **JSON Schema key order matches Zod byte-for-byte**: array size bounds
+  lead, tuples read `type, prefixItems, items, minItems, maxItems`, records
+  read `type, propertyNames, additionalProperties, required`, and
+  `default`/`catch` schemas lead with the `default` key. The differential
+  sweep now reports zero diffs.
+
 ### Fixed
 
 - Zod #6652 (size before elements) and #6645 (record output/input typing)

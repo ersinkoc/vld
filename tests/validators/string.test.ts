@@ -99,7 +99,8 @@ describe('VldString - Comprehensive Tests', () => {
       expect(validator.parse('https://example.com/path?query=value')).toBe('https://example.com/path?query=value');
       
       expect(() => validator.parse('not-a-url')).toThrow();
-      expect(() => validator.parse('ftp://example.com')).toThrow();
+      // Zod accepts every WHATWG-parseable scheme, ftp included.
+      expect(validator.parse('ftp://example.com')).toBe('ftp://example.com');
       expect(() => validator.parse('example.com')).toThrow();
       expect(() => validator.parse('//example.com')).toThrow();
     });

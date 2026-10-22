@@ -56,9 +56,13 @@ export class VldCheckLength extends VldStringCheck {
   constructor(readonly length: number, private _msg?: string) { super(); }
   get message() { return this._msg; }
   check(value: string): VldIssue | null {
+    // Zod: a length mismatch reports too_small when short and too_big when long.
     if (!hasExactLength(value, this.length)) {
-      return { code: 'too_big', path: [], origin: 'string', exact: this.length,
-        message: this._msg || `Too big: expected string to have exactly ${this.length} characters` };
+      return value.length < this.length
+        ? { code: 'too_small', path: [], origin: 'string', minimum: this.length, inclusive: true, exact: true,
+            message: this._msg || `Too small: expected string to have exactly ${this.length} characters` }
+        : { code: 'too_big', path: [], origin: 'string', maximum: this.length, inclusive: true, exact: true,
+            message: this._msg || `Too big: expected string to have exactly ${this.length} characters` };
     }
     return null;
   }

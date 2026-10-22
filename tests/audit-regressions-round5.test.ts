@@ -256,7 +256,8 @@ describe('audit regressions round 5: optional/nullish defaults and deepPartial',
     expect(await V.string().nullish().parseAsync(null)).toBeNull();
     expect(await V.string().nullish().parseAsync(undefined)).toBeUndefined();
     expect(await V.string().nullish().parseAsync('s')).toBe('s');
-    expect(V.exactOptional(V.string().default('x')).parse(undefined)).toBeUndefined();
+    // Zod: parsed directly, exactOptional delegates (the default runs).
+    expect(V.exactOptional(V.string().default('x')).parse(undefined)).toBe('x');
   });
 
   it('F213 deepPartial descends through brand()', () => {

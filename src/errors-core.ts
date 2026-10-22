@@ -38,7 +38,7 @@ export interface VldIssue {
   /** bigint for bigint checks, as Zod. */
   minimum?: number | bigint;
   maximum?: number | bigint;
-  exact?: number;
+  exact?: number | boolean;
   inclusive?: boolean;
   origin?: string;
   format?: string;
@@ -142,7 +142,7 @@ export interface VldErrorJSON {
     keys?: string[];
     minimum?: number;
     maximum?: number;
-    exact?: number;
+    exact?: number | boolean;
     inclusive?: boolean;
     origin?: string;
     format?: string;

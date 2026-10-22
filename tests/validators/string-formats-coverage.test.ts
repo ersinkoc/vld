@@ -132,9 +132,13 @@ describe('VldStringFormat Coverage Tests', () => {
       expect(v.regexes.time().test('12:30')).toBe(true);
       expect(v.regexes.time({ precision: -1 }).test('12:30')).toBe(true);
       expect(v.regexes.time({ precision: 3 }).test('12:30:45.123')).toBe(true);
-      expect(v.regexes.datetime().test('2024-02-29T12:30Z')).toBe(true);
+      // Zod's regexes.datetime is the strict RFC 3339 form: seconds are
+      // required wherever the time carries Z or an offset.
+      expect(v.regexes.datetime().test('2024-02-29T12:30:45Z')).toBe(true);
+      expect(v.regexes.datetime().test('2024-02-29T12:30Z')).toBe(false);
       expect(v.regexes.datetime({ local: true, precision: 0 }).test('2024-02-29T12:30:45')).toBe(true);
-      expect(v.regexes.datetime({ offset: true }).test('2024-02-29T12:30+03:00')).toBe(true);
+      expect(v.regexes.datetime({ offset: true }).test('2024-02-29T12:30+03:00')).toBe(false);
+      expect(v.regexes.datetime({ offset: true }).test('2024-02-29T12:30:45+03:00')).toBe(true);
       expect(v.regexes.string().test('anything')).toBe(true);
       expect(v.regexes.string({}).test('')).toBe(true);
       expect(v.regexes.string({ minimum: 2 }).test('ab')).toBe(true);

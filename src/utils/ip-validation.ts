@@ -9,16 +9,17 @@
  * Uses multiple simple checks instead of one complex regex
  */
 export function isValidIPv6(ip: string): boolean {
-  // Length check - IPv6 addresses should be reasonable length (allow zone IDs)
+  // Length check - IPv6 addresses should be reasonable length
   if (ip.length === 0 || ip.length > 64) {
     return false;
   }
 
-  // Allow zone IDs (interface identifiers) by splitting them out
-  const ipParts = ip.split('%');
-  const ipPart = ipParts[0]!;
-  const zoneId = ipParts[1];
-  let address = zoneId ? ipPart : ip;
+  // Zod's ipv6 format rejects zone IDs (interface identifiers), so the util
+  // and the format validators agree on one rule.
+  if (ip.includes('%')) {
+    return false;
+  }
+  let address = ip;
 
   // An embedded IPv4 tail (::ffff:1.2.3.4, 64:ff9b::1.2.3.4, 1:2:3:4:5:6:1.2.3.4)
   // must be a valid dotted quad and stands for the last two 16-bit groups.

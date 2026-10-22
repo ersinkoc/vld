@@ -63,13 +63,6 @@ function timeRegex(options: ISOTimeOptions = {}): RegExp {
   return new RegExp(`^${timeSource(options)}$`);
 }
 
-function dateTimeRegex(options: ISODateTimeOptions = {}): RegExp {
-  const timezoneParts = ['Z'];
-  if (options.local) timezoneParts.push('');
-  if (options.offset) timezoneParts.push('([+-](?:[01]\\d|2[0-3]):[0-5]\\d)');
-  return new RegExp(`^${DATE_SOURCE}T${timeSource(options)}(?:${timezoneParts.join('|')})$`);
-}
-
 /**
  * Zod's `iso.datetime` / `string().datetime` pattern: RFC 3339 needs seconds
  * wherever the time carries `Z` or an offset, so only the unqualified `local`
@@ -115,7 +108,7 @@ type StaticRegexName =
 
 export type RegexNamespace = Readonly<Record<StaticRegexName, RegExp> & {
   nanoidOfLength: (length: number) => RegExp;
-  datetime: typeof dateTimeRegex;
+  datetime: typeof isoDateTimeRegex;
   emoji: () => RegExp;
   mac: typeof macRegex;
   string: typeof stringRegex;
@@ -172,7 +165,7 @@ const REGEXES: RegexNamespace = {
   e164: /^\+[1-9]\d{6,14}$/,
   date: new RegExp(`^${DATE_SOURCE}$`),
   time: timeRegex,
-  datetime: dateTimeRegex,
+  datetime: isoDateTimeRegex,
   string: stringRegex,
   bigint: /^-?\d+n?$/,
   integer: /^-?\d+$/,
@@ -303,13 +296,11 @@ export const url = (options: URLFormatOptions = {}): VldStringFormat => {
 };
 
 /**
- * string().url(): an http(s) URL (the scheme restriction is VLD's documented
- * contract) that the WHATWG URL parser accepts - as Zod's url check does -
- * instead of a hand-written pattern that rejected valid URLs.
+ * string().url(): any URL the WHATWG parser accepts (Zod accepts every
+ * scheme, including mailto:, ftp: and one-letter schemes).
  */
-const HTTP_URL_PREFIX = /^https?:\/\//i;
 const parsesAsUrl = url()._validator;
-export const isValidUrl = (value: string): boolean => HTTP_URL_PREFIX.test(value) && parsesAsUrl(value);
+export const isValidUrl = (value: string): boolean => parsesAsUrl(value);
 
 export const uuid = (options?: { version?: UUIDVersion }): VldStringFormat => {
   const version = options?.version === undefined ? undefined : Number(options.version.slice(1));
@@ -356,7 +347,7 @@ export const mac = (options?: { delimiter?: string }): VldStringFormat => {
 export const cidrv4 = (): VldStringFormat => VldStringFormat.create('cidrv4', value => testRegex(REGEXES.cidrv4, value));
 // Number('') / Number(' 64') / Number('1e2') / Number('0x40') all parse, so the
 // prefix is matched as canonical digits instead.
-export const cidrv6 = (): VldStringFormat => VldStringFormat.create('cidrv6', isValidCidrV6, undefined, undefined, '^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)\/(12[0-8]|1[01][0-9]|[1-9]?[0-9])$');
+export const cidrv6 = (): VldStringFormat => VldStringFormat.create('cidrv6', isValidCidrV6, undefined, undefined, '^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)/(12[0-8]|1[01][0-9]|[1-9]?[0-9])$');
 export const e164 = (): VldStringFormat => VldStringFormat.create('e164', value => testRegex(REGEXES.e164, value));
 export const xid = (): VldStringFormat => VldStringFormat.create('xid', value => testRegex(REGEXES.xid, value));
 export const guid = (): VldStringFormat => VldStringFormat.create('guid', value => testRegex(REGEXES.guid, value));

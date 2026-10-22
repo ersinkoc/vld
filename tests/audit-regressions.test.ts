@@ -1144,8 +1144,11 @@ describe('audit regressions round 4: async parsing, wrappers and refinements', (
     expect(await asyncStr.prefault('pp').parseAsync(undefined)).toBe('pp');
     expect(await asyncStr.catch('fb').parseAsync('x')).toBe('fb');
     expect(await asyncStr.catch('fb').parseAsync('ab')).toBe('ab');
-    expect(await asyncStr.exactOptional().parseAsync(undefined)).toBeUndefined();
+    // Zod: parsed directly the wrapper delegates, so undefined rejects; an
+    // object may still omit the key entirely.
+    await expect(asyncStr.exactOptional().parseAsync(undefined)).rejects.toThrow();
     expect(await asyncStr.exactOptional().parseAsync('ab')).toBe('ab');
+    expect(await V.object({ a: asyncStr.exactOptional() }).parseAsync({})).toEqual({});
     expect(await asyncStr.nullable().parseAsync(null)).toBeNull();
     expect(await asyncStr.nullable().parseAsync('ab')).toBe('ab');
     expect(await asyncStr.nullish().parseAsync(undefined)).toBeUndefined();
@@ -1405,9 +1408,10 @@ describe('audit regressions round 4: async parsing, wrappers and refinements', (
     expect(V.string().email().safeParse('mailto:a@b.co').success).toBe(false);
     expect(V.stringV2().email().safeParse('a@-b.co').success).toBe(false);
     expect(V.string().url().safeParse('https://example.com/a,b').success).toBe(true);
-    expect(V.string().url().safeParse('ftp://example.com').success).toBe(false);
+    // Zod accepts every WHATWG-parseable scheme, ftp included.
+    expect(V.string().url().safeParse('ftp://example.com').success).toBe(true);
     expect(V.stringV2().url().safeParse('http://localhost:3000').success).toBe(true);
-    expect(V.stringV2().url().safeParse('mailto:a@b.co').success).toBe(false);
+    expect(V.stringV2().url().safeParse('mailto:a@b.co').success).toBe(true);
     expect(v.compile(V.string().url()).safeParse('https://a.co/x,y').success).toBe(true);
     expect(v.compile(V.object({ u: V.string().url() })).safeParse({ u: 'x' }).success).toBe(false);
     expect(v.compile(V.stringV2().url()).safeParse('x').success).toBe(false);

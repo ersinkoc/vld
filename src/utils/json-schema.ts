@@ -195,9 +195,19 @@ function normalizeForTarget(
     // additionalItems and becomes `items` in 2020-12 style output.
     const rest = result.additionalItems;
     if (target === 'draft-2020-12' || target === 'draft-2019-09') {
-      result.prefixItems = tupleItems;
-      result.items = rest && typeof rest === 'object' ? normalizeForTarget(rest, options) : false;
-      delete result.additionalItems;
+      const restItems = rest && typeof rest === 'object' ? normalizeForTarget(rest, options) : false;
+      // Zod orders tuple keywords: type, prefixItems, items, then the bounds.
+      const reordered: JSONSchemaDefinition = {
+        ...(result.type !== undefined ? { type: result.type } : {}),
+        prefixItems: tupleItems,
+        items: restItems
+      };
+      for (const [key, value] of Object.entries(result)) {
+        if (key !== 'type' && key !== 'items' && key !== 'additionalItems' && key !== 'prefixItems') {
+          (reordered as any)[key] = value;
+        }
+      }
+      return reordered;
     } else {
       result.items = tupleItems;
       if (rest && typeof rest === 'object') {
@@ -519,7 +529,7 @@ function convertSchemaToJSONSchema(schema: AnyVldSchema, options: ToJSONSchemaOp
     const defaultValue = schema.constructor.name === 'VldDefault'
       ? jsonDefault(schemaAny.defaultValue)
       : catchDefault(schemaAny.fallbackValue);
-    return withMetadata(schema, defaultValue === undefined ? inner : { ...inner, default: defaultValue }, options);
+    return withMetadata(schema, defaultValue === undefined ? inner : { default: defaultValue, ...inner }, options);
   }
 
   // Handle preprocess types
@@ -834,18 +844,19 @@ function buildDateSchema(schema: any): JSONSchemaDefinition {
  */
 function buildArraySchema(schema: any, options: ToJSONSchemaOptions): JSONSchemaDefinition {
   const inner = schema._item || schema._inner || schema.config?.itemValidator;
-  const result: JSONSchemaDefinition = { type: 'array' };
 
+  // Zod orders array keywords with the size bounds first, then type and items.
+  const bounds: JSONSchemaDefinition = {};
+  if (schema.config?.exactLength !== undefined) {
+    bounds.minItems = schema.config.exactLength;
+    bounds.maxItems = schema.config.exactLength;
+  } else {
+    if (schema.config?.minLength !== undefined) bounds.minItems = schema.config.minLength;
+    if (schema.config?.maxLength !== undefined) bounds.maxItems = schema.config.maxLength;
+  }
+  const result: JSONSchemaDefinition = { ...bounds, type: 'array' };
   if (inner) {
     result.items = schemaToJSONSchema(inner, options);
-  }
-
-  if (schema.config?.exactLength !== undefined) {
-    result.minItems = schema.config.exactLength;
-    result.maxItems = schema.config.exactLength;
-  } else {
-    if (schema.config?.minLength !== undefined) result.minItems = schema.config.minLength;
-    if (schema.config?.maxLength !== undefined) result.maxItems = schema.config.maxLength;
   }
   if (schema.config?.unique) result.uniqueItems = true;
 
@@ -963,20 +974,23 @@ function buildEnumSchema(schema: any): JSONSchemaDefinition {
 function buildRecordSchema(schema: any, options: ToJSONSchemaOptions): JSONSchemaDefinition {
   const valueValidator = schema.valueSchema || schema._value || schema._inner || schema.valueValidator;
   if (valueValidator) {
-    const result: JSONSchemaDefinition = {
-      type: 'object',
-      additionalProperties: schemaToJSONSchema(valueValidator, options)
-    };
+    // Zod orders record keywords: type, propertyNames, additionalProperties, required.
+    const result: JSONSchemaDefinition = { type: 'object' };
     const keyValidator = schema.keyValidator;
+    // Zod always emits propertyNames; a plain string key becomes {type:'string'}.
     if (keyValidator) {
       const keySchema = schemaToJSONSchema(keyValidator, options);
-      // Zod always emits propertyNames; a plain string key becomes {type:'string'}.
       if (!(Object.keys(keySchema).length === 1 && keySchema.type === 'string')) {
         result.propertyNames = keySchema;
       } else {
         result.propertyNames = { type: 'string' };
       }
-      // Enum / literal keys: every key is required unless the value accepts undefined.
+    } else {
+      result.propertyNames = { type: 'string' };
+    }
+    result.additionalProperties = schemaToJSONSchema(valueValidator, options);
+    // Enum / literal keys: every key is required unless the value accepts undefined.
+    if (keyValidator) {
       const finiteKeys = keyValidator.constructor.name === 'VldEnum' || keyValidator.constructor.name === 'VldLiteral'
         ? [...(keyValidator.values as readonly unknown[])]
         : undefined;

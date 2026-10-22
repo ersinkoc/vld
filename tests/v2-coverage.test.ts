@@ -85,11 +85,12 @@ describe('string-v2 check classes', () => {
     expect(c.kind).toBe('length');
     expect(c.length).toBe(5);
     expect(c.message).toBe('exact');
-    expect(c.check('hi')!.code).toBe('too_big');
+    // Zod: a length mismatch reports too_small when short, too_big when long.
+    expect(c.check('hi')!.code).toBe('too_small');
     expect(c.check('hello world')!.code).toBe('too_big');
     expect(c.check('hello')).toBeNull();
     expect(c.meta().value).toBe(5);
-    expect(new VldCheckLength(5).check('x')!.message).toMatch(/Too big/);
+    expect(new VldCheckLength(5).check('x')!.message).toMatch(/Too small/);
   });
 
   it('VldCheckEmail', () => {

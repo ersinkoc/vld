@@ -74,8 +74,9 @@ describe('IP Validation Coverage Tests', () => {
       expect(isValidIPv6('2001:192.0.2.1')).toBe(false);
     });
 
-    it('should accept IPv6 with zone ID', () => {
-      expect(isValidIPv6('fe80::1%eth0')).toBe(true);
+    it('should reject IPv6 zone IDs like the format validators (Zod)', () => {
+      expect(isValidIPv6('fe80::1%eth0')).toBe(false);
+      expect(isValidIPv6('fe80::1')).toBe(true);
     });
 
     it('should reject non-hex characters', () => {

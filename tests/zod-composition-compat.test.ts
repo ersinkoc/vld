@@ -49,7 +49,7 @@ describe('Zod composition compatibility', () => {
       [v.string().emoji(), '\u{1F600}'],
       [v.string().base64(), 'SGVsbG8='],
       [v.string().base64url(), 'SGVsbG8'],
-      [v.string().jwt(), 'abc.def.ghi'],
+      [v.string().jwt(), 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.sig'],
       [v.string().nanoid(), 'V1StGXR8_Z5jdHi6B-myT'],
       [v.string().cuid(), 'clh123456789'],
       [v.string().cuid2(), 'abc123'],

@@ -197,7 +197,8 @@ describe('Scalar validator fast paths', () => {
     const caught = v.string().catch('fallback');
 
     expect(exactOptional.parse('token')).toBe('token');
-    expect(exactOptional.parse(undefined)).toBeUndefined();
+    // Zod: parsed directly the wrapper delegates, so undefined rejects.
+    expect(exactOptional.safeParse(undefined).success).toBe(false);
     expect(exactOptional.safeParse(123).success).toBe(false);
 
     expect(nullable.parse(42)).toBe(42);

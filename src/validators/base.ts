@@ -2028,7 +2028,7 @@ export class VldExactOptional<TInput, TOutput> extends VldBase<TInput | undefine
 
   // Async: the inner schema's parseAsync runs (async refinements / transforms).
   override async parseAsync(value: unknown): Promise<TOutput | undefined> {
-    return value === undefined ? undefined : this.baseValidator.parseAsync(value) as any;
+    return this.baseValidator.parseAsync(value) as any;
   }
 
   // Encode through the wrapper, so a codec inside it runs its encoder.
@@ -2053,9 +2053,9 @@ export class VldExactOptional<TInput, TOutput> extends VldBase<TInput | undefine
   }
 
   parse(value: unknown): TOutput | undefined {
-    if (value === undefined) {
-      return undefined;
-    }
+    // Zod: exactOptional only marks a field omittable inside objects; parsed
+    // directly it delegates to the inner schema (which rejects undefined
+    // unless it accepts it itself).
     const simpleValue = parseSimpleWrappedValue<TOutput>(this.simpleMode, value);
     if (simpleValue !== undefined) {
       return simpleValue;
@@ -2064,11 +2064,6 @@ export class VldExactOptional<TInput, TOutput> extends VldBase<TInput | undefine
   }
 
   safeParse(value: unknown): ParseResult<TOutput | undefined> {
-    // Unlike regular optional, undefined is explicitly valid
-    // but we still validate through the base validator
-    if (value === undefined) {
-      return { success: true, data: undefined };
-    }
     const simpleValue = parseSimpleWrappedValue<TOutput>(this.simpleMode, value);
     if (simpleValue !== undefined) {
       return { success: true, data: simpleValue };

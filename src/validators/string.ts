@@ -2,7 +2,7 @@ import { VldBase, ParseResult, VLD_VALIDATOR_TYPES, ValidatorType, type ErrorPar
 import { getMessages } from '../locales/runtime';
 import { codePointLength, hasExactLength, hasMaxLength, hasMinLength } from '../utils/string-length';
 import { isValidIPv6Address, isValidCidrV6 } from '../utils/ip-validation';
-import { regexes as FORMAT_REGEXES, isoDateTimeRegex, isoFormatOptions, isValidUrl, type ISODateTimeOptions, type ISOTimeOptions } from './string-formats';
+import { regexes as FORMAT_REGEXES, isoDateTimeRegex, isoFormatOptions, isValidJwtToken, type ISODateTimeOptions, type ISOTimeOptions } from './string-formats';
 import { VldError, getTypeName, createInvalidTypeIssue, type VldIssue } from '../errors-core';
 
 /**
@@ -407,9 +407,26 @@ export class VldString extends VldBase<string, string> {
   /**
    * Create a new validator that checks for valid URL format
    */
-  url(message?: ErrorParam): VldString {
+  url(params?: ErrorParam | { hostname?: RegExp; protocol?: RegExp; message?: string }): VldString {
+    // Zod accepts every WHATWG-parseable scheme, with optional hostname and
+    // protocol constraints.
+    const options = params !== null && typeof params === 'object' && ('hostname' in params || 'protocol' in params)
+      ? params
+      : undefined;
+    const message = options?.message ?? (params as ErrorParam);
+    const check = (value: string): boolean => {
+      let parsed: URL | undefined;
+      try {
+        parsed = new URL(value);
+      } catch {
+        return false;
+      }
+      return parsed !== undefined
+        && (!options?.hostname || options.hostname.test(parsed.hostname))
+        && (!options?.protocol || options.protocol.test(parsed.protocol.slice(0, -1)));
+    };
     return this.derive({
-      checks: [...this.config.checks, isValidUrl],
+      checks: [...this.config.checks, check],
       transforms: this.config.transforms,
       errorMessage: resolveErrorMessage(message, getMessages().stringUrl),
       jsonSchema: { ...this.config.jsonSchema, format: 'uri' },
@@ -446,10 +463,14 @@ export class VldString extends VldBase<string, string> {
   emoji(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.emoji, 'emoji', message); }
   base64(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.base64, 'base64', message); }
   base64url(message?: ErrorParam): VldString { return this.format(REGEX_PATTERNS.base64url, 'base64url', message); }
-  jwt(message?: ErrorParam): VldString {
-    // Zod's JSON Schema carries the jwt format without a pattern.
+  jwt(params?: ErrorParam | { alg?: string; message?: string }): VldString {
+    // Zod: the header is decoded and validated (alg honoured); JSON Schema
+    // carries the jwt format without a pattern.
+    const options = params !== null && typeof params === 'object' && 'alg' in params ? params : undefined;
+    const message = options?.message ?? (params as ErrorParam);
+    const alg = options?.alg ?? null;
     return this.derive({
-      checks: [...this.config.checks, (value: string) => REGEX_PATTERNS.jwt.test(value)],
+      checks: [...this.config.checks, (value: string) => isValidJwtToken(value, alg)],
       transforms: this.config.transforms,
       errorMessage: resolveErrorMessage(message, `Invalid jwt`),
       jsonSchema: { ...this.config.jsonSchema, format: 'jwt' },

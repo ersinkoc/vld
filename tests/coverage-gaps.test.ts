@@ -91,7 +91,8 @@ import { isValidIPv6 } from '../src/utils/ip-validation';
 describe('IP Validation Coverage', () => {
   test('isValidIPv6 edge cases', () => {
     expect(isValidIPv6('::ffff:192.168.1.1')).toBe(true);
-    expect(isValidIPv6('fe80::1%eth0')).toBe(true);
+    // Zod's ipv6 rule rejects zone IDs; the util agrees with the formats.
+    expect(isValidIPv6('fe80::1%eth0')).toBe(false);
     expect(isValidIPv6(':::')).toBe(false);
     expect(isValidIPv6('')).toBe(false);
   });

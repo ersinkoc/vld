@@ -220,7 +220,9 @@ describe('src/index.ts - Full Function Coverage', () => {
       expect(v.nullable(v.string()).parse('a')).toBe('a');
       expect(v.nullish(v.string()).parse(null)).toBeNull();
       expect(v.nullish(v.string()).parse(undefined)).toBeUndefined();
-      expect(v.exactOptional(v.string()).parse(undefined)).toBeUndefined();
+      // Zod: parsed directly, exactOptional delegates to the inner schema.
+      expect(v.exactOptional(v.string()).safeParse(undefined).success).toBe(false);
+      expect(v.object({ a: v.exactOptional(v.string()) }).parse({})).toEqual({});
     });
 
     it('should exercise nonoptional/catch/prefault/readonly/pipe/clone/describe/meta', () => {

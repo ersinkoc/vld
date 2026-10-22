@@ -175,13 +175,14 @@ describe('Base Validators Coverage Tests', () => {
   });
 
   describe('VldExactOptional', () => {
-    it('should parse when value is undefined', () => {
+    it('rejects an explicit undefined value (Zod)', () => {
       const schema = v.object({
         name: v.string().exactOptional()
       });
 
-      const result = schema.parse({ name: undefined });
-      expect(result.name).toBeUndefined();
+      // Zod: the key may be absent, but an explicit undefined is rejected.
+      expect(schema.safeParse({ name: undefined }).success).toBe(false);
+      expect(schema.parse({})).toEqual({});
     });
 
     it('should parse when value is provided', () => {
@@ -214,7 +215,8 @@ describe('Base Validators Coverage Tests', () => {
       const symbolSchema = VldExactOptional.create(v.symbol());
       const token = Symbol('token');
 
-      expect(stringSchema.safeParse(undefined)).toEqual({ success: true, data: undefined });
+      // Zod: parsed directly, the wrapper delegates to the inner schema.
+      expect(stringSchema.safeParse(undefined).success).toBe(false);
       expect(stringSchema.safeParse('test')).toEqual({ success: true, data: 'test' });
       expect(bigintSchema.safeParse('nope').success).toBe(false);
       expect(symbolSchema.safeParse('nope').success).toBe(false);
