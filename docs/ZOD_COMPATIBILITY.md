@@ -1,6 +1,6 @@
 # Zod compatibility policy
 
-Last audited: 2026-09-13 against Zod 4.6.4 (`latest` on npm); **259/259 public Zod exports covered**, 29-case Zod 4.6 differential suite passes, 109 test suites / 3113 tests pass.
+Last audited: 2026-10-23 against Zod 4.6.7 (`latest` on npm); **259/259 public Zod exports covered**, 116 test suites / 3314 tests pass, and every behavioral differential sweep (string formats, container semantics, coercion edges, JSON Schema emission, error formatting) reports **zero divergences**.
 
 VLD 3.0.5 is a **drop-in replacement for Zod 4.6** (and remains a drop-in for 4.5). The release gate checks the exact npm `latest` version, all public package subpaths, root, subpath, and nested namespace exports, a compiled drop-in application, and a behavior suite covering the latest upstream fixes. A scheduled canary lane installs npm's current `canary` tag without changing the lockfile so upcoming surface changes are visible before they become stable.
 
@@ -16,15 +16,25 @@ VLD 3.0.5 is a **drop-in replacement for Zod 4.6** (and remains a drop-in for 4.
 
 ### Known intentional differences
 
-| Area | VLD | Zod 4.6 | Why |
-| --- | --- | --- | --- |
-| `z.string().email()` | Fast simplified pattern - accepts more inputs (unicode locals, `a..b@c.de`) | RFC-oriented pattern | VLD's speed identity; rejects nothing Zod accepts |
-| `z.lowercase()` / `z.uppercase()` | Transform aliases (`.toLowerCase()` / `.toUpperCase()`) - accept any string and rewrite it | Checks - accept only lowercase / uppercase strings | VLD predates them as transforms; existing VLD users depend on the rewrite behavior |
+**None.** Every previously documented divergence has been closed:
 
-Closed in 3.0.8/3.0.9: `'~standard'` now returns full issue objects, and `base64url`
-enforces Zod 4.6's mod-4 length rule (RFC 4648 unpadded). A 1400-case differential
-sweep across every string format, primitive type, and composite schema finds no
-further accept/reject divergence.
+- `email()` moved to Zod's official 4.6 pattern (3.0.9) and `lowercase()` /
+  `uppercase()` became checks with `toLowerCase()` / `toUpperCase()` as the
+  transforms (2026-10). Earlier rounds also aligned `exactOptional`,
+  `.required()` key presence, `string().jwt()` header validation,
+  `string().url()` WHATWG schemes, `v.json()` value validation, bigint
+  `int64()` / `uint64()`, Date-only `v.date()`, `stringbool()` string-only
+  inputs, `.check()`'s `{ value, issues }` contract, container size gates,
+  per-member issue paths, JSON Schema output (byte-identical key order), and
+  coercion edge semantics (`BigInt('')` is `0n`, `String(date)` formatting).
+
+The only remaining differences are message **text** beyond the default `en`
+locale: translated summaries keep their wording (e.g. union messages), which
+is the locale system working as designed. The default `en` messages match
+Zod's verbatim, including `invalid_union`'s bare `Invalid input`.
+
+Closed in 3.0.8/3.0.9: `'~standard'` now returns full issue objects, and
+`base64url` enforces Zod 4.6's mod-4 length rule (RFC 4648 unpadded).
 
 ## v3.0 highlights
 

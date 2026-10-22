@@ -153,16 +153,19 @@ describe('Error Formatting Tests', () => {
       expect(item?.properties?.['age']?.errors).toEqual(['Invalid age']);
     });
 
-    it('should ignore unsupported defensive path segment types', () => {
+    it('routes non-string path segments into the items branch (Zod)', () => {
       const tree = treeifyError(new VldError([
         {
           code: 'custom',
           path: [true as unknown as string],
-          message: 'Ignored defensive path segment'
+          message: 'Defensive path segment'
         }
       ]));
 
-      expect(tree).toEqual({ errors: [] });
+      // Zod: every non-string segment lands in items (a boolean keys the
+      // array object, so the JSON form shows an empty items array).
+      expect(JSON.parse(JSON.stringify(tree))).toEqual({ errors: [], items: [] });
+      expect(Reflect.ownKeys(tree.items as unknown as object).length).toBeGreaterThan(0);
     });
   });
 

@@ -56,7 +56,8 @@ export const en: LocaleMessages = {
   objectField: (field: string, error: string) => `Invalid field "${field}": ${error}`,
 
   // Union validation messages
-  unionNoMatch: (errors: string[]) => `No union member matched: ${errors.join(', ')}`,
+  // Zod's en default for invalid_union is the bare "Invalid input".
+  unionNoMatch: () => `Invalid input`,
 
   // Intersection validation messages
   intersectionError: (error: string) => `Intersection validation failed: ${error}`,

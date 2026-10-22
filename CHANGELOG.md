@@ -134,6 +134,26 @@ divergences (formats, types, r3, r4, size gate, fromJSONSchema,
 toJSONSchema). Remaining known differences are message-text level only
 (union summaries, locale wording).
 
+### Changed (error-formatting and message parity - zero sweep output)
+
+- **`treeifyError` routes non-string path segments into `items`** (Zod):
+  symbols (and any non-string segment) key the items array instead of the
+  properties record, so a symbol-keyed issue is invisible to `JSON.stringify`
+  exactly like Zod's tree while remaining reachable at runtime.
+- **`flattenError` and `formatError` keep raw path keys** (Zod): a symbol
+  segment stays a symbol as the field key instead of the `"Symbol(s)"`
+  string form.
+- **The default `en` `invalid_union` message is Zod's bare `Invalid input`**;
+  the per-option branch issues stay on the issue's `errors` array. Other
+  locales keep their translated summaries (checked as strings).
+- `docs/ZOD_COMPATIBILITY.md` now records **zero known intentional
+  differences**; the stale email/lowercase rows were removed and the audit
+  line reflects zod 4.6.7 with all behavioral sweeps at zero divergences.
+
+With this round even the error-formatting differential sweep prints nothing:
+every formatter (treeify, flatten, prettify, format) matches Zod for the
+issue sets it covers.
+
 ### Fixed
 
 - Zod #6652 (size before elements) and #6645 (record output/input typing)

@@ -169,10 +169,10 @@ describe('V2 union parseKnown throws (line 117 catch branch)', () => {
   it('union with no matching option collects error messages', () => {
     const u = v.unionV2(vV2.string().min(100), vV2.number().int().positive());
     try { u.parse('x'); } catch (e) {
-      expect((e as Error).message).toMatch(/No union member matched/);
+      expect((e as Error).message).toBe('Invalid input');
     }
     try { u.parse(-1); } catch (e) {
-      expect((e as Error).message).toMatch(/No union member matched/);
+      expect((e as Error).message).toBe('Invalid input');
     }
   });
 });

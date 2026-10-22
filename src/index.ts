@@ -182,14 +182,16 @@ function toErrorMessage(error: unknown): string {
 }
 
 function addFormattedIssue(root: FormattedError, path: (string | number)[], message: string): void {
-  let current = root;
+  let current: any = root;
   for (const segment of path) {
-    const key = String(segment);
+    // Zod uses the raw segment as the key: a symbol stays a symbol (hidden
+    // from JSON.stringify), numbers become their string index naturally.
+    const key = segment as PropertyKey;
     const next = current[key];
     if (!next || Array.isArray(next)) {
       current[key] = { _errors: [] };
     }
-    current = current[key] as FormattedError;
+    current = current[key];
   }
   current._errors.push(message);
 }

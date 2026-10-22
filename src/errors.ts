@@ -33,8 +33,8 @@ export function treeifyError(error: VldError): VldErrorTree {
       const segment = path[i]!;
       const isLast = i === path.length - 1;
 
-      if (typeof segment === 'string' || typeof segment === 'symbol') {
-        // Object property (string or symbol key)
+      if (typeof segment === 'string') {
+        // Object property (Zod: only string segments become properties)
         if (!currentNode.properties) {
           currentNode.properties = {};
         }
@@ -47,24 +47,29 @@ export function treeifyError(error: VldError): VldErrorTree {
         } else {
           currentNode = child;
         }
-      } else if (typeof segment === 'number') {
-        // Array index
+      } else {
+        // Zod: every non-string segment (number, symbol) lands in items; a
+        // symbol becomes a symbol-keyed property of the array, invisible to
+        // JSON.stringify exactly like Zod's tree.
         if (!currentNode.items) {
           currentNode.items = [];
         }
-        
-        while (currentNode.items.length <= segment) {
-          currentNode.items.push(undefined);
+
+        if (typeof segment === 'number') {
+          while (currentNode.items.length <= segment) {
+            currentNode.items.push(undefined);
+          }
         }
-        
-        if (!currentNode.items[segment]) {
-          currentNode.items[segment] = { errors: [] };
+
+        if (!getOwnKey<VldErrorTree>(currentNode.items as unknown as object, segment)) {
+          setOwnKey(currentNode.items as unknown as object, segment, { errors: [] });
         }
-        
+        const child = getOwnKey<VldErrorTree>(currentNode.items as unknown as object, segment)!;
+
         if (isLast) {
-          currentNode.items[segment]!.errors.push(issue.message);
+          child.errors.push(issue.message);
         } else {
-          currentNode = currentNode.items[segment]!;
+          currentNode = child;
         }
       }
     }
@@ -189,9 +194,10 @@ export function flattenError(error: VldError): VldFlattenedError {
     if (issue.path.length === 0) {
       formErrors.push(issue.message);
     } else {
-      const firstPathSegment = issue.path[0]!;
-      const fieldName = firstPathSegment.toString();
-      (getOwnKey<string[]>(fieldErrors, fieldName) ?? setOwnKey<string[]>(fieldErrors, fieldName, [])).push(issue.message);
+      // Zod keeps the raw segment as the key: a symbol stays a symbol
+      // (invisible to JSON.stringify, exactly like Zod's flatten).
+      const fieldName = issue.path[0] as PropertyKey;
+      (getOwnKey<string[]>(fieldErrors, fieldName) ?? setOwnKey<string[]>(fieldErrors, fieldName, []) as string[]).push(issue.message);
     }
   }
 

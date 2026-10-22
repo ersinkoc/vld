@@ -177,7 +177,8 @@ describe('audit regressions: error formatting', () => {
     expect(prettifyError(err, { colored: false })).toBe(
       '✖ root\n✖ dotted\n  → at ["a.b"]\n✖ sym\n  → at ["Symbol(meta)"]\n✖ deep\n  → at a.b'
     );
-    expect((treeifyError(err).properties as any)[sym].errors).toEqual(['sym']);
+    // Zod: non-string segments land in items; the symbol keys the items array.
+    expect((treeifyError(err).items as any)[sym].errors).toEqual(['sym']);
   });
 
   it('F27/F28 toZodError keeps keys/values/exact and JSON handles bigint', () => {

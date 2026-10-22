@@ -234,12 +234,15 @@ describe('VldUnion Coverage Tests', () => {
         new ThrowingFallbackValidator(12345) as any
       );
 
-      expect(() => schema.parse('value')).toThrow('plain failure');
+      // Zod's en default for invalid_union is the bare text; the branch
+      // messages stay on the per-option issues.
+      expect(() => schema.parse('value')).toThrow('Invalid input');
       const result = schema.safeParse('value');
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.message).toContain('12345');
+        expect(result.error.issues[0]).toEqual(expect.objectContaining({ code: 'invalid_union' }));
+        expect(String(result.error.issues[0]!.errors).length).toBeGreaterThan(0);
       }
     });
   });

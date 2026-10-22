@@ -189,7 +189,10 @@ describe('Locale System Tests', () => {
           expect(messages.arrayEmpty).toBeDefined();
           expect(messages.arrayItem(0, 'error')).toContain('0');
           expect(messages.objectField('field', 'error')).toContain('field');
-          expect(messages.unionNoMatch(['error1', 'error2'])).toContain('error1');
+          // en defaults to Zod's bare text; other locales keep their
+          // translated summaries (checked in the en-specific test).
+          expect(typeof messages.unionNoMatch(['error1', 'error2'])).toBe('string');
+          expect(messages.unionNoMatch(['error1', 'error2']).length).toBeGreaterThan(0);
           expect(messages.literalExpected('expected', 'got')).toBeDefined();
           expect(messages.enumExpected(['val1', 'val2'], 'got')).toContain('val1');
           expect(messages.expectedUndefined).toBeDefined();
@@ -345,7 +348,7 @@ describe('Locale System Tests', () => {
       expect(messages.arrayItem(5, 'Invalid value')).toBe('Invalid item at index 5: Invalid value');
       expect(messages.objectField('email', 'Invalid email')).toBe('Invalid field "email": Invalid email');
       expect(messages.unexpectedKeys(['foo', 'bar'])).toBe('Unexpected keys: foo, bar');
-      expect(messages.unionNoMatch(['String error', 'Number error'])).toBe('No union member matched: String error, Number error');
+      expect(messages.unionNoMatch(['String error', 'Number error'])).toBe('Invalid input');
     });
 
     it('should handle literal and enum message functions', () => {
