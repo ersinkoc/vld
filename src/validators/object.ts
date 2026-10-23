@@ -644,6 +644,16 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
     const result: any = {};
     if (progress) progress.result = result;
 
+    // Zod: after .required(), a defaulted / caught key must be present. Check
+    // before the field loop so the issue path stays exactly [key].
+    if (this._config.requiredPresence !== undefined) {
+      for (const presenceKey of this._shapeKeys) {
+        if (this.missingRequiredPresence(this.getFieldValidator(presenceKey), presenceKey, obj)) {
+          throw new VldError([this.requiredPresenceIssue(presenceKey)]);
+        }
+      }
+    }
+
     // Validate fields directly on parse() to avoid safeParse result allocation
     // in the successful hot path.
     let currentKey = '';
@@ -729,9 +739,6 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
         // Zod: an exactOptional key may be absent; the field is never invoked.
         if (validator instanceof VldExactOptional && !Object.prototype.hasOwnProperty.call(obj, currentKey)) {
           continue;
-        }
-        if (this.missingRequiredPresence(validator, currentKey, obj as Record<string, unknown>)) {
-          throw new VldError([this.requiredPresenceIssue(currentKey)]);
         }
         const fieldResult = this.parseCheckedField(validator, this._validatorTypes[i]!, obj[currentKey]);
         // An optional key that is absent from the input stays absent in the output.
@@ -1397,7 +1404,10 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
     for (const key in requiredShape) {
       const presenceValidator = requiredShape[key];
       if (presenceValidator instanceof VldDefault || presenceValidator instanceof VldCatch) {
-        presenceKeys.add(key);
+        // A mask restricts the presence requirement to the selected keys.
+        if (selected === undefined || selected.has(key)) {
+          presenceKeys.add(key);
+        }
       }
     }
     const presence = presenceKeys.size > 0 ? (selected === undefined ? true : presenceKeys) : undefined;

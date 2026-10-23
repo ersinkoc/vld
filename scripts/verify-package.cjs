@@ -28,7 +28,10 @@ const packageLock = fs.existsSync(packageLockPath)
   : undefined;
 
 const errors = [];
-const MAX_TARBALL_BYTES = Number(process.env.VLD_MAX_TARBALL_BYTES || 330_000);
+// The zod 4.6.7 parity wave (json value validator, bigint int64, presence
+// machinery, per-member collectors, Zod-exact pattern sources) ships in ~6
+// dist forms per module; 324 -> 390 KiB packed with it.
+const MAX_TARBALL_BYTES = Number(process.env.VLD_MAX_TARBALL_BYTES || 395_000);
 // Current full compatibility declarations still keep VLD well below half of
 // Zod 4.4.3's unpacked package size (~4.56 MB). Retain a narrow local ceiling.
 const MAX_UNPACKED_BYTES = Number(process.env.VLD_MAX_UNPACKED_BYTES || 1_805_000);
@@ -38,8 +41,8 @@ const MAX_PACKED_FILE_COUNT = Number(process.env.VLD_MAX_PACKED_FILE_COUNT || 36
 const FILE_SIZE_BUDGETS = {
   'dist/index.js': Number(process.env.VLD_MAX_ESM_INDEX_BYTES || 75_000),
   'dist/cjs/index.cjs': Number(process.env.VLD_MAX_CJS_INDEX_BYTES || 90_000),
-  'dist/mini.js': Number(process.env.VLD_MAX_ESM_MINI_BYTES || 10_000),
-  'dist/cjs/mini.cjs': Number(process.env.VLD_MAX_CJS_MINI_BYTES || 14_000),
+  'dist/mini.js': Number(process.env.VLD_MAX_ESM_MINI_BYTES || 11_000),
+  'dist/cjs/mini.cjs': Number(process.env.VLD_MAX_CJS_MINI_BYTES || 20_500),
   'dist/index.d.ts': Number(process.env.VLD_MAX_INDEX_TYPES_BYTES || 112_000),
 };
 const REQUIRED_FILES = ['dist', 'README.md', 'LICENSE', 'CHANGELOG.md'];

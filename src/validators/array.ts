@@ -153,7 +153,7 @@ export class VldArray<T> extends VldBase<unknown[], T[]> {
     }
 
     // Lower bounds run after element parsing (Zod): an undersized array reports
-    // its size issue alongside — not instead of — any element issue.
+    // its size issue alongside (not instead of) any element issue.
     if (exactLength !== undefined && length < exactLength) {
       throw createArrayTooSmallError(exactLength, this.config.lengthMessage || getMessages().arrayLength(exactLength));
     }

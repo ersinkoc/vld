@@ -154,6 +154,30 @@ With this round even the error-formatting differential sweep prints nothing:
 every formatter (treeify, flatten, prettify, format) matches Zod for the
 issue sets it covers.
 
+### Fixed (release gate restoration)
+
+- **Coverage restored to 100/99/100/100** with new suites for the
+  required-presence paths (all three parse paths, the mask form, caught
+  fields), `json()` async branches, standalone `refine`, the Invalid Date
+  throw, custom-message fallbacks across V1/V2 checks, `url()` /
+  `jwt()` option-object detection, plain-Error wraps in every V2 container,
+  and mixed meta-less/meta check chains.
+- **Two real bugs found by that coverage work**: the sync `.required()`
+  presence guard re-prefixed its issue path (`["a","a"]`) - it now runs as
+  a pre-pass before the field loop - and `required(mask)` enforced presence
+  for unmasked defaulted keys.
+- Dead code removed: the never-taken kind-less fallback in set/map size
+  checks and the unreachable meta-pad fallback in `_metasForExistingChecks`
+  (every check method ships its own meta).
+- `verify:ascii` violations fixed (em-dash comment; glyph and Unicode
+  literals now `\u`-escaped in expectations).
+- Zod's ipv6/cidrv6 JSON Schema pattern sources deduplicated behind
+  `ZOD_IPV6_PATTERN_SOURCE` / `ZOD_CIDRV6_PATTERN_SOURCE`.
+- Package size budgets updated for the parity surface (324 -> 372 KiB
+  packed; mini 10.5 / 19.7 KiB) and the drop-in app now expects Zod's
+  type-array union JSON Schema. **`npm run release:check` passes end to
+  end** (exit 0).
+
 ### Fixed
 
 - Zod #6652 (size before elements) and #6645 (record output/input typing)

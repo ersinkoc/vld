@@ -196,7 +196,7 @@ export class VldSet<T> extends VldBase<unknown, Set<T>> {
     // Lower bounds run after member parsing (Zod).
     for (const check of this._checks) {
       if (!check.fn(result)) {
-        throw check.kind ? new VldError([sizeIssue('set', check, result.size)]) : new Error(check.message);
+        throw new VldError([sizeIssue('set', check, result.size)]);
       }
     }
 

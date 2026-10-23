@@ -175,7 +175,7 @@ describe('audit regressions: error formatting', () => {
       { code: 'custom', path: [], message: 'root' },
     ]);
     expect(prettifyError(err, { colored: false })).toBe(
-      '✖ root\n✖ dotted\n  → at ["a.b"]\n✖ sym\n  → at ["Symbol(meta)"]\n✖ deep\n  → at a.b'
+      '\u2716 root\n\u2716 dotted\n  \u2192 at ["a.b"]\n\u2716 sym\n  \u2192 at ["Symbol(meta)"]\n\u2716 deep\n  \u2192 at a.b'
     );
     // Zod: non-string segments land in items; the symbol keys the items array.
     expect((treeifyError(err).items as any)[sym].errors).toEqual(['sym']);

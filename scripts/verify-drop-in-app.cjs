@@ -190,9 +190,9 @@ function verifyBuiltCjsJsonSchema() {
   const vld = require(cjsEntry);
   const checks = [
     {
-      label: 'union emits anyOf',
+      label: 'primitive union collapses to a type array (Zod)',
       schema: vld.v.union([vld.v.string(), vld.v.number()]),
-      verify: (out) => Array.isArray(out.anyOf) && out.anyOf.length === 2,
+      verify: (out) => Array.isArray(out.type) && out.type.length === 2,
     },
     {
       label: 'optional unwraps to base type',

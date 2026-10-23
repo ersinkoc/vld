@@ -267,7 +267,7 @@ export class VldMap<K, V> extends VldBase<unknown, Map<K, V>> {
     // Lower bounds run after entry parsing (Zod).
     for (const check of this._checks) {
       if (!check.fn(result)) {
-        throw check.kind ? new VldError([sizeIssue('map', check, result.size)]) : new Error(check.message);
+        throw new VldError([sizeIssue('map', check, result.size)]);
       }
     }
 

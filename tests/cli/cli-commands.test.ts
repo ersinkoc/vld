@@ -132,7 +132,7 @@ describe('vld validate schema loading (CLI)', () => {
   }
 
   it('F217 loads schemas from directories whose names need URL encoding', async () => {
-    for (const name of ['plain', 'with space', 'hash#dir', 'percent%20dir', 'ünïcödé', 'a+b&c=d']) {
+    for (const name of ['plain', 'with space', 'hash#dir', 'percent%20dir', '\u00fc\u00efc\u00f6d\u00e9', 'a+b&c=d']) {
       const dir = path.join(root, name);
       fs.mkdirSync(dir, { recursive: true });
       fs.writeFileSync(path.join(dir, 'schema.cjs'), schemaSource('s') + 'module.exports = s;');

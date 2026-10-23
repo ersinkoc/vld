@@ -270,7 +270,9 @@ export class VldString extends VldBase<string, string> {
    * meta is appended at its own check's index instead of an earlier one.
    */
   private _metasForExistingChecks(): ReadonlyArray<StringCheckMeta> {
-    return this.config.checkMetas ?? this.config.checks.map(() => this._fallbackMeta());
+    // Every check-adding method appends its own meta, so the pad fallback is
+    // unreachable today; an empty start list is all a first meta needs.
+    return this.config.checkMetas ?? [];
   }
   
   /**
