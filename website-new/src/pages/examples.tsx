@@ -204,7 +204,7 @@ type Order = v.infer<typeof orderSchema>`
     title: 'Zod → VLD Drop-in',
     description: 'True drop-in: same API, same semantics, 3.03x faster',
     icon: Repeat,
-    code: `// Zod 4.6 and VLD 3.0.11 share the exact same public API.
+    code: `// Zod 4.6.7 and VLD 3.1.0 share the exact same public API.
 // You can switch with a single import line change.
 // See: examples/zod-vs-vld-dropin.js for the verified equivalent.
 

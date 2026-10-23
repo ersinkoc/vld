@@ -91,7 +91,7 @@ const apiMethods: ApiMethod[] = [
   { name: 'v.coerce.bigint()', description: 'Coerce string/number to BigInt', category: 'Coercion', signature: 'v.coerce.bigint(): VldBigInt', example: `v.coerce.bigint().parse("123") // 123n` },
 
   // Advanced
-  { name: 'v.json()', description: 'JSON string validation with optional schema', category: 'Advanced', signature: 'v.json(schema?): VldJson', example: `const schema = v.json(v.object({ name: v.string() }))` },
+  { name: 'v.json()', description: 'Validates JSON-compatible values (Zod z.json()); strings are not parsed - use codecs.jsonCodec for that', category: 'Advanced', signature: 'v.json(schema?): VldJson', example: `const schema = v.json(v.object({ name: v.string() }))` },
   { name: 'v.custom()', description: 'Create custom validator', category: 'Advanced', signature: 'v.custom(options): VldCustom', example: `const schema = v.custom({\n  parse: (val) => val instanceof MyClass,\n  message: "Must be MyClass instance"\n})` },
   { name: 'v.file()', description: 'File upload validation', category: 'Advanced', signature: 'v.file(): VldFile', example: `const schema = v.file().maxSize(5 * 1024 * 1024).mimeType(["image/png", "image/jpeg"])` },
   { name: 'v.function()', description: 'Function type validation', category: 'Advanced', signature: 'v.function(): VldFunction' },

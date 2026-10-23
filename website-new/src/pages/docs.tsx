@@ -233,7 +233,7 @@ if (result.success) {
 }`,
     lang: 'typescript',
     tips: [
-      'VLD v3.0.11 is checked against Zod 4.6.5 (259/259 exports + a 1400-case behavior sweep)',
+      'VLD v3.1.0 is checked against Zod 4.6.7 (259/259 exports; every behavioral sweep - formats, container semantics, JSON Schema, error formatting - reports zero divergences)',
       '`import { z } from "@oxog/vld"` is a true drop-in for `import { z } from "zod"` — 3.03x faster (10/10 wins, semantic-checked)',
       'Root, mini, v4, v4-mini, v4/core, v4/locales, and compile entry points are covered',
       'Zod 4.6 APIs ship built-in: .validate(), .validateAsync(), z.iban(), z.currencyCode(), z.instanceof().properties(), z.withParser()',
