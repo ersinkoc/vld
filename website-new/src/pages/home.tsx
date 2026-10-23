@@ -163,7 +163,7 @@ export function HomePage() {
               <div className="animate-fade-in">
                 <div className="tag mb-6">
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>v3.1.0 — true Zod 4.6.7 drop-in with zero behavioral divergences, 3.03x faster (10/10 honest head-to-head)</span>
+                  <span>v3.1.0 — true Zod 4.6.7 drop-in with zero behavioral divergences, 2.56x faster (10/10 honest head-to-head)</span>
                 </div>
               </div>
 
@@ -173,7 +173,7 @@ export function HomePage() {
               </h1>
 
               <p className="animate-fade-in stagger-2 text-lg text-muted-foreground mb-8 leading-relaxed">
-                A lightning-fast, type-safe validation library with zero dependencies. V3.1.0 is a <strong>true drop-in replacement for Zod 4.6.7</strong> (every differential sweep reports zero divergences, and <code className="font-mono text-vld-primary">v.compile()</code> degrades gracefully to the runtime parser under CSP) — just change <code className="font-mono text-vld-primary">import {'{ z }'}</code> from <code className="font-mono">"zod"</code> to <code className="font-mono text-vld-primary">"@oxog/vld"</code> and you&apos;re done. <strong>3.03x faster</strong> geometric mean (10/10 scenarios, 1M safeParse ops × 21 runs, semantic-checked), and the Zod 4.6 <strong>.validate()</strong> boolean API wins every scenario head-to-head (up to 35.5x). <code className="font-mono text-vld-primary">toZodError()</code> returns ZodError-shaped errors with <code className="font-mono">.format()</code> and <code className="font-mono">.flatten()</code>.
+                A lightning-fast, type-safe validation library with zero dependencies. V3.1.0 is a <strong>true drop-in replacement for Zod 4.6.7</strong> (every differential sweep reports zero divergences, and <code className="font-mono text-vld-primary">v.compile()</code> degrades gracefully to the runtime parser under CSP) — just change <code className="font-mono text-vld-primary">import {'{ z }'}</code> from <code className="font-mono">"zod"</code> to <code className="font-mono text-vld-primary">"@oxog/vld"</code> and you&apos;re done. <strong>2.56x faster</strong> geometric mean vs Zod 4.6.7 (10/10 scenarios, 1M safeParse ops × 21 runs, semantic-checked), and the Zod 4.6 <strong>.validate()</strong> boolean API wins every scenario head-to-head (up to 35.5x). <code className="font-mono text-vld-primary">toZodError()</code> returns ZodError-shaped errors with <code className="font-mono">.format()</code> and <code className="font-mono">.flatten()</code>.
               </p>
 
               <div className="animate-fade-in stagger-3 flex flex-wrap items-center gap-4 mb-10">

@@ -302,7 +302,7 @@ if (result.success) {
 
 // 0. TRUE DROP-IN for Zod 4.6.4 (v3.0.5) — only the import line changes
 import { z } from "@oxog/vld"   // <- same as: import { z } from "zod"
-//    3.03x faster, 10/10 honest wins, semantic-checked
+//    2.56x faster vs Zod 4.6.7, 10/10 honest wins, semantic-checked
 //    benchmarks/dropin-vs-zod.cjs
 const schema = z.object({ name: z.string().min(2) })
 

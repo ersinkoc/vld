@@ -1,6 +1,6 @@
 # VLD Performance Guide (v3.0.5)
 
-Comprehensive guide to understanding and optimizing VLD's performance in your applications. VLD 3.0.5 is a true drop-in replacement for Zod 4.6.4 — 3.03x geomean on the honest head-to-head (10/10 wins, semantic-checked). On top of that, Zod 4.6's `.validate()` boolean API is covered by a dedicated head-to-head where VLD wins every scenario at up to 35.5x. V2 method-memoization is opt-in via `vV2` or `v.setV2Mode(true)`; 1.6-10x smaller per instance.
+Comprehensive guide to understanding and optimizing VLD's performance in your applications. As of 3.1.0 against Zod 4.6.7 the honest head-to-head is 2.56x geomean (10/10 wins, semantic-checked); the 3.03x figure below was measured against Zod 4.6.4. On top of that, Zod 4.6's `.validate()` boolean API is covered by a dedicated head-to-head where VLD wins every scenario at up to 35.5x. V2 method-memoization is opt-in via `vV2` or `v.setV2Mode(true)`; 1.6-10x smaller per instance.
 
 ## Table of Contents
 
@@ -81,7 +81,7 @@ Zod 4.6 introduced `.validate()` — boolean validation without building result 
 
 | Guard | v3.0 Snapshot | Release Threshold |
 |-------|------------------|-------------------|
-| Runtime throughput (drop-in) | **3.03x faster than Zod 4.6.4** (10/10 wins, semantic-checked) | Must stay faster |
+| Runtime throughput (drop-in) | **2.56x faster than Zod 4.6.7** (10/10 wins, semantic-checked; 3.03x vs 4.6.4) | Must stay faster |
 | `.validate()` head-to-head | **Faster than `zod.validate()` on every scenario**, up to 35.5x | Must stay faster |
 | Memory (V2) | **1.6-10x less than Zod 4.6** | Must stay below |
 | Startup | **1.5x+ faster** | >= 1.10x |

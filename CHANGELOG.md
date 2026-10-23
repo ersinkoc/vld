@@ -13,6 +13,14 @@ to end, and `v.compile()` degrades gracefully in CSP environments.
 
 ### Added
 
+- **`verify:zod` joined the `release:check` chain** (it was documented as
+  part of the gate but had drifted out of the script): 259/259 exports
+  re-checked against the installed zod 4.6.7 on every release run.
+- **Performance claims re-measured against zod 4.6.7**: the honest
+  head-to-head still wins 10/10, at **2.56x geomean** (zod itself got
+  faster since the 3.03x-vs-4.6.4 measurement). Website and performance
+  docs updated; the 3.03x figure stays only as a version-pinned historical
+  note.
 - **`v.compile()` interpreter fallback**: when `new Function` is blocked
   (edge runtimes, MV3 extensions, strict CSP), compile now returns the
   runtime-backed schema with identical verdicts instead of throwing a raw
