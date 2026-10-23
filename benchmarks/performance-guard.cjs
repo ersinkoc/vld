@@ -40,6 +40,24 @@ function measure(fn, iterations) {
   return median(values);
 }
 
+/**
+ * Measure two functions with interleaved samples so both sides see the same
+ * thermal / turbo profile. Measuring one side to completion first hands the
+ * second side a warmed-up CPU and makes the ratio flap between runs.
+ */
+function measureInterleaved(fnA, fnB, iterations) {
+  const iters = Math.min(warmupIterations, iterations);
+  run(fnA, iters);
+  run(fnB, iters);
+  const a = [];
+  const b = [];
+  for (let i = 0; i < samples; i++) {
+    a.push(run(fnA, iterations));
+    b.push(run(fnB, iterations));
+  }
+  return [median(a), median(b)];
+}
+
 function formatOps(ops) {
   if (ops >= 1000000) return `${(ops / 1000000).toFixed(1)}M`;
   if (ops >= 1000) return `${(ops / 1000).toFixed(1)}K`;
@@ -47,8 +65,7 @@ function formatOps(ops) {
 }
 
 function guardedCase(name, iterations, vldFn, zodFn) {
-  const vldOps = measure(vldFn, iterations);
-  const zodOps = measure(zodFn, iterations);
+  const [vldOps, zodOps] = measureInterleaved(vldFn, zodFn, iterations);
   const ratio = vldOps / zodOps;
   const passed = ratio >= minCaseRatio;
 
