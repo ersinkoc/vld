@@ -166,13 +166,25 @@ describe('V2 union typeCheckers (object + nan + unknown + any + never)', () => {
 });
 
 describe('V2 union parseKnown throws (line 117 catch branch)', () => {
-  it('union with no matching option collects error messages', () => {
+  it('surfaces the single type-survivor option issue (Zod) and wraps true no-matches', () => {
     const u = v.unionV2(vV2.string().min(100), vV2.number().int().positive());
-    try { u.parse('x'); } catch (e) {
-      expect((e as Error).message).toBe('Invalid input');
+    // 'x' only type-matches the string option: its too_small surfaces directly
+    const r1 = u.safeParse('x');
+    expect(r1.success).toBe(false);
+    if (!r1.success) {
+      expect(r1.error.issues[0]).toEqual(expect.objectContaining({ code: 'too_small' }));
     }
-    try { u.parse(-1); } catch (e) {
-      expect((e as Error).message).toBe('Invalid input');
+    // -1 only type-matches the number option: its too_small surfaces directly
+    const r2 = u.safeParse(-1);
+    expect(r2.success).toBe(false);
+    if (!r2.success) {
+      expect(r2.error.issues[0]).toEqual(expect.objectContaining({ code: 'too_small' }));
+    }
+    // true matches neither type: invalid_union with every option's issues
+    const r3 = u.safeParse(true);
+    expect(r3.success).toBe(false);
+    if (!r3.success) {
+      expect(r3.error.issues[0]).toEqual(expect.objectContaining({ code: 'invalid_union' }));
     }
   });
 });

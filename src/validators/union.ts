@@ -3,10 +3,37 @@ import { VldError, type VldIssue } from '../errors-core';
 import { getMessages } from '../locales/runtime';
 
 /**
- * Zod-style union failure: one `invalid_union` issue carrying each option's
- * issues, instead of a flattened `custom` string.
+ * Zod: check-family failures continue past the failed check, type mismatches
+ * abort the option. `custom` refinements and leaf bounds/format/key issues
+ * continue; `invalid_type` / `invalid_value` abort.
  */
-function createUnionError(customMessage: string | undefined, optionErrors: unknown[] = []): VldError {
+const NON_ABORTING_UNION_CODES = new Set(['custom', 'too_small', 'too_big', 'invalid_format', 'unrecognized_keys']);
+
+function isNonAbortedUnionError(error: unknown): boolean {
+  // A non-VldError throw is a refinement/custom failure (type failures and
+  // bounds throw VldError), so it continues like Zod's refine issues.
+  if (!(error instanceof VldError)) {
+    return true;
+  }
+  return error.issues.length > 0
+    && error.issues.every(issue => NON_ABORTING_UNION_CODES.has(issue.code));
+}
+
+/**
+ * Zod-style union failure: one `invalid_union` issue carrying each option's
+ * issues, instead of a flattened `custom` string. When exactly one option
+ * produced a continuing (non-aborted) result - the type checks eliminated
+ * every other option but a refinement failed - that option's issues surface
+ * directly, without the invalid_union wrapper (Zod's handleUnionResults).
+ */
+export function createUnionError(customMessage: string | undefined, optionErrors: unknown[] = []): VldError {
+  const nonAborted = optionErrors.filter(isNonAbortedUnionError);
+  if (nonAborted.length === 1 && nonAborted[0] !== undefined) {
+    const survivor = nonAborted[0];
+    return survivor instanceof VldError
+      ? survivor
+      : new VldError([{ code: 'custom', path: [], message: survivor instanceof Error ? survivor.message : String(survivor) }]);
+  }
   const message = customMessage || getMessages().unionNoMatch(
     optionErrors.map(error => (error instanceof Error ? error.message : String(error)))
   );

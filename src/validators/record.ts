@@ -336,6 +336,11 @@ export class VldRecord<T, K extends PropertyKey = string> extends VldBase<unknow
         }
       }
       if (missingIssues.length > 0) {
+        // Zod reports the missing exhaustive keys and the unrecognized ones
+        // together when both are present.
+        if (unrecognized.length > 0) {
+          missingIssues.push({ code: 'unrecognized_keys', path: [], keys: unrecognized, message: getMessages().unexpectedKeys(unrecognized) });
+        }
         throw new VldError(missingIssues);
       }
     }

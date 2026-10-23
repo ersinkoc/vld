@@ -1365,11 +1365,13 @@ export const vV2 = {
   float32: () => VldNumberV2.create().float32(),
   float64: () => VldNumberV2.create().float64(),
   array: <T>(item: VldBase<unknown, T>) => VldArrayV2.create(item),
-  tuple: <T extends readonly VldBase<any, any>[]>(...items: T) => VldTupleV2.create(...items),
+  tuple: <T extends readonly VldBase<any, any>[]>(...args: unknown[]) =>
+    VldTupleV2.create(...(Array.isArray(args[0]) ? args[0] : args) as unknown as T),
   set: <T>(item: VldBase<unknown, T>) => VldSetV2.create(item),
   map: <K, V>(key: VldBase<unknown, K>, value: VldBase<unknown, V>) => VldMapV2.create(key, value),
   record: <T>(value: VldBase<unknown, T>) => VldRecordV2.create(value),
-  union: <T extends readonly VldBase<any, any>[]>(...validators: T) => VldUnionV2.create(...validators),
+  union: <T extends readonly VldBase<any, any>[]>(...args: unknown[]) =>
+    VldUnionV2.create(...(Array.isArray(args[0]) ? args[0] : args) as unknown as T),
   intersection: <A, B>(left: VldBase<any, A>, right: VldBase<any, B>) => VldIntersectionV2.create(left, right),
   literal: <T extends string | number | boolean | null | undefined>(value: T) => VldLiteralV2.create(value),
   enum: <T extends readonly (string | number)[]>(values: T) => VldEnumV2.create(values),

@@ -13,6 +13,27 @@ to end, and `v.compile()` degrades gracefully in CSP environments.
 
 ### Added
 
+- **A 294-case full-surface differential battery** (`.temp_files/sweep_full.ts`)
+  covering every validator family, wrapper, refinement and async path found
+  two more real divergences, both closed:
+
+### Changed (found by the full-surface battery)
+
+- **Union single-survivor rule (Zod's `handleUnionResults`)**: when the type
+  checks eliminate every option but one and that option fails a
+  refinement/bounds check, its issues surface directly instead of an
+  `invalid_union` wrapper (`custom`, `too_small`, `too_big`,
+  `invalid_format`, `unrecognized_keys` continue; `invalid_type` /
+  `invalid_value` abort). Applies to V1 and V2, sync and async.
+- **`vV2.union` and `vV2.tuple` accept Zod's array signature**
+  (`vV2.union([a, b])` previously treated the array as a single option);
+  `vV2.union` failures now produce the `invalid_union` shape instead of a
+  bare `custom` message error.
+- **Exhaustive records report unrecognized keys alongside missing ones**
+  (Zod): `record(enum(['a','b']), number())` on `{c: 1}` lists the missing
+  `a`/`b` values AND the `unrecognized_keys` issue for `c`.
+
+
 - **`verify:zod` joined the `release:check` chain** (it was documented as
   part of the gate but had drifted out of the script): 259/259 exports
   re-checked against the installed zod 4.6.7 on every release run.

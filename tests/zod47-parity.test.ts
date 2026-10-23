@@ -158,9 +158,9 @@ describe('Zod 4.6.7 container and JSON Schema parity additions', () => {
     const missingValue = V.record(V.enum(['a', 'b']), V.number()).safeParse({ c: 1 });
     expect(missingValue.success).toBe(false);
     if (!missingValue.success) {
-      // the exhaustive-keys tail throws before the unrecognized key is appended
+      // Zod reports the missing exhaustive keys and the unrecognized key together
       const paths = missingValue.error.issues.map((i: any) => [i.code, i.path[0]]);
-      expect(paths).toEqual([['invalid_type', 'a'], ['invalid_type', 'b']]);
+      expect(paths).toEqual([['invalid_type', 'a'], ['invalid_type', 'b'], ['unrecognized_keys', undefined]]);
     }
   });
 

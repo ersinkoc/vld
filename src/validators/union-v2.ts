@@ -8,9 +8,10 @@
  * Public API mirrors VldUnion 1:1. Exposed via v.unionV2().
  */
 import { VldBase, VLD_VALIDATOR_TYPES, type ParseResult } from './base';
+import { createUnionError } from './union';
 import type { UnionMemberOutput } from './union';
 import { VldError } from '../errors-core';
-import { getMessages } from '../locales/runtime';
+import {} from '../locales/runtime';
 
 type SimpleUnionMode = 'string' | 'number' | 'boolean' | 'bigint' | 'symbol' | 'null' | 'undefined' | 'literal' | 'passthrough' | undefined;
 
@@ -93,7 +94,7 @@ export class VldUnionV2<T extends readonly VldBase<any, any>[]> extends VldBase<
   get options(): T { return this.__def.validators as unknown as T; }
 
   parse(value: unknown): UnionMemberOutput<T[number]> {
-    const errors: string[] = [];
+    const errors: unknown[] = [];
     const { validators, typeCheckers, simpleModes, simpleValues } = this.__def;
 
     for (let i = 0; i < validators.length; i++) {
@@ -115,11 +116,13 @@ export class VldUnionV2<T extends readonly VldBase<any, any>[]> extends VldBase<
       try {
         return validator.parse(value);
       } catch (error) {
-        errors.push(error instanceof Error ? error.message : String(error));
+        errors.push(error);
       }
     }
 
-    throw new Error(this.__def.errorMessage || getMessages().unionNoMatch(errors));
+    // Zod: the union failure is an invalid_union carrying each option's
+    // issues (or the single continuing option's issues, unwrapped).
+    throw createUnionError(this.__def.errorMessage, errors);
   }
 
   safeParse(value: unknown): ParseResult<UnionMemberOutput<T[number]>> {
