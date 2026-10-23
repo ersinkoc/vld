@@ -13,6 +13,23 @@ to end, and `v.compile()` degrades gracefully in CSP environments.
 
 ### Added
 
+- **A mini-entry differential battery** (`.temp_files/sweep_mini.cjs`, 50
+  cases): `@oxog/vld/mini` vs `zod/mini` across primitives, string checks
+  and composites, plus behavioral smokes of the built `dist/index.js`,
+  `dist/cjs/index.cjs` and `dist/mini.js` artifacts. One real bug found and
+  fixed:
+
+### Changed (found by the mini battery)
+
+- **`@oxog/vld/mini` composite factories accept Zod's array signatures**:
+  `union([a, b])`, `discriminatedUnion('t', [...])` and `xor([...])` treated
+  the array as a single option (every input failed). All three now accept
+  both the array and rest-argument forms, like the main and `vV2` factories.
+- Documented two upstream `zod/mini` quirks that VLD deliberately does not
+  emulate (constructor-param `maxLength` skips the 4.6.6 size gate that the
+  `checks:` form applies; `_default` uses a params-object convention).
+
+
 - **A second differential battery** (`.temp_files/sweep_full2.ts`, 111 cases)
   covering object transforms (pick/omit/extend/merge/required-mask/partial-mask),
   wrappers (nonoptional, brand, readonly, function defaults/prefaults/catches),

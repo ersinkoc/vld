@@ -187,8 +187,8 @@ export const map = <K, V>(key: VldBase<unknown, K>, value: VldBase<unknown, V>) 
 // --- Union & Intersection ---
 
 /** Create a union validator (value must match one of the validators) */
-export const union = <T extends readonly VldBase<any, any>[]>(...validators: T) =>
-  VldUnion.create(...validators);
+export const union = <T extends readonly VldBase<any, any>[]>(...args: unknown[]) =>
+  VldUnion.create(...(Array.isArray(args[0]) ? args[0] : args) as unknown as T);
 
 /** Create an intersection validator (value must match both validators) */
 export const intersection = <A, B>(first: VldBase<unknown, A>, second: VldBase<unknown, B>) =>
@@ -197,12 +197,12 @@ export const intersection = <A, B>(first: VldBase<unknown, A>, second: VldBase<u
 /** Create a discriminated union validator */
 export const discriminatedUnion = <K extends string, T extends readonly VldBase<any, any>[]>(
   discriminator: K,
-  ...options: T
-) => VldDiscriminatedUnion.create(discriminator, [...options] as any);
+  ...args: unknown[]
+) => VldDiscriminatedUnion.create(discriminator, (Array.isArray(args[0]) ? args[0] : args) as unknown as T);
 
 /** Create an XOR validator (value must match exactly one of the validators) */
-export const xor = <T extends readonly VldBase<any, any>[]>(...options: T) =>
-  VldXor.create([...options] as any);
+export const xor = <T extends readonly VldBase<any, any>[]>(...args: unknown[]) =>
+  VldXor.create((Array.isArray(args[0]) ? args[0] : args) as unknown as T);
 
 // --- Literal & Enum ---
 

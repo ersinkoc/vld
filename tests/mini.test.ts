@@ -528,3 +528,23 @@ describe('Mini API', () => {
     });
   });
 });
+
+describe('mini composite factories accept Zod array signatures', () => {
+  it('union/discriminatedUnion/xor take both array and rest forms', () => {
+    const u1 = union([string(), number()]);
+    const u2 = union(string(), number());
+    expect(u1.safeParse('x').success).toBe(true);
+    expect(u2.safeParse(5).success).toBe(true);
+    expect(u1.safeParse(true).success).toBe(false);
+    expect(u2.safeParse(true).success).toBe(false);
+
+    const d = discriminatedUnion('t', [object({ t: literal('a') })]);
+    expect(d.safeParse({ t: 'a' }).success).toBe(true);
+    expect(d.safeParse({ t: 'b' }).success).toBe(false);
+
+    const x1 = xor([literal('a'), literal('a')]);
+    expect(x1.safeParse('a').success).toBe(false);
+    const x2 = xor(literal('a'), literal('b'));
+    expect(x2.safeParse('a').success).toBe(true);
+  });
+});
