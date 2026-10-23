@@ -62,7 +62,7 @@ const features = [
 
 const quickExample = `// v3.1.0 — true drop-in for Zod 4.6.7 (zero divergences)
 //   import { z } from "@oxog/vld"   // literally the same as import { z } from "zod"
-//   benchmarks/dropin-vs-zod.cjs  — 10/10 wins, 3.03x geomean (semantic-checked)
+//   benchmarks/dropin-vs-zod.cjs  — 10/10 wins, 2.56x geomean vs Zod 4.6.7 (semantic-checked)
 
 import { z } from "@oxog/vld"
 import { toZodError } from "@oxog/vld"
@@ -135,7 +135,7 @@ const stats = [
 ]
 
 const comparisons = [
-  { feature: 'Drop-in Replacement', vld: '3.03x faster (10/10)', zod: 'baseline', winner: 'vld' },
+  { feature: 'Drop-in Replacement', vld: '2.56x faster vs Zod 4.6.7 (10/10)', zod: 'baseline', winner: 'vld' },
   { feature: 'True z Alias', vld: 'import { z } from "@oxog/vld"', zod: 'native', winner: 'tie' },
   { feature: 'V2 Method-Memoization', vld: 'opt-in via vV2 / setV2Mode', zod: 'baseline', winner: 'vld' },
   { feature: '.validate() (Zod 4.6 API)', vld: 'faster in every scenario, up to 35.5x', zod: 'baseline', winner: 'vld' },

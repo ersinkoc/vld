@@ -195,9 +195,9 @@ const v2MemoryFootprint = [
 ]
 
 const features = [
-  { icon: Layers, title: 'V2 Method-Memoization', description: 'vV2.* ships the Zod 4.5 method-memoization pattern — part of the 3.03x drop-in geomean over Zod 4.6 (10/10 honest wins, semantic-checked)', color: 'text-amber-500', bg: 'bg-amber-500/10' },
+  { icon: Layers, title: 'V2 Method-Memoization', description: 'vV2.* ships the Zod 4.5 method-memoization pattern — part of the drop-in geomean vs Zod 4.6.7 (10/10 honest wins, semantic-checked)', color: 'text-amber-500', bg: 'bg-amber-500/10' },
   { icon: Zap, title: 'Up to 35x .validate()', description: 'The Zod 4.6 boolean .validate() API is covered by a dedicated head-to-head: VLD wins every scenario, up to 35.5x on arrays and 28x on wide objects', color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
-  { icon: Cpu, title: '3.03x Drop-in safeParse', description: 'Honest head-to-head geomean over Zod 4.6 on 10 scenarios — the same import-line swap, measured with 1M safeParse ops x 21 runs', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+  { icon: Cpu, title: '2.56x Drop-in safeParse', description: 'Honest head-to-head geomean vs Zod 4.6.7 on 10 scenarios — the same import-line swap, measured with 1M safeParse ops x 21 runs', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
   { icon: HardDrive, title: '259/259 Zod Parity', description: 'Root, mini, v4, v4-mini, v4/core, v4/locales, compile, and nested exports verified against Zod 4.6.5 - plus a 1400-case behavioral differential sweep', color: 'text-blue-500', bg: 'bg-blue-500/10' },
   { icon: Clock, title: 'Zero Dependencies', description: 'No runtime dependencies. V2 single-def + check classes; AOT compile emits a flat `if/typeof` chain that V8 inlines to a single guard', color: 'text-purple-500', bg: 'bg-purple-500/10' },
 ]
@@ -387,7 +387,7 @@ export function BenchmarkPage() {
                   <Layers className="w-5 h-5 text-vld-primary" />
                   V2 Method-Memoization - vV2 vs Zod 4.6
                 </h2>
-                <p className="text-sm text-muted-foreground">vV2 ships the Zod 4.5 method-memoization pattern, contributing to the 3.03x drop-in geomean</p>
+                <p className="text-sm text-muted-foreground">vV2 ships the Zod 4.5 method-memoization pattern, contributing to the drop-in geomean vs Zod 4.6.7</p>
               </div>
               <div className="hidden sm:flex items-center gap-4 text-xs">
                 <div className="flex items-center gap-1.5">
@@ -1076,7 +1076,7 @@ if (!u.success) console.log(u.error.format())  // Zod-compatible`}
             <p className="text-sm text-muted-foreground">
               <strong className="text-foreground">Note:</strong> Benchmark results may vary based on hardware, Node.js version, and system load.
               All guards are measured against Zod 4.6.5 (npm <code className="font-mono">latest</code> at audit time). The drop-in
-              head-to-head is in <code className="font-mono">benchmarks/dropin-vs-zod.cjs</code> (10/10 wins, 3.03x geomean) and the
+              head-to-head is in <code className="font-mono">benchmarks/dropin-vs-zod.cjs</code> (10/10 wins, 2.56x geomean vs Zod 4.6.7) and the
               boolean .validate() head-to-head in <code className="font-mono">benchmarks/validate-vs-zod.cjs</code> (wins every scenario).
               The release gate compares against the installed latest stable Zod and must pass before publishing.
             </p>
