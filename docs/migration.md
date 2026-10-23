@@ -2,7 +2,7 @@
 
 A complete guide for migrating your codebase to VLD 3.0 with minimal changes, Zod-compatible package subpaths, and release-gated parity checks.
 
-**VLD 3.0 is a non-breaking major bump.** Existing `v.*` factories stay V1 by default (backward compatible); use `vV2` or `v.setV2Mode(true)` for the V2 method-memoization path. **3.03x faster** vs Zod 4.6.4 on the honest head-to-head benchmark (`benchmarks/dropin-vs-zod.cjs`, 10/10 wins, semantic-checked). Zod 4.6 APIs (`.validate()`, `z.iban()`, `z.instanceof().properties()`, `z.withParser()`, new `fromJSONSchema` keywords) are fully supported; `.validate()` wins every scenario head-to-head at up to 35.5x.
+**VLD 3.0 is a non-breaking major bump.** Existing `v.*` factories stay V1 by default (backward compatible); use `vV2` or `v.setV2Mode(true)` for the V2 method-memoization path. **2.56x faster** vs Zod 4.6.7 on the honest head-to-head benchmark (`benchmarks/dropin-vs-zod.cjs`, 10/10 wins, semantic-checked; the earlier 3.03x figure was measured against Zod 4.6.4). Zod 4.6 APIs (`.validate()`, `z.iban()`, `z.instanceof().properties()`, `z.withParser()`, new `fromJSONSchema` keywords) are fully supported; `.validate()` wins every scenario head-to-head at up to 35.5x.
 
 ## Table of Contents
 

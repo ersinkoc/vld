@@ -2,7 +2,7 @@
 
 Last audited: 2026-10-23 against Zod 4.6.7 (`latest` on npm); **259/259 public Zod exports covered**, 116 test suites / 3314 tests pass, and every behavioral differential sweep (string formats, container semantics, coercion edges, JSON Schema emission, error formatting) reports **zero divergences**.
 
-VLD 3.0.5 is a **drop-in replacement for Zod 4.6** (and remains a drop-in for 4.5). The release gate checks the exact npm `latest` version, all public package subpaths, root, subpath, and nested namespace exports, a compiled drop-in application, and a behavior suite covering the latest upstream fixes. A scheduled canary lane installs npm's current `canary` tag without changing the lockfile so upcoming surface changes are visible before they become stable.
+VLD 3.1.0 is a **drop-in replacement for Zod 4.6** (and remains a drop-in for 4.5). The release gate checks the exact npm `latest` version, all public package subpaths, root, subpath, and nested namespace exports, a compiled drop-in application, and a behavior suite covering the latest upstream fixes. A scheduled canary lane installs npm's current `canary` tag without changing the lockfile so upcoming surface changes are visible before they become stable.
 
 ## v3.0.5 highlights — Zod 4.6 parity
 
@@ -91,9 +91,11 @@ VLD keeps its zero-runtime-dependency architecture while adding:
 - Security hardening
 - Release-gated runtime/startup/memory benchmarks
 
-The bundle gate also compares equivalent tree-shaken root-string probes. The current VLD V2 probe is 51.2 KiB versus Zod 4.6.4 at 119.6 KiB; `@oxog/vld/mini` remains 52.9 KiB.
+The bundle gate also compares equivalent tree-shaken root-string probes. The current VLD root probe is 91.6 KiB versus Zod 4.6.7 at 182.8 KiB; `@oxog/vld/mini` is 60.8 KiB.
 
 ## Performance (v3.0.5 vs Zod 4.6.4)
+
+Current head-to-head: **2.56x geomean vs Zod 4.6.7** (10/10 wins, semantic-checked; `benchmarks/dropin-vs-zod.cjs` — see `PERFORMANCE.md`). The tables below are the v3.0.5 measurement against Zod 4.6.4.
 
 | Schema | VLD vV2 | Zod 4.6.4 | V2 vs Zod |
 |---|---:|---:|---:|
@@ -142,11 +144,11 @@ npm run verify:zod:canary
 
 `verify:zod` fails unless the installed comparison version exactly matches npm `latest`, when a public path/root/subpath/nested export is missing or has the wrong runtime type, or when the differential behavior suite diverges. The scheduled `.github/workflows/zod-parity.yml` stable job is blocking; its canary job is an early-warning signal for maintainers to evaluate before promoting support.
 
-## Test results (v3.0.5)
+## Test results (v3.1.0)
 
-- **109 test suites, 3113/3113 tests pass** (no regressions)
+- **116 test suites, 3314/3314 tests pass** (no regressions); statement 100% / branch 99% / function 100% / line 100% coverage
 - **22/22 real-world Zod pattern test** (discriminated union, lazy, preprocess, pipe, brand, pick/omit, merge, extend, catch, default, transform, refine, etc.)
-- **29/29 Zod 4.6 differential test** (`tests/zod-4-6-parity.test.ts`, compared against the installed zod)
+- **455+ differential sweep cases** against the installed Zod 4.6.7 (string formats, container semantics, coercion edges, JSON Schema emission, error formatting, union/record/object behavior) — zero divergences
 - **259/259 Zod public exports** have a VLD equivalent across root, `./mini`, `./v4`, `./v4-mini`, `./v4/core`, `./v4/locales`, `./compile`, and nested namespace entry points
 - **366 VLD exports** across all entry points
 - 15/15 drop-in application audit cases pass (`examples/dropin/audit.mjs`)

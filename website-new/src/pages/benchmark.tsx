@@ -198,39 +198,41 @@ const features = [
   { icon: Layers, title: 'V2 Method-Memoization', description: 'vV2.* ships the Zod 4.5 method-memoization pattern — part of the drop-in geomean vs Zod 4.6.7 (10/10 honest wins, semantic-checked)', color: 'text-amber-500', bg: 'bg-amber-500/10' },
   { icon: Zap, title: 'Up to 35x .validate()', description: 'The Zod 4.6 boolean .validate() API is covered by a dedicated head-to-head: VLD wins every scenario, up to 35.5x on arrays and 28x on wide objects', color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
   { icon: Cpu, title: '2.56x Drop-in safeParse', description: 'Honest head-to-head geomean vs Zod 4.6.7 on 10 scenarios — the same import-line swap, measured with 1M safeParse ops x 21 runs', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
-  { icon: HardDrive, title: '259/259 Zod Parity', description: 'Root, mini, v4, v4-mini, v4/core, v4/locales, compile, and nested exports verified against Zod 4.6.5 - plus a 1400-case behavioral differential sweep', color: 'text-blue-500', bg: 'bg-blue-500/10' },
+  { icon: HardDrive, title: '259/259 Zod Parity', description: 'Root, mini, v4, v4-mini, v4/core, v4/locales, compile, and nested exports verified against Zod 4.6.7 - every behavioral differential sweep battery reports zero divergences', color: 'text-blue-500', bg: 'bg-blue-500/10' },
   { icon: Clock, title: 'Zero Dependencies', description: 'No runtime dependencies. V2 single-def + check classes; AOT compile emits a flat `if/typeof` chain that V8 inlines to a single guard', color: 'text-purple-500', bg: 'bg-purple-500/10' },
 ]
 
 const bundleComparison = [
-  { library: 'VLD root', size: '53.0 KiB', raw: 'bundle', percentage: 50 },
-  { library: 'VLD mini', size: '52.9 KiB', raw: 'bundle', percentage: 50 },
+  { library: 'VLD mini', size: '60.8 KiB', raw: 'tree-shaken', percentage: 33 },
+  { library: 'VLD root', size: '91.6 KiB', raw: 'tree-shaken', percentage: 50 },
+  { library: 'Zod 4.6.7', size: '182.8 KiB', raw: 'tree-shaken', percentage: 100 },
 ]
 
 const memoryOverall = [
   { library: 'VLD', heap: '1.00x', percentage: 28 },
-  { library: 'Zod 4.6.5', heap: '3.56x', percentage: 100 },
+  { library: 'Zod 4.6', heap: '3.56x', percentage: 100 },
 ]
 
 // ============================================================================
-// v3.0 Drop-in Head-to-Head — VLD vV2 vs Zod 4.5.4 (HONEST, semantic-checked)
+// v3.1.0 Drop-in Head-to-Head — VLD vV2 vs Zod 4.6.7 (HONEST, semantic-checked)
 // ============================================================================
+// Re-measured 2026-10-23: VLD 3.1.0 vs Zod 4.6.7 (npm latest).
 // Source: benchmarks/dropin-vs-zod.cjs
 // Methodology: SAME logical schema built in BOTH libraries using public API,
 // 1M safeParse ops, 21 runs median, 10k warmup. Every input is verified
 // to produce identical accept/reject in both libraries before timing.
 // This is the "I just changed `import { z }` to `import { v }`" benchmark.
 const dropinScenarios = [
-  { name: '1. string().min(1).email()',            vV2Ms: 25.14, v1Ms: 32.75, zodMs: 51.27 },
-  { name: '2. number().int().positive().min(1)',   vV2Ms: 7.23,  v1Ms: 13.27, zodMs: 74.09 },
-  { name: '3. object({ a: string, b: number })',   vV2Ms: 18.82, v1Ms: 20.91, zodMs: 43.35 },
-  { name: '4. tuple([string, number, boolean])',   vV2Ms: 40.75, v1Ms: 22.52, zodMs: 96.63 },
-  { name: '5. array(string()).min(1).max(100)',    vV2Ms: 32.26, v1Ms: 24.78, zodMs: 168.24 },
-  { name: '6. union([string, number])',            vV2Ms: 17.73, v1Ms: 19.48, zodMs: 41.16 },
-  { name: '7. discriminatedUnion (cat | dog)',     vV2Ms: 43.40, v1Ms: 53.18, zodMs: 64.04 },
-  { name: '8. nested object (3 levels)',           vV2Ms: 159.57, v1Ms: 170.35, zodMs: 255.42 },
-  { name: '9. record(string())',                   vV2Ms: 72.24, v1Ms: 93.01, zodMs: 472.08 },
-  { name: '10. literal("active")',                 vV2Ms: 14.13, v1Ms: 17.09, zodMs: 40.15 },
+  { name: '1. string().min(1).email()',            vV2Ms: 45.49, v1Ms: 45.35, zodMs: 53.50 },
+  { name: '2. number().int().positive().min(1)',   vV2Ms: 11.43, v1Ms: 21.20, zodMs: 71.23 },
+  { name: '3. object({ a: string, b: number })',   vV2Ms: 16.63, v1Ms: 17.18, zodMs: 37.12 },
+  { name: '4. tuple([string, number, boolean])',   vV2Ms: 39.37, v1Ms: 20.30, zodMs: 78.79 },
+  { name: '5. array(string()).min(1).max(100)',    vV2Ms: 29.16, v1Ms: 24.27, zodMs: 125.44 },
+  { name: '6. union([string, number])',            vV2Ms: 15.00, v1Ms: 14.57, zodMs: 41.25 },
+  { name: '7. discriminatedUnion (cat | dog)',     vV2Ms: 37.20, v1Ms: 53.49, zodMs: 52.11 },
+  { name: '8. nested object (3 levels)',           vV2Ms: 174.34, v1Ms: 177.28, zodMs: 223.14 },
+  { name: '9. record(string())',                   vV2Ms: 66.26, v1Ms: 72.77, zodMs: 378.63 },
+  { name: '10. literal("active")',                 vV2Ms: 10.93, v1Ms: 12.43, zodMs: 38.41 },
 ]
 
 // Compute the geometric mean speedup over Zod
@@ -241,6 +243,7 @@ const dropinGeoV1 = Math.exp(
   Math.log(dropinScenarios.reduce((a, s) => a * (s.zodMs / s.v1Ms), 1)) / dropinScenarios.length
 )
 const dropinV2Wins = dropinScenarios.filter((s) => s.vV2Ms < s.zodMs).length
+const dropinV1Wins = dropinScenarios.filter((s) => s.v1Ms < s.zodMs).length
 
 // ============================================================================
 // v3.0.9 Zod 4.6 `.validate()` head-to-head — boolean validation, no result objects
@@ -463,7 +466,7 @@ export function BenchmarkPage() {
               <div className="text-center">
                 <div className="text-5xl font-bold text-vld-primary mb-1">{dropinGeoV1.toFixed(2)}x</div>
                 <div className="text-sm text-muted-foreground">v.* V1 vs Zod (geomean)</div>
-                <div className="text-xs text-vld-success mt-1">10/{dropinScenarios.length} wins</div>
+                <div className="text-xs text-vld-success mt-1">{dropinV1Wins}/{dropinScenarios.length} wins</div>
               </div>
               <div className="text-center">
                 <div className="text-5xl font-bold text-vld-accent mb-1">1M</div>
@@ -976,7 +979,7 @@ if (!u.success) console.log(u.error.format())  // Zod-compatible`}
               <div className="bg-muted/50 px-6 py-4 border-b border-border">
                 <h3 className="font-semibold flex items-center gap-2">
                   <HardDrive className="w-4 h-4 text-vld-primary" />
-                  Bundle Size (gzipped)
+                  Bundle Size (tree-shaken, minified)
                 </h3>
               </div>
               <div className="p-6 space-y-4">
@@ -984,21 +987,21 @@ if (!u.success) console.log(u.error.format())  // Zod-compatible`}
                   <div key={lib.library}>
                     <div className="flex justify-between text-sm mb-2">
                       <span className="font-medium">{lib.library}</span>
-                      <span className="text-muted-foreground">{lib.size} <span className="text-xs">({lib.raw} raw)</span></span>
+                      <span className="text-muted-foreground">{lib.size} <span className="text-xs">({lib.raw})</span></span>
                     </div>
                     <div className="h-3 bg-muted rounded-full overflow-hidden">
                       <div
                         className="h-full rounded-full transition-all"
                         style={{
                           width: `${lib.percentage}%`,
-                          backgroundColor: lib.library === 'VLD' ? 'var(--color-vld-primary)' : '#a1a1aa'
+                          backgroundColor: lib.library.startsWith('VLD') ? 'var(--color-vld-primary)' : '#a1a1aa'
                         }}
                       />
                     </div>
                   </div>
                 ))}
                 <p className="text-xs text-muted-foreground mt-4">
-                  * Bundle and package sizes are checked by the release gate.
+                  * Same tree-shaken <code className="font-mono">string().min(2)</code> probe bundled for every library (release gate, 2026-10-23 vs Zod 4.6.7). Package sizes are gate-checked too.
                 </p>
               </div>
             </div>
@@ -1047,7 +1050,7 @@ if (!u.success) console.log(u.error.format())  // Zod-compatible`}
                 <ul className="space-y-1">
                   <li>• Node.js v24.13.0 (all benchmarks), v20 LTS (legacy guard)</li>
                   <li>• Windows 11 / macOS / Linux</li>
-                  <li>• Zod 4.6.5 (all release guards)</li>
+                  <li>• Zod 4.6.7 (all release guards)</li>
                 </ul>
               </div>
               <div>
@@ -1075,7 +1078,7 @@ if (!u.success) console.log(u.error.format())  // Zod-compatible`}
           <div className="mt-8 p-4 rounded-lg border border-border bg-muted/30">
             <p className="text-sm text-muted-foreground">
               <strong className="text-foreground">Note:</strong> Benchmark results may vary based on hardware, Node.js version, and system load.
-              All guards are measured against Zod 4.6.5 (npm <code className="font-mono">latest</code> at audit time). The drop-in
+              All guards are measured against Zod 4.6.7 (npm <code className="font-mono">latest</code> at audit time). The drop-in
               head-to-head is in <code className="font-mono">benchmarks/dropin-vs-zod.cjs</code> (10/10 wins, 2.56x geomean vs Zod 4.6.7) and the
               boolean .validate() head-to-head in <code className="font-mono">benchmarks/validate-vs-zod.cjs</code> (wins every scenario).
               The release gate compares against the installed latest stable Zod and must pass before publishing.

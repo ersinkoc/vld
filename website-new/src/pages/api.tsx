@@ -255,10 +255,10 @@ BucketSchema.parse(new Bucket("sand", 20)) instanceof Bucket // true` },
 })` },
 
   // V2 Method-Memoization (v3.0 NEW) — part of the drop-in speedup story
-  { name: 'vV2', description: 'Drop-in factory that always returns V2 method-memoization classes. Identical surface to v; vV2 contributes to the 3.00x geomean over Zod 4.5.4 in benchmarks/dropin-vs-zod.cjs.', category: 'V2 (v3.0)', signature: 'vV2: typeof v', example: `import { vV2 } from "@oxog/vld"
+  { name: 'vV2', description: 'Drop-in factory that always returns V2 method-memoization classes. Identical surface to v; vV2 powers the drop-in geomean over Zod 4.6.7 (2.56x at release, 10/10 wins) in benchmarks/dropin-vs-zod.cjs.', category: 'V2 (v3.0)', signature: 'vV2: typeof v', example: `import { vV2 } from "@oxog/vld"
 
 const schema = vV2.string().min(1).email()
-schema.parse("user@example.com") // part of the 3.00x drop-in geomean` },
+schema.parse("user@example.com") // part of the drop-in geomean vs Zod 4.6.7` },
   { name: 'v.stringV2()', description: 'V2 string with single-def + check classes. Same chain surface as v.string().', category: 'V2 (v3.0)', signature: 'v.stringV2(): VldStringV2', example: `import { v } from "@oxog/vld"
 
 const s = v.stringV2().min(2).max(100).email()

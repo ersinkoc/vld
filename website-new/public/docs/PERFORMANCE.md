@@ -1,4 +1,4 @@
-# VLD Performance Guide (v3.0.5)
+# VLD Performance Guide (v3.1.0)
 
 Comprehensive guide to understanding and optimizing VLD's performance in your applications. As of 3.1.0 against Zod 4.6.7 the honest head-to-head is 2.56x geomean (10/10 wins, semantic-checked); the 3.03x figure below was measured against Zod 4.6.4. On top of that, Zod 4.6's `.validate()` boolean API is covered by a dedicated head-to-head where VLD wins every scenario at up to 35.5x. V2 method-memoization is opt-in via `vV2` or `v.setV2Mode(true)`; 1.6-10x smaller per instance.
 
@@ -17,7 +17,7 @@ Comprehensive guide to understanding and optimizing VLD's performance in your ap
 
 ## Performance Overview
 
-VLD 3.0 is built from the ground up with performance as a primary goal. The release gate compares VLD against Zod 4.6.4 across runtime throughput, startup behavior, retained heap, packaging, installability, type declarations, and real app drop-in behavior.
+VLD 3.0 is built from the ground up with performance as a primary goal. The release gate compares VLD against npm's current `latest` Zod (4.6.7) across runtime throughput, startup behavior, retained heap, packaging, installability, type declarations, and real app drop-in behavior.
 
 ### Key Performance Features
 
@@ -56,9 +56,9 @@ VLD 3.0 is built from the ground up with performance as a primary goal. The rele
 
 ### Test Coverage
 
-- **109 test suites, 3113/3113 tests pass** (no regressions)
+- **116 test suites, 3314/3314 tests pass** (statement 100% / branch 99% / function 100% / line 100%)
 - **22/22 real-world Zod pattern test** (discriminated union, lazy, preprocess, pipe, brand, pick/omit, merge, extend, catch, default, transform, refine, etc.)
-- **29/29 Zod 4.6 differential test** compared against the installed zod (`tests/zod-4-6-parity.test.ts`)
+- **455+ differential sweep cases** against the installed Zod 4.6.7 report zero divergences
 
 ### `.validate()` vs Zod 4.6 `.validate()`
 
@@ -79,15 +79,15 @@ Zod 4.6 introduced `.validate()` — boolean validation without building result 
 
 ### Release-Gated Snapshot
 
-| Guard | v3.0 Snapshot | Release Threshold |
+| Guard | v3.1.0 Snapshot | Release Threshold |
 |-------|------------------|-------------------|
 | Runtime throughput (drop-in) | **2.56x faster than Zod 4.6.7** (10/10 wins, semantic-checked; 3.03x vs 4.6.4) | Must stay faster |
 | `.validate()` head-to-head | **Faster than `zod.validate()` on every scenario**, up to 35.5x | Must stay faster |
 | Memory (V2) | **1.6-10x less than Zod 4.6** | Must stay below |
 | Startup | **1.5x+ faster** | >= 1.10x |
-| 3113 unit tests | **PASS** | No regressions |
+| 3314 unit tests | **PASS** | No regressions |
 | 22/22 real-world Zod test | **PASS** | All must pass |
-| Bundle size | **53.0 KiB minified root** | Release-gated |
+| Bundle size | **91.6 KiB root / 60.8 KiB mini** (Zod 4.6.7 root: 182.8 KiB) | Release-gated |
 
 ### Memory Usage vs Zod 4.5
 
@@ -366,12 +366,13 @@ VLD has zero dependencies, resulting in smaller bundle sizes:
 
 | Library | Minified | Dependencies |
 |---------|----------|--------------|
-| VLD root string bundle | 53.0 KiB | 0 |
-| VLD mini string bundle | 52.9 KiB | 0 |
-| VLD V2 root string bundle | 51.2 KiB | 0 |
-| Zod 4 | external baseline | 0 |
+| VLD root string bundle | 91.6 KiB | 0 |
+| VLD mini string bundle | 60.8 KiB | 0 |
+| Zod 4.6.7 root string bundle | 182.8 KiB | 0 |
 | Yup | 145 KB | 15 deps |
 | Joi | 218 KB | 12 deps |
+
+*Same tree-shaken `string().min(2)` probe bundled for every library; measured 2026-10-23 by the release bundle gate (`npm run verify:bundle`).*
 
 The release gate checks bundle output and package size on every release. The v3.0.0 package check produced a 295 KiB tarball with 1,674 KiB unpacked size and 299 files.
 
@@ -431,13 +432,13 @@ npm run benchmark:startup
 npm run release:check
 ```
 
-This runs linting, TypeScript checks, the full Jest suite (3031 tests), build, ASCII/docs/export/bundle/type/package/install/security verification, Zod parity checks (28/28), real app drop-in verification, and runtime/startup/memory performance guards.
+This runs linting, TypeScript checks, the full Jest suite (3314 tests), build, ASCII/docs/export/bundle/type/package/install/security verification, Zod parity checks against the installed npm-latest Zod (4.6.7), real app drop-in verification, and runtime/startup/memory performance guards.
 
 ## Performance Tips Summary (v3.0)
 
 1. **Reuse schemas** — Create once, use many times
 2. **Use safeParse** — Avoid exception overhead
-3. **Use vV2 for hot paths** — part of the 3.03x drop-in geomean vs Zod 4.6.4
+3. **Use vV2 for hot paths** — part of the 2.56x drop-in geomean vs Zod 4.6.7
 4. **Use v.setV2Mode(true)** — One-line global V2 swap
 5. **Optimize unions** — Most common types first
 6. **Flatten structures** — Avoid deep nesting

@@ -212,6 +212,7 @@ console.log('Scenario                                    v.* V1       vV2 V2    
 console.log('--------------------------------------------------------  ----------  ----------  ----------  ---------');
 
 let v1Total = 0, v2Total = 0, zodTotal = 0, v2Wins = 0, v1Wins = 0;
+let v2LogSum = 0, v1LogSum = 0;
 
 for (const sc of scenarios) {
   const results = (() => {
@@ -232,6 +233,8 @@ for (const sc of scenarios) {
   v1Total += v1.ms;
   v2Total += v2.ms;
   zodTotal += zd.ms;
+  v2LogSum += Math.log(zd.ms / v2.ms);
+  v1LogSum += Math.log(zd.ms / v1.ms);
   if (v2.ms < zd.ms) v2Wins++;
   if (v1.ms < zd.ms) v1Wins++;
   console.log(sc.name.padEnd(50) + ' ' + fmt(v1.ms) + '  ' + fmt(v2.ms) + '  ' + fmt(zd.ms) + '  ' + speedup);
@@ -244,6 +247,7 @@ console.log(`  vV2 V2: ${v2Total.toFixed(0).padStart(6)} ms`);
 console.log(`  Zod  : ${zodTotal.toFixed(0).padStart(6)} ms`);
 console.log('');
 console.log(`Summary: vV2 wins ${v2Wins}/10 scenarios vs Zod ${ZOD_VER}.`);
-console.log(`  vV2 geometric mean speedup: ${(Math.exp(Math.log(zodTotal / v2Total))).toFixed(2)}x over Zod.`);
-console.log(`  v.*  geometric mean speedup: ${(Math.exp(Math.log(zodTotal / v1Total))).toFixed(2)}x over Zod.`);
-console.log(`  vV2 vs v.* (V1):              ${(Math.exp(Math.log(v1Total / v2Total))).toFixed(2)}x improvement from V2 pattern.`);
+console.log(`  vV2 geometric mean speedup: ${Math.exp(v2LogSum / scenarios.length).toFixed(2)}x over Zod.`);
+console.log(`  v.*  geometric mean speedup: ${Math.exp(v1LogSum / scenarios.length).toFixed(2)}x over Zod.`);
+console.log(`  vV2 total-time speedup:      ${(zodTotal / v2Total).toFixed(2)}x over Zod (sum of all scenarios).`);
+console.log(`  vV2 vs v.* (V1):              ${(v1Total / v2Total).toFixed(2)}x improvement from V2 pattern.`);
