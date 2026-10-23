@@ -213,11 +213,11 @@ describe('Fourth Bug Analysis Fixes', () => {
 
         const result = validator.parse(maliciousData);
 
-        // Only safe key should be present
-        expect(result).toEqual({ normal: 'safe' });
+        // Zod parity: only __proto__ is stripped; constructor/prototype
+        // survive as own data keys and nothing leaks to Object.prototype.
+        expect(result).toEqual({ constructor: 'hacked', prototype: 'exploited', normal: 'safe' });
         expect(result['__proto__']).not.toBe('polluted');
-        expect(result.constructor).not.toBe('hacked');
-        expect((result as any).prototype).not.toBe('exploited');
+        expect(({} as any).polluted).toBeUndefined();
       });
 
       test('should preserve dotted keys (they cannot cause prototype pollution)', () => {

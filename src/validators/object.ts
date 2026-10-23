@@ -1,7 +1,7 @@
 import { VldBase, ParseResult, VldOptional, VldExactOptional, VldDefault, VldCatch, VLD_VALIDATOR_TYPES } from './base';
 import { getMessages } from '../locales/runtime';
 import { VldEnum } from './enum';
-import { isDangerousKey } from '../utils/security';
+import { isDangerousKey, isProtoKey } from '../utils/security';
 import { VldError, VldIssue, stringifyForMessage, createInvalidTypeIssue, getTypeName } from '../errors-core';
 import { isRecordLike } from './record';
 
@@ -796,7 +796,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
         for (let i = 0; i < objKeys.length; i++) {
           const key = objKeys[i]!;
           // Skip dangerous keys to prevent prototype pollution
-          if (!this._shapeKeysSet.has(key) && !isDangerousKey(key)) {
+          if (!this._shapeKeysSet.has(key) && !isProtoKey(key)) {
             result[key] = obj[key];
           }
         }
@@ -807,7 +807,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
         for (let i = 0; i < objKeys.length; i++) {
           const key = objKeys[i]!;
           // Skip keys already in shape and dangerous keys
-          if (!this._shapeKeysSet.has(key) && !isDangerousKey(key)) {
+          if (!this._shapeKeysSet.has(key) && !isProtoKey(key)) {
             try {
               result[key] = this._config.catchall.parse(obj[key]);
             } catch (error) {
@@ -977,7 +977,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
         for (let i = 0; i < objKeys.length; i++) {
           const key = objKeys[i]!;
           // Skip dangerous keys to prevent prototype pollution
-          if (!this._shapeKeysSet.has(key) && !isDangerousKey(key)) {
+          if (!this._shapeKeysSet.has(key) && !isProtoKey(key)) {
             result[key] = obj[key];
           }
         }
@@ -989,7 +989,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
         for (let i = 0; i < objKeys.length; i++) {
           const key = objKeys[i]!;
           // Skip keys already in shape and dangerous keys
-          if (!this._shapeKeysSet.has(key) && !isDangerousKey(key)) {
+          if (!this._shapeKeysSet.has(key) && !isProtoKey(key)) {
             try {
               if (catchallValidator instanceof VldBase) {
                 result[key] = catchallValidator.parse(obj[key]);
@@ -1392,7 +1392,15 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
           }
           unwrapped = inner;
         }
-        requiredShape[key] = unwrapped;
+        // Zod: a required() field reports `expected: "nonoptional"` for a
+        // missing key / explicit undefined. Defaulted and caught fields keep
+        // their own presence semantics (handled below via requiredPresence).
+        requiredShape[key] = (unwrapped instanceof VldDefault || unwrapped instanceof VldCatch)
+          ? unwrapped
+          // optional() lets undefined reach the nonoptional check, so a
+          // missing key reports Zod's expected: nonoptional instead of the
+          // base schema's type error.
+          : VldOptional.create(unwrapped).nonoptional();
       } else {
         requiredShape[key] = validator;
       }

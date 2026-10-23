@@ -1,6 +1,6 @@
 import { VldBase, ParseResult, VLD_VALIDATOR_TYPES } from './base';
 import { getMessages } from '../locales/runtime';
-import { isDangerousKey } from '../utils/security';
+import { isDangerousKey, isProtoKey } from '../utils/security';
 import { VldError, nestIssues, type VldIssue, createInvalidTypeIssue, getTypeName } from '../errors-core';
 
 /**
@@ -173,7 +173,7 @@ export class VldRecord<T, K extends PropertyKey = string> extends VldBase<unknow
 
       // Skip dangerous keys to prevent prototype pollution
       // Now using comprehensive protection from shared utility
-      if (isDangerousKey(key)) {
+      if (isProtoKey(key)) {
         continue;
       }
 
@@ -251,7 +251,7 @@ export class VldRecord<T, K extends PropertyKey = string> extends VldBase<unknow
   private throwRecordIssues(obj: Record<string, unknown>): never {
     const issues: VldIssue[] = [];
     for (const key of Object.keys(obj)) {
-      if (isDangerousKey(key)) continue;
+      if (isProtoKey(key)) continue;
       const item = this.valueValidator.safeParse(obj[key]);
       if (!item.success) {
         issues.push(...nestIssues(item.error, key, message => message));
@@ -273,7 +273,7 @@ export class VldRecord<T, K extends PropertyKey = string> extends VldBase<unknow
       if (!Object.prototype.propertyIsEnumerable.call(obj, rawKey)) {
         continue;
       }
-      if (typeof rawKey === 'string' && isDangerousKey(rawKey)) {
+      if (typeof rawKey === 'string' && isProtoKey(rawKey)) {
         continue;
       }
 
@@ -297,7 +297,7 @@ export class VldRecord<T, K extends PropertyKey = string> extends VldBase<unknow
       if (typeof parsedKey.data !== 'string' && typeof parsedKey.data !== 'number' && typeof parsedKey.data !== 'symbol') {
         this.throwKeyedRecordIssues(obj);
       }
-      if (typeof parsedKey.data === 'string' && isDangerousKey(parsedKey.data)) {
+      if (typeof parsedKey.data === 'string' && isProtoKey(parsedKey.data)) {
         continue;
       }
 
@@ -328,7 +328,7 @@ export class VldRecord<T, K extends PropertyKey = string> extends VldBase<unknow
         }
         const missing = this.valueValidator.safeParse(undefined);
         if (!missing.success) {
-          missingIssues.push(...nestIssues(missing.error, String(key), message => message));
+          missingIssues.push(...nestIssues(missing.error, key, message => message));
           continue;
         }
         if (missing.data !== undefined) {
@@ -367,7 +367,7 @@ export class VldRecord<T, K extends PropertyKey = string> extends VldBase<unknow
       if (!Object.prototype.propertyIsEnumerable.call(obj, rawKey)) {
         continue;
       }
-      if (typeof rawKey === 'string' && isDangerousKey(rawKey)) {
+      if (typeof rawKey === 'string' && isProtoKey(rawKey)) {
         continue;
       }
       if (finiteKeySet !== undefined && typeof rawKey === 'string' && !finiteKeySet.has(rawKey)) {
@@ -383,24 +383,24 @@ export class VldRecord<T, K extends PropertyKey = string> extends VldBase<unknow
       }
       if (!parsedKey.success) {
         issues.push({
-          code: 'invalid_key', origin: 'record', path: [String(rawKey)],
+          code: 'invalid_key', origin: 'record', path: [rawKey as PropertyKey],
           message: 'Invalid key in record', issues: parsedKey.error.issues,
         });
         continue;
       }
       if (typeof parsedKey.data !== 'string' && typeof parsedKey.data !== 'number' && typeof parsedKey.data !== 'symbol') {
         issues.push({
-          code: 'invalid_key', origin: 'record', path: [String(rawKey)],
+          code: 'invalid_key', origin: 'record', path: [rawKey as PropertyKey],
           message: 'Record key transform must return a property key',
         });
         continue;
       }
-      if (typeof parsedKey.data === 'string' && isDangerousKey(parsedKey.data)) {
+      if (typeof parsedKey.data === 'string' && isProtoKey(parsedKey.data)) {
         continue;
       }
       const item = this.valueValidator.safeParse(obj[rawKey as keyof typeof obj]);
       if (!item.success) {
-        issues.push(...nestIssues(item.error, String(rawKey), message => message));
+        issues.push(...nestIssues(item.error, rawKey as PropertyKey, message => message));
       }
     }
 
@@ -419,7 +419,7 @@ export class VldRecord<T, K extends PropertyKey = string> extends VldBase<unknow
         }
         const missing = this.valueValidator.safeParse(undefined);
         if (!missing.success) {
-          issues.push(...nestIssues(missing.error, String(key), message => message));
+          issues.push(...nestIssues(missing.error, key, message => message));
         }
       }
     }
@@ -457,7 +457,7 @@ export class VldRecord<T, K extends PropertyKey = string> extends VldBase<unknow
       ? Object.keys(obj)
       : Reflect.ownKeys(obj).filter(key => Object.prototype.propertyIsEnumerable.call(obj, key));
     for (const rawKey of rawKeys) {
-      if (typeof rawKey === 'string' && isDangerousKey(rawKey)) continue;
+      if (typeof rawKey === 'string' && isProtoKey(rawKey)) continue;
       let key: PropertyKey = rawKey;
       if (finiteKeySet !== undefined && typeof rawKey === 'string' && !finiteKeySet.has(rawKey)) {
         unrecognized.push(rawKey);
@@ -470,15 +470,15 @@ export class VldRecord<T, K extends PropertyKey = string> extends VldBase<unknow
           if (numericKey.success) parsedKey = numericKey;
         }
         if (!parsedKey.success) {
-          issues.push({ code: 'invalid_key', origin: 'record', path: [String(rawKey)], message: 'Invalid key in record', issues: parsedKey.error.issues });
+          issues.push({ code: 'invalid_key', origin: 'record', path: [rawKey as PropertyKey], message: 'Invalid key in record', issues: parsedKey.error.issues });
           continue;
         }
         key = parsedKey.data as PropertyKey;
-        if (typeof key === 'string' && isDangerousKey(key)) continue;
+        if (typeof key === 'string' && isProtoKey(key)) continue;
       }
       const item = await this.valueValidator.safeParseAsync(obj[rawKey]);
       if (item.success) result[key] = item.data;
-      else issues.push(...nestIssues(item.error, String(rawKey), message => message));
+      else issues.push(...nestIssues(item.error, rawKey as PropertyKey, message => message));
     }
     for (const key of finiteKeys ?? []) {
       if ((typeof key !== 'string' && typeof key !== 'number') || Object.prototype.hasOwnProperty.call(obj, String(key))) continue;
@@ -489,7 +489,7 @@ export class VldRecord<T, K extends PropertyKey = string> extends VldBase<unknow
         continue;
       }
       const missing = await this.valueValidator.safeParseAsync(undefined);
-      if (!missing.success) issues.push(...nestIssues(missing.error, String(key), message => message));
+      if (!missing.success) issues.push(...nestIssues(missing.error, key, message => message));
       else if (missing.data !== undefined) result[key] = missing.data;
     }
     if (unrecognized.length > 0) {

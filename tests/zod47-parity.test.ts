@@ -227,3 +227,47 @@ describe('Zod 4.6.7 container and JSON Schema parity additions', () => {
     expect(rejected.success).toBe(false);
   });
 });
+
+describe('own __proto__ keys are stripped like Zod (JSON.parse inputs)', () => {
+  it('record fast path drops an own enumerable __proto__ key', () => {
+    // JSON.parse creates a real own enumerable __proto__ property.
+    const input = JSON.parse('{"ok":1,"__proto__":5}');
+    const result = v.record(v.number()).safeParse(input);
+    expect(result).toEqual(expect.objectContaining({ success: true }));
+    if (result.success) {
+      expect(Object.keys(result.data)).toEqual(['ok']);
+    }
+  });
+
+  it('record collection mode drops __proto__ while a sibling fails', () => {
+    const input = JSON.parse('{"bad":1,"__proto__":5}');
+    const result = v.record(v.string()).safeParse(input);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.every((i: any) => i.path[0] === 'bad')).toBe(true);
+    }
+  });
+
+  it('object passthrough drops __proto__ and keeps constructor/prototype as data', () => {
+    const schema = v.object({ name: v.string() }).passthrough();
+    const input = JSON.parse('{"name":"n","__proto__":{"p":true},"constructor":"c"}');
+    const result = schema.safeParse(input);
+    expect(result).toEqual(expect.objectContaining({ success: true }));
+    if (result.success) {
+      expect(Object.keys(result.data).sort()).toEqual(['constructor', 'name']);
+      expect(({} as any).p).toBeUndefined();
+    }
+  });
+});
+
+describe('keyed record collection drops own __proto__ keys', () => {
+  it('collector mode skips __proto__ while a value fails', () => {
+    const schema = v.record(v.string(), v.string());
+    const input = JSON.parse('{"bad":1,"__proto__":5}');
+    const result = schema.safeParse(input);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.every((i: any) => i.path[0] === 'bad')).toBe(true);
+    }
+  });
+});

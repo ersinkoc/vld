@@ -34,10 +34,12 @@ describe('Security Tests', () => {
       };
 
       const result = schema.parse(maliciousInput);
-      
-      // The constructor should not be overwritten
-      expect(result).toEqual({ name: 'test' });
-      expect(result.constructor).toBe(Object);
+
+      // Zod parity: own `constructor` keys pass through as data (the
+      // assignment creates an own property, Object.prototype stays clean).
+      expect(result).toEqual({ name: 'test', constructor: { prototype: { polluted: true } } });
+      expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
+      expect(({} as any).polluted).toBeUndefined();
     });
 
     it('should prevent prototype pollution via prototype in passthrough mode', () => {
@@ -51,10 +53,12 @@ describe('Security Tests', () => {
       };
 
       const result = schema.parse(maliciousInput);
-      
-      // The prototype key should not be copied to the result
-      expect(result).not.toHaveProperty('prototype');
-      expect(result).toEqual({ name: 'test' });
+
+      // Zod parity: own `prototype` keys pass through as data; the object's
+      // actual prototype is untouched.
+      expect(result).toEqual({ name: 'test', prototype: { polluted: true } });
+      expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
+      expect(({} as any).polluted).toBeUndefined();
     });
 
     it('should allow normal properties in passthrough mode', () => {
@@ -96,10 +100,14 @@ describe('Security Tests', () => {
       
       expect(result.success).toBe(true);
       if (result.success) {
-        // Dangerous properties should not be copied
-        expect(result.data).toEqual({ name: 'test' });
+        // Zod parity: only __proto__ is stripped; own constructor/prototype
+        // keys survive as data. Object.prototype itself stays untouched.
+        expect(result.data).toEqual({
+          name: 'test',
+          constructor: { prototype: { polluted2: true } },
+          prototype: { polluted3: true }
+        });
         expect(Object.getPrototypeOf(result.data)).toBe(Object.prototype);
-        expect(result.data.constructor).toBe(Object);
       }
 
       // Verify no pollution occurred

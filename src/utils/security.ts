@@ -30,6 +30,12 @@ const DANGEROUS_KEYS = new Set<string>([
  * Return true if a property key would, if assigned, mutate the prototype
  * chain or accessor behavior of the target object.
  */
+/** Zod strips only `__proto__` on parse paths; own `constructor` / `prototype`
+ * assignments are safe and pass through like any other key. */
+export function isProtoKey(key: string): boolean {
+  return key === '__proto__';
+}
+
 export function isDangerousKey(key: string): boolean {
   return DANGEROUS_KEYS.has(key);
 }

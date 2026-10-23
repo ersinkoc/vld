@@ -181,7 +181,7 @@ function toErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function addFormattedIssue(root: FormattedError, path: (string | number)[], message: string): void {
+function addFormattedIssue(root: FormattedError, path: PropertyKey[], message: string): void {
   let current: any = root;
   for (const segment of path) {
     // Zod uses the raw segment as the key: a symbol stays a symbol (hidden
@@ -1414,7 +1414,7 @@ export namespace v {
   export type SafeParseReturnType<_Input, Output> = ParseResult<Output>;
   export type CustomErrorParams = {
     message?: string;
-    path?: (string | number)[];
+    path?: PropertyKey[];
     params?: { [k: string]: any };
     fatal?: boolean;
   };
@@ -1437,7 +1437,7 @@ export namespace z {
   export type SafeParseReturnType<_Input, Output> = ParseResult<Output>;
   export type CustomErrorParams = {
     message?: string;
-    path?: (string | number)[];
+    path?: PropertyKey[];
     params?: { [k: string]: any };
     fatal?: boolean;
   };

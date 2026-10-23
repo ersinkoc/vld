@@ -13,6 +13,31 @@ to end, and `v.compile()` degrades gracefully in CSP environments.
 
 ### Added
 
+- **A second differential battery** (`.temp_files/sweep_full2.ts`, 111 cases)
+  covering object transforms (pick/omit/extend/merge/required-mask/partial-mask),
+  wrappers (nonoptional, brand, readonly, function defaults/prefaults/catches),
+  the full coerce family, pipes, multi-issue ordering, prototype/symbol key
+  handling, lazy recursion, JSON Schema of transforms and the Standard Schema
+  interface. Four more divergences found and closed:
+
+### Changed (found by the second battery)
+
+- **`.required()` fields report `expected: "nonoptional"`** for a missing key
+  or an explicit `undefined` (Zod): peeled optionals are wrapped in
+  `optional(...).nonoptional()` so the undefined check wins over the base
+  schema's type error. Defaulted/caught fields keep their presence semantics.
+- **Parse paths strip only `__proto__`** (Zod): own `constructor` and
+  `prototype` keys now pass through as data in records, passthrough objects
+  and catchall validation - an own-property assignment never touches
+  `Object.prototype`, which stays clean. Encode paths keep the full
+  dangerous-key filter.
+- **`VldIssue.path` widened to `PropertyKey[]`** (Zod's type): record keys
+  that are symbols keep the raw symbol in the issue path instead of the
+  `"Symbol(s)"` string form.
+- Record issue paths carry the raw key (strings stay strings, symbols stay
+  symbols), matching Zod's `prefixIssues`.
+
+
 - **A 294-case full-surface differential battery** (`.temp_files/sweep_full.ts`)
   covering every validator family, wrapper, refinement and async path found
   two more real divergences, both closed:

@@ -203,7 +203,7 @@ export type ValidatorType = typeof VLD_VALIDATOR_TYPES[keyof typeof VLD_VALIDATO
  * Context for superRefine - allows adding multiple issues with path and code
  */
 export interface SuperRefineContext {
-  addIssue(issue: string | { message?: string; code?: string; path?: (string | number)[]; fatal?: boolean; [key: string]: any }): void;
+  addIssue(issue: string | { message?: string; code?: string; path?: PropertyKey[]; fatal?: boolean; [key: string]: any }): void;
   path: (string | number)[];
   /** The value being refined / transformed (Zod's `ctx.value`). */
   value?: unknown;
@@ -244,7 +244,7 @@ export function createIssueContext(value: unknown): { ctx: SuperRefineContext; i
 
 export interface CheckPayload<T> {
   value: T;
-  issues: Array<{ message?: string; code?: string; path?: (string | number)[] }>;
+  issues: Array<{ message?: string; code?: string; path?: PropertyKey[] }>;
   aborted?: boolean;
 }
 
@@ -254,12 +254,12 @@ export type VldCheck<T> =
 
 export type CustomErrorParams = {
   message?: string;
-  path?: (string | number)[];
+  path?: PropertyKey[];
   params?: { [k: string]: any };
   fatal?: boolean;
 };
 
-export type ErrorMap = (issue: { code?: string; input?: unknown; path?: (string | number)[] }) => string | undefined;
+export type ErrorMap = (issue: { code?: string; input?: unknown; path?: PropertyKey[] }) => string | undefined;
 export type ErrorParam =
   | string
   | CustomErrorParams
@@ -1207,7 +1207,7 @@ function forwardWrappedSchemaApi(cls: { prototype: object }, rewrap: (self: any,
  */
 export class VldRefine<TInput, TBase, TOutput extends TBase = TBase> extends VldBase<TInput, TOutput> {
   private readonly customMessage: ErrorParam | CustomErrorParams | ((val: TBase) => CustomErrorParams | string);
-  private readonly refinePath?: (string | number)[];
+  private readonly refinePath?: PropertyKey[];
 
   constructor(
     readonly baseValidator: VldBase<TInput, TBase>,

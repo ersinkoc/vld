@@ -375,9 +375,11 @@ describe('VldObject Coverage Tests', () => {
 
       expect(result.success).toBe(true);
       if (result.success) {
+        // Zod parity: __proto__ is stripped; constructor/prototype survive
+        // as own data keys and Object.prototype stays clean.
         expect(Object.keys(result.data)).not.toContain('__proto__');
-        expect(Object.keys(result.data)).not.toContain('constructor');
-        expect(Object.keys(result.data)).not.toContain('prototype');
+        expect((result.data as any)['constructor']).toBe('hacked');
+        expect((result.data as any)['prototype']).toBe('exploited');
         expect(result.data['name']).toBe('John');
         expect((Object.prototype as any).polluted).toBeUndefined();
       }
@@ -463,7 +465,8 @@ describe('VldObject Coverage Tests', () => {
         prototype: 'bad'
       });
 
-      expect(result).not.toHaveProperty('prototype');
+      // Zod parity: catchall validates every extra key, prototype included.
+      expect(result).toHaveProperty('prototype', 'bad');
     });
   });
 

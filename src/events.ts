@@ -49,7 +49,7 @@ export interface VldEvents extends EventMap {
     key: string;
     value: unknown;
     valid: boolean;
-    path: (string | number)[];
+    path: PropertyKey[];
     timestamp: number;
   };
 

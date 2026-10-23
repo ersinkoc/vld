@@ -209,7 +209,7 @@ export function flattenError(error: VldError): VldFlattenedError {
  */
 export function createIssue(
   code: VldErrorCode,
-  path: (string | number)[],
+  path: PropertyKey[],
   message: string,
   extra?: Partial<VldIssue>
 ): VldIssue {

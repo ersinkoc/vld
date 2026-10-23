@@ -30,7 +30,7 @@ export type VldErrorCode =
 
 export interface VldIssue {
   code: VldErrorCode;
-  path: (string | number)[];
+  path: PropertyKey[];
   message: string;
   expected?: string;
   received?: string;
@@ -67,7 +67,7 @@ export interface VldIssue {
  * elements). Non-VldError failures become one custom issue.
  * @internal
  */
-export function nestIssues(error: unknown, segment: string | number, format: (message: string) => string): VldIssue[] {
+export function nestIssues(error: unknown, segment: PropertyKey, format: (message: string) => string): VldIssue[] {
   if (error instanceof VldError) {
     return error.issues.map(issue => ({ ...issue, path: [segment, ...issue.path], message: format(issue.message) }));
   }
@@ -135,7 +135,7 @@ export interface VldErrorJSON {
   code: string;
   issues: Array<{
     code: string;
-    path: (string | number)[];
+    path: PropertyKey[];
     message: string;
     expected?: string;
     received?: string;
