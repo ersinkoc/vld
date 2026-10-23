@@ -6,8 +6,8 @@ import { CodeBlock, CommandLine } from '@/components/ui/code-block'
 const features = [
   {
     icon: Zap,
-    title: '3.03x Faster Drop-in',
-    description: '`import { z } from "@oxog/vld"` is a true drop-in for Zod 4.6.4. 3.03x geomean (10/10 honest wins, semantic-checked).',
+    title: '2.56x Faster Drop-in',
+    description: '`import { z } from "@oxog/vld"` is a true drop-in for Zod 4.6.7 - every differential sweep reports zero divergences. 2.56x geomean (10/10 honest wins, semantic-checked).',
     color: 'from-amber-500 to-orange-500',
   },
   {
@@ -60,7 +60,7 @@ const features = [
   },
 ]
 
-const quickExample = `// v3.0.5 — true drop-in for Zod 4.6.4
+const quickExample = `// v3.1.0 — true drop-in for Zod 4.6.7 (zero divergences)
 //   import { z } from "@oxog/vld"   // literally the same as import { z } from "zod"
 //   benchmarks/dropin-vs-zod.cjs  — 10/10 wins, 3.03x geomean (semantic-checked)
 
@@ -96,10 +96,11 @@ const schema = z.object({
 })
 
 // VLD v3.1.0 — true drop-in: only the import line changes
-//   3.03x faster (benchmarks/dropin-vs-zod.cjs, 10/10 wins, semantic-checked)
-//   + Zod 4.6 APIs: .validate(), z.iban(), z.instanceof().properties(), z.withParser()
+//   2.56x faster vs Zod 4.6.7 (10/10 wins, semantic-checked)
+//   + Zod 4.6.7 semantics: z.json(), bigint int64/uint64, exactOptional,
+//     .check() ctx contract, CSP-safe v.compile() (runtime fallback)
 import { z } from "@oxog/vld"   // <- THAT'S IT
-const schema = z.object({        // <- same code, 3.03x faster
+const schema = z.object({        // <- same code, 2.56x faster
   name: z.string().min(2),
   email: z.string().email(),
 })
@@ -127,7 +128,7 @@ const myPlugin = definePlugin({
 })`
 
 const stats = [
-  { value: '3.03x', label: 'Drop-in Faster', sublabel: '10/10 vs Zod 4.6.4' },
+  { value: '2.56x', label: 'Drop-in Faster', sublabel: '10/10 vs Zod 4.6.7' },
   { value: '10/10', label: 'Honest Wins', sublabel: 'semantic-checked' },
   { value: '0', label: 'Dependencies', sublabel: 'zero bloat' },
   { value: '3116', label: 'Tests Passing', sublabel: '110 test suites' },

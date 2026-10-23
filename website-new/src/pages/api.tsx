@@ -14,13 +14,15 @@ interface ApiMethod {
 
 const apiMethods: ApiMethod[] = [
   // Primitives
-  { name: 'v.string()', description: 'Creates a string validator with chainable methods', category: 'Primitives', signature: 'v.string(): VldString', methods: ['.min(n)', '.max(n)', '.length(n)', '.email()', '.url()', '.uuid()', '.regex(pattern)', '.startsWith(str)', '.endsWith(str)', '.includes(str)', '.trim()', '.toLowerCase()', '.toUpperCase()', '.nonempty()'], example: `const schema = v.string().min(2).max(100).email()` },
+  { name: 'v.string()', description: 'Creates a string validator with chainable methods', category: 'Primitives', signature: 'v.string(): VldString', methods: ['.min(n)', '.max(n)', '.length(n)', '.email()', '.url({hostname?, protocol?})', '.uuid()', '.regex(pattern)', '.startsWith(str)', '.endsWith(str)', '.includes(str)', '.trim()', '.lowercase()', '.uppercase()', '.toLowerCase()', '.toUpperCase()', '.jwt({alg?})', '.nonempty()'], example: `const schema = v.string().min(2).max(100).email()` },
   { name: 'v.number()', description: 'Creates a number validator', category: 'Primitives', signature: 'v.number(): VldNumber', methods: ['.min(n)', '.max(n)', '.int()', '.positive()', '.negative()', '.nonnegative()', '.nonpositive()', '.finite()', '.safe()', '.multipleOf(n)'], example: `const schema = v.number().int().positive().max(100)` },
   { name: 'v.boolean()', description: 'Creates a boolean validator', category: 'Primitives', signature: 'v.boolean(): VldBoolean', example: `const schema = v.boolean()` },
   { name: 'v.bigint()', description: 'Creates a bigint validator', category: 'Primitives', signature: 'v.bigint(): VldBigInt', methods: ['.min(n)', '.max(n)', '.positive()', '.negative()', '.nonnegative()', '.nonpositive()'], example: `const schema = v.bigint().positive()` },
-  { name: 'v.date()', description: 'Creates a date validator', category: 'Primitives', signature: 'v.date(): VldDate', methods: ['.min(date)', '.max(date)'], example: `const schema = v.date().min(new Date())` },
+  { name: 'v.date()', description: 'Date instance validation (Zod: strings/numbers are rejected - use v.coerce.date() or v.dateLegacy())', category: 'Primitives', signature: 'v.date(): VldDate', methods: ['.min(date)', '.max(date)', '.between(min, max)'], example: `const schema = v.date().min(new Date())` },
   { name: 'v.symbol()', description: 'Creates a symbol validator', category: 'Primitives', signature: 'v.symbol(): VldSymbol' },
   { name: 'v.int()', description: 'Shorthand for integer validation', category: 'Primitives', signature: 'v.int(): VldNumber', example: `const schema = v.int() // same as v.number().int()` },
+  { name: 'v.int64()', description: "Signed 64-bit integer as a bigint with Zod's exact range checks (number inputs are rejected)", category: 'Primitives', signature: 'v.int64(): VldBigInt', example: `const schema = v.int64() // -9223372036854775808n .. 9223372036854775807n` },
+  { name: 'v.uint64()', description: "Unsigned 64-bit integer as a bigint with Zod's exact range checks", category: 'Primitives', signature: 'v.uint64(): VldBigInt', example: `const schema = v.uint64() // 0n .. 18446744073709551615n` },
   { name: 'v.int32()', description: '32-bit signed integer validation', category: 'Primitives', signature: 'v.int32(): VldNumber' },
   { name: 'v.null()', description: 'Validates null values only', category: 'Primitives', signature: 'v.null(): VldNull' },
   { name: 'v.undefined()', description: 'Validates undefined values only', category: 'Primitives', signature: 'v.undefined(): VldUndefined' },
@@ -29,7 +31,7 @@ const apiMethods: ApiMethod[] = [
   { name: 'v.unknown()', description: 'Unknown type validator', category: 'Primitives', signature: 'v.unknown(): VldUnknown' },
   { name: 'v.never()', description: 'Never type - always fails', category: 'Primitives', signature: 'v.never(): VldNever' },
   { name: 'v.nan()', description: 'Validates NaN values', category: 'Primitives', signature: 'v.nan(): VldNaN' },
-  { name: 'v.stringbool()', description: 'String to boolean with custom truthy/falsy values', category: 'Primitives', signature: 'v.stringbool(options?): VldStringBool', example: `const schema = v.stringbool({ truthy: ['yes', '1'], falsy: ['no', '0'] })` },
+  { name: 'v.stringbool()', description: 'String to boolean with custom truthy/falsy values (Zod: only the configured strings pass, never a boolean)', category: 'Primitives', signature: 'v.stringbool(options?): VldStringBool', example: `const schema = v.stringbool({ truthy: ['yes', '1'], falsy: ['no', '0'] })` },
 
   // Complex Types
   { name: 'v.object()', description: 'Creates an object validator with shape', category: 'Objects', signature: 'v.object(shape): VldObject', methods: ['.strict()', '.passthrough()', '.partial()', '.pick(keys)', '.omit(keys)', '.extend(shape)', '.merge(schema)', '.safeExtend(shape)'], example: `const schema = v.object({\n  name: v.string(),\n  age: v.number().optional()\n})` },
@@ -66,7 +68,7 @@ const apiMethods: ApiMethod[] = [
   { name: 'v.base64()', description: 'Base64 string validation', category: 'String Formats', signature: 'v.base64(): VldString' },
   { name: 'v.base64url()', description: 'URL-safe Base64 validation', category: 'String Formats', signature: 'v.base64url(): VldString' },
   { name: 'v.hex()', description: 'Hexadecimal string validation', category: 'String Formats', signature: 'v.hex(): VldString' },
-  { name: 'v.jwt()', description: 'JWT token format validation', category: 'String Formats', signature: 'v.jwt(): VldString' },
+  { name: 'v.jwt()', description: 'JWT validation: the header is decoded and its alg honoured (Zod)', category: 'String Formats', signature: 'v.jwt(options?): VldStringFormat' },
   { name: 'v.nanoid()', description: 'Nanoid validation', category: 'String Formats', signature: 'v.nanoid(): VldString' },
   { name: 'v.cuid()', description: 'CUID validation', category: 'String Formats', signature: 'v.cuid(): VldString' },
   { name: 'v.cuid2()', description: 'CUIDv2 validation', category: 'String Formats', signature: 'v.cuid2(): VldString' },
@@ -93,9 +95,15 @@ const apiMethods: ApiMethod[] = [
   // Advanced
   { name: 'v.json()', description: 'Validates JSON-compatible values (Zod z.json()); strings are not parsed - use codecs.jsonCodec for that', category: 'Advanced', signature: 'v.json(schema?): VldJson', example: `const schema = v.json(v.object({ name: v.string() }))` },
   { name: 'v.custom()', description: 'Create custom validator', category: 'Advanced', signature: 'v.custom(options): VldCustom', example: `const schema = v.custom({\n  parse: (val) => val instanceof MyClass,\n  message: "Must be MyClass instance"\n})` },
+  { name: '.check(fn)', description: 'Zod ctx contract: fn receives { value, issues } and fails by pushing raw issues; check schemas validate the value directly', category: 'Advanced', signature: 'schema.check(fn | checkSchema)', example: `v.string().check(({ value, issues }) => {
+  if (!value.startsWith("ok")) issues.push({ code: "custom", message: "needs ok" })
+})` },
+  { name: 'v.exactOptional(schema)', description: 'Key may be absent, but an explicit undefined is rejected (Zod); parsed directly it delegates to the inner schema', category: 'Advanced', signature: 'v.exactOptional(schema)', example: `v.object({ a: v.string().exactOptional() }).parse({}) // ok; { a: undefined } rejects` },
+  { name: 'v.dateLegacy()', description: "Migration path: keeps VLD's pre-parity coercing date behaviour (strings/numbers accepted)", category: 'Advanced', signature: 'v.dateLegacy(): VldDate', example: `v.dateLegacy().parse("2024-01-15") // Date` },
+  { name: 'v.compile(schema)', description: 'AOT-compile a schema; degrades to the runtime parser with identical verdicts when new Function is blocked (CSP, edge runtimes)', category: 'Advanced', signature: 'v.compile(schema)', example: `const fast = v.compile(v.object({ id: v.string() }))` },
   { name: 'v.file()', description: 'File upload validation', category: 'Advanced', signature: 'v.file(): VldFile', example: `const schema = v.file().maxSize(5 * 1024 * 1024).mimeType(["image/png", "image/jpeg"])` },
   { name: 'v.function()', description: 'Function type validation', category: 'Advanced', signature: 'v.function(): VldFunction' },
-  { name: 'v.templateLiteral()', description: 'Template literal type validation', category: 'Advanced', signature: 'v.templateLiteral(parts): VldTemplateLiteral', example: `const schema = v.templateLiteral(["user_", v.number()])` },
+  { name: 'v.templateLiteral()', description: 'Template literal validation with Zod-exact patterns (a bare string slot matches empty - use .min(1) to require content)', category: 'Advanced', signature: 'v.templateLiteral(parts): VldTemplateLiteral', example: `const schema = v.templateLiteral(["user_", v.number()])` },
 
   // Binary
   { name: 'v.uint8Array()', description: 'Uint8Array validation', category: 'Binary', signature: 'v.uint8Array(): VldUint8Array' },

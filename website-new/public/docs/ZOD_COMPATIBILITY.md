@@ -28,6 +28,16 @@ VLD 3.0.5 is a **drop-in replacement for Zod 4.6** (and remains a drop-in for 4.
   per-member issue paths, JSON Schema output (byte-identical key order), and
   coercion edge semantics (`BigInt('')` is `0n`, `String(date)` formatting).
 
+The `@oxog/vld/mini` entry is chainable-by-design (the same classes as the
+main entry, tree-shakable), so its check semantics match `zod`'s main chain
+APIs. Two upstream quirks in `zod/mini`'s own functional surface are NOT
+emulated: `zm.array(s, { maxLength })` does not apply Zod 4.6.6's size gate
+(while `zm.array(s, { checks: [zm.maxLength(n)] })` does - `zod/mini` is
+inconsistent with itself), and `zm._default(value, schema)` uses a
+params-object convention unlike `z.string().default(value)`. VLD's
+`.max(n)` / `.default(v)` follow the main-chain (and `checks:`-form)
+semantics.
+
 The only remaining differences are message **text** beyond the default `en`
 locale: translated summaries keep their wording (e.g. union messages), which
 is the locale system working as designed. The default `en` messages match

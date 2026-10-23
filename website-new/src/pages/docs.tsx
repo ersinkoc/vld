@@ -473,9 +473,9 @@ const falseOnly = v.literal(false)`,
     code: `import { v } from "@oxog/vld"
 
 // Basic date
-const date = v.date()
+const date = v.date()          // Zod: Date instances only
 
-// With coercion (from strings, numbers)
+// From strings / numbers (Date-constructor coercion)
 const coercedDate = v.coerce.date()
 
 // Range constraints
