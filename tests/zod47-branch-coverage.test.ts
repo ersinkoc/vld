@@ -215,3 +215,32 @@ describe('branch coverage - custom messages, option objects and V2 plain-error w
     expect(V.coerce.stringV2().parse(new Error(''))).toBe('Error');
   });
 });
+
+describe('v.compile CSP fallback', () => {
+  it('degrades to the runtime parser when new Function is blocked', () => {
+    const RealFunction = globalThis.Function;
+    const blocked = function (..._args: unknown[]) {
+      throw new EvalError('Code generation from strings disallowed for this context');
+    };
+    (blocked as any).prototype = RealFunction.prototype;
+    (globalThis as any).Function = blocked;
+    try {
+      const compiled = V.compile(V.object({ a: V.string(), b: V.array(V.number()).max(2) }));
+      // same verdicts as the runtime parser: valid input parses,
+      // invalid input reports the full issue set
+      expect(compiled.parse({ a: 'x', b: [1, 2] })).toEqual({ a: 'x', b: [1, 2] });
+      const rejected = compiled.safeParse({ a: 'x', b: [1, 2, 3] });
+      expect(rejected.success).toBe(false);
+      if (!rejected.success) {
+        expect(rejected.error.issues[0]).toEqual(expect.objectContaining({ code: 'too_big' }));
+      }
+      expect(compiled.validate({ a: 'x', b: [] })).toBe(true);
+      expect(compiled.validate({ a: 1, b: [] })).toBe(false);
+    } finally {
+      (globalThis as any).Function = RealFunction;
+    }
+    // outside the block, compilation works as before
+    const normal = V.compile(V.object({ a: V.string() }));
+    expect(normal.parse({ a: 'ok' })).toEqual({ a: 'ok' });
+  });
+});

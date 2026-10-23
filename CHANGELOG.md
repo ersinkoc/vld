@@ -5,7 +5,18 @@ All notable changes to VLD will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.1.0] - 2026-10-23
+
+Complete zod 4.6.7 parity: every behavioral, error-formatting and JSON Schema
+differential sweep reports zero divergences, the full release gate passes end
+to end, and `v.compile()` degrades gracefully in CSP environments.
+
+### Added
+
+- **`v.compile()` interpreter fallback**: when `new Function` is blocked
+  (edge runtimes, MV3 extensions, strict CSP), compile now returns the
+  runtime-backed schema with identical verdicts instead of throwing a raw
+  `EvalError` - the same degradation `.validate()` already had.
 
 Parity baseline moved to **zod 4.6.7**. Zod 4.6.6 introduced the container
 size gate and a record typing fix; porting it surfaced a family of older

@@ -830,7 +830,19 @@ export function compile<T extends VldBase<any, any>>(
   // the compiled check has already verified the shape). `validate()` uses
   // it as-is. V8 inlines the smaller body more aggressively than a
   // full-result build would.
-  const validator = compileFnValidate(clone);
+  let validator: CompiledValidator | null;
+  try {
+    validator = compileFnValidate(clone);
+  } catch (error) {
+    // CSP environments (edge runtimes, MV3 extensions, strict CSP) block
+    // `new Function`; degrade to the runtime parser - the same schema, the
+    // same verdicts, runtime speed instead of AOT speed - instead of
+    // throwing out of a call that succeeds everywhere else.
+    if (error instanceof EvalError) {
+      return clone;
+    }
+    throw error;
+  }
   if (!validator) return clone;
   return applyCompiled(clone, validator, validator);
 }
