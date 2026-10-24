@@ -182,7 +182,8 @@
     "prepack": "npm run build",
     "release": "node scripts/release.cjs",
     "release:check": "npm run lint && npm run test:types && npm test -- --runInBand && npm run build && npm run verify:ascii && npm run verify:docs && npm run verify:exports && npm run verify:bundle && npm run verify:types && npm run verify:package && npm run verify:install && npm run verify:security && npm run verify:drop-in && npm run verify:zod && npm run benchmark:guard:built && npm run benchmark:validate && npm run benchmark:startup:guard && npm run benchmark:memory:guard",
-    "prepublishOnly": "npm run release:check"
+    "prepublishOnly": "npm run release:check",
+    "verify:zod:canary": "node scripts/verify-zod-parity.cjs --tag canary"
   },
   "keywords": [
     "validation",
