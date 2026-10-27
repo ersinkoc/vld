@@ -37,7 +37,9 @@ const MAX_TARBALL_BYTES = Number(process.env.VLD_MAX_TARBALL_BYTES || 395_000);
 const MAX_UNPACKED_BYTES = Number(process.env.VLD_MAX_UNPACKED_BYTES || 1_805_000);
 // Zod 4.6 parity added per-locale modules and the IBAN/currencyCode/validate
 // surface; the packed count moved 320 -> 351 and index.d.ts 100 KiB -> ~106 KiB.
-const MAX_PACKED_FILE_COUNT = Number(process.env.VLD_MAX_PACKED_FILE_COUNT || 360);
+// 365: the lazy locale registration moved the aggregator into a shared
+// chunk (+1 file) so bundlers can drop the 33 locale tables.
+const MAX_PACKED_FILE_COUNT = Number(process.env.VLD_MAX_PACKED_FILE_COUNT || 365);
 const FILE_SIZE_BUDGETS = {
   'dist/index.js': Number(process.env.VLD_MAX_ESM_INDEX_BYTES || 75_000),
   'dist/cjs/index.cjs': Number(process.env.VLD_MAX_CJS_INDEX_BYTES || 90_000),

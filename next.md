@@ -37,23 +37,25 @@ This file tracks the state of the zod-parity effort on `@oxog/vld`.
 
 ## 2. Known remaining gaps (from the 2026-10-26 audit)
 
-1. **esbuild root entry - pins A and B FIXED (2026-10-27, second pass)**:
-   import { NEVER } 463.9 -> 265.6 KB, realistic schema -> 314.9 KB
-   (guarded in verify:treeshake; esbuild devDep must stay >= 0.26 - 0.25
-   cannot shake these patterns). Fixes: the ten module-scope
-   v.catch-style property reads now use hoisted consts, the destructuring
-   re-export is hoisted post-build by scripts/hoist-root-exports.cjs (in
-   the build chain), and the serializer is imported directly instead of
-   through the json-schema shim. Remaining weight, in order:
-   - Eager 33-locale registration (~143 KB raw inputs; esbuild keeps
-     side-effectful statements, rollup already drops them under
-     moduleSideEffects:false). Making registration lazy is a semantics
-     decision (setLocale(tr) works out of the box today; zod makes users
-     import locales explicitly) - the next big lever.
-   - The late-bound serializer wiring call (~lean, intended).
-   - The base/composition cluster via NEVER = VldNever.create().
-
-   Post-fix yardstick: zod reaches 88 KB min for the same root probe.
+1. **esbuild root entry - SOLVED end to end (2026-10-27, third pass)**:
+   `import { NEVER }` 463.9 -> **68.5 KB** (zod: 88 KB same probe),
+   realistic schema -> **124.8 KB**; guarded at 90/160 KB in
+   verify:treeshake (esbuild devDep must stay >= 0.26). The full pin
+   chain, for the record:
+   - Pin A: `export const {...} = v` destructuring -> hoisted post-build
+     (scripts/hoist-root-exports.cjs, in the build chain, ESM only).
+   - Pin B: ten module-scope `v.catch`-style property reads -> hoisted
+     factory consts; serializer imported directly, not via the shim.
+   - Pin C: `NEVER: VldNever.create()` embedded in the core/v literals -
+     a call inside a literal makes the whole literal (and every member
+     reference: locales namespace, util, ...) undroppable -> single
+     hoisted NEVER_SENTINEL const.
+   - Pin D: eager 33-locale registration loops -> lazy
+     ensureBuiltinsRegistered() behind the observing locale APIs.
+   RULE going forward: **no calls and no fat references inside top-level
+   object literals in src/index.ts** - a new `foo: SomeClass.create()`
+   member will silently re-pin the graph (the esbuild guard will catch
+   it).
 
 2. **`src/v4-mini/index.ts` still does `export * from '../index'`**: mini's
    namespace import retains the full surface. Making mini standalone (own

@@ -40,13 +40,13 @@ const ESBUILD_CASES = [
   {
     name: 'esbuild single sentinel (NEVER)',
     code: 'import { NEVER } from "INPUT"; export const s = NEVER;',
-    maxKb: 300,
+    maxKb: 90,
   },
   {
     name: 'esbuild realistic schema',
     code:
       'import { object, string, number } from "INPUT"; export const s = object({ a: string().email(), b: number().int() });',
-    maxKb: 360,
+    maxKb: 160,
   },
 ];
 

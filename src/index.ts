@@ -344,11 +344,19 @@ export const util = {
   }
 } as const;
 
+/**
+ * Shared NEVER sentinel. Hoisted so no object literal embeds the
+ * VldNever.create() call: a call inside a literal keeps the whole literal
+ * (and everything it references) alive under statement-conservative
+ * bundlers like esbuild.
+ */
+const NEVER_SENTINEL = VldNever.create();
+
 export const core = {
   util,
   regexes: stringFormats.regexes,
   locales: localeNamespace,
-  NEVER: VldNever.create(),
+  NEVER: NEVER_SENTINEL,
   TimePrecision,
   ZodIssueCode,
   globalRegistry,
@@ -981,7 +989,7 @@ export const v = {
   nan: () => VldNan.create(),
 
   // NEVER constant - Zod 4 API parity for use in transforms
-  NEVER: VldNever.create(),
+  NEVER: NEVER_SENTINEL,
   TimePrecision,
   ZodIssueCode,
   ZodFirstPartyTypeKind,

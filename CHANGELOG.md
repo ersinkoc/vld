@@ -65,6 +65,24 @@ foundations from the 2026-10-26 competitive audit against zod 4.6.7.
   Rollup/Vite numbers unchanged (70.8/129.1/93.3 KB). Remaining esbuild
   weight is the eager 33-locale registration (~143 KB raw) plus the
   late-bound serializer - documented as the next lever in next.md.
+### Changed (2026-10-27, third pass - the esbuild cascade closes)
+
+- **Built-in locale registration is now lazy**: the 33 locale tables
+  register on the first call to setLocale / getSupportedLocales /
+  isLocaleSupported / isLocaleLoaded / getMessagesForLocale instead of at
+  import time (registerLocale deliberately does not trigger it, so
+  custom-locale bundles stay small). setLocale("tr") keeps working out
+  of the box; nothing observable moves except the registration moment.
+- **NEVER is a single hoisted sentinel**: the VldNever.create() call used
+  to live inside the core and v object literals - a call embedded in a
+  literal keeps the whole literal (and its references) alive under
+  esbuild, which is what chained the locale namespace into every bundle.
+  Both literals now reference one shared const.
+- **Net effect (esbuild, guarded at 90/160 KB)**: root `import { NEVER }`
+  463.9 -> **68.5 KB** (zod: 88 KB for the same probe), realistic
+  object/string/number schema 463.9 -> **124.8 KB**. Rollup/Vite numbers
+  unchanged (70.7 / 128.9 / 93.1 KB).
+
 ## [3.1.0] - 2026-10-23
 
 Complete zod 4.6.7 parity: every behavioral, error-formatting and JSON Schema

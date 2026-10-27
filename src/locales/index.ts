@@ -2,13 +2,13 @@ import { Locale, LocaleMessages } from './types';
 import {
   getLocale,
   getMessages,
-  getMessagesForLocale,
-  getSupportedLocales,
-  isLocaleLoaded,
-  isLocaleSupported,
+  getMessagesForLocale as getMessagesForLocaleImpl,
+  getSupportedLocales as getSupportedLocalesImpl,
+  isLocaleLoaded as isLocaleLoadedImpl,
+  isLocaleSupported as isLocaleSupportedImpl,
   registerFallbackLocale,
   registerLocale,
-  setLocale
+  setLocale as setLocaleImpl
 } from './runtime';
 
 // Import all language files
@@ -94,12 +94,31 @@ const translatedLocales: Record<typeof translatedLocaleCodes[number], LocaleMess
   'es-MX': esMX,
 };
 
-for (const locale of translatedLocaleCodes) {
-  registerLocale(locale, translatedLocales[locale]);
-}
+let builtinsRegistered = false;
 
-for (const locale of fallbackLocaleCodes) {
-  registerFallbackLocale(locale);
+/**
+ * Register the built-in translated locales and English fallbacks on first
+ * use of a locale API.
+ *
+ * Registration used to run eagerly at import time, which forced every bundler
+ * that keeps side-effectful statements (esbuild, webpack) to retain all 33
+ * locale tables in every bundle importing the package root. Moving it behind
+ * the locale APIs keeps `setLocale('tr')` working out of the box while
+ * letting bundlers drop the tables from bundles that never call a locale
+ * function. `registerLocale` intentionally does NOT trigger registration so
+ * custom-locale-only bundles stay small.
+ */
+export function ensureBuiltinsRegistered(): void {
+  if (builtinsRegistered) {
+    return;
+  }
+  builtinsRegistered = true;
+  for (const locale of translatedLocaleCodes) {
+    registerLocale(locale, translatedLocales[locale]);
+  }
+  for (const locale of fallbackLocaleCodes) {
+    registerFallbackLocale(locale);
+  }
 }
 
 /**
@@ -112,18 +131,37 @@ export async function setLocaleAsync(locale: Locale): Promise<void> {
   setLocale(locale);
 }
 
-/**
- * Register or override a locale for synchronous validation messages.
- */
+/** Locale APIs that observe the built-in registration wrap their runtime
+ * counterparts so the first call registers the bundled tables. */
+export function setLocale(locale: Locale): void {
+  ensureBuiltinsRegistered();
+  setLocaleImpl(locale);
+}
+
+export function getSupportedLocales(): Locale[] {
+  ensureBuiltinsRegistered();
+  return getSupportedLocalesImpl();
+}
+
+export function isLocaleSupported(locale: Locale): boolean {
+  ensureBuiltinsRegistered();
+  return isLocaleSupportedImpl(locale);
+}
+
+export function isLocaleLoaded(locale: Locale): boolean {
+  ensureBuiltinsRegistered();
+  return isLocaleLoadedImpl(locale);
+}
+
+export function getMessagesForLocale(locale: Locale): LocaleMessages {
+  ensureBuiltinsRegistered();
+  return getMessagesForLocaleImpl(locale);
+}
+
 export {
   getLocale,
   getMessages,
-  getMessagesForLocale,
-  getSupportedLocales,
-  isLocaleLoaded,
-  isLocaleSupported,
-  registerLocale,
-  setLocale
+  registerLocale
 };
 
 // Re-export types
