@@ -99,7 +99,8 @@ import {
   prettifyError as prettifyErrorFn,
   treeifyError as treeifyErrorFn
 } from './errors';
-import { fromJSONSchema as fromJSONSchemaFn, toJSONSchema as toJSONSchemaFn } from './utils/json-schema';
+import { fromJSONSchema as fromJSONSchemaFn } from './utils/from-json-schema';
+import { toJSONSchema as toJSONSchemaFn } from './utils/to-json-schema';
 import {
   compile as compileFn,
   validate as validateFn,
@@ -889,6 +890,20 @@ export function output<T extends AnySchema>(schema: T): T {
 /**
  * Main API object with factory methods for all validators
  */
+// Hoisted members that both the v namespace and the root factory aliases
+// reference. Reading them off the assembled v object at module scope would
+// force bundlers to evaluate the whole namespace literal (the esbuild pin).
+const vCatchFactory = <T>(validator: VldBase<unknown, T>, fallbackValue: T) => validator.catch(fallbackValue);
+const vMapFactory = <K, V>(key: VldBase<unknown, K>, value: VldBase<unknown, V>) => VldMap.create(key, value);
+const vInstanceofFactory = <T>(constructor: Constructor<T>, message?: RefinementMessage) =>
+  new VldInstance<T>(constructor, messageFromRefinementParam(message));
+const vDefaultFactory = <TInput, TOutput>(schema: VldBase<TInput, TOutput>, defaultValue: TOutput | (() => TOutput)) => new VldDefault(schema, defaultValue);
+const vFunctionFactory = () => functionFn();
+const vNeverFactory = () => VldNever.create();
+const vNullFactory = () => VldNull.create();
+const vUndefinedFactory = () => VldUndefined.create();
+const vVoidFactory = () => VldVoid.create();
+
 export const v = {
   // Primitive validators (legacy default for backwards compatibility)
   // V2 versions available as `v.stringV2()`, `v.numberV2()`, etc. - opt-in.
@@ -926,7 +941,7 @@ export const v = {
   tupleV2: <T extends readonly VldBase<any, any>[]>(...items: T) => VldTupleV2.create(...items),
   set: <T>(item: VldBase<unknown, T>) => VldSet.create(item),
   setV2: <T>(item: VldBase<unknown, T>) => VldSetV2.create(item),
-  map: <K, V>(key: VldBase<unknown, K>, value: VldBase<unknown, V>) => VldMap.create(key, value),
+  map: vMapFactory,
   mapV2: <K, V>(key: VldBase<unknown, K>, value: VldBase<unknown, V>) => VldMapV2.create(key, value),
   record: recordFactory,
   recordV2: <T>(value: VldBase<unknown, T>) => VldRecordV2.create(value),
@@ -959,10 +974,10 @@ export const v = {
   // Special validators
   any: () => VldAny.create(),
   unknown: () => VldUnknown.create(),
-  void: () => VldVoid.create(),
-  never: () => VldNever.create(),
-  null: () => VldNull.create(),
-  undefined: () => VldUndefined.create(),
+  void: vVoidFactory,
+  never: vNeverFactory,
+  null: vNullFactory,
+  undefined: vUndefinedFactory,
   nan: () => VldNan.create(),
 
   // NEVER constant - Zod 4 API parity for use in transforms
@@ -981,7 +996,7 @@ export const v = {
   exactOptional: <T>(validator: VldBase<unknown, T>) => VldExactOptional.create(validator),
   nonoptional: <T>(validator: VldBase<unknown, T | undefined>, message?: RefinementMessage) =>
     validator.nonoptional(messageFromRefinementParam(message)) as unknown as VldBase<unknown, Exclude<T, undefined>>,
-  catch: <T>(validator: VldBase<unknown, T>, fallbackValue: T) => validator.catch(fallbackValue),
+  catch: vCatchFactory,
   prefault: <TInput, TOutput>(validator: VldBase<TInput, TOutput>, defaultValue: TInput | (() => TInput)) =>
     validator.prefault(defaultValue),
   readonly: <T>(validator: VldBase<unknown, T>) => validator.readonly(),
@@ -1067,7 +1082,7 @@ export const v = {
   file: () => fileFn(),
 
   // Function validator for function validation
-  function: () => functionFn(),
+  function: vFunctionFactory,
 
   // ----- v3.0: Global V2 mode toggle -----
   // When set to true, all `v.*` factories return V2 validators (faster + smaller).
@@ -1248,7 +1263,7 @@ schema: VldBase<TInput, TOutput>
   fromJSONSchema: fromJSONSchemaFn,
   globalRegistry,
   registry,
-  _default: <TInput, TOutput>(schema: VldBase<TInput, TOutput>, defaultValue: TOutput | (() => TOutput)) => new VldDefault(schema, defaultValue),
+  _default: vDefaultFactory,
   success: <TOutput = unknown>(_val?: TOutput) => customFn<TOutput>({ parse: (val: any) => val as TOutput }),
   _function: () => functionFn(),
   ZodType: VldBase,
@@ -1595,16 +1610,16 @@ export const iban = (params?: { message?: string }) => stringFormats.iban(params
 export const currencyCode = (params?: { message?: string }) => stringFormats.currencyCode(params);
 export { isValidIBAN } from './validators/string-formats';
 
-const catchFactory = v.catch;
-const enumFactory = v.enum;
-const functionFactory = v.function;
-const instanceOfFactory = v.instanceof;
-const mapFactory = v.map;
-const neverFactory = v.never;
-const nullFactory = v.null;
-const undefinedFactory = v.undefined;
-const voidFactory = v.void;
-const defaultFactory = v._default;
+const catchFactory = vCatchFactory;
+const enumFactory = enumFactoryCompat;
+const functionFactory = vFunctionFactory;
+const instanceOfFactory = vInstanceofFactory;
+const mapFactory = vMapFactory;
+const neverFactory = vNeverFactory;
+const nullFactory = vNullFactory;
+const undefinedFactory = vUndefinedFactory;
+const voidFactory = vVoidFactory;
+const defaultFactory = vDefaultFactory;
 const zodStringFactory = VldString;
 
 export {

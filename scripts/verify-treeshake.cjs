@@ -32,6 +32,24 @@ const CASES = [
   },
 ];
 
+// esbuild is the other major bundler engine (tsup, many frameworks); unlike
+// rollup it keeps side-effectful statements of included modules, so its
+// numbers are higher. These budgets lock in the 2026-10-27 root-entry fixes
+// (namespace-member hoisting; without them every root import was ~464 KB).
+const ESBUILD_CASES = [
+  {
+    name: 'esbuild single sentinel (NEVER)',
+    code: 'import { NEVER } from "INPUT"; export const s = NEVER;',
+    maxKb: 300,
+  },
+  {
+    name: 'esbuild realistic schema',
+    code:
+      'import { object, string, number } from "INPUT"; export const s = object({ a: string().email(), b: number().int() });',
+    maxKb: 360,
+  },
+];
+
 function specToPath(spec) {
   if (spec === 'INPUT') return path.join(distDir, 'index.js');
   if (spec === 'MINI') return path.join(distDir, 'v4-mini', 'index.js');
@@ -80,6 +98,50 @@ async function run() {
       }
     } catch (error) {
       errors.push(`Tree-shake case "${testCase.name}" errored: ${error.message}`);
+    }
+  }
+
+  // esbuild probes (sideEffects:false honored via a local package context).
+  let esbuild;
+  try {
+    esbuild = require('esbuild');
+  } catch {
+    errors.push('esbuild is not installed; run npm install before verify:treeshake');
+  }
+  if (esbuild) {
+    const pkgDir = path.join(tmpDir, 'esb-pkg');
+    fs.rmSync(pkgDir, { recursive: true, force: true });
+    fs.mkdirSync(pkgDir, { recursive: true });
+    fs.writeFileSync(path.join(pkgDir, 'package.json'), JSON.stringify({ name: 'esb-pkg', private: true, type: 'module', sideEffects: false }));
+    fs.cpSync(distDir, path.join(pkgDir, 'dist'), { recursive: true });
+
+    for (const testCase of ESBUILD_CASES) {
+      const inputPath = path.join(pkgDir, 'dist', 'index.js');
+      const entry = 'esb-' + testCase.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase() + '.mjs';
+      const entryPath = path.join(tmpDir, entry);
+      fs.writeFileSync(entryPath, testCase.code.replace(/"(INPUT|MINI)"/g, JSON.stringify(inputPath)));
+      try {
+        const result = await esbuild.build({
+          entryPoints: [entryPath],
+          bundle: true,
+          minify: true,
+          format: 'esm',
+          write: false,
+          platform: 'browser',
+          logLevel: 'silent',
+        });
+        const kb = Buffer.concat(result.outputFiles.map((f) => f.contents)).length / 1024;
+        const status = kb <= testCase.maxKb ? 'PASS' : 'FAIL';
+        console.log(`${status} tree-shake ${testCase.name}: ${kb.toFixed(1)} KB (budget ${testCase.maxKb} KB)`);
+        if (kb > testCase.maxKb) {
+          errors.push(
+            `esbuild budget exceeded for "${testCase.name}": ${kb.toFixed(1)} KB > ${testCase.maxKb} KB. ` +
+              'A new import-time pin landed in the root entry (top-level side effects or namespace evaluation).'
+          );
+        }
+      } catch (error) {
+        errors.push(`esbuild case "${testCase.name}" errored: ${error.message}`);
+      }
     }
   }
 

@@ -47,6 +47,24 @@ foundations from the 2026-10-26 competitive audit against zod 4.6.7.
   `validators/item-shape.ts`. Measured effect (rollup, mirrors Vite
   production): single-sentinel import 70.8 KB, realistic schema 129 KB,
   mini single factory 93 KB, all guarded.
+### Changed (2026-10-27, second pass - esbuild root-entry pins)
+
+- **Root named exports no longer evaluate the `v` namespace at import
+  time** under any bundler: the ten module-scope `v.catch`/`v.enum`/... 
+  property reads now reference hoisted factory consts, and the
+  `export const { ... } = v` destructuring re-export is replaced at build
+  time by `scripts/hoist-root-exports.cjs` (wired into `npm run build`,
+  ESM artifacts only - CJS is never tree-shaken). Identities are
+  preserved (`v.string === string`, `v._default === _default`).
+- **The serializer import bypasses the `utils/json-schema` shim**: index
+  imports `to-json-schema` directly so bundlers cannot pull the
+  builder (which references every validator) through the shim.
+- **`verify:treeshake` now also guards esbuild** (new devDependency,
+  needs >= 0.26 for the relevant fixes; budgets 300/360 KB):
+  `import { NEVER }` 463.9 -> 265.6 KB, realistic schema 463.9 -> 314.9 KB.
+  Rollup/Vite numbers unchanged (70.8/129.1/93.3 KB). Remaining esbuild
+  weight is the eager 33-locale registration (~143 KB raw) plus the
+  late-bound serializer - documented as the next lever in next.md.
 ## [3.1.0] - 2026-10-23
 
 Complete zod 4.6.7 parity: every behavioral, error-formatting and JSON Schema

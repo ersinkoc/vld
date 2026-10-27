@@ -88,13 +88,15 @@ function parseMembers(text, open, close) {
   return members;
 }
 
-// Positions where a top-level statement ends (`;` or `}` returning to depth
-// 0), so inserts never land inside a function body.
+// Positions where a top-level statement ends, so inserts never land inside a
+// chain. `;` at depth 0 always ends a statement; `}` / `)` returning to depth
+// 0 only count when the following character cannot continue an expression.
 function topLevelCutPoints(text) {
   const cuts = [];
   let depth = 0;
   let i = 0;
   const n = text.length;
+  const continuesExpr = (ch) => ',)...:?.=<>+-*/%&|^'.includes(ch) || ch === '' ;
   while (i < n) {
     const c = text[i];
     if (c === '"' || c === "'" || c === '`') {
@@ -114,7 +116,13 @@ function topLevelCutPoints(text) {
     if (c === '{' || c === '(' || c === '[') depth++;
     else if (c === '}' || c === ')' || c === ']') {
       depth--;
-      if (depth === 0) cuts.push(i + 1);
+      if (depth === 0) {
+        // peek the next non-space character
+        let j = i + 1;
+        while (j < n && /\s/.test(text[j])) j++;
+        const next = text[j] || '';
+        if (!continuesExpr(next)) cuts.push(i + 1);
+      }
     } else if (c === ';' && depth === 0) cuts.push(i + 1);
     i++;
   }
@@ -122,8 +130,10 @@ function topLevelCutPoints(text) {
 }
 
 function transformVariant(text) {
-  // 1. Locate the big namespace object const.
-  const declRe = /(?:^|[;,{}])(?:const|var|let)\s+([A-Za-z_$][\w$]*)\s*=\s*\{/g;
+  // 1. Locate the big namespace object assignment. It may be a standalone
+  // `const NAME={...}` or a member of a long var chain (`var a=1,NAME={...}`),
+  // so the keyword is optional.
+  const declRe = /(?:^|[;,{}])(?:(?:const|var|let)\s+)?([A-Za-z_$][\w$]*)\s*=\s*\{/g;
   let hit = null;
   let m;
   while ((m = declRe.exec(text))) {
