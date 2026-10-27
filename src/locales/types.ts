@@ -10,7 +10,7 @@ export type Locale =
   // African Languages
   | 'sw' | 'am' | 'ha' | 'yo' | 'ig' | 'zu' | 'xh' | 'af' | 'st' | 'tn' | 'ts' | 've' | 'nr' | 'ss'
   // American Languages  
-  | 'pt-BR' | 'es-MX' | 'es-AR' | 'fr-CA' | 'zh-CN' | 'zh-TW' | 'qu' | 'gn' | 'ay';
+  | 'pt-BR' | 'es-MX' | 'es-AR' | 'fr-CA' | 'zh-CN' | 'zh-TW' | 'kh' | 'ua' | 'tk' | 'ps' | 'ckb' | 'ota' | 'yo' | 'qu' | 'gn' | 'ay';
 
 export interface LocaleMessages {
   // String validation messages

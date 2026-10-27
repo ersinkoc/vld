@@ -62,10 +62,13 @@ This file tracks the state of the zod-parity effort on `@oxog/vld`.
    `export * from '../index'` chain, so a standalone mini factory layer is
    no longer worth the churn. (zod-mini namespace probe: 13 KB, but it is a
    separate functional API; vld mini shares the parity validator classes.)
-3. **Locale catalog (2026-10-27)**: 57 translated locales now (zod: 63; second round 2026-10-27 added az ca eo fa fr-CA is lt mk ms nn ur uz zh-CN zh-TW).
-   Ported this round: uk be bg cs el hu ro hr sl he. NOTE: zod's catalogs
-   use a different shape (Sizable/FormatDictionary composition); the port is
-   per-key translation, not file copy. Remaining long-tail (community-PR slots, same checklist): ckb hy ka kh km ota ps ta tk ua yo.
+3. **Locale catalog - COMPLETE (2026-10-27, final round)**: 68 locales;
+   every zod 4.6.7 locale code is covered (zod ships 63; vld adds
+   af/es-MX/pt-BR-v4/sw/zh as extras). Final round added hy ka ta tk ps
+   ckb yo km ota + kh/ua deprecated-alias shims (kh -> km, ua -> uk,
+   mirroring zod). The per-key translation checklist and registration
+   points live in tests/locales/ported-locales*.test.ts and
+   src/locales/{index,lazy,types}.ts.
 
 ## 3. When a new zod release lands
 

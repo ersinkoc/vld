@@ -110,6 +110,17 @@ foundations from the 2026-10-26 competitive audit against zod 4.6.7.
   translations, so still-fallback languages like `sq` now demonstrate the
   English fallback path.
 
+### Added (2026-10-27, final pass - every zod locale code covered, 68 total)
+
+- **Final-round locale ports**: Armenian (`hy`), Georgian (`ka`), Tamil
+  (`ta`), Turkmen (`tk`), Pashto (`ps`), Central Kurdish/Sorani (`ckb`),
+  Yoruba (`yo`), Khmer (`km`), Ottoman Turkish (`ota`, Arabic script,
+  terminology cross-checked against zod's ota catalog), plus `kh` and
+  `ua` mirroring zod's deprecated aliases (kh -> km, ua -> uk). The
+  catalog now covers **every locale code zod 4.6.7 ships** - 68 vld
+  locales vs zod's 63 (vld adds af, es-MX, pt-BR-v4, sw, zh as extras).
+  Package ceilings updated accordingly (+33 dist files).
+
 ## [3.1.0] - 2026-10-23
 
 Complete zod 4.6.7 parity: every behavioral, error-formatting and JSON Schema

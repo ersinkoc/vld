@@ -68,6 +68,17 @@ import { ur } from './ur';
 import { uz } from './uz';
 import { zhCN } from './zh-CN';
 import { zhTW } from './zh-TW';
+import { hy } from './hy';
+import { ka } from './ka';
+import { ta } from './ta';
+import { tk } from './tk';
+import { ps } from './ps';
+import { ckb } from './ckb';
+import { yo } from './yo';
+import { km } from './km';
+import { ota } from './ota';
+import { kh } from './kh';
+import { ua } from './ua';
 
 // African Languages
 import { sw } from './sw';
@@ -91,16 +102,19 @@ const translatedLocaleCodes = [
   // 2026-10-27 second round
   'az', 'ca', 'eo', 'fa', 'fr-CA', 'is', 'lt', 'mk', 'ms', 'nn', 'ur', 'uz', 'zh-CN', 'zh-TW',
 
+  // 2026-10-27 final round - every zod locale code now covered
+  'hy', 'ka', 'ta', 'tk', 'ps', 'ckb', 'yo', 'km', 'ota', 'kh', 'ua',
+
   'pt-BR', 'es-MX'
 ] as const satisfies readonly Locale[];
 
 const fallbackLocaleCodes = [
          'lv',  'et',
     'sq', 'sr', 'bs', 'me', 'mt', 'ga', 'cy', 'eu', 
-   'tl',    'ka', 'am', 'hy',  'kk', 'ky',
-   'mn', 'my', 'km', 'lo', 'si', 'ta', 'te', 'ml',
+   'tl',     'am',   'kk', 'ky',
+   'mn', 'my',  'lo', 'si',  'te', 'ml',
   'pa', 'or', 'as', 'mr', 'sd', 'dv',
-  'ha', 'yo', 'ig', 'zu', 'xh', 'st', 'tn', 'ts', 've', 'nr', 'ss',
+  'ha',  'ig', 'zu', 'xh', 'st', 'tn', 'ts', 've', 'nr', 'ss',
   'es-AR',  'qu', 'gn', 'ay'
 ] as const satisfies readonly Locale[];
 
@@ -126,6 +140,9 @@ const translatedLocales: Record<typeof translatedLocaleCodes[number], LocaleMess
 
   // 2026-10-27 second round
   az, ca, eo, fa, 'fr-CA': frCA, is, lt, mk, ms, nn, ur, uz, 'zh-CN': zhCN, 'zh-TW': zhTW,
+
+  // 2026-10-27 final round
+  hy, ka, ta, tk, ps, ckb, yo, km, ota, kh, ua,
 
   // American Languages
   'pt-BR': ptBR,

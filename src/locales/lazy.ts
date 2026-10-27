@@ -99,6 +99,17 @@ const localeLoaders: Partial<Record<Locale, LocaleLoader>> = {
   uz: () => import('./uz').then(m => m.uz),
   'zh-CN': () => import('./zh-CN').then(m => m.zhCN),
   'zh-TW': () => import('./zh-TW').then(m => m.zhTW),
+  hy: () => import('./hy').then(m => m.hy),
+  ka: () => import('./ka').then(m => m.ka),
+  ta: () => import('./ta').then(m => m.ta),
+  tk: () => import('./tk').then(m => m.tk),
+  ps: () => import('./ps').then(m => m.ps),
+  ckb: () => import('./ckb').then(m => m.ckb),
+  yo: () => import('./yo').then(m => m.yo),
+  km: () => import('./km').then(m => m.km),
+  ota: () => import('./ota').then(m => m.ota),
+  kh: () => import('./kh').then(m => m.kh),
+  ua: () => import('./ua').then(m => m.ua),
 
   // Additional translated locales (v2.4.0)
   sk: () => import('./sk').then(m => m.sk),

@@ -31,20 +31,20 @@ const errors = [];
 // The zod 4.6.7 parity wave (json value validator, bigint int64, presence
 // machinery, per-member collectors, Zod-exact pattern sources) ships in ~6
 // dist forms per module; 324 -> 390 KiB packed with it.
-const MAX_TARBALL_BYTES = Number(process.env.VLD_MAX_TARBALL_BYTES || 450_000);
+const MAX_TARBALL_BYTES = Number(process.env.VLD_MAX_TARBALL_BYTES || 475_000);
 // Current full compatibility declarations still keep VLD well below half of
 // Zod 4.4.3's unpacked package size (~4.56 MB). Retain a narrow local ceiling.
-const MAX_UNPACKED_BYTES = Number(process.env.VLD_MAX_UNPACKED_BYTES || 1_960_000);
+const MAX_UNPACKED_BYTES = Number(process.env.VLD_MAX_UNPACKED_BYTES || 2_080_000);
 // Zod 4.6 parity added per-locale modules and the IBAN/currencyCode/validate
 // surface; the packed count moved 320 -> 351 and index.d.ts 100 KiB -> ~106 KiB.
 // 395: +30 files for the 10 ported locales (2026-10-27) on top of the
 // lazy-locale chunk; each locale ships ESM + CJS + d.ts.
-const MAX_PACKED_FILE_COUNT = Number(process.env.VLD_MAX_PACKED_FILE_COUNT || 440);
+const MAX_PACKED_FILE_COUNT = Number(process.env.VLD_MAX_PACKED_FILE_COUNT || 475);
 const FILE_SIZE_BUDGETS = {
   'dist/index.js': Number(process.env.VLD_MAX_ESM_INDEX_BYTES || 75_000),
   'dist/cjs/index.cjs': Number(process.env.VLD_MAX_CJS_INDEX_BYTES || 90_000),
   'dist/mini.js': Number(process.env.VLD_MAX_ESM_MINI_BYTES || 11_000),
-  'dist/cjs/mini.cjs': Number(process.env.VLD_MAX_CJS_MINI_BYTES || 20_500),
+  'dist/cjs/mini.cjs': Number(process.env.VLD_MAX_CJS_MINI_BYTES || 21_000),
   'dist/index.d.ts': Number(process.env.VLD_MAX_INDEX_TYPES_BYTES || 112_000),
 };
 const REQUIRED_FILES = ['dist', 'README.md', 'LICENSE', 'CHANGELOG.md'];
