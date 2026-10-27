@@ -37,14 +37,29 @@ This file tracks the state of the zod-parity effort on `@oxog/vld`.
 
 ## 2. Known remaining gaps (from the 2026-10-26 audit)
 
-1. **esbuild cannot tree-shake the root entry**: every named import from
-   `@oxog/vld` retains the full graph (~462 KB min) under esbuild, while
-   rollup/webpack-style bundlers (Vite production) shake to ~71-129 KB and
-   zod reaches 88 KB min under the same probe. Root cause not yet isolated -
-   reproduce with `/tmp/esb-test` style probes (esbuild metafile shows all 91
-   modules retained for `import { NEVER }`). Mini named imports DO shake
-   under esbuild (88 KB min). Until solved, size-sensitive esbuild users
-   should import from `@oxog/vld/mini`.
+1. **esbuild cannot tree-shake the root entry** (multiple stacked pins,
+   partially mapped 2026-10-27):
+   - Pin A (proven, ~139 KB): the main namespace object literal (`v`, dist
+     name varies per build) is evaluated whenever a root export flows
+     through its destructuring re-export; members with import-reference
+     values (locales, regexes, util, core) pin their modules.
+     `scripts/hoist-root-exports.cjs` removes this pin (hoists the ~121
+     destructured members to top-level vars in dist/index.js; validated:
+     ESM loads, v.string === string identities preserved, rollup neutral).
+     NOT wired into the build because fixing Pin A alone shows zero esbuild
+     gain while Pins B+ remain.
+   - Pins B+ (~329 KB with the namespace literal emptied): unidentified.
+     Suspects: the vV2 namespace literal, the schema-transform functions
+     (partial/deepPartial walkers), and/or shared-chunk contents.
+     Working method: surgical variants of dist/index.js measured with
+     esbuild inside a sideEffects:false package context (the
+     /tmp/clean-probe + final-bisect.cjs pattern); beware that measuring
+     in directories whose package.json lacks sideEffects:false produces
+     false pins (several hours were lost to exactly that).
+   - Mini named imports DO shake under esbuild (74 KB min). Until solved,
+     size-sensitive esbuild users should import from `@oxog/vld/mini`.
+
+   Post-fix yardstick: zod reaches 88 KB min for the same root probe.
 2. **`src/v4-mini/index.ts` still does `export * from '../index'`**: mini's
    namespace import retains the full surface. Making mini standalone (own
    factory layer over the validators, no `../index` edge) is the big
