@@ -95,6 +95,21 @@ foundations from the 2026-10-26 competitive audit against zod 4.6.7.
   covering support, switching, localized messages, lazy loading and
   catalog-key parity with the `en` template.
 
+### Added (2026-10-27, fifth pass - 14 more locales, 57 total)
+
+- **Second-round locale ports**: Azerbaijani (`az`), Catalan (`ca`),
+  Esperanto (`eo`), Persian (`fa`), Canadian French (`fr-CA`, with Quebec
+  "courriel" terminology), Icelandic (`is`), Lithuanian (`lt`),
+  Macedonian (`mk`), Malay (`ms`), Norwegian Nynorsk (`nn`), Urdu (`ur`),
+  Uzbek (`uz`), Simplified Chinese mainland (`zh-CN`, aliasing the base
+  zh catalog) and Traditional Chinese Taiwan (`zh-TW`, converted with
+  Taiwan-standard terminology - 物件/字串/布林/檔案/位元組/函式/支援).
+  The catalog now covers 57 locales (zod: 63; the remaining six
+  long-tail languages stay documented as community-PR slots). Two stale
+  locale tests updated: `is`/`fr-CA` moved from English fallback to full
+  translations, so still-fallback languages like `sq` now demonstrate the
+  English fallback path.
+
 ## [3.1.0] - 2026-10-23
 
 Complete zod 4.6.7 parity: every behavioral, error-formatting and JSON Schema

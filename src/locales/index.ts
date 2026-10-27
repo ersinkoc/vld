@@ -54,6 +54,20 @@ import { ro } from './ro';
 import { hr } from './hr';
 import { sl } from './sl';
 import { he } from './he';
+import { az } from './az';
+import { ca } from './ca';
+import { eo } from './eo';
+import { fa } from './fa';
+import { frCA } from './fr-CA';
+import { is } from './is';
+import { lt } from './lt';
+import { mk } from './mk';
+import { ms } from './ms';
+import { nn } from './nn';
+import { ur } from './ur';
+import { uz } from './uz';
+import { zhCN } from './zh-CN';
+import { zhTW } from './zh-TW';
 
 // African Languages
 import { sw } from './sw';
@@ -74,17 +88,20 @@ const translatedLocaleCodes = [
   // 2026-10-27 port
   'uk', 'be', 'bg', 'cs', 'el', 'hu', 'ro', 'hr', 'sl', 'he',
 
+  // 2026-10-27 second round
+  'az', 'ca', 'eo', 'fa', 'fr-CA', 'is', 'lt', 'mk', 'ms', 'nn', 'ur', 'uz', 'zh-CN', 'zh-TW',
+
   'pt-BR', 'es-MX'
 ] as const satisfies readonly Locale[];
 
 const fallbackLocaleCodes = [
-  'is',       'lv', 'lt', 'et',
-   'mk', 'sq', 'sr', 'bs', 'me', 'mt', 'ga', 'cy', 'eu', 'ca',
-  'ms', 'tl', 'ur', 'fa',  'ka', 'am', 'hy', 'az', 'kk', 'ky',
-  'uz', 'mn', 'my', 'km', 'lo', 'si', 'ta', 'te', 'ml',
+         'lv',  'et',
+    'sq', 'sr', 'bs', 'me', 'mt', 'ga', 'cy', 'eu', 
+   'tl',    'ka', 'am', 'hy',  'kk', 'ky',
+   'mn', 'my', 'km', 'lo', 'si', 'ta', 'te', 'ml',
   'pa', 'or', 'as', 'mr', 'sd', 'dv',
   'ha', 'yo', 'ig', 'zu', 'xh', 'st', 'tn', 'ts', 've', 'nr', 'ss',
-  'es-AR', 'fr-CA', 'qu', 'gn', 'ay'
+  'es-AR',  'qu', 'gn', 'ay'
 ] as const satisfies readonly Locale[];
 
 const translatedLocales: Record<typeof translatedLocaleCodes[number], LocaleMessages> = {
@@ -106,6 +123,9 @@ const translatedLocales: Record<typeof translatedLocaleCodes[number], LocaleMess
   // 2026-10-27 port: Ukrainian, Belarusian, Bulgarian, Czech, Greek,
   // Hungarian, Romanian, Croatian, Slovenian, Hebrew
   uk, be, bg, cs, el, hu, ro, hr, sl, he,
+
+  // 2026-10-27 second round
+  az, ca, eo, fa, 'fr-CA': frCA, is, lt, mk, ms, nn, ur, uz, 'zh-CN': zhCN, 'zh-TW': zhTW,
 
   // American Languages
   'pt-BR': ptBR,

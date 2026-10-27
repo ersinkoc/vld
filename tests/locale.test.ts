@@ -94,14 +94,17 @@ describe('Locale System Tests', () => {
       expect(getSupportedLocales()).toContain('pt-BR');
       expect(getSupportedLocales()).toContain('es-MX');
       expect(isLocaleSupported('tr')).toBe(true);
-      expect(isLocaleSupported('is')).toBe(false);
+      expect(isLocaleSupported('is')).toBe(true); // translated since 2026-10-27
     });
 
     it('should keep typed fallback locales available through English messages', () => {
       setLocale('is');
       expect(getLocale()).toBe('is');
-      expect(getMessages().invalidString).toBe('Invalid string');
-      expect(getMessagesForLocale('fr-CA').invalidString).toBe('Invalid string');
+      // 'is' and 'fr-CA' became translated locales in the 2026-10-27 ports:
+      // their own catalogs apply, and a still-fallback locale ('sq') resolves
+      // through English.
+      expect(getMessages().invalidString).toBe('Ógildur strengur');
+      expect(getMessagesForLocale('sq').invalidString).toBe('Invalid string');
     });
 
     it('should support async locale switching from the eager locale entrypoint', async () => {

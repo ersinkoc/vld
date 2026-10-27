@@ -2,7 +2,7 @@ export type Locale =
   | 'en' | 'tr' | 'es' | 'fr' | 'de' | 'it' | 'pt' | 'ru' | 'ja' | 'ko' | 'zh' | 'ar' | 'hi' | 'nl' | 'pl'
   // Major European Languages  
   | 'da' | 'sv' | 'no' | 'fi' | 'is' | 'cs' | 'sk' | 'hu' | 'ro' | 'bg' | 'hr' | 'sl' | 'lv' | 'lt' | 'et'
-  | 'el' | 'uk' | 'be' | 'mk' | 'sq' | 'sr' | 'bs' | 'me' | 'mt' | 'ga' | 'cy' | 'eu' | 'ca'
+  | 'el' | 'uk' | 'be' | 'eo' | 'nn' | 'mk' | 'sq' | 'sr' | 'bs' | 'me' | 'mt' | 'ga' | 'cy' | 'eu' | 'ca'
   // Major Asian Languages
   | 'th' | 'vi' | 'id' | 'ms' | 'tl' | 'bn' | 'ur' | 'fa' | 'he' | 'ka' | 'am' | 'hy' | 'az' | 'kk' | 'ky'
   | 'uz' | 'tg' | 'mn' | 'my' | 'km' | 'lo' | 'si' | 'ta' | 'te' | 'ml' | 'kn' | 'gu' | 'pa' | 'or' | 'as'
@@ -10,7 +10,7 @@ export type Locale =
   // African Languages
   | 'sw' | 'am' | 'ha' | 'yo' | 'ig' | 'zu' | 'xh' | 'af' | 'st' | 'tn' | 'ts' | 've' | 'nr' | 'ss'
   // American Languages  
-  | 'pt-BR' | 'es-MX' | 'es-AR' | 'fr-CA' | 'qu' | 'gn' | 'ay';
+  | 'pt-BR' | 'es-MX' | 'es-AR' | 'fr-CA' | 'zh-CN' | 'zh-TW' | 'qu' | 'gn' | 'ay';
 
 export interface LocaleMessages {
   // String validation messages
