@@ -2,7 +2,7 @@
 
 Last audited: 2026-10-23 against Zod 4.6.7 (`latest` on npm); **259/259 public Zod exports covered**, 116 test suites / 3314 tests pass, and every behavioral differential sweep (string formats, container semantics, coercion edges, JSON Schema emission, error formatting) reports **zero divergences**.
 
-VLD 3.1.0 is a **drop-in replacement for Zod 4.6** (and remains a drop-in for 4.5). The release gate checks the exact npm `latest` version, all public package subpaths, root, subpath, and nested namespace exports, a compiled drop-in application, and a behavior suite covering the latest upstream fixes. A scheduled canary lane installs npm's current `canary` tag without changing the lockfile so upcoming surface changes are visible before they become stable.
+VLD 3.2.0 is a **drop-in replacement for Zod 4.6** (and remains a drop-in for 4.5). The release gate checks the exact npm `latest` version, all public package subpaths, root, subpath, and nested namespace exports, a compiled drop-in application, and a behavior suite covering the latest upstream fixes. A scheduled canary lane installs npm's current `canary` tag without changing the lockfile so upcoming surface changes are visible before they become stable.
 
 ## v3.0.5 highlights — Zod 4.6 parity
 
@@ -27,6 +27,19 @@ VLD 3.1.0 is a **drop-in replacement for Zod 4.6** (and remains a drop-in for 4.
   inputs, `.check()`'s `{ value, issues }` contract, container size gates,
   per-member issue paths, JSON Schema output (byte-identical key order), and
   coercion edge semantics (`BigInt('')` is `0n`, `String(date)` formatting).
+
+### Ecosystem duck typing (2026-10-27)
+
+Schemas expose a Zod v4 core-shaped `_zod` (`def` with `type` and the
+type-specific fields, `traits`, `version` `{4, 6, 7}`, `bag`), and thrown
+validation errors carry `_zod.traits.has('$ZodError')`, `name` /
+`constructor.name` `ZodError`, and Zod's pretty-printed JSON `message`.
+Verified integrations: `@hookform/resolvers`' `zodResolver` converts vld
+schema failures into form errors unchanged (guarded in CI by
+`npm run verify:ecosystem` against the real npm packages). Note that the
+community `zod-to-json-schema` package is effectively zod-v3-only (it
+returns an empty schema for real zod v4 objects too); use the built-in
+`toJSONSchema()` instead.
 
 The `@oxog/vld/mini` entry is chainable-by-design (the same classes as the
 main entry, tree-shakable), so its check semantics match `zod`'s main chain
@@ -144,7 +157,7 @@ npm run verify:zod:canary
 
 `verify:zod` fails unless the installed comparison version exactly matches npm `latest`, when a public path/root/subpath/nested export is missing or has the wrong runtime type, or when the differential behavior suite diverges. The scheduled `.github/workflows/zod-parity.yml` stable job is blocking; its canary job is an early-warning signal for maintainers to evaluate before promoting support.
 
-## Test results (v3.1.0)
+## Test results (v3.2.0)
 
 - **116 test suites, 3314/3314 tests pass** (no regressions); statement 100% / branch 99% / function 100% / line 100% coverage
 - **22/22 real-world Zod pattern test** (discriminated union, lazy, preprocess, pipe, brand, pick/omit, merge, extend, catch, default, transform, refine, etc.)

@@ -203,9 +203,9 @@ const features = [
 ]
 
 const bundleComparison = [
-  { library: 'VLD mini', size: '60.8 KiB', raw: 'tree-shaken', percentage: 33 },
-  { library: 'VLD root', size: '91.6 KiB', raw: 'tree-shaken', percentage: 50 },
-  { library: 'Zod 4.6.7', size: '182.8 KiB', raw: 'tree-shaken', percentage: 100 },
+  { library: 'VLD NEVER (esbuild)', size: '68.5 KiB', raw: 'tree-shaken', percentage: 37 },
+  { library: 'VLD realistic schema (esbuild)', size: '124.8 KiB', raw: 'tree-shaken', percentage: 68 },
+  { library: 'Zod 4.6.7 root', size: '182.8 KiB', raw: 'tree-shaken', percentage: 100 },
 ]
 
 const memoryOverall = [
@@ -214,7 +214,7 @@ const memoryOverall = [
 ]
 
 // ============================================================================
-// v3.1.0 Drop-in Head-to-Head — VLD vV2 vs Zod 4.6.7 (HONEST, semantic-checked)
+// v3.2.0 Drop-in Head-to-Head — VLD vV2 vs Zod 4.6.7 (HONEST, semantic-checked)
 // ============================================================================
 // Re-measured 2026-10-23: VLD 3.1.0 vs Zod 4.6.7 (npm latest).
 // Source: benchmarks/dropin-vs-zod.cjs
@@ -338,7 +338,7 @@ export function BenchmarkPage() {
             </div>
             <h1 className="font-display text-4xl lg:text-5xl font-bold mb-4">Performance Benchmarks</h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              v3.1.0 honest head-to-head against Zod 4.6. <strong>10 scenarios, same logical schema, same input, semantic-checked</strong> — <strong>2.56x geometric mean</strong> speedup vs Zod 4.6.7 with <strong>10/10 wins</strong>. A dedicated <strong>.validate()</strong> boolean head-to-head follows below, where VLD wins every scenario.
+              v3.2.0 honest head-to-head against Zod 4.6. <strong>10 scenarios, same logical schema, same input, semantic-checked</strong> — <strong>2.56x geometric mean</strong> speedup vs Zod 4.6.7 with <strong>10/10 wins</strong>. A dedicated <strong>.validate()</strong> boolean head-to-head follows below, where VLD wins every scenario.
             </p>
           </div>
 
@@ -1001,7 +1001,7 @@ if (!u.success) console.log(u.error.format())  // Zod-compatible`}
                   </div>
                 ))}
                 <p className="text-xs text-muted-foreground mt-4">
-                  * Same tree-shaken <code className="font-mono">string().min(2)</code> probe bundled for every library (release gate, 2026-10-23 vs Zod 4.6.7). Package sizes are gate-checked too.
+                  * VLD rows measured 2026-10-27 by <code className="font-mono">verify:treeshake</code> (esbuild probes, 3.2.0 pin-fix baseline); Zod row by the release bundle gate. Before the 3.2.0 pin fixes every vld root import measured ~464 KB under esbuild. Package sizes are gate-checked too.
                 </p>
               </div>
             </div>

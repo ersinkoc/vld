@@ -529,7 +529,7 @@ export function ApiPage() {
           <div className="mt-12 p-6 rounded-xl bg-muted/50 border border-border">
             <h3 className="font-semibold mb-4 flex items-center gap-2">
               <Globe className="w-5 h-5 text-vld-primary" />
-              Supported Locales (27+)
+              Supported Locales (68 — every zod locale code)
             </h3>
             <div className="flex flex-wrap gap-2">
               {['en', 'tr', 'de', 'fr', 'es', 'es-MX', 'pt', 'pt-BR', 'it', 'nl', 'pl', 'ru', 'ja', 'ko', 'zh', 'ar', 'hi', 'bn', 'th', 'vi', 'id', 'sv', 'no', 'da', 'fi', 'af', 'sw'].map(locale => (

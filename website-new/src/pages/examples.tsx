@@ -548,7 +548,7 @@ const jsonSchemaSchema: v.VldType<JsonSchema> = v.lazy(() =>
   {
     id: 'i18n',
     title: 'Internationalization',
-    description: '27+ languages support',
+    description: '68 languages - every zod locale code covered',
     icon: Globe,
     code: `import { v, setLocale, getLocale, prettifyError } from "@oxog/vld"
 
@@ -584,7 +584,7 @@ if (!result2.success) {
   // Output: 無効なメールアドレス
 }
 
-// Supported locales (27+):
+// Supported locales (68 — every zod locale code zod ships, plus extras):
 const locales = [
   "en",    // English (default)
   "tr",    // Turkish - Türkçe
@@ -779,7 +779,7 @@ if (!result.success) {
   // Nested error tree
 }
 
-// 5. V2 + i18n (27+ locales)
+// 5. V2 + i18n (68 locales)
 import { setLocale } from "@oxog/vld"
 setLocale("tr")
 try { vV2.string().min(5).email().parse("xx") }
@@ -878,7 +878,7 @@ export function ExamplesPage() {
                   {example.id === 'discriminated-union' && 'Type-safe event handling with discriminated unions providing O(1) lookup performance.'}
                   {example.id === 'codecs' && 'Bidirectional data transformation with 19 built-in codecs for strings, dates, URLs, binary data, and JWT.'}
                   {example.id === 'recursive' && 'Self-referencing schemas using v.lazy() for tree structures, file systems, and comment threads.'}
-                  {example.id === 'i18n' && 'Multi-language error messages with 27+ supported locales including Turkish, Japanese, Arabic, and more.'}
+                  {example.id === 'i18n' && 'Multi-language error messages with 68 supported locales — every zod locale code including Turkish, Japanese, Arabic, Ukrainian, Georgian, Tamil, and more.'}
                   {example.id === 'file-upload' && 'File upload validation with size limits, MIME type checking, and integration with FormData.'}
                   {example.id === 'xor-validation' && 'XOR validation ensuring exactly one option matches - useful for exclusive choices like payment methods.'}
                 </p>

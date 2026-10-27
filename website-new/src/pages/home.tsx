@@ -42,25 +42,25 @@ const features = [
   },
   {
     icon: Languages,
-    title: '27+ Languages',
-    description: 'Built-in i18n support. Turkish, German, Japanese, and many more.',
+    title: '68 Languages',
+    description: 'Every zod locale code plus extras - Ukrainian to Yoruba, all lazy-loadable.',
     color: 'from-purple-500 to-pink-500',
   },
   {
     icon: Cpu,
-    title: 'Drop-in Subpaths',
-    description: 'Root, v4, v4-mini, v4/core, and v4/locales entry points are checked against Zod.',
+    title: 'esbuild-Ready Tree-Shaking',
+    description: 'Root import tree-shakes to 68.5 KB under esbuild (zod: 88 KB) - guarded on every release.',
     color: 'from-rose-500 to-red-500',
   },
   {
     icon: Code,
     title: 'Real App Verified',
-    description: 'The same TypeScript fixture is compiled and run with Zod and built VLD.',
+    description: 'TypeScript fixture + real npm consumers (@hookform/resolvers zodResolver) verified in CI.',
     color: 'from-indigo-500 to-violet-500',
   },
 ]
 
-const quickExample = `// v3.1.0 — true drop-in for Zod 4.6.7 (zero divergences)
+const quickExample = `// v3.2.0 — true drop-in for Zod 4.6.7 (zero divergences)
 //   import { z } from "@oxog/vld"   // literally the same as import { z } from "zod"
 //   benchmarks/dropin-vs-zod.cjs  — 10/10 wins, 2.56x geomean vs Zod 4.6.7 (semantic-checked)
 
@@ -95,7 +95,7 @@ const schema = z.object({
   email: z.string().email(),
 })
 
-// VLD v3.1.0 — true drop-in: only the import line changes
+// VLD v3.2.0 — true drop-in: only the import line changes
 //   2.56x faster vs Zod 4.6.7 (10/10 wins, semantic-checked)
 //   + Zod 4.6.7 semantics: z.json(), bigint int64/uint64, exactOptional,
 //     .check() ctx contract, CSP-safe v.compile() (runtime fallback)
@@ -143,7 +143,7 @@ const comparisons = [
   { feature: 'V2 Memory Footprint', vld: '1.6-10x smaller', zod: 'baseline', winner: 'vld' },
   { feature: 'Zod 4.6 Parity', vld: '259/259 exports + 1400-case behavior sweep', zod: 'reference', winner: 'vld' },
   { feature: 'ZodError Adapter', vld: 'toZodError() + .format() + .flatten()', zod: 'native', winner: 'tie' },
-  { feature: 'Built-in i18n', vld: '27+ langs', zod: 'None', winner: 'vld' },
+  { feature: 'Built-in i18n', vld: '68 langs (every zod locale)', zod: '63 locales', winner: 'vld' },
   { feature: 'Built-in Codecs', vld: '19 codecs', zod: 'None', winner: 'vld' },
 ]
 
@@ -164,7 +164,7 @@ export function HomePage() {
               <div className="animate-fade-in">
                 <div className="tag mb-6">
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>v3.1.0 — true Zod 4.6.7 drop-in with zero behavioral divergences, 2.56x faster (10/10 honest head-to-head)</span>
+                  <span>v3.2.0 — true Zod 4.6.7 drop-in with zero behavioral divergences, 2.56x faster (10/10 honest head-to-head), 68 languages, 68.5 KB esbuild tree-shaking</span>
                 </div>
               </div>
 
@@ -174,7 +174,7 @@ export function HomePage() {
               </h1>
 
               <p className="animate-fade-in stagger-2 text-lg text-muted-foreground mb-8 leading-relaxed">
-                A lightning-fast, type-safe validation library with zero dependencies. V3.1.0 is a <strong>true drop-in replacement for Zod 4.6.7</strong> (every differential sweep reports zero divergences, and <code className="font-mono text-vld-primary">v.compile()</code> degrades gracefully to the runtime parser under CSP) — just change <code className="font-mono text-vld-primary">import {'{ z }'}</code> from <code className="font-mono">"zod"</code> to <code className="font-mono text-vld-primary">"@oxog/vld"</code> and you&apos;re done. <strong>2.56x faster</strong> geometric mean vs Zod 4.6.7 (10/10 scenarios, 1M safeParse ops × 21 runs, semantic-checked), and the Zod 4.6 <strong>.validate()</strong> boolean API wins every scenario head-to-head (up to 35.5x). <code className="font-mono text-vld-primary">toZodError()</code> returns ZodError-shaped errors with <code className="font-mono">.format()</code> and <code className="font-mono">.flatten()</code>.
+                A lightning-fast, type-safe validation library with zero dependencies. V3.2.0 is a <strong>true drop-in replacement for Zod 4.6.7</strong> (every differential sweep reports zero divergences, and <code className="font-mono text-vld-primary">v.compile()</code> degrades gracefully to the runtime parser under CSP) — just change <code className="font-mono text-vld-primary">import {'{ z }'}</code> from <code className="font-mono">"zod"</code> to <code className="font-mono text-vld-primary">"@oxog/vld"</code> and you&apos;re done. <strong>2.56x faster</strong> geometric mean vs Zod 4.6.7 (10/10 scenarios, 1M safeParse ops × 21 runs, semantic-checked), and the Zod 4.6 <strong>.validate()</strong> boolean API wins every scenario head-to-head (up to 35.5x). <code className="font-mono text-vld-primary">toZodError()</code> returns ZodError-shaped errors with <code className="font-mono">.format()</code> and <code className="font-mono">.flatten()</code>.
               </p>
 
               <div className="animate-fade-in stagger-3 flex flex-wrap items-center gap-4 mb-10">
