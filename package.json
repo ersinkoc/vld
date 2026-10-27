@@ -1,7 +1,7 @@
 {
   "name": "@oxog/vld",
-  "version": "3.1.0",
-  "description": "Ultra-fast TypeScript-first schema validation with zero dependencies, 27+ language support, plugin system, and CLI tools",
+  "version": "3.2.0",
+  "description": "Ultra-fast TypeScript-first schema validation with zero dependencies, 68 languages covering every zod locale, plugin system, and CLI tools",
   "type": "module",
   "main": "./dist/cjs/index.cjs",
   "module": "./dist/index.js",

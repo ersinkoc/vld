@@ -1,6 +1,6 @@
-# VLD Performance Guide (v3.1.0)
+# VLD Performance Guide (v3.2.0)
 
-Comprehensive guide to understanding and optimizing VLD's performance in your applications. As of 3.1.0 against Zod 4.6.7 the honest head-to-head is 2.56x geomean (10/10 wins, semantic-checked); the 3.03x figure below was measured against Zod 4.6.4. On top of that, Zod 4.6's `.validate()` boolean API is covered by a dedicated head-to-head where VLD wins every scenario at up to 35.5x. V2 method-memoization is opt-in via `vV2` or `v.setV2Mode(true)`; 1.6-10x smaller per instance.
+Comprehensive guide to understanding and optimizing VLD's performance in your applications. As of 3.2.0 against Zod 4.6.7 the honest head-to-head is 2.56x geomean (10/10 wins, semantic-checked); the 3.03x figure below was measured against Zod 4.6.4. On top of that, Zod 4.6's `.validate()` boolean API is covered by a dedicated head-to-head where VLD wins every scenario at up to 35.5x. V2 method-memoization is opt-in via `vV2` or `v.setV2Mode(true)`; 1.6-10x smaller per instance.
 
 ## Table of Contents
 
@@ -79,7 +79,7 @@ Zod 4.6 introduced `.validate()` — boolean validation without building result 
 
 ### Release-Gated Snapshot
 
-| Guard | v3.1.0 Snapshot | Release Threshold |
+| Guard | v3.2.0 Snapshot | Release Threshold |
 |-------|------------------|-------------------|
 | Runtime throughput (drop-in) | **2.56x faster than Zod 4.6.7** (10/10 wins, semantic-checked; 3.03x vs 4.6.4) | Must stay faster |
 | `.validate()` head-to-head | **Faster than `zod.validate()` on every scenario**, up to 35.5x | Must stay faster |
@@ -366,13 +366,15 @@ VLD has zero dependencies, resulting in smaller bundle sizes:
 
 | Library | Minified | Dependencies |
 |---------|----------|--------------|
-| VLD root string bundle | 91.6 KiB | 0 |
+| VLD root string bundle (rollup probe) | 93.3 KiB | 0 |
+| VLD root NEVER probe (esbuild) | 68.5 KiB | 0 |
+| VLD realistic schema (esbuild) | 124.8 KiB | 0 |
 | VLD mini string bundle | 60.8 KiB | 0 |
 | Zod 4.6.7 root string bundle | 182.8 KiB | 0 |
 | Yup | 145 KB | 15 deps |
 | Joi | 218 KB | 12 deps |
 
-*Same tree-shaken `string().min(2)` probe bundled for every library; measured 2026-10-23 by the release bundle gate (`npm run verify:bundle`).*
+*Same tree-shaken `string().min(2)` probe bundled for every library; rollup row measured by the release bundle gate (`npm run verify:bundle`), esbuild rows by `verify:treeshake` (2026-10-27; before the pin fixes every root import was ~464 KB under esbuild).*
 
 The release gate checks bundle output and package size on every release. The v3.0.0 package check produced a 295 KiB tarball with 1,674 KiB unpacked size and 299 files.
 

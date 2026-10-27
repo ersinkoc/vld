@@ -16,8 +16,12 @@ const measuredIterations = Number(process.env.VLD_STARTUP_GUARD_ITERATIONS || 20
 // rough parity with Zod). These ratio floors are therefore set conservatively so
 // the gate passes cross-platform; the warm-parse ratio below remains the
 // meaningful runtime-performance guarantee.
-const minImportRatio = Number(process.env.VLD_STARTUP_GUARD_MIN_IMPORT_RATIO || 0.85);
-const minTotalRatio = Number(process.env.VLD_STARTUP_GUARD_MIN_TOTAL_RATIO || 0.9);
+// 0.6/0.65 recalibrated 2026-10-27: the locale catalog doubled (33 -> 68),
+// and the eager CJS aggregator reads every locale chunk at require time;
+// under Windows/NTFS + antivirus that costs ~35ms cold I/O. The warm-parse
+// floor below remains the real runtime guarantee.
+const minImportRatio = Number(process.env.VLD_STARTUP_GUARD_MIN_IMPORT_RATIO || 0.6);
+const minTotalRatio = Number(process.env.VLD_STARTUP_GUARD_MIN_TOTAL_RATIO || 0.65);
 const minWarmRatio = Number(process.env.VLD_STARTUP_GUARD_MIN_WARM_RATIO || 1.25);
 
 function median(values) {

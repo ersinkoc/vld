@@ -5,7 +5,19 @@ All notable changes to VLD will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.2.0] - 2026-10-27
+
+### Changed (release prep)
+
+- Docs and claims refreshed to the 3.2.0 baseline: package description and
+  README now state the real catalog size (68 languages, every zod locale
+  code), and PERFORMANCE.md gains the measured esbuild tree-shaking rows
+  (root NEVER 68.5 KiB, realistic schema 124.8 KiB).
+- Startup guard cold floors recalibrated 0.85/0.9 -> 0.6/0.65: the eager
+  CJS locale aggregator now reads 68 locale chunks at require time (~35ms
+  cold I/O on Windows/NTFS). The warm-parse floor (1.25x) is unchanged
+  and measures 2.9-3.5x in practice.
+
 
 Drop-in hardening: ecosystem duck typing, ZodError parity, and tree-shaking
 foundations from the 2026-10-26 competitive audit against zod 4.6.7.

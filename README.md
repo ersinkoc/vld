@@ -13,7 +13,7 @@
 - **Drop-in Zod Compatibility**: Swap imports directly or use subpaths (`@oxog/vld/v4`, `@oxog/vld/mini`, `@oxog/vld/v4/core`, `@oxog/vld/v4/locales`).
 - **Full Static Inference**: Automatic type extraction using `v.infer<typeof schema>`.
 - **Tree-Shakeable Mini API**: Build hyper-optimized bundles with `@oxog/vld/mini`.
-- **Built-in i18n**: Out-of-the-box error localization for 27+ languages with lazy-loading support (`@oxog/vld/locales/lazy`).
+- **Built-in i18n**: Out-of-the-box error localization for 68 languages - every zod locale code, with lazy-loading support (`@oxog/vld/locales/lazy`).
 - **Result Pattern & Codecs**: Functional error handling (`tryCatch`, `match`, `Ok`, `Err`) and bidirectional data transformations.
 - **100% Test Coverage**: Verified across 2500+ tests and drop-in TypeScript application suites.
 
@@ -287,7 +287,7 @@ if (!result.success) {
 
 ## Internationalization (i18n)
 
-VLD includes built-in translations for 27+ languages:
+VLD includes built-in translations for 68 languages (every locale code zod 4.6.7 ships, plus extras):
 
 ```typescript
 import { v, setLocale } from '@oxog/vld';
