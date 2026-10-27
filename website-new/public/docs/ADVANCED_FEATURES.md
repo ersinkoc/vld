@@ -433,7 +433,7 @@ await setLocaleAsync('ja');
 v.parse(data, { locale: 'fr' });
 ```
 
-VLD supports 27+ languages. See `examples/internationalization.js` for the full list.
+VLD ships 68 locale catalogs - every locale code zod 4.6.7 covers. See `examples/internationalization.js` for the full list.
 
 ## Advanced Patterns
 

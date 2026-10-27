@@ -95,7 +95,7 @@ VLD keeps its zero-runtime-dependency architecture while adding:
 - **V2 method-memoization** (v3.0 new): `vV2` drop-in factory, `v.setV2Mode(true)` global toggle, 21 V2 classes
 - **ZodError compatibility** (v3.0 new): `toZodError()`, `ZodLikeError`, `toZodSafeResult()`
 - Built-in bidirectional codec presets (19 codecs)
-- 27+ locales with lazy loading
+- 68 locales (every zod locale code) with lazy loading
 - Plugins and lifecycle hooks
 - Typed Result API
 - CLI tools

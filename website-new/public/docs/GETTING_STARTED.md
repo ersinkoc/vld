@@ -600,7 +600,7 @@ Check out our [examples directory](../examples) for more real-world use cases:
 - `react-form.jsx` — React form with vV2 + toZodError
 - `typescript.ts` — Full TypeScript inference with V2 children
 - `codecs.js`, `codecs.ts` — Bidirectional codecs with V2 inner schemas
-- `internationalization.js` — 27+ locales on V1 and V2 paths
+- `internationalization.js` — 68 locales on V1 and V2 paths
 
 ---
 
