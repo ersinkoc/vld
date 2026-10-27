@@ -44,6 +44,16 @@ import { kn } from './kn';
 import { ne } from './ne';
 import { sk } from './sk';
 import { tg } from './tg';
+import { uk } from './uk';
+import { be } from './be';
+import { bg } from './bg';
+import { cs } from './cs';
+import { el } from './el';
+import { hu } from './hu';
+import { ro } from './ro';
+import { hr } from './hr';
+import { sl } from './sl';
+import { he } from './he';
 
 // African Languages
 import { sw } from './sw';
@@ -60,13 +70,17 @@ const translatedLocaleCodes = [
   'gu', 'kn', 'ne', 'sk',
   'sw', 'af',
   'tg',
+
+  // 2026-10-27 port
+  'uk', 'be', 'bg', 'cs', 'el', 'hu', 'ro', 'hr', 'sl', 'he',
+
   'pt-BR', 'es-MX'
 ] as const satisfies readonly Locale[];
 
 const fallbackLocaleCodes = [
-  'is', 'cs', 'hu', 'ro', 'bg', 'hr', 'sl', 'lv', 'lt', 'et',
-  'el', 'mk', 'sq', 'sr', 'bs', 'me', 'mt', 'ga', 'cy', 'eu', 'ca',
-  'ms', 'tl', 'ur', 'fa', 'he', 'ka', 'am', 'hy', 'az', 'kk', 'ky',
+  'is',       'lv', 'lt', 'et',
+   'mk', 'sq', 'sr', 'bs', 'me', 'mt', 'ga', 'cy', 'eu', 'ca',
+  'ms', 'tl', 'ur', 'fa',  'ka', 'am', 'hy', 'az', 'kk', 'ky',
   'uz', 'mn', 'my', 'km', 'lo', 'si', 'ta', 'te', 'ml',
   'pa', 'or', 'as', 'mr', 'sd', 'dv',
   'ha', 'yo', 'ig', 'zu', 'xh', 'st', 'tn', 'ts', 've', 'nr', 'ss',
@@ -88,6 +102,10 @@ const translatedLocales: Record<typeof translatedLocaleCodes[number], LocaleMess
 
   // Tajik
   tg,
+
+  // 2026-10-27 port: Ukrainian, Belarusian, Bulgarian, Czech, Greek,
+  // Hungarian, Romanian, Croatian, Slovenian, Hebrew
+  uk, be, bg, cs, el, hu, ro, hr, sl, he,
 
   // American Languages
   'pt-BR': ptBR,

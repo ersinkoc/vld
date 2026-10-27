@@ -2,7 +2,7 @@ export type Locale =
   | 'en' | 'tr' | 'es' | 'fr' | 'de' | 'it' | 'pt' | 'ru' | 'ja' | 'ko' | 'zh' | 'ar' | 'hi' | 'nl' | 'pl'
   // Major European Languages  
   | 'da' | 'sv' | 'no' | 'fi' | 'is' | 'cs' | 'sk' | 'hu' | 'ro' | 'bg' | 'hr' | 'sl' | 'lv' | 'lt' | 'et'
-  | 'el' | 'mk' | 'sq' | 'sr' | 'bs' | 'me' | 'mt' | 'ga' | 'cy' | 'eu' | 'ca'
+  | 'el' | 'uk' | 'be' | 'mk' | 'sq' | 'sr' | 'bs' | 'me' | 'mt' | 'ga' | 'cy' | 'eu' | 'ca'
   // Major Asian Languages
   | 'th' | 'vi' | 'id' | 'ms' | 'tl' | 'bn' | 'ur' | 'fa' | 'he' | 'ka' | 'am' | 'hy' | 'az' | 'kk' | 'ky'
   | 'uz' | 'tg' | 'mn' | 'my' | 'km' | 'lo' | 'si' | 'ta' | 'te' | 'ml' | 'kn' | 'gu' | 'pa' | 'or' | 'as'

@@ -75,6 +75,17 @@ export default {
     '!src/locales/sv.ts',
     '!src/locales/sw.ts',
     '!src/locales/tg.ts',        // v3.0.5 locale addition (translation only)
+    // 2026-10-27 ported locales (translations only, smoke-tested)
+    '!src/locales/uk.ts',
+    '!src/locales/be.ts',
+    '!src/locales/bg.ts',
+    '!src/locales/cs.ts',
+    '!src/locales/el.ts',
+    '!src/locales/hu.ts',
+    '!src/locales/ro.ts',
+    '!src/locales/hr.ts',
+    '!src/locales/sl.ts',
+    '!src/locales/he.ts',
     '!src/locales/th.ts',
     '!src/locales/tr.ts',
     '!src/locales/vi.ts',

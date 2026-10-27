@@ -83,6 +83,18 @@ foundations from the 2026-10-26 competitive audit against zod 4.6.7.
   object/string/number schema 463.9 -> **124.8 KB**. Rollup/Vite numbers
   unchanged (70.7 / 128.9 / 93.1 KB).
 
+### Added (2026-10-27, fourth pass - 10 new locales)
+
+- **10 ported locales**: Ukrainian (`uk`), Belarusian (`be`), Bulgarian
+  (`bg`), Czech (`cs`), Greek (`el`), Hungarian (`hu`), Romanian (`ro`),
+  Croatian (`hr`), Slovenian (`sl`), Hebrew (`he`) - full 71-key catalogs,
+  registered through both the eager builtin path (lazy on first locale API
+  call) and the dynamic `@oxog/vld/locales/lazy` loaders. Catalog 43
+  locales total (zod ships 63; the remaining long-tail languages are
+  documented as community-PR slots in next.md). Smoke tests: 32 cases
+  covering support, switching, localized messages, lazy loading and
+  catalog-key parity with the `en` template.
+
 ## [3.1.0] - 2026-10-23
 
 Complete zod 4.6.7 parity: every behavioral, error-formatting and JSON Schema

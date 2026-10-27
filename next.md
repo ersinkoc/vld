@@ -57,19 +57,19 @@ This file tracks the state of the zod-parity effort on `@oxog/vld`.
    member will silently re-pin the graph (the esbuild guard will catch
    it).
 
-2. **`src/v4-mini/index.ts` still does `export * from '../index'`**: mini's
-   namespace import retains the full surface. Making mini standalone (own
-   factory layer over the validators, no `../index` edge) is the big
-   remaining tree-shaking win; base is now wiring-free so it is unblocked.
-   zod-mini namespace probe: 13 KB - the target.
-3. **Locale catalog**: zod ships 63 locales, vld 33. Missing: az be bg ca
-   ckb cs el eo fa fr-CA he hr hu hy is ka kh km lt mk ms nn ota ps ro sl
-   ta tk ua uk ur uz yo zh-CN zh-TW. Porting recipe: zod is MIT-licensed;
-   each `zod/v4/locales/<code>.js` exports the message catalog in the same
-   shape vld locales already use (en is byte-parity) - adapt, register in
-   `src/locales/index.ts` (translatedLocaleCodes + translatedLocales) and
-   the rollup locale entry list, add the jest.config ignore line, add a
-   round-trip test per locale.
+2. **v4-mini measured post-fix (2026-10-27)**: esbuild namespace import
+   112.9 KB / named 90.7 KB - the pin fixes cascaded through the
+   `export * from '../index'` chain, so a standalone mini factory layer is
+   no longer worth the churn. (zod-mini namespace probe: 13 KB, but it is a
+   separate functional API; vld mini shares the parity validator classes.)
+3. **Locale catalog (2026-10-27)**: 43 translated locales now (zod: 63).
+   Ported this round: uk be bg cs el hu ro hr sl he. NOTE: zod's catalogs
+   use a different shape (Sizable/FormatDictionary composition); the port is
+   per-key translation, not file copy. Remaining long-tail (community-PR
+   friendly; the checklist is tests/locales/ported-locales.test.ts plus the
+   registration points in src/locales/{index,lazy,types}.ts and the
+   jest.config.js ignores): az ca ckb eo fa fr-CA hy is ka kh km lt mk ms
+   nn ota ps ta tk ua ur uz yo zh-CN zh-TW.
 
 ## 3. When a new zod release lands
 

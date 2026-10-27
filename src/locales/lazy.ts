@@ -74,6 +74,18 @@ const localeLoaders: Partial<Record<Locale, LocaleLoader>> = {
   // Tajik (Zod 4.6 parity, v3.0.5)
   tg: () => import('./tg').then(m => m.tg),
 
+  // 2026-10-27 port
+  uk: () => import('./uk').then(m => m.uk),
+  be: () => import('./be').then(m => m.be),
+  bg: () => import('./bg').then(m => m.bg),
+  cs: () => import('./cs').then(m => m.cs),
+  el: () => import('./el').then(m => m.el),
+  hu: () => import('./hu').then(m => m.hu),
+  ro: () => import('./ro').then(m => m.ro),
+  hr: () => import('./hr').then(m => m.hr),
+  sl: () => import('./sl').then(m => m.sl),
+  he: () => import('./he').then(m => m.he),
+
   // Additional translated locales (v2.4.0)
   sk: () => import('./sk').then(m => m.sk),
   gu: () => import('./gu').then(m => m.gu),
