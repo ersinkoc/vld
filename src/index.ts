@@ -15,7 +15,7 @@
  */
 
 // Import base class
-import { VldCheck, VldBase, configureSchemaCompositionFactories, resolveErrorMessage, type ErrorParam, type ParseResult, type SchemaMetadata, type SuperRefineContext } from './validators/base';
+import { VldCheck, VldBase, configureToJSONSchema, resolveErrorMessage, type ErrorParam, type ParseResult, type SchemaMetadata, type SuperRefineContext } from './validators/base';
 import type { Infer, Input, Output } from './validators';
 import { globalRegistry, registry } from './registry';
 import { VldError, expandNestedIssues, type VldIssue } from './errors-core';
@@ -117,6 +117,9 @@ import {
 
 // Import string format validators
 import * as stringFormats from './validators/string-formats';
+
+// Late-bind the (cycle-free) serializer behind VldBase.prototype.toJSONSchema.
+configureToJSONSchema((schema, options) => toJSONSchemaFn(schema, options as never));
 
 // Zod format factories take one params argument: a message string, or the
 // format options merged with `message` / `error`.
@@ -686,13 +689,6 @@ function enumFactoryCompat(...args: unknown[]): VldEnum<any> {
       : args.filter((item): item is EnumValue => typeof item === 'string' || typeof item === 'number');
   return VldEnum.create(values as [EnumValue, ...EnumValue[]]);
 }
-
-configureSchemaCompositionFactories({
-  array: schema => VldArray.create(schema),
-  union: (left, right) => VldUnion.create(left, right) as any,
-  intersection: (left, right) => VldIntersection.create(left, right) as any,
-  toJSONSchema: (schema, options) => toJSONSchemaFn(schema, options as any)
-});
 
 // ============================================
 // Schema Transformations (Zod 4 canary parity)

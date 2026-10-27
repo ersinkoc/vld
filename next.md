@@ -4,49 +4,81 @@ This file tracks the state of the zod-parity effort on `@oxog/vld`.
 
 ---
 
-## 1. Current state (2026-10-23)
+## 1. Current state (2026-10-27)
 
 | Item | State |
 |---|---|
 | Parity baseline | **zod 4.6.7** (npm `latest`, lockfile pinned) |
-| Behavioral divergences | **Zero.** Every differential sweep in `.temp_files/` prints no output: formats, r3, r4, sizegate, fromJSONSchema, toJSONSchema (byte-identical key order), error formatting (treeify/flatten/prettify/format, symbol paths raw-keyed) |
-| Default `en` messages | Match Zod verbatim, including `invalid_union`'s bare `Invalid input`; other locales keep translated summaries |
-| Tests | 117 suites, 3338 tests, all passing |
-| Coverage | statements 100%, lines 100%, functions 100%, branches >= 99% (threshold met) |
-| Lint / `tsc --noEmit` / build | clean |
-| `npm run benchmark:guard` | PASS (~5.5-6.2x average vs Zod) |
-| `docs/ZOD_COMPATIBILITY.md` | Records zero known intentional differences, audited against 4.6.7 |
+| Behavioral divergences | **Zero.** Differential sweeps green; `ZodError.message`/`name` now Zod-parity (JSON issue list), asserted by battery |
+| Ecosystem duck typing | `_zod.def/traits/version/bag` on schemas, `$ZodError` traits on errors; `verify:ecosystem` proves `@hookform/resolvers` `zodResolver` end to end |
+| Tree-shaking | rollup (Vite prod parity): NEVER 70.8 KB / realistic schema 129 KB / mini factory 93.3 KB, guarded by `verify:treeshake`; root-string probe 93.4 KiB vs zod's 182.8 KiB |
+| Tests | 118 suites, 3380 tests, all passing; coverage 100/99/100/100 |
+| Lint / `tsc --noEmit` / build / all verify scripts | clean |
+| `npm run benchmark:guard` | PASS (~5.3x average vs Zod) |
 
-Commits closing the gap (2026-10-22..23): `ebf460e` (4.6.6/4.6.7 port: size gates,
-per-member issue paths, JSON Schema emission), `e2f59be` (exactOptional,
-required() presence, jwt/url formats, strict datetime, JSON Schema key order),
-`3588eda` (json values, bigint int64/uint64, Date-only date(), stringbool,
-lowercase/uppercase checks, .check ctx contract, coercion edges), `6db0e1a`
-(error-formatting parity: symbol keys, items-branch routing, en messages).
+### 2026-10-27 architecture notes (why base.ts looks like this)
 
-### Known safe harbors kept on purpose
+- `VldArray`/`VldUnion`/`VldIntersection` live **inside** `validators/base.ts`;
+  `validators/{array,union,intersection}.ts` are re-export shims. Reason: a
+  static `base -> array -> base` cycle throws TDZ at class-declaration time
+  (array evaluates before VldBase when base is entered first), and the old
+  factory-injection wiring pinned the whole dist graph for bundlers.
+- `.toJSONSchema()` is **late-bound** via `configureToJSONSchema` (called once
+  from `src/index.ts`). A direct `base -> utils/to-json-schema` import is
+  runtime-safe (function-level references only) but creates a module cycle
+  that silently breaks ts-jest ESM coverage attribution - statements execute
+  yet record zero hits. Do not re-introduce that import.
+- `utils/json-schema.ts` is split into `to-json-schema.ts` (serializer, no
+  validator imports; dispatch is `constructor.name`/`validatorType`) and
+  `from-json-schema.ts` (builder, imports factories). `itemShape` lives in
+  `validators/item-shape.ts` for the same cycle reason.
+- Tests must not use dynamic `await import()` on src modules: ts-jest ESM
+  records **zero coverage** for modules loaded that way (cost hours to find).
 
-- `v.dateLegacy()` keeps vld's pre-parity coercing date behaviour (migration path).
-- Non-`en` locales keep translated union/summary message wording (locale system by design).
-- The V1 `number.uint64()/int64()` chain methods remain number-flavoured extras;
-  the `v.int64()` / `v.uint64()` factories are bigint-based like Zod.
+## 2. Known remaining gaps (from the 2026-10-26 audit)
 
-## 2. When a new zod release lands
+1. **esbuild cannot tree-shake the root entry**: every named import from
+   `@oxog/vld` retains the full graph (~462 KB min) under esbuild, while
+   rollup/webpack-style bundlers (Vite production) shake to ~71-129 KB and
+   zod reaches 88 KB min under the same probe. Root cause not yet isolated -
+   reproduce with `/tmp/esb-test` style probes (esbuild metafile shows all 91
+   modules retained for `import { NEVER }`). Mini named imports DO shake
+   under esbuild (88 KB min). Until solved, size-sensitive esbuild users
+   should import from `@oxog/vld/mini`.
+2. **`src/v4-mini/index.ts` still does `export * from '../index'`**: mini's
+   namespace import retains the full surface. Making mini standalone (own
+   factory layer over the validators, no `../index` edge) is the big
+   remaining tree-shaking win; base is now wiring-free so it is unblocked.
+   zod-mini namespace probe: 13 KB - the target.
+3. **Locale catalog**: zod ships 63 locales, vld 33. Missing: az be bg ca
+   ckb cs el eo fa fr-CA he hr hu hy is ka kh km lt mk ms nn ota ps ro sl
+   ta tk ua uk ur uz yo zh-CN zh-TW. Porting recipe: zod is MIT-licensed;
+   each `zod/v4/locales/<code>.js` exports the message catalog in the same
+   shape vld locales already use (en is byte-parity) - adapt, register in
+   `src/locales/index.ts` (translatedLocaleCodes + translatedLocales) and
+   the rollup locale entry list, add the jest.config ignore line, add a
+   round-trip test per locale.
+
+## 3. When a new zod release lands
 
 1. `npm view zod version` - if newer than the lockfile, `npm i -D zod@latest`.
 2. Download both tarballs and `diff -rq` the `v4/` dist trees; npm release notes are thin.
 3. Port any behavior changes; keep `.temp_files/sweep_*.ts` green (zero output).
 4. Update `docs/ZOD_COMPATIBILITY.md` audit line and the CHANGELOG.
+5. Update `ZOD_COMPAT_VERSION` in `src/validators/base.ts` and the ecosystem
+   probe expectations if zod's minor/patch moves.
 
-## 3. Tooling reminders (`.temp_files/`, git-ignored)
+## 4. Tooling reminders (`.temp_files/`, git-ignored)
 
 - `node --no-experimental-strip-types run.cjs <script>.ts` runs a probe/sweep.
 - `cov.cjs` lists zero-hit lines, `covb.cjs` lists zero-hit branches from lcov.
 - **Always check coverage threshold output directly** (`grep "does not meet"`);
   `tail -4` of jest output hides the threshold lines (they print before the totals).
 
-## 4. Candidate future work (not parity)
+## 5. Candidate future work (not parity)
 
 - Benchmark presence on moltar's typescript-runtime-type-benchmarks and schemabenchmarks.dev.
 - An interpreter fallback for `v.compile` where `new Function` is blocked (edge runtimes) - see the ata-validator comparison in the 2026-10-22 session.
 - LLM-oriented error tooling (`toRetryMessage`-style) inspired by ata-validator.
+- esbuild root-entry investigation (gap 2.1 above) - likely requires splitting
+  dist/index.js's own namespace object (`v`) out of the module's top level.

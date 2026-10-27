@@ -319,7 +319,7 @@ describe('New Advanced Features Tests', () => {
       it('should reject invalid strings', () => {
         const schema = v.coerce.number();
         
-        expect(() => schema.parse('not-a-number')).toThrow('Cannot coerce "not-a-number" to number');
+        try { schema.parse('not-a-number'); throw new Error('expected validation failure'); } catch (e) { expect(String((e as any).issues?.[0]?.message ?? (e as Error).message)).toContain('Cannot coerce'); }
       });
 
       it('should coerce empty and null values using Number semantics', () => {
@@ -391,7 +391,7 @@ describe('New Advanced Features Tests', () => {
       it('should reject invalid strings', () => {
         const schema = v.coerce.bigint();
         
-        expect(() => schema.parse('not-a-number')).toThrow('Cannot coerce "not-a-number" to bigint');
+        expect(() => schema.parse('not-a-number')).toThrow(/Cannot coerce .*not-a-number.* to bigint/);
         // Zod: BigInt('') is 0n.
         expect(schema.parse('')).toBe(0n);
       });

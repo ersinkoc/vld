@@ -15,7 +15,7 @@ describe('Error Formatting Tests', () => {
 
       const error = new VldError([issue]);
       
-      expect(error.name).toBe('VldError');
+      expect(error.name).toBe('ZodError');
       expect(error.issues).toHaveLength(1);
       expect(error.firstError).toBe(issue);
       expect(error.formattedErrors).toEqual(['Invalid input: expected string, received number']);
@@ -38,7 +38,8 @@ describe('Error Formatting Tests', () => {
 
       const error = new VldError(issues);
       
-      expect(error.message).toBe('2 validation errors');
+      expect(error.issues).toHaveLength(2);
+      expect(error.message).toContain(issues[0]!.message);
       expect(error.issues).toHaveLength(2);
       expect(error.formattedErrors).toHaveLength(2);
     });
@@ -49,8 +50,8 @@ describe('Error Formatting Tests', () => {
 
       try {
         const error = new VldError([{ code: 'custom', path: [], message: 'No stack helper' }]);
-        expect(error.message).toBe('No stack helper');
-        expect(error.name).toBe('VldError');
+        expect(error.issues[0] && error.issues[0].message).toBe('No stack helper');
+        expect(error.name).toBe('ZodError');
       } finally {
         Error.captureStackTrace = originalCaptureStackTrace;
       }
@@ -315,7 +316,7 @@ describe('Error Formatting Tests', () => {
       };
 
       const error = new VldError([issue]);
-      expect(error.message).toBe('Single error');
+      expect(error.issues[0] && error.issues[0].message).toBe('Single error');
     });
 
     it('should handle empty arrays in tree structure', () => {
@@ -416,7 +417,7 @@ describe('Error Formatting Tests', () => {
       }]);
       const json = error.toJSON();
 
-      expect(json.name).toBe('VldError');
+      expect(json.name).toBe('ZodError');
       expect(json.code).toBe('VLD_VALIDATION_ERROR');
       expect(json.issues).toHaveLength(2);
       const serializedIssue = json.issues[0]!;

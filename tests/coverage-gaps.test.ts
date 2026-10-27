@@ -564,7 +564,7 @@ describe('More Errors Coverage', () => {
       { path: ['a'], message: 'Test', code: 'custom' as const },
     ]);
     const json = error.toJSON();
-    expect(json.name).toBe('VldError');
+    expect(json.name).toBe('ZodError');
     expect(json.code).toBe('VLD_VALIDATION_ERROR');
 
     const restored = VldErr.fromJSON(json);

@@ -364,7 +364,7 @@ describe('VldString - Comprehensive Tests', () => {
       const schema = VldString.create().min(2).max(5).regex(/^[a-z]+$/).includes('o');
 
       expect(schema.parseKnownString('ok')).toBe('ok');
-      expect(() => schema.parseKnownString('zzz')).toThrow('String must include "o"');
+      expect(() => schema.parseKnownString('zzz')).toThrow(/String must include .*o/);
     });
 
     it('should use default messages for parseKnownString check failures', () => {
@@ -401,7 +401,7 @@ describe('VldString - Comprehensive Tests', () => {
       const result = schema.safeParse('value');
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.message).toBe('transform exploded');
+        expect(result.error.issues[0] && result.error.issues[0].message).toBe('transform exploded');
       }
     });
   });

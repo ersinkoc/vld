@@ -82,7 +82,9 @@ export default {
     '!src/v3/**/*.ts',            // Zod subpath compatibility wrappers verified by parity/install guards
     '!src/v4/**/*.ts',
     '!src/v4-mini/**/*.ts',
-    '!src/utils/json-schema.ts',  // Comprehensively tested (155 tests) but excluded from threshold
+    '!src/utils/json-schema.ts',  // Backward-compat re-export shim of the split below
+    '!src/utils/to-json-schema.ts',    // Comprehensively tested (155+ tests) but excluded from threshold, like the pre-split module
+    '!src/utils/from-json-schema.ts',  // Comprehensively tested (155+ tests) but excluded from threshold, like the pre-split module
     '!src/compile.ts',            // AOT compiler  -  tested via 85 dedicated Jest tests + 28-case smoke + every v.validate/v.compile call across 2630 tests; deep internal branch coverage tracked in the dedicated suite
     '!**/node_modules/**'
   ],

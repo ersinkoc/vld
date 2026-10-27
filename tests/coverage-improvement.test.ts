@@ -223,7 +223,7 @@ describe('Coverage Improvement Tests', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.message).toBe('Value must be true');
+        expect(result.error.issues[0] && result.error.issues[0].message).toBe('Value must be true');
       }
     });
 
@@ -250,7 +250,7 @@ describe('Coverage Improvement Tests', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.message).toBe('Value must be false');
+        expect(result.error.issues[0] && result.error.issues[0].message).toBe('Value must be false');
       }
     });
 
@@ -270,7 +270,7 @@ describe('Coverage Improvement Tests', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.message).toBe('Custom true message');
+        expect(result.error.issues[0] && result.error.issues[0].message).toBe('Custom true message');
       }
     });
 
@@ -280,7 +280,7 @@ describe('Coverage Improvement Tests', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.message).toBe('Custom false message');
+        expect(result.error.issues[0] && result.error.issues[0].message).toBe('Custom false message');
       }
     });
   });

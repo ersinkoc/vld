@@ -215,7 +215,7 @@ describe('VldNumber Coverage Tests', () => {
       const result = schema.safeParse(1);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.message).toBe('check exploded');
+        expect(result.error.issues[0] && result.error.issues[0].message).toBe('check exploded');
       }
     });
 

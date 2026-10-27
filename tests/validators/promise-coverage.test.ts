@@ -91,7 +91,7 @@ describe('VldPromise Coverage Tests', () => {
       const result = await schema.safeParse('not a promise');
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.message).toBe('Expected a Promise value');
+        expect(result.error.issues[0] && result.error.issues[0].message).toBe('Expected a Promise value');
       }
     });
 
@@ -100,7 +100,7 @@ describe('VldPromise Coverage Tests', () => {
       const result = await schema.safeParse(null);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.message).toBe('Expected a Promise value');
+        expect(result.error.issues[0] && result.error.issues[0].message).toBe('Expected a Promise value');
       }
     });
 
@@ -110,7 +110,7 @@ describe('VldPromise Coverage Tests', () => {
       const result = await schema.safeParse({ hello: 'world' });
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.message).toBe('Expected a Promise value');
+        expect(result.error.issues[0] && result.error.issues[0].message).toBe('Expected a Promise value');
       }
     });
 
@@ -170,7 +170,7 @@ describe('VldPromise Coverage Tests', () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error).toBeInstanceOf(Error);
-        expect(result.error.message).toBe('string failure');
+        expect(result.error.issues[0] && result.error.issues[0].message).toBe('string failure');
       }
     });
 
@@ -181,7 +181,7 @@ describe('VldPromise Coverage Tests', () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error).toBeInstanceOf(Error);
-        expect(result.error.message).toBe('promise failed');
+        expect(result.error.issues[0] && result.error.issues[0].message).toBe('promise failed');
       }
     });
 

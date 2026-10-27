@@ -127,7 +127,7 @@ describe('Base Validators Coverage Tests', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.message).toBe('Preprocessor failed');
+        expect(result.error.issues[0] && result.error.issues[0].message).toBe('Preprocessor failed');
       }
     });
 

@@ -75,7 +75,7 @@ describe('v.custom()', () => {
       const result2 = schema.safeParse('not a number');
       expect(result2.success).toBe(false);
       if (!result2.success) {
-        expect(result2.error.message).toBe('Expected number');
+        expect(result2.error.issues[0] && result2.error.issues[0].message).toBe('Expected number');
       }
     });
 
@@ -99,7 +99,7 @@ describe('v.custom()', () => {
       const result2 = schema.safeParse('');
       expect(result2.success).toBe(false);
       if (!result2.success) {
-        expect(result2.error.message).toBe('Non-empty string required');
+        expect(result2.error.issues[0] && result2.error.issues[0].message).toBe('Non-empty string required');
       }
     });
 
@@ -120,7 +120,7 @@ describe('v.custom()', () => {
       const res2 = await schema.safeParseAsync('');
       expect(res2.success).toBe(false);
       if (!res2.success) {
-        expect(res2.error.message).toBe('Async non-empty required');
+        expect(res2.error.issues[0] && res2.error.issues[0].message).toBe('Async non-empty required');
       }
     });
   });
@@ -140,7 +140,7 @@ describe('v.custom()', () => {
       const result = await schema.safeParseAsync(123);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.message).toBe('Expected string');
+        expect(result.error.issues[0] && result.error.issues[0].message).toBe('Expected string');
       }
     });
   });

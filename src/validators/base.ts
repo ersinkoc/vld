@@ -1,6 +1,23 @@
 import { globalRegistry } from '../registry';
 import type { SchemaRegistry } from '../registry';
-import { VldError, type VldIssue } from '../errors-core';
+import { VldError, getTypeName, createInvalidTypeIssue, nestIssues, type VldIssue } from '../errors-core';
+import { getMessages } from '../locales/runtime';
+import { isPlainObject } from '../utils/deep-merge';
+import { isDangerousKey } from '../utils/security';
+
+/**
+ * Late-bound serializer for `.toJSONSchema()`. Injected by src/index.ts so
+ * base.ts never statically imports utils/to-json-schema.ts: that module
+ * imports base (VLD_VALIDATOR_TYPES), and the resulting module cycle breaks
+ * ts-jest's ESM coverage attribution (statements execute but never count).
+ */
+let toJSONSchemaImpl: ((schema: VldBase<unknown, unknown>, options?: unknown) => unknown) | undefined;
+
+export function configureToJSONSchema(
+  impl: (schema: VldBase<unknown, unknown>, options?: unknown) => unknown
+): void {
+  toJSONSchemaImpl = impl;
+}
 
 /**
  * Base result type for validation
@@ -200,6 +217,156 @@ export const VLD_VALIDATOR_TYPES = {
 export type ValidatorType = typeof VLD_VALIDATOR_TYPES[keyof typeof VLD_VALIDATOR_TYPES];
 
 /**
+ * Zod v4 core introspection compatibility.
+ *
+ * Ecosystem libraries built for zod v4 duck-type schemas through `_zod`
+ * (`@hookform/resolvers` reads `_zod.traits`, JSON-Schema walkers read
+ * `_zod.def.type` / `.shape` / `.options`). The mapping below exposes a
+ * zod-shaped view over vld validators; it is memoized so the getter stays
+ * cheap and compiled schemas (which install their own `_zod` own-property)
+ * keep their fast path.
+ */
+const ZOD_COMPAT_VERSION = { major: 4, minor: 6, patch: 7 } as const;
+
+const ZOD_DEF_TYPES: Record<string, string> = {
+  string: 'string',
+  stringFormat: 'string',
+  stringBool: 'string',
+  number: 'number',
+  boolean: 'boolean',
+  date: 'date',
+  bigint: 'bigint',
+  undefined: 'undefined',
+  null: 'null',
+  unknown: 'unknown',
+  any: 'any',
+  void: 'void',
+  never: 'never',
+  symbol: 'symbol',
+  nan: 'nan',
+  object: 'object',
+  array: 'array',
+  tuple: 'tuple',
+  set: 'set',
+  map: 'map',
+  record: 'record',
+  union: 'union',
+  discriminatedUnion: 'union',
+  intersection: 'intersection',
+  xor: 'union',
+  enum: 'enum',
+  literal: 'literal',
+  lazy: 'lazy',
+  custom: 'custom',
+  function: 'function',
+  file: 'file',
+  templateLiteral: 'template_literal',
+  promise: 'promise',
+  optional: 'optional',
+  nullable: 'nullable',
+  nullish: 'nullish',
+  exactOptional: 'optional',
+  default: 'default',
+  catch: 'catch',
+  refine: 'refinement',
+  superRefine: 'refinement',
+  transform: 'transform',
+  pipe: 'pipe',
+  preprocess: 'transform',
+  readonly: 'readonly',
+  prefault: 'prefault',
+  codec: 'pipe'
+};
+
+const zodCompatCache = new WeakMap<object, any>();
+
+function pascal(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function buildZodCompat(schema: VldBase<any, any>): any {
+  const validatorType = schema.validatorType as string;
+  const defType = ZOD_DEF_TYPES[validatorType] ?? validatorType;
+  const def: any = {
+    type: defType,
+    typeName: 'Zod' + pascal(validatorType),
+    ...((schema as any).config || {})
+  };
+
+  // Coercing factories report the coerced base type plus zod's coerce flag.
+  if (validatorType.startsWith('coerce')) {
+    def.type = ZOD_DEF_TYPES[validatorType.replace('coerce', '').toLowerCase()]!;
+    def.coerce = true;
+  }
+
+  const duck = schema as any;
+  // Unconditional assignments: the class invariants guarantee the property
+  // exists for its own def type, and guard-free assignment keeps the
+  // compat shim free of dead branches.
+  switch (defType) {
+    case 'object':
+      def.shape = duck.shape;
+      break;
+    case 'array':
+      def.element = duck.element;
+      break;
+    case 'tuple':
+      def.items = duck.items;
+      break;
+    case 'set':
+      def.value = duck.itemSchema;
+      break;
+    case 'map':
+    case 'record':
+      def.keyType = duck.keyType;
+      def.valueType = duck.valueType;
+      break;
+    case 'union':
+      def.options = duck.options;
+      if (duck.discriminator !== undefined) def.discriminator = duck.discriminator;
+      break;
+    case 'intersection':
+      def.left = duck.validatorA;
+      def.right = duck.validatorB;
+      break;
+    case 'enum':
+    case 'literal':
+      def.values = duck.values;
+      break;
+    case 'lazy':
+      def.getter = duck._schemaGetter;
+      break;
+    case 'optional':
+    case 'nullable':
+    case 'nullish':
+    case 'default':
+    case 'catch':
+    case 'readonly':
+    case 'prefault':
+    case 'success':
+      def.innerType = duck.baseValidator ?? duck.__def?.inner;
+      break;
+    default:
+      break;
+  }
+
+  const traits = new Set<string>([
+    'Zod' + pascal(defType),
+    '$Zod' + pascal(defType),
+    'ZodType',
+    '$ZodType'
+  ]);
+
+  return {
+    def,
+    traits,
+    version: ZOD_COMPAT_VERSION,
+    bag: {},
+    ...def
+  };
+}
+
+/**
  * Context for superRefine - allows adding multiple issues with path and code
  */
 export interface SuperRefineContext {
@@ -357,25 +524,6 @@ function shallowClone<T>(value: T): T {
 
 type ValueOrFactory<T> = T | (() => T);
 
-interface SchemaCompositionFactories {
-  array<TInput, TOutput>(schema: VldBase<TInput, TOutput>): VldBase<unknown[], TOutput[]>;
-  union<TInput, TOutput, TNext>(
-    left: VldBase<TInput, TOutput>,
-    right: VldBase<any, TNext>
-  ): VldBase<unknown, TOutput | TNext>;
-  intersection<TInput, TOutput, TNext>(
-    left: VldBase<TInput, TOutput>,
-    right: VldBase<any, TNext>
-  ): VldBase<unknown, TOutput & TNext>;
-  toJSONSchema(schema: VldBase<any, any>, options?: unknown): unknown;
-}
-
-let schemaCompositionFactories: SchemaCompositionFactories;
-
-export function configureSchemaCompositionFactories(factories: SchemaCompositionFactories): void {
-  schemaCompositionFactories = factories;
-}
-
 function resolveValue<T>(value: ValueOrFactory<T>): T {
   return typeof value === 'function'
     ? (value as () => T)()
@@ -457,7 +605,12 @@ export abstract class VldBase<TInput, TOutput = TInput> {
   }
 
   get _zod(): any {
-    return this._def;
+    let compat = zodCompatCache.get(this);
+    if (compat === undefined) {
+      compat = buildZodCompat(this);
+      zodCompatCache.set(this, compat);
+    }
+    return compat;
   }
 
   get '~standard'(): StandardSchemaV1Props<unknown, TOutput> {
@@ -743,15 +896,15 @@ export abstract class VldBase<TInput, TOutput = TInput> {
   }
 
   array(): VldBase<unknown[], TOutput[]> {
-    return schemaCompositionFactories.array(this);
+    return VldArray.create(this) as VldBase<unknown[], TOutput[]>;
   }
 
   or<TNext>(option: VldBase<any, TNext>): VldBase<unknown, TOutput | TNext> {
-    return schemaCompositionFactories.union(this, option);
+    return VldUnion.create(this, option) as unknown as VldBase<unknown, TOutput | TNext>;
   }
 
   and<TNext>(incoming: VldBase<any, TNext>): VldBase<unknown, TOutput & TNext> {
-    return schemaCompositionFactories.intersection(this, incoming);
+    return VldIntersection.create(this, incoming) as unknown as VldBase<unknown, TOutput & TNext>;
   }
 
   overwrite(transformer: (value: TOutput) => TOutput): VldTransform<TInput, TOutput, TOutput> {
@@ -787,7 +940,10 @@ export abstract class VldBase<TInput, TOutput = TInput> {
   }
 
   toJSONSchema(options?: unknown): unknown {
-    return schemaCompositionFactories.toJSONSchema(this, options);
+    if (toJSONSchemaImpl === undefined) {
+      throw new Error('toJSONSchema is not configured; import the full @oxog/vld entry point first');
+    }
+    return toJSONSchemaImpl(this as VldBase<unknown, unknown>, options as never);
   }
   
   /**
@@ -2621,3 +2777,1001 @@ forwardWrappedSchemaApi(VldMeta, (self, next) => {
   return schema;
 });
 forwardWrappedSchemaApi(VldBrand, (_self, next) => new VldBrand(next));
+
+
+// ============================================
+// Composition validators (array / union / intersection)
+// Merged into this module so VldBase methods can construct them directly
+// without an import cycle (base -> array -> base TDZ). The original files
+// re-export these symbols for API compatibility.
+// ============================================
+type SimpleItemMode = 'string' | 'number' | 'boolean' | undefined;
+
+function createArrayError(message: string): VldError {
+  return new VldError([{ code: 'invalid_array', path: [], message }]);
+}
+
+function createArrayTooSmallError(minimum: number, message: string): VldError {
+  return new VldError([{ code: 'too_small', path: [], origin: 'array', minimum, inclusive: true, message }]);
+}
+
+function createArrayTooBigError(maximum: number, message: string): VldError {
+  return new VldError([{ code: 'too_big', path: [], origin: 'array', maximum, inclusive: true, message }]);
+}
+
+/**
+ * Configuration for array validator
+ */
+interface ArrayValidatorConfig<T> {
+  readonly itemValidator: VldBase<unknown, T>;
+  readonly minLength?: number | undefined;
+  readonly maxLength?: number | undefined;
+  readonly exactLength?: number;
+  readonly unique?: boolean;
+  readonly uniqueMessage?: string | undefined;
+  // One message per constraint: a later min()/max() must not relabel an
+  // earlier constraint's failure (or the "not an array" type error).
+  readonly minMessage?: string | undefined;
+  readonly maxMessage?: string | undefined;
+  readonly lengthMessage?: string | undefined;
+}
+
+/**
+ * Immutable array validator with chainable methods
+ */
+export class VldArray<T> extends VldBase<unknown[], T[]> {
+  private readonly config: ArrayValidatorConfig<T>;
+  private readonly _simpleItemMode: SimpleItemMode;
+  
+  /**
+   * Private constructor to enforce immutability
+   */
+  private constructor(config: ArrayValidatorConfig<T>) {
+    super(VLD_VALIDATOR_TYPES.ARRAY);
+    this.config = config;
+    this._simpleItemMode = this.getSimpleItemMode(config.itemValidator);
+  }
+
+  private getSimpleItemMode(itemValidator: VldBase<unknown, T>): SimpleItemMode {
+    if ((itemValidator as any).isSimple !== true) {
+      return undefined;
+    }
+
+    switch (itemValidator.validatorType) {
+      case VLD_VALIDATOR_TYPES.STRING:
+        return 'string';
+      case VLD_VALIDATOR_TYPES.NUMBER:
+        return 'number';
+      case VLD_VALIDATOR_TYPES.BOOLEAN:
+        return 'boolean';
+      default:
+        return undefined;
+    }
+  }
+  
+  /**
+   * Create a new array validator
+   */
+  static create<T>(itemValidator: VldBase<unknown, T>): VldArray<T> {
+    return new VldArray({ itemValidator });
+  }
+
+  get element(): VldBase<unknown, T> {
+    return this.config.itemValidator;
+  }
+
+  unwrap(): VldBase<unknown, T> {
+    return this.config.itemValidator;
+  }
+  
+  /**
+   * Parse and validate an array value
+   */
+  parse(value: unknown): T[] {
+    if (!Array.isArray(value)) {
+      throw new VldError([createInvalidTypeIssue('array', getTypeName(value), getMessages().invalidArray)]);
+    }
+
+    return this.parseArrayValue(value);
+  }
+
+  /**
+   * Parse a value that has already passed the array type guard.
+   * @internal Used by object validators to avoid duplicate hot-path checks.
+   */
+  parseKnownArray(value: unknown[]): T[] {
+    return this.parseArrayValue(value);
+  }
+
+  private parseArrayValue(value: unknown[]): T[] {
+    const { exactLength, minLength, maxLength } = this.config;
+
+    // Zod 4.6.6+: an array over its upper size bound fails before any element is
+    // parsed, so no element issue is reported alongside the size issue.
+    if (exactLength !== undefined && value.length > exactLength) {
+      throw createArrayTooBigError(exactLength, this.config.lengthMessage || getMessages().arrayLength(exactLength));
+    }
+    if (maxLength !== undefined && value.length > maxLength) {
+      throw createArrayTooBigError(maxLength, this.config.maxMessage || getMessages().arrayMax(maxLength));
+    }
+
+    const length = value.length;
+    const result = new Array<T>(length);
+    const simpleItemMode = this._simpleItemMode;
+
+    if (simpleItemMode !== undefined) {
+      for (let i = 0; i < length; i++) {
+        const item = value[i];
+        switch (simpleItemMode) {
+          case 'string':
+            if (typeof item !== 'string') {
+              this.throwArrayIssues(value, i);
+            }
+            result[i] = item as T;
+            break;
+          case 'number':
+            if (typeof item !== 'number' || !Number.isFinite(item)) {
+              this.throwArrayIssues(value, i);
+            }
+            result[i] = item as T;
+            break;
+          case 'boolean':
+            if (typeof item !== 'boolean') {
+              this.throwArrayIssues(value, i);
+            }
+            result[i] = item as T;
+            break;
+        }
+      }
+    } else {
+      // Validate each item without allocating a ParseResult object per element;
+      // the first failure re-collects every remaining issue with its index (Zod).
+      for (let i = 0; i < length; i++) {
+        try {
+          result[i] = this.config.itemValidator.parse(value[i]);
+        } catch {
+          this.throwArrayIssues(value, i);
+        }
+      }
+    }
+
+    // Lower bounds run after element parsing (Zod): an undersized array reports
+    // its size issue alongside (not instead of) any element issue.
+    if (exactLength !== undefined && length < exactLength) {
+      throw createArrayTooSmallError(exactLength, this.config.lengthMessage || getMessages().arrayLength(exactLength));
+    }
+    if (minLength !== undefined && length < minLength) {
+      throw createArrayTooSmallError(minLength, this.config.minMessage || getMessages().arrayMin(minLength));
+    }
+
+    // Check uniqueness if required - optimized with Map-based approach
+    if (this.config.unique) {
+      this.checkUnique(result);
+    }
+
+    return result;
+  }
+
+  /**
+   * Re-validates `value` from `startIndex` in issue-collection mode and throws a
+   * VldError carrying one issue per failing element (path `[index, ...]`) plus
+   * any pending lower-bound size issue, matching Zod's reporting order.
+   */
+  private throwArrayIssues(value: unknown[], startIndex: number): never {
+    const issues: VldIssue[] = [];
+    for (let i = startIndex; i < value.length; i++) {
+      const item = this.config.itemValidator.safeParse(value[i]);
+      if (!item.success) {
+        issues.push(...nestIssues(item.error, i, message => message));
+      }
+    }
+    const { exactLength, minLength } = this.config;
+    if (exactLength !== undefined && value.length < exactLength) {
+      issues.push({
+        code: 'too_small', path: [], origin: 'array',
+        minimum: exactLength, inclusive: true,
+        message: this.config.lengthMessage || getMessages().arrayLength(exactLength),
+      });
+    } else if (minLength !== undefined && value.length < minLength) {
+      issues.push({
+        code: 'too_small', path: [], origin: 'array',
+        minimum: minLength, inclusive: true,
+        message: this.config.minMessage || getMessages().arrayMin(minLength),
+      });
+    }
+    throw new VldError(issues);
+  }
+  
+  /**
+   * Safely parse and validate an array value
+   */
+  safeParse(value: unknown): ParseResult<T[]> {
+    try {
+      return { success: true, data: this.parse(value) };
+    } catch (error) {
+      if (error instanceof VldError) {
+        return { success: false, error };
+      }
+      return { success: false, error: createArrayError((error as Error).message) };
+    }
+  }
+
+  /** Async parse: each item goes through the item schema's parseAsync. */
+  override async parseAsync(value: unknown): Promise<T[]> {
+    if (!Array.isArray(value)) {
+      return this.parse(value);
+    }
+    const { exactLength, minLength, maxLength } = this.config;
+    // Zod 4.6.6+: upper bounds gate before any element is parsed.
+    if (exactLength !== undefined && value.length > exactLength) {
+      throw createArrayTooBigError(exactLength, this.config.lengthMessage!);
+    }
+    if (maxLength !== undefined && value.length > maxLength) {
+      throw createArrayTooBigError(maxLength, this.config.maxMessage!);
+    }
+    const result = new Array<T>(value.length);
+    const issues: VldIssue[] = [];
+    for (let i = 0; i < value.length; i++) {
+      const item = await this.config.itemValidator.safeParseAsync(value[i]);
+      if (item.success) result[i] = item.data;
+      else issues.push(...nestIssues(item.error, i, message => message));
+    }
+    // Lower bounds run after element parsing (Zod): appended alongside element issues.
+    if (exactLength !== undefined && value.length < exactLength) {
+      issues.push({ code: 'too_small', path: [], origin: 'array', minimum: exactLength, inclusive: true, message: this.config.lengthMessage! });
+    } else if (minLength !== undefined && value.length < minLength) {
+      issues.push({ code: 'too_small', path: [], origin: 'array', minimum: minLength, inclusive: true, message: this.config.minMessage! });
+    }
+    if (issues.length > 0) throw new VldError(issues);
+    if (this.config.unique) this.checkUnique(result);
+    return result;
+  }
+
+  override encode(value: T[]): unknown[] {
+    this.validateEncodedArray(value);
+    const result = new Array<unknown>(value.length);
+    for (let i = 0; i < value.length; i++) {
+      result[i] = this.config.itemValidator.encode(value[i]!);
+    }
+    return result;
+  }
+
+  override safeEncode(value: T[]): ParseResult<unknown[]> {
+    try {
+      return { success: true, data: this.encode(value) };
+    } catch (error) {
+      return { success: false, error: createArrayError((error as Error).message) };
+    }
+  }
+
+  override async encodeAsync(value: T[]): Promise<unknown[]> {
+    this.validateEncodedArray(value);
+    const result = new Array<unknown>(value.length);
+    for (let i = 0; i < value.length; i++) {
+      result[i] = await this.config.itemValidator.encodeAsync(value[i]!);
+    }
+    return result;
+  }
+
+  override async safeEncodeAsync(value: T[]): Promise<ParseResult<unknown[]>> {
+    try {
+      return { success: true, data: await this.encodeAsync(value) };
+    } catch (error) {
+      return { success: false, error: createArrayError((error as Error).message) };
+    }
+  }
+
+  private validateEncodedArray(value: T[]): void {
+    if (!Array.isArray(value)) {
+      throw new Error(getMessages().invalidArray);
+    }
+    if (this.config.exactLength !== undefined && value.length !== this.config.exactLength) {
+      throw new Error(this.config.lengthMessage!);
+    }
+    if (this.config.minLength !== undefined && value.length < this.config.minLength) {
+      throw new Error(this.config.minMessage!);
+    }
+    if (this.config.maxLength !== undefined && value.length > this.config.maxLength) {
+      throw new Error(this.config.maxMessage!);
+    }
+    if (this.config.unique) {
+      this.checkUnique(value);
+    }
+  }
+
+  /**
+   * Optimized uniqueness check using Map-based approach
+   * Avoids repeated stableStringify calls by caching serialized values
+   */
+  private checkUnique(items: T[]): void {
+    const seen = new Set<unknown>(); // Set of seen keys
+    const objectKeys = new WeakMap<object, string>(); // Cache for object->string mappings
+
+    for (const item of items) {
+      let key: unknown;
+
+      if (typeof item === 'object' && item !== null) {
+        // Check if we've already serialized this object reference
+        const cached = objectKeys.get(item);
+        if (cached !== undefined) {
+          key = cached;
+        } else {
+          // Serialize and cache
+          const serialized = VldArray.stableStringify(item);
+          key = serialized;
+          objectKeys.set(item, serialized);
+        }
+      } else {
+        // Primitives can be used directly as keys
+        key = item;
+      }
+
+      if (seen.has(key)) {
+        throw new Error(this.config.uniqueMessage || 'Array must contain unique items');
+      }
+      seen.add(key);
+    }
+  }
+
+  /**
+   * Create a stable string representation of an object for hashing
+   * Handles circular references and deep nesting gracefully
+   * BUG-006 FIX: Added depth limit to prevent stack overflow
+   * BUG-NEW-003 FIX: Fixed depth tracking to properly track recursion depth
+   */
+  /** @internal Also used by VldArrayV2.unique() so both validators agree. */
+  static stableStringify(obj: any): string {
+    const seen = new WeakSet();
+    const MAX_DEPTH = 100; // Reasonable depth limit to prevent stack overflow
+
+    // Helper function to sort keys and create stable representation
+    const sortedStringify = (value: any, depth: number = 0): string => {
+      // Check depth limit
+      if (depth > MAX_DEPTH) {
+        return '"[Max Depth Exceeded]"';
+      }
+
+      // Handle primitives (bigint has no JSON form; tag it so 1n !== 1)
+      if (value === null) return 'null';
+      if (value === undefined) return 'undefined';
+      if (typeof value === 'bigint') return `${value}n`;
+      if (typeof value !== 'object') return JSON.stringify(value);
+
+      // Built-ins whose state is not in own enumerable keys: without these,
+      // every Date / Map / Set would serialize as "{}" and collide.
+      if (value instanceof Date) return `Date(${value.getTime()})`;
+
+      // Handle circular references
+      if (seen.has(value)) {
+        return '"[Circular]"';
+      }
+
+      seen.add(value);
+
+      try {
+        // Handle arrays
+        if (Array.isArray(value)) {
+          const items = value.map(item => sortedStringify(item, depth + 1));
+          return `[${items.join(',')}]`;
+        }
+
+        if (value instanceof Map) {
+          const entries = Array.from(value, ([k, v]) => `${sortedStringify(k, depth + 1)}=>${sortedStringify(v, depth + 1)}`).sort();
+          return `Map{${entries.join(',')}}`;
+        }
+
+        if (value instanceof Set) {
+          const entries = Array.from(value, item => sortedStringify(item, depth + 1)).sort();
+          return `Set{${entries.join(',')}}`;
+        }
+
+        // Handle objects - sort keys for stability
+        const keys = Object.keys(value).sort();
+        const pairs = keys.map(key => {
+          const serializedKey = JSON.stringify(key);
+          const serializedValue = sortedStringify(value[key], depth + 1);
+          return `${serializedKey}:${serializedValue}`;
+        });
+
+        return `{${pairs.join(',')}}`;
+      } finally {
+        // Clean up seen set for this branch
+        seen.delete(value);
+      }
+    };
+
+    try {
+      return sortedStringify(obj);
+    } catch {
+      // Fallback to safe representation if stringify fails
+      return String(obj);
+    }
+  }
+  
+  /**
+   * Create a new validator with minimum length constraint
+   */
+  min(length: number, message?: string): VldArray<T> {
+    return new VldArray({
+      ...this.config,
+      minLength: length,
+      minMessage: message || getMessages().arrayMin(length)
+    });
+  }
+  
+  /**
+   * Create a new validator with maximum length constraint
+   */
+  max(length: number, message?: string): VldArray<T> {
+    return new VldArray({
+      ...this.config,
+      maxLength: length,
+      maxMessage: message || getMessages().arrayMax(length)
+    });
+  }
+  
+  /**
+   * Create a new validator with exact length constraint
+   */
+  length(length: number, message?: string): VldArray<T> {
+    return new VldArray({
+      ...this.config,
+      exactLength: length,
+      minLength: undefined,
+      maxLength: undefined,
+      lengthMessage: message || getMessages().arrayLength(length)
+    });
+  }
+  
+  /**
+   * Create a new validator that ensures array is not empty
+   */
+  nonempty(message?: string): VldArray<T> {
+    return new VldArray({
+      ...this.config,
+      minLength: 1,
+      minMessage: message || getMessages().arrayEmpty
+    });
+  }
+  
+  /**
+   * Create a new validator that ensures array contains unique items
+   */
+  unique(message?: string): VldArray<T> {
+    return new VldArray({
+      ...this.config,
+      unique: true,
+      uniqueMessage: message
+    });
+  }
+  
+  /**
+   * Create a new validator with a range constraint for length
+   */
+  between(min: number, max: number, message?: string): VldArray<T> {
+    return new VldArray({
+      ...this.config,
+      minLength: min,
+      maxLength: max,
+      minMessage: message || `Array length must be between ${min} and ${max}`,
+      maxMessage: message || `Array length must be between ${min} and ${max}`
+    });
+  }
+}
+
+
+/**
+ * Zod: check-family failures continue past the failed check, type mismatches
+ * abort the option. `custom` refinements and leaf bounds/format/key issues
+ * continue; `invalid_type` / `invalid_value` abort.
+ */
+const NON_ABORTING_UNION_CODES = new Set(['custom', 'too_small', 'too_big', 'invalid_format', 'unrecognized_keys']);
+
+function isNonAbortedUnionError(error: unknown): boolean {
+  // A non-VldError throw is a refinement/custom failure (type failures and
+  // bounds throw VldError), so it continues like Zod's refine issues.
+  if (!(error instanceof VldError)) {
+    return true;
+  }
+  return error.issues.length > 0
+    && error.issues.every(issue => NON_ABORTING_UNION_CODES.has(issue.code));
+}
+
+/**
+ * Zod-style union failure: one `invalid_union` issue carrying each option's
+ * issues, instead of a flattened `custom` string. When exactly one option
+ * produced a continuing (non-aborted) result - the type checks eliminated
+ * every other option but a refinement failed - that option's issues surface
+ * directly, without the invalid_union wrapper (Zod's handleUnionResults).
+ */
+export function createUnionError(customMessage: string | undefined, optionErrors: unknown[] = []): VldError {
+  const nonAborted = optionErrors.filter(isNonAbortedUnionError);
+  if (nonAborted.length === 1 && nonAborted[0] !== undefined) {
+    const survivor = nonAborted[0];
+    return survivor instanceof VldError
+      ? survivor
+      : new VldError([{ code: 'custom', path: [], message: survivor instanceof Error ? survivor.message : String(survivor) }]);
+  }
+  const message = customMessage || getMessages().unionNoMatch(
+    optionErrors.map(error => (error instanceof Error ? error.message : String(error)))
+  );
+  const errors: VldIssue[][] = optionErrors.map(error =>
+    error instanceof VldError
+      ? error.issues
+      : [{ code: 'custom', path: [], message: error instanceof Error ? error.message : String(error) }]
+  );
+  return new VldError([{ code: 'invalid_union', path: [], message, errors }]);
+}
+
+type SimpleUnionMode =
+  | 'string'
+  | 'number'
+  | 'boolean'
+  | 'bigint'
+  | 'symbol'
+  | 'null'
+  | 'undefined'
+  | 'literal'
+  | 'passthrough'
+  | undefined;
+
+/**
+ * Output type of a union of validators. Distributive on purpose: `VldBase` is invariant in its output, so a
+ * non-distributive `T extends VldBase<any, infer U>` collapses a multi-member union to `never`.
+ */
+export type UnionMemberOutput<T> = T extends VldBase<any, infer U> ? U : never;
+
+/**
+ * Optimized immutable union validator for multiple type options
+ * Features type-checking shortcuts for 110x performance improvement
+ */
+export class VldUnion<T extends readonly VldBase<any, any>[]> extends VldBase<
+  unknown,
+  UnionMemberOutput<T[number]>
+> {
+  private readonly validators: T;
+  private readonly errorMessage: string | undefined;
+  private readonly typeCheckers: Array<(value: unknown) => boolean>;
+  private readonly simpleModes: SimpleUnionMode[];
+  private readonly simpleValues: unknown[];
+  
+  /**
+   * Private constructor to enforce immutability
+   */
+  private constructor(
+    validators: T,
+    errorMessage?: string
+  ) {
+    super(VLD_VALIDATOR_TYPES.UNION);
+    this.validators = validators;
+    this.errorMessage = errorMessage;
+    this.typeCheckers = validators.map(validator => this.createTypeChecker(validator));
+    this.simpleModes = validators.map(validator => this.createSimpleMode(validator));
+    this.simpleValues = validators.map((validator, i) =>
+      this.simpleModes[i] === 'literal' ? (validator as { literal?: unknown }).literal : undefined
+    );
+  }
+
+  get options(): T {
+    return this.validators;
+  }
+
+  private createSimpleMode(validator: VldBase<any, any>): SimpleUnionMode {
+    if ((validator as { isSimple?: boolean }).isSimple !== true) {
+      return undefined;
+    }
+
+    switch (validator.validatorType) {
+      case VLD_VALIDATOR_TYPES.STRING:
+        return 'string';
+      case VLD_VALIDATOR_TYPES.NUMBER:
+        return 'number';
+      case VLD_VALIDATOR_TYPES.BOOLEAN:
+        return 'boolean';
+      case VLD_VALIDATOR_TYPES.BIGINT:
+        return 'bigint';
+      case VLD_VALIDATOR_TYPES.SYMBOL:
+        return 'symbol';
+      case VLD_VALIDATOR_TYPES.NULL:
+        return 'null';
+      case VLD_VALIDATOR_TYPES.UNDEFINED:
+      case VLD_VALIDATOR_TYPES.VOID:
+        return 'undefined';
+      case VLD_VALIDATOR_TYPES.LITERAL:
+        return 'literal';
+      case VLD_VALIDATOR_TYPES.ANY:
+      case VLD_VALIDATOR_TYPES.UNKNOWN:
+        return 'passthrough';
+      default:
+        return undefined;
+    }
+  }
+
+  private parseSimpleValue(mode: SimpleUnionMode, index: number, value: unknown): unknown {
+    switch (mode) {
+      case 'string':
+      case 'number':
+      case 'boolean':
+      case 'bigint':
+      case 'symbol':
+        return value;
+      case 'null':
+        return null;
+      case 'undefined':
+        return undefined;
+      case 'literal':
+        return this.simpleValues[index];
+      case 'passthrough':
+        return value;
+      default:
+        return undefined;
+    }
+  }
+  
+  /**
+   * Create type checker based on validator type for fast path optimization
+   * Uses a safer approach that's less prone to spoofing
+   */
+  private createTypeChecker(validator: VldBase<any, any>): (value: unknown) => boolean {
+    switch (validator.validatorType) {
+      case VLD_VALIDATOR_TYPES.STRING:
+        return (v) => typeof v === 'string';
+      case VLD_VALIDATOR_TYPES.NUMBER:
+        return (v) => typeof v === 'number' && Number.isFinite(v);
+      case VLD_VALIDATOR_TYPES.BOOLEAN:
+        return (v) => typeof v === 'boolean';
+      case VLD_VALIDATOR_TYPES.BIGINT:
+        return (v) => typeof v === 'bigint';
+      case VLD_VALIDATOR_TYPES.SYMBOL:
+        return (v) => typeof v === 'symbol';
+      case VLD_VALIDATOR_TYPES.NAN:
+        return (v) => typeof v === 'number' && Number.isNaN(v);
+      case VLD_VALIDATOR_TYPES.ARRAY:
+        return Array.isArray;
+      case VLD_VALIDATOR_TYPES.OBJECT:
+        return (v) => typeof v === 'object' && v !== null && !Array.isArray(v);
+      case VLD_VALIDATOR_TYPES.NULL:
+        return (v) => v === null;
+      case VLD_VALIDATOR_TYPES.UNDEFINED:
+      case VLD_VALIDATOR_TYPES.VOID:
+        return (v) => v === undefined;
+      case VLD_VALIDATOR_TYPES.ENUM:
+        return (v) => typeof v === 'string' || typeof v === 'number';
+      case VLD_VALIDATOR_TYPES.LITERAL: {
+        // v.literal(['a', 'b']) holds several values; test them all.
+        const values = (validator as { values?: readonly unknown[] }).values ?? [(validator as { literal?: unknown }).literal];
+        return (v) => values.includes(v);
+      }
+      case VLD_VALIDATOR_TYPES.NEVER:
+        return () => false;
+      case VLD_VALIDATOR_TYPES.ANY:
+      case VLD_VALIDATOR_TYPES.UNKNOWN:
+        return () => true;
+      default:
+        return () => true;
+    }
+  }
+  
+  /**
+   * Create a new union validator
+   */
+  static create<T extends readonly VldBase<any, any>[]>(...validators: T): VldUnion<T> {
+    return new VldUnion(validators);
+  }
+  
+  /**
+   * Parse and validate a value against union options
+   * Optimized with type checking and direct parsing to avoid success-result allocations
+   * BUG-NEW-013 FIX: Single-pass error collection to avoid double parsing
+   */
+  parse(value: unknown): UnionMemberOutput<T[number]> {
+    // Single pass: collect errors during validation
+    let optionErrors: unknown[] | undefined;
+
+    for (let i = 0; i < this.validators.length; i++) {
+      const validator = this.validators[i]!;
+      const typeChecker = this.typeCheckers[i];
+
+      // Skip validators that definitely won't match based on type
+      if (typeChecker && !typeChecker(value)) {
+        continue;
+      }
+
+      const simpleMode = this.simpleModes[i];
+      if (simpleMode !== undefined) {
+        return this.parseSimpleValue(simpleMode, i, value) as UnionMemberOutput<T[number]>;
+      }
+
+      try {
+        return validator.parse(value);
+      } catch (error) {
+        (optionErrors ??= [])[i] = error;
+      }
+    }
+
+    // All validators failed - throw with collected errors
+    throw createUnionError(this.errorMessage, this.collectOptionErrors(value, optionErrors));
+  }
+  
+  /**
+   * Safely parse and validate a value against union options
+   * Optimized version using type checking shortcuts
+   * BUG-NEW-013 FIX: Single-pass error collection to avoid double parsing
+   */
+  safeParse(value: unknown): ParseResult<UnionMemberOutput<T[number]>> {
+    // Single pass: collect errors during validation
+    let optionErrors: unknown[] | undefined;
+
+    for (let i = 0; i < this.validators.length; i++) {
+      const validator = this.validators[i]!;
+      const typeChecker = this.typeCheckers[i];
+
+      // Skip validators that definitely won't match based on type
+      if (typeChecker && !typeChecker(value)) {
+        continue;
+      }
+
+      const simpleMode = this.simpleModes[i];
+      if (simpleMode !== undefined) {
+        return {
+          success: true,
+          data: this.parseSimpleValue(simpleMode, i, value) as UnionMemberOutput<T[number]>
+        };
+      }
+
+      try {
+        return { success: true, data: validator.parse(value) };
+      } catch (error) {
+        (optionErrors ??= [])[i] = error;
+      }
+    }
+
+    // All validators failed - return error with collected messages
+    return {
+      success: false,
+      error: createUnionError(this.errorMessage, this.collectOptionErrors(value, optionErrors))
+    };
+  }
+
+  /**
+   * Failure path only: one entry per option, in order. Options skipped by the
+   * type pre-check never ran; their (type-mismatch) errors are computed here,
+   * which runs no user code.
+   */
+  private collectOptionErrors(value: unknown, recorded: unknown[] | undefined): unknown[] {
+    const all: unknown[] = [];
+    for (let i = 0; i < this.validators.length; i++) {
+      if (recorded !== undefined && recorded[i] !== undefined) {
+        all.push(recorded[i]);
+        continue;
+      }
+      const result = this.validators[i]!.safeParse(value);
+      if (!result.success) all.push(result.error);
+    }
+    return all;
+  }
+
+  /** Async parse: the first option whose parseAsync succeeds wins. */
+  override async parseAsync(value: unknown): Promise<UnionMemberOutput<T[number]>> {
+    const optionErrors: unknown[] = [];
+    for (const validator of this.validators) {
+      const result = await validator.safeParseAsync(value);
+      if (result.success) return result.data as any;
+      optionErrors.push(result.error);
+    }
+    throw createUnionError(this.errorMessage, optionErrors);
+  }
+
+  /** Encode with the first option that accepts the value (codecs run their encoder). */
+  override safeEncode(value: any): ParseResult<any> {
+    let optionErrors: unknown[] | undefined;
+    for (const validator of this.validators) {
+      const result = validator.safeEncode(value);
+      if (result.success) return result;
+      (optionErrors ??= []).push(result.error);
+    }
+    return { success: false, error: createUnionError(this.errorMessage, optionErrors) };
+  }
+
+  override encode(value: any): any {
+    const result = this.safeEncode(value);
+    if (!result.success) throw result.error;
+    return result.data;
+  }
+}
+
+
+/**
+ * Merge the two parsed sides of an intersection. Plain objects merge
+ * key-by-key and same-length arrays element-by-element (both recursively), so
+ * array outputs - always fresh copies - no longer fail an identity check and
+ * nested arrays of objects keep the fields of both sides. Equal Dates are one
+ * value. Any other conflicting leaf keeps the existing rule: the right side wins.
+ */
+function mergeIntersection(a: unknown, b: unknown): unknown {
+  if (isPlainObject(a) && isPlainObject(b)) {
+    const result: Record<string, unknown> = { ...a };
+    for (const key of Object.keys(b)) {
+      if (isDangerousKey(key)) continue;
+      result[key] = Object.prototype.hasOwnProperty.call(a, key) ? mergeIntersection(a[key], b[key]) : b[key];
+    }
+    return result;
+  }
+  if (Array.isArray(a) && Array.isArray(b) && a.length === b.length) {
+    return a.map((item, index) => mergeIntersection(item, b[index]));
+  }
+  if (a instanceof Date && b instanceof Date && a.getTime() === b.getTime()) {
+    return a;
+  }
+  return b;
+}
+
+/**
+ * Combine the outputs of both intersection sides (shared with VldIntersectionV2).
+ * @internal
+ */
+export function intersectResults(resultA: unknown, resultB: unknown): unknown {
+  // BUG-NEW-015 FIX: Check type consistency before merging
+  const aIsObject = isPlainObject(resultA);
+  const bIsObject = isPlainObject(resultB);
+
+  // Both are objects - safe to merge
+  if (aIsObject && bIsObject) {
+    return mergeIntersection(resultA, resultB);
+  }
+
+  // Both are arrays: each side returns its own copy, so compare by content.
+  if (Array.isArray(resultA) && Array.isArray(resultB)) {
+    if (resultA.length !== resultB.length) {
+      throw new Error('Arrays must have the same length for intersection');
+    }
+    return mergeIntersection(resultA, resultB);
+  }
+
+  // Both are Dates: equal instants are the same value.
+  if (resultA instanceof Date && resultB instanceof Date && resultA.getTime() === resultB.getTime()) {
+    return resultA;
+  }
+
+  // Neither are objects - must be identical primitives
+  if (!aIsObject && !bIsObject) {
+    if ((resultA as any) === (resultB as any)) {
+      return resultA;
+    }
+    throw new Error('Values must be identical for intersection of primitive types');
+  }
+
+  // One is object, one is primitive - invalid intersection
+  throw new Error(
+    'Cannot create intersection of object and primitive types. ' +
+    'Both validators must produce the same type category.'
+  );
+}
+
+/** One parsed side of an intersection; `keys` is set when the side failed only because of unrecognized keys. */
+export type IntersectionSide =
+  | { readonly ok: true; readonly data: unknown }
+  | { readonly ok: false; readonly error: VldError; readonly keys: string[] | undefined };
+
+export function intersectionSide(result: ParseResult<unknown>): IntersectionSide {
+  if (result.success) return { ok: true, data: result.data };
+  const issues = result.error.issues;
+  const onlyUnrecognized = issues.length > 0 && issues.every(issue => issue.code === 'unrecognized_keys' && (issue.path?.length ?? 0) === 0);
+  return { ok: false, error: result.error, keys: onlyUnrecognized ? issues.flatMap(issue => (issue as { keys?: string[] }).keys ?? []) : undefined };
+}
+
+/**
+ * Zod reports an unrecognized key only when BOTH sides reject it, so a key owned by one branch survives the other
+ * side's strict object. Returns the keys each failed side must be re-parsed without (undefined when both sides passed),
+ * or throws when the intersection really fails.
+ * @internal
+ */
+export function planIntersection(left: IntersectionSide, right: IntersectionSide): { left: string[]; right: string[] } | undefined {
+  if (left.ok && right.ok) return undefined;
+  if (!left.ok && !left.keys) throw left.error;
+  if (!right.ok && !right.keys) throw right.error;
+  const rejectedLeft = left.ok ? [] : left.keys!;
+  const rejectedRight = right.ok ? [] : right.keys!;
+  const both = rejectedLeft.filter(key => rejectedRight.includes(key));
+  if (both.length > 0) {
+    throw new VldError([{ code: 'unrecognized_keys', path: [], keys: both, message: getMessages().unexpectedKeys(both) } as VldIssue]);
+  }
+  return { left: rejectedLeft, right: rejectedRight };
+}
+
+/** The input without the keys the other side owns. */
+export function withoutKeys(value: unknown, keys: readonly string[]): unknown {
+  const copy = { ...(value as Record<string, unknown>) };
+  for (const key of keys) delete copy[key];
+  return copy;
+}
+
+function createIntersectionError(message: string): VldError {
+  return new VldError([{ code: 'invalid_type', path: [], message }]);
+}
+
+/**
+ * Immutable intersection validator for combining validators
+ */
+export class VldIntersection<A, B> extends VldBase<unknown, A & B> {
+  /**
+   * Private constructor to enforce immutability
+   */
+  private constructor(
+    private readonly validatorA: VldBase<unknown, A>,
+    private readonly validatorB: VldBase<unknown, B>
+  ) {
+    super(VLD_VALIDATOR_TYPES.INTERSECTION);
+  }
+  
+  /**
+   * Create a new intersection validator
+   */
+  static create<A, B>(
+    validatorA: VldBase<unknown, A>,
+    validatorB: VldBase<unknown, B>
+  ): VldIntersection<A, B> {
+    return new VldIntersection(validatorA, validatorB);
+  }
+  
+  /**
+   * Parse and validate a value against both validators
+   */
+  parse(value: unknown): A & B {
+    // Both validators must pass. Zod reports a failing side's own issues with
+    // their paths (both sides' issues when both fail).
+    const left = intersectionSide(this.validatorA.safeParse(value));
+    const right = intersectionSide(this.validatorB.safeParse(value));
+    // Zod concatenates both sides' issues when both fail structurally.
+    if (!left.ok && !left.keys && !right.ok && !right.keys) {
+      throw new VldError([...left.error.issues, ...right.error.issues]);
+    }
+    const plan = planIntersection(left, right);
+    if (plan === undefined) {
+      return intersectResults((left as { data: unknown }).data, (right as { data: unknown }).data) as A & B;
+    }
+    try {
+      const resultA = left.ok ? left.data : this.validatorA.parse(withoutKeys(value, plan.left));
+      const resultB = right.ok ? right.data : this.validatorB.parse(withoutKeys(value, plan.right));
+      return intersectResults(resultA, resultB) as A & B;
+    } catch (error) {
+      if (error instanceof VldError) throw error;
+      throw new Error(getMessages().intersectionError((error as Error).message));
+    }
+  }
+  
+  /** Async parse: both sides run their parseAsync, then the outputs are combined. */
+  override async parseAsync(value: unknown): Promise<A & B> {
+    const left = intersectionSide(await this.validatorA.safeParseAsync(value));
+    const right = intersectionSide(await this.validatorB.safeParseAsync(value));
+    // Zod concatenates both sides' issues when both fail structurally.
+    if (!left.ok && !left.keys && !right.ok && !right.keys) {
+      throw new VldError([...left.error.issues, ...right.error.issues]);
+    }
+    const plan = planIntersection(left, right);
+    if (plan === undefined) {
+      return intersectResults((left as { data: unknown }).data, (right as { data: unknown }).data) as A & B;
+    }
+    try {
+      const resultA = left.ok ? left.data : await this.validatorA.parseAsync(withoutKeys(value, plan.left));
+      const resultB = right.ok ? right.data : await this.validatorB.parseAsync(withoutKeys(value, plan.right));
+      return intersectResults(resultA, resultB) as A & B;
+    } catch (error) {
+      if (error instanceof VldError) throw error;
+      throw new Error(getMessages().intersectionError((error as Error).message));
+    }
+  }
+
+  /**
+   * Safely parse and validate a value against both validators
+   */
+  safeParse(value: unknown): ParseResult<A & B> {
+    try {
+      return { success: true, data: this.parse(value) };
+    } catch (error) {
+      if (error instanceof VldError) return { success: false, error };
+      return { success: false, error: createIntersectionError((error as Error).message) };
+    }
+  }
+}
+

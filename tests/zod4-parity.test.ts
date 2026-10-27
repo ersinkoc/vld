@@ -281,8 +281,8 @@ describe('Zod 4 parity additions', () => {
       if (!primitiveResult.success) {
         expect(primitiveResult.error).toBeInstanceOf(VldError);
         expect(v.treeifyError(primitiveResult.error as VldError)).toHaveProperty('errors');
-        expect(v.prettifyError(primitiveResult.error as VldError)).toContain(primitiveResult.error.message);
-        expect(v.flattenError(primitiveResult.error as VldError).formErrors).toContain(primitiveResult.error.message);
+        expect(v.prettifyError(primitiveResult.error as VldError)).toContain(primitiveResult.error.issues[0]!.message);
+        expect(v.flattenError(primitiveResult.error as VldError).formErrors).toContain(primitiveResult.error.issues[0]!.message);
       }
     }
 
@@ -297,7 +297,7 @@ describe('Zod 4 parity additions', () => {
       if (!collectionResult.success) {
         expect(collectionResult.error).toBeInstanceOf(VldError);
         expect(v.treeifyError(collectionResult.error as VldError)).toHaveProperty('errors');
-        expect(v.prettifyError(collectionResult.error as VldError)).toContain(collectionResult.error.message);
+        expect(v.prettifyError(collectionResult.error as VldError)).toContain(collectionResult.error.issues[0]!.message);
         // Zod-shape element issues carry paths, so flattenError files them under
         // fieldErrors; the message still surfaces in the flattened structure.
         const flattened = v.flattenError(collectionResult.error as VldError);
@@ -305,7 +305,7 @@ describe('Zod 4 parity additions', () => {
           ...flattened.formErrors,
           ...Object.values(flattened.fieldErrors ?? {}).flat(),
         ];
-        expect(flattenedMessages).toContain(collectionResult.error.message);
+        expect(flattenedMessages).toContain(collectionResult.error.issues[0]!.message);
       }
     }
 
@@ -327,12 +327,12 @@ describe('Zod 4 parity additions', () => {
       if (!scalarResult.success) {
         expect(scalarResult.error).toBeInstanceOf(VldError);
         expect(v.treeifyError(scalarResult.error as VldError)).toHaveProperty('errors');
-        expect(v.prettifyError(scalarResult.error as VldError)).toContain(scalarResult.error.message);
+        expect(v.prettifyError(scalarResult.error as VldError)).toContain(scalarResult.error.issues[0]!.message);
         const flattenedScalar = v.flattenError(scalarResult.error as VldError);
         expect([
           ...flattenedScalar.formErrors,
           ...Object.values(flattenedScalar.fieldErrors ?? {}).flat(),
-        ]).toContain(scalarResult.error.message);
+        ]).toContain(scalarResult.error.issues[0]!.message);
       }
     }
   });

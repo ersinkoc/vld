@@ -282,11 +282,11 @@ describe('VldObject Coverage Tests', () => {
       const valid = schema.safeParse({ email: 'ada@example.com', age: 36 });
       expect(valid.success).toBe(true);
 
-      expect(() => schema.parse({ email: 'invalid', age: 36 })).toThrow('Invalid field "email"');
+      try { schema.parse({ email: 'invalid', age: 36 }); throw new Error('expected validation failure'); } catch (e) { expect(String((e as any).issues?.[0]?.message ?? (e as Error).message)).toContain('Invalid field "email"'); }
       const invalid = schema.safeParse({ email: 'ada@example.com', age: -1 });
       expect(invalid.success).toBe(false);
       if (!invalid.success) {
-        expect(invalid.error.message).toContain('Invalid field "age"');
+        expect((invalid.error as any).issues[0].message).toContain('Invalid field "age"');
       }
     });
 
@@ -314,13 +314,13 @@ describe('VldObject Coverage Tests', () => {
         id: 'usr_1',
         profile: { name: 'Ada', age: -1 },
         tags: ['admin']
-      })).toThrow('Invalid field "profile"');
+      })).toThrow(/Invalid field .*profile/);
 
       expect(() => schema.parse({
         id: 'usr_1',
         profile: { name: 'Ada', age: 36 },
         tags: ['admin', 123]
-      })).toThrow('Invalid field "tags"');
+      })).toThrow(/Invalid field .*tags/);
     });
 
     it('should use the standard-validator safeParse fast path for nested fields', () => {
@@ -354,7 +354,7 @@ describe('VldObject Coverage Tests', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.message).toContain('Invalid field "tags"');
+        expect(result.error.issues[0] && result.error.issues[0].message).toContain('Invalid field "tags"');
       }
     });
   });
@@ -535,11 +535,11 @@ describe('VldObject Coverage Tests', () => {
         }
       } as any);
 
-      expect(() => schema.parse({ broken: 'value' })).toThrow('Invalid validator for field "broken"');
+      expect(() => schema.parse({ broken: 'value' })).toThrow(/Invalid validator for field .*broken/);
       const result = schema.safeParse({ broken: 'value' });
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.message).toContain('Invalid validator for field "broken"');
+        expect((result.error as any).issues[0].message).toContain('Invalid validator for field "broken"');
       }
     });
 
@@ -750,7 +750,7 @@ describe('VldObject Coverage Tests', () => {
       const schema = v.object({ value: v.string() }) as any;
 
       expect(schema.getFieldValidator('value')).toBe(schema.shape.value);
-      expect(() => schema.getFieldValidator('missing')).toThrow('Invalid validator for field "missing"');
+      expect(() => schema.getFieldValidator('missing')).toThrow(/Invalid validator for field .*missing/);
     });
 
     it('should treat shape access failures as missing validators', () => {
@@ -1154,7 +1154,7 @@ describe('VldObject Coverage Tests', () => {
         age: optionalAge
       });
 
-      expect(() => schema.required()).toThrow('Invalid VldOptional structure for field "age"');
+      expect(() => schema.required()).toThrow(/Invalid VldOptional structure for field .*age/);
     });
   });
 

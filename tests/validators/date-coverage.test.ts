@@ -19,7 +19,7 @@ describe('VldDate Coverage Tests', () => {
       const invalid = schema.safeParse('not-a-date');
       expect(invalid.success).toBe(false);
       if (!invalid.success) {
-        expect(invalid.error.message).toBe('Invalid date');
+        expect(invalid.error.issues[0] && invalid.error.issues[0].message).toBe('Invalid date');
       }
     });
   });

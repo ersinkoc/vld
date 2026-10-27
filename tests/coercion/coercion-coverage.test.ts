@@ -131,7 +131,7 @@ describe('Coercion Validators - 100% Coverage', () => {
       const result = validator.safeParse(Symbol('number'));
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.message).toBe('Cannot coerce undefined to number');
+        expect(result.error.issues[0] && result.error.issues[0].message).toBe('Cannot coerce undefined to number');
       }
     });
 
@@ -247,7 +247,11 @@ describe('Coercion Validators - 100% Coverage', () => {
         throw error;
       };
 
-      expect(schema.safeParse('value')).toEqual({ success: false, error });
+      const wrapped = schema.safeParse('value');
+      expect(wrapped.success).toBe(false);
+      if (!wrapped.success) {
+        expect(wrapped.error.issues[0]?.message).toContain('custom boolean coercion failure');
+      }
     });
   });
   
@@ -298,7 +302,7 @@ describe('Coercion Validators - 100% Coverage', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.message).toBe('Cannot coerce undefined to date');
+        expect(result.error.issues[0] && result.error.issues[0].message).toBe('Cannot coerce undefined to date');
       }
     });
   });

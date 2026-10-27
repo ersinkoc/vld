@@ -260,6 +260,27 @@ export function formatChild(node: Record<PropertyKey, any>, key: PropertyKey): R
   return existing ?? setOwnKey(node, key, { _errors: [] });
 }
 
+/**
+ * Zod-parity error message serializer: pretty-printed issue JSON with
+ * BigInt values as strings (matching Zod's own message format). Falls back
+ * to a summary line when the issue list cannot be serialized (exotic or
+ * cyclic payloads) so the constructor never throws.
+ */
+function stringifyIssuesForMessage(issues: VldIssue[]): string {
+  try {
+    return JSON.stringify(
+      issues,
+      (_key, value: unknown) => (typeof value === 'bigint' ? value.toString() : value),
+      2
+    );
+  } catch {
+    const first = issues[0];
+    return issues.length === 1 && first !== undefined
+      ? first.message
+      : `${issues.length} validation errors`;
+  }
+}
+
 export class VldError extends Error {
   public readonly issues: VldIssue[];
   /** Alias of `issues` (own, non-enumerable; defined in the constructor). */
@@ -267,16 +288,16 @@ export class VldError extends Error {
   private _stack: string | undefined;
 
   constructor(issues: VldIssue[], customMessage?: string) {
-    const firstIssue = issues[0];
+    // Zod parity: ZodError.message is the pretty-printed issue list
+    // (JSON.stringify(issues, null, 2), BigInt values serialized as
+    // strings); an explicit custom message overrides.
     const message =
       customMessage !== undefined
         ? customMessage
-        : issues.length === 1 && firstIssue !== undefined
-          ? firstIssue.message
-          : `${issues.length} validation errors`;
+        : stringifyIssuesForMessage(issues);
 
     super(message);
-    this.name = 'VldError';
+    this.name = 'ZodError';
     this.issues = issues;
     // Node's util.inspect treats an Error with an array `errors` like an
     // AggregateError and reads its OWN property descriptor; a prototype-only
@@ -302,6 +323,15 @@ export class VldError extends Error {
 
   get firstError(): VldIssue | undefined {
     return this.issues[0];
+  }
+
+  /**
+   * Zod v4 core introspection compatibility. Ecosystem catch blocks
+   * duck-type thrown validation errors via `_zod.traits.has("$ZodError")`
+   * (e.g. @hookform/resolvers) before reading `.issues`.
+   */
+  get _zod(): any {
+    return VLD_ERROR_ZOD_COMPAT;
   }
 
   get isEmpty(): boolean {
@@ -372,3 +402,19 @@ export class VldError extends Error {
     return value instanceof VldError;
   }
 }
+
+/**
+ * Shared Zod-compat introspection object for every VldError instance
+ * (see the `_zod` getter). Zod's error traits carry both the class name
+ * and its `$ZodError` core identifier.
+ */
+const VLD_ERROR_ZOD_COMPAT = {
+  def: { type: 'error' },
+  get constr(): any {
+    return VldError;
+  },
+  traits: new Set<string>(['ZodError', '$ZodError'])
+};
+
+// Zod parity for duck-typed checks like `error.constructor.name === "ZodError"`.
+Object.defineProperty(VldError, 'name', { value: 'ZodError', configurable: true });

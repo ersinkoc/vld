@@ -185,7 +185,7 @@ describe('audit regressions: error formatting', () => {
     const zi: any = toZodError(new VldError([{ code: 'unrecognized_keys', path: [], message: 'm', keys: ['b'], values: ['a'], exact: 2 }])).issues[0];
     expect([zi.keys, zi.values, zi.exact]).toEqual([['b'], ['a'], 2]);
     const big = new VldError([{ code: 'too_small', path: [], message: 'm', minimum: 10n as any, maximum: 20n as any, exact: 3n as any, values: [1n] }]);
-    expect(JSON.parse(JSON.stringify(big)).issues[0]).toMatchObject({ minimum: '10', maximum: '20', exact: '3', values: ['1'] });
+    expect(JSON.parse(big.message)[0]).toMatchObject({ minimum: '10', maximum: '20', exact: '3', values: ['1'] });
   });
 
   it('F52 errors can be inspected / logged', () => {

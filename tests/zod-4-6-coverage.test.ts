@@ -11,14 +11,14 @@ describe('Zod 4.6 coverage companions', () => {
     it('iban() validates with the checksum', () => {
       expect(v.iban().validate('GB82WEST12345698765432')).toBe(true);
       expect(v.iban().validate('GB82WEST12345698765433')).toBe(false);
-      expect(v.iban({ message: 'Hatal\u0131 IBAN' }).safeParse('nope').error?.message).toBe('Hatal\u0131 IBAN');
+      expect(v.iban({ message: 'Hatal\u0131 IBAN' }).safeParse('nope').error?.issues[0]?.message).toBe('Hatal\u0131 IBAN');
       expect(v.iban().parse('TR330006100519786457841326')).toBe('TR330006100519786457841326');
     });
 
     it('currencyCode() validates ISO 4217 codes', () => {
       expect(v.currencyCode().validate('TRY')).toBe(true);
       expect(v.currencyCode().validate('try')).toBe(false);
-      expect(v.currencyCode({ message: 'not a currency code' }).safeParse('XX').error?.message).toBe('not a currency code');
+      expect(v.currencyCode({ message: 'not a currency code' }).safeParse('XX').error?.issues[0]?.message).toBe('not a currency code');
       expect(v.z.currencyCode().validate('USD')).toBe(true);
       expect(v.z.iban({ message: 'invalid IBAN' }).validate('GB82WEST12345698765433')).toBe(false);
     });

@@ -437,7 +437,7 @@ describe('String Format Validators', () => {
       const result = customEmail.safeParse('user@other.com');
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.message).toBe('Must be an example.com email');
+        expect(result.error.issues[0] && result.error.issues[0].message).toBe('Must be an example.com email');
       }
     });
   });

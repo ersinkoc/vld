@@ -229,105 +229,105 @@ describe('Locale System Tests', () => {
       setLocale('en');
       const result = v.string().min(5).safeParse('Hi') as { success: false; error: Error };
       expect(result.success).toBe(false);
-      expect(result.error.message).toBe('String must be at least 5 characters');
+      expect((result.error as any).issues[0] && (result.error as any).issues[0].message).toBe('String must be at least 5 characters');
     });
 
     it('should show Turkish errors', () => {
       setLocale('tr');
       const result = v.string().min(5).safeParse('Hi') as { success: false; error: Error };
       expect(result.success).toBe(false);
-      expect(result.error.message).toBe('Metin en az 5 karakter olmalı');
+      expect((result.error as any).issues[0] && (result.error as any).issues[0].message).toBe('Metin en az 5 karakter olmalı');
     });
 
     it('should show Spanish errors', () => {
       setLocale('es');
       const result = v.string().email().safeParse('invalid') as { success: false; error: Error };
       expect(result.success).toBe(false);
-      expect(result.error.message).toBe('Dirección de correo inválida');
+      expect((result.error as any).issues[0] && (result.error as any).issues[0].message).toBe('Dirección de correo inválida');
     });
 
     it('should show French errors', () => {
       setLocale('fr');
       const result = v.number().positive().safeParse(-5) as { success: false; error: Error };
       expect(result.success).toBe(false);
-      expect(result.error.message).toBe('Le nombre doit être positif');
+      expect((result.error as any).issues[0] && (result.error as any).issues[0].message).toBe('Le nombre doit être positif');
     });
 
     it('should show German errors', () => {
       setLocale('de');
       const result = v.string().url().safeParse('not-url') as { success: false; error: Error };
       expect(result.success).toBe(false);
-      expect(result.error.message).toBe('Ungültige URL');
+      expect((result.error as any).issues[0] && (result.error as any).issues[0].message).toBe('Ungültige URL');
     });
 
     it('should show Italian errors', () => {
       setLocale('it');
       const result = v.string().uuid().safeParse('not-uuid') as { success: false; error: Error };
       expect(result.success).toBe(false);
-      expect(result.error.message).toBe('UUID non valido');
+      expect((result.error as any).issues[0] && (result.error as any).issues[0].message).toBe('UUID non valido');
     });
 
     it('should show Portuguese errors', () => {
       setLocale('pt');
       const result = v.number().int().safeParse(3.14) as { success: false; error: Error };
       expect(result.success).toBe(false);
-      expect(result.error.message).toBe('Número deve ser inteiro');
+      expect((result.error as any).issues[0] && (result.error as any).issues[0].message).toBe('Número deve ser inteiro');
     });
 
     it('should show Russian errors', () => {
       setLocale('ru');
       const result = v.string().min(3).safeParse('AB') as { success: false; error: Error };
       expect(result.success).toBe(false);
-      expect(result.error.message).toBe('Строка должна содержать не менее 3 символов');
+      expect((result.error as any).issues[0] && (result.error as any).issues[0].message).toBe('Строка должна содержать не менее 3 символов');
     });
 
     it('should show Japanese errors', () => {
       setLocale('ja');
       const result = v.string().max(3).safeParse('ABCD') as { success: false; error: Error };
       expect(result.success).toBe(false);
-      expect(result.error.message).toBe('文字列は3文字以下である必要があります');
+      expect((result.error as any).issues[0] && (result.error as any).issues[0].message).toBe('文字列は3文字以下である必要があります');
     });
 
     it('should show Korean errors', () => {
       setLocale('ko');
       const result = v.number().negative().safeParse(5) as { success: false; error: Error };
       expect(result.success).toBe(false);
-      expect(result.error.message).toBe('숫자는 음수여야 합니다');
+      expect((result.error as any).issues[0] && (result.error as any).issues[0].message).toBe('숫자는 음수여야 합니다');
     });
 
     it('should show Chinese errors', () => {
       setLocale('zh');
       const result = v.string().length(5).safeParse('ABC') as { success: false; error: Error };
       expect(result.success).toBe(false);
-      expect(result.error.message).toBe('字符串必须正好5个字符');
+      expect((result.error as any).issues[0] && (result.error as any).issues[0].message).toBe('字符串必须正好5个字符');
     });
 
     it('should show Arabic errors', () => {
       setLocale('ar');
       const result = v.number().finite().safeParse(Infinity) as { success: false; error: Error };
       expect(result.success).toBe(false);
-      expect(result.error.message).toBe('يجب أن يكون الرقم محدوداً');
+      expect((result.error as any).issues[0] && (result.error as any).issues[0].message).toBe('يجب أن يكون الرقم محدوداً');
     });
 
     it('should show Hindi errors', () => {
       setLocale('hi');
       const result = v.number().safe().safeParse(Number.MAX_SAFE_INTEGER + 1) as { success: false; error: Error };
       expect(result.success).toBe(false);
-      expect(result.error.message).toBe('संख्या सुरक्षित पूर्णांक होनी चाहिए');
+      expect((result.error as any).issues[0] && (result.error as any).issues[0].message).toBe('संख्या सुरक्षित पूर्णांक होनी चाहिए');
     });
 
     it('should show Dutch errors', () => {
       setLocale('nl');
       const result = v.string().regex(/test/).safeParse('invalid') as { success: false; error: Error };
       expect(result.success).toBe(false);
-      expect(result.error.message).toBe('Ongeldig formaat');
+      expect((result.error as any).issues[0] && (result.error as any).issues[0].message).toBe('Ongeldig formaat');
     });
 
     it('should show Polish errors', () => {
       setLocale('pl');
       const result = v.string().nonempty().safeParse('') as { success: false; error: Error };
       expect(result.success).toBe(false);
-      expect(result.error.message).toBe('Ciąg znaków nie może być pusty');
+      expect((result.error as any).issues[0] && (result.error as any).issues[0].message).toBe('Ciąg znaków nie może być pusty');
     });
   });
 
@@ -412,13 +412,10 @@ describe('Locale System Tests', () => {
       expect(numberResult.success).toBe(false);
       expect(emailResult.success).toBe(false);
       
-      const strErr = stringResult as { success: false; error: Error };
-      const numErr = numberResult as { success: false; error: Error };
-      const emailErr = emailResult as { success: false; error: Error };
       
-      expect(strErr.error.message).toContain('au moins 5');
-      expect(numErr.error.message).toContain('positif');
-      expect(emailErr.error.message).toContain('e-mail invalide');
+      expect((stringResult.error as any).issues[0].message).toContain('au moins 5');
+      expect((numberResult.error as any).issues[0].message).toContain('positif');
+      expect((emailResult.error as any).issues[0].message).toContain('e-mail invalide');
     });
 
     it('should work with complex schemas', () => {
@@ -449,7 +446,7 @@ describe('Locale System Tests', () => {
       
       expect(result.success).toBe(false);
       const err = result as { success: false; error: Error };
-      expect(err.error.message).toBe('Custom error message');
+      expect((err.error as any).issues[0] && (err.error as any).issues[0].message).toBe('Custom error message');
     });
   });
 
@@ -464,32 +461,32 @@ describe('Locale System Tests', () => {
         // Test BigInt validation
         const bigintResult = v.bigint().safeParse('not bigint') as { success: false; error: Error };
         expect(bigintResult.success).toBe(false);
-        expect(bigintResult.error.message).toBe(messages.invalidBigint);
+        expect((bigintResult.error as any).issues[0].message).toBe(messages.invalidBigint);
         
         // Test Symbol validation
         const symbolResult = v.symbol().safeParse('not symbol') as { success: false; error: Error };
         expect(symbolResult.success).toBe(false);
-        expect(symbolResult.error.message).toBe(messages.invalidSymbol);
+        expect((symbolResult.error as any).issues[0].message).toBe(messages.invalidSymbol);
         
         // Test Tuple validation
         const tupleResult = v.tuple(v.string(), v.number()).safeParse(['test']) as { success: false; error: Error };
         expect(tupleResult.success).toBe(false);
-        expect(tupleResult.error.message).toContain(messages.tupleLength(2, 1));
+        expect((tupleResult.error as any).issues[0].message).toContain(messages.tupleLength(2, 1));
         
         // Test Record validation
         const recordResult = v.record(v.string()).safeParse('not object') as { success: false; error: Error };
         expect(recordResult.success).toBe(false);
-        expect(recordResult.error.message).toBe(messages.invalidRecord);
+        expect((recordResult.error as any).issues[0].message).toBe(messages.invalidRecord);
         
         // Test Set validation  
         const setResult = v.set(v.string()).safeParse('not set') as { success: false; error: Error };
         expect(setResult.success).toBe(false);
-        expect(setResult.error.message).toBe(messages.invalidSet);
+        expect((setResult.error as any).issues[0].message).toBe(messages.invalidSet);
         
         // Test Map validation
         const mapResult = v.map(v.string(), v.number()).safeParse('not map') as { success: false; error: Error };
         expect(mapResult.success).toBe(false);
-        expect(mapResult.error.message).toBe(messages.invalidMap);
+        expect((mapResult.error as any).issues[0].message).toBe(messages.invalidMap);
       });
     });
 
@@ -506,19 +503,19 @@ describe('Locale System Tests', () => {
         });
         const transformResult = transformSchema.safeParse('test') as { success: false; error: Error };
         expect(transformResult.success).toBe(false);
-        expect(transformResult.error.message).toContain('Transform failed');
+        expect((transformResult.error as any).issues[0].message).toContain('Transform failed');
         
         // Test refinement error
         const refineSchema = v.string().refine(() => false, 'Refinement failed');
         const refineResult = refineSchema.safeParse('test') as { success: false; error: Error };
         expect(refineResult.success).toBe(false);
         // The error message will be localized, so just check it contains the custom message
-        expect(refineResult.error.message).toContain('Refinement failed');
+        expect((refineResult.error as any).issues[0].message).toContain('Refinement failed');
         
         // Test coercion error
         const coerceResult = v.coerce.number().safeParse('not a number') as { success: false; error: Error };
         expect(coerceResult.success).toBe(false);
-        expect(coerceResult.error.message).toBe(messages.coercionFailed('number', 'not a number'));
+        expect((coerceResult.error as any).issues[0].message).toBe(messages.coercionFailed('number', 'not a number'));
       });
     });
 

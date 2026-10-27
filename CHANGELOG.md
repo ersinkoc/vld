@@ -5,6 +5,48 @@ All notable changes to VLD will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Drop-in hardening: ecosystem duck typing, ZodError parity, and tree-shaking
+foundations from the 2026-10-26 competitive audit against zod 4.6.7.
+
+### Added
+
+- **Zod v4 core introspection on every schema** (`_zod`): `def` (with
+  `type` plus `shape`/`element`/`options`/`values`/`innerType`/`getter`/
+  `left`/`right`/`keyType`/`valueType` where applicable), `traits`
+  (`ZodObject`, `$ZodObject`, `ZodType`, `$ZodType`, ...), `version`
+  (`{major: 4, minor: 6, patch: 7}`) and `bag`, memoized per schema and
+  layered over the legacy `typeName`/`config` fields. Ecosystem libraries
+  that duck-type zod v4 schemas (e.g. `@hookform/resolvers`) now work with
+  vld schemas unchanged.
+- **`verify:ecosystem` release gate**: installs the real
+  `@hookform/resolvers` + `react-hook-form` + `react` from npm against
+  the built package and proves `zodResolver`, the `_zod` surface and
+  ZodError parity end to end.
+- **`verify:treeshake` release gate**: rolls three representative imports
+  from the built dist (single sentinel, realistic object/string/number
+  schema, mini single factory) and fails on budget regressions.
+
+### Changed
+
+- **`ZodError` message/name parity**: `error.message` is now Zod's
+  pretty-printed issue list (`JSON.stringify(issues, null, 2)`, BigInt
+  values as strings), `error.name` and `error.constructor.name` report
+  `ZodError`, and thrown errors carry `_zod.traits` with
+  `ZodError`/`$ZodError`. Single-issue messages are no longer bare
+  issue text; assert on `error.issues[0].message` for that.
+- **Cycle-free composition**: `VldArray`/`VldUnion`/`VldIntersection`
+  moved into `validators/base.ts` (their old modules re-export them), so
+  `.array()`/`.or()`/`.and()` need no late wiring; `.toJSONSchema()`
+  is late-bound through `configureToJSONSchema` to keep base free of the
+  base -> to-json-schema -> base cycle that broke ts-jest coverage.
+- **JSON Schema module split**: `utils/json-schema.ts` is now a shim over
+  `utils/to-json-schema.ts` (validator-import-free serializer) and
+  `utils/from-json-schema.ts` (builder), and `itemShape` moved to
+  `validators/item-shape.ts`. Measured effect (rollup, mirrors Vite
+  production): single-sentinel import 70.8 KB, realistic schema 129 KB,
+  mini single factory 93 KB, all guarded.
 ## [3.1.0] - 2026-10-23
 
 Complete zod 4.6.7 parity: every behavioral, error-formatting and JSON Schema

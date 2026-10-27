@@ -100,7 +100,7 @@ describe('VldCoerceString - Chain Methods Coverage', () => {
       try {
         validator.parse('ab');
       } catch (error: any) {
-        expect(error.message).toBe('Too short!');
+        expect(error.issues[0] && error.issues[0].message).toBe('Too short!');
       }
     });
   });

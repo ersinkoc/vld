@@ -7,7 +7,10 @@ const tempRootDir = path.join(rootDir, '.tmp');
 const tempDir = path.join(tempRootDir, 'verify-bundle');
 const errors = [];
 
-const maxMiniStringBytes = Number(process.env.VLD_MAX_MINI_STRING_BUNDLE_BYTES || 70_000);
+// The VldArray/VldUnion/VldIntersection classes live inside validators/base.ts
+// since the cycle-free composition refactor (they back .array()/.or()/.and()
+// without late wiring), so the lean string() probe carries them too.
+const maxMiniStringBytes = Number(process.env.VLD_MAX_MINI_STRING_BUNDLE_BYTES || 78_000);
 // Full Zod-compatible instance methods necessarily retain composition and
 // JSON-Schema code. Keep a tight absolute ceiling and also require the probe
 // to remain smaller than the installed latest Zod below.

@@ -28,6 +28,19 @@ VLD 3.1.0 is a **drop-in replacement for Zod 4.6** (and remains a drop-in for 4.
   per-member issue paths, JSON Schema output (byte-identical key order), and
   coercion edge semantics (`BigInt('')` is `0n`, `String(date)` formatting).
 
+### Ecosystem duck typing (2026-10-27)
+
+Schemas expose a Zod v4 core-shaped `_zod` (`def` with `type` and the
+type-specific fields, `traits`, `version` `{4, 6, 7}`, `bag`), and thrown
+validation errors carry `_zod.traits.has('$ZodError')`, `name` /
+`constructor.name` `ZodError`, and Zod's pretty-printed JSON `message`.
+Verified integrations: `@hookform/resolvers`' `zodResolver` converts vld
+schema failures into form errors unchanged (guarded in CI by
+`npm run verify:ecosystem` against the real npm packages). Note that the
+community `zod-to-json-schema` package is effectively zod-v3-only (it
+returns an empty schema for real zod v4 objects too); use the built-in
+`toJSONSchema()` instead.
+
 The `@oxog/vld/mini` entry is chainable-by-design (the same classes as the
 main entry, tree-shakable), so its check semantics match `zod`'s main chain
 APIs. Two upstream quirks in `zod/mini`'s own functional surface are NOT

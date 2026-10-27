@@ -21,7 +21,7 @@ describe('Zod subpath compatibility entrypoints', () => {
     expect(mini.pick(base, { id: true, name: false }).parse({ id: '1', name: 1 })).toEqual({ id: '1' });
     expect(mini.omit(base, { count: true }).parse({ id: '1', name: 'Ada', count: 1 })).toEqual({ id: '1', name: 'Ada' });
     expect(mini.partial(base).parse({})).toEqual({});
-    expect(() => mini.required(base).parse({ id: '1', name: 'Ada' })).toThrow('Invalid field "count"');
+    expect(() => mini.required(base).parse({ id: '1', name: 'Ada' })).toThrow(/Invalid field .*count/);
 
     const extended = mini.extend(base, { active: mini.boolean() });
     expect(extended.parse({ id: '1', name: 'Ada', active: true })).toMatchObject({ active: true });
@@ -35,7 +35,7 @@ describe('Zod subpath compatibility entrypoints', () => {
 
     const catchall = mini.catchall(base, mini.number());
     expect(catchall.parse({ id: '1', name: 'Ada', extra: 1 })).toMatchObject({ extra: 1 });
-    expect(() => catchall.parse({ id: '1', name: 'Ada', extra: 'bad' })).toThrow('Invalid field "extra"');
+    expect(() => catchall.parse({ id: '1', name: 'Ada', extra: 'bad' })).toThrow(/Invalid field .*extra/);
   });
 
   it('keeps v4-mini numeric check helpers and aliases available', () => {
