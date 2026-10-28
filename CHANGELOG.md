@@ -5,7 +5,7 @@ All notable changes to VLD will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-### Added (2026-10-28, unreleased - CSP interpreter walker)
+### Added (2026-10-28 - CSP interpreter walker)
 
 - **`validate-walker.ts` - the interpreter fallback for `v.compile()` in
   CSP environments** (edge runtimes, MV3 extensions, strict CSP where
@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   null-safety for 11 un-walkable graph kinds, and CSP simulation by
   monkey-patching `globalThis.Function`.
 
-### Added (2026-10-28, unreleased - LLM error tooling)
+### Added (2026-10-28 - LLM error tooling)
 
 - **toRetryMessage(failure, { input?, limit? })**: a validation failure
   as the compact string to send back to a model in a retry loop -
@@ -55,6 +55,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   via node --check on a temporary .mjs, and the cut-point scanner skips
   regex literals so a brace inside a pattern can no longer desync the
   depth counter into a mid-expression splice.
+
+## [3.3.0] - 2026-10-28
+
+CSP-safe validation and LLM retry tooling on top of the 3.2.0 drop-in
+hardening: an interpreter fallback for  where 
+is blocked, and measured-design error/schema tooling for structured-output
+retry loops.
 
 ## [3.2.0] - 2026-10-27
 
