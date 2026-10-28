@@ -100,7 +100,7 @@ const apiMethods: ApiMethod[] = [
 })` },
   { name: 'v.exactOptional(schema)', description: 'Key may be absent, but an explicit undefined is rejected (Zod); parsed directly it delegates to the inner schema', category: 'Advanced', signature: 'v.exactOptional(schema)', example: `v.object({ a: v.string().exactOptional() }).parse({}) // ok; { a: undefined } rejects` },
   { name: 'v.dateLegacy()', description: "Migration path: keeps VLD's pre-parity coercing date behaviour (strings/numbers accepted)", category: 'Advanced', signature: 'v.dateLegacy(): VldDate', example: `v.dateLegacy().parse("2024-01-15") // Date` },
-  { name: 'v.compile(schema)', description: 'AOT-compile a schema; degrades to the runtime parser with identical verdicts when new Function is blocked (CSP, edge runtimes)', category: 'Advanced', signature: 'v.compile(schema)', example: `const fast = v.compile(v.object({ id: v.string() }))` },
+  { name: 'v.compile(schema)', description: 'AOT-compile a schema; when new Function is blocked (CSP, edge runtimes) the interpreter walker serves .validate() (~12M ops/s on invalid input vs ~0.05M runtime), parse keeps the runtime path - identical verdicts', category: 'Advanced', signature: 'v.compile(schema)', example: `const fast = v.compile(v.object({ id: v.string() }))` },
   { name: 'v.file()', description: 'File upload validation', category: 'Advanced', signature: 'v.file(): VldFile', example: `const schema = v.file().maxSize(5 * 1024 * 1024).mimeType(["image/png", "image/jpeg"])` },
   { name: 'v.function()', description: 'Function type validation', category: 'Advanced', signature: 'v.function(): VldFunction' },
   { name: 'v.templateLiteral()', description: 'Template literal validation with Zod-exact patterns (a bare string slot matches empty - use .min(1) to require content)', category: 'Advanced', signature: 'v.templateLiteral(parts): VldTemplateLiteral', example: `const schema = v.templateLiteral(["user_", v.number()])` },
@@ -246,6 +246,14 @@ BucketSchema.parse(new Bucket("sand", 20)) instanceof Bucket // true` },
   if (isMyBuildTimeValid(input)) return normalize(input)
   return v.INVALID
 })` },
+  { name: 'toRetryMessage(failure, { input?, limit? })', description: 'LLM structured-output retries: the string to send back to a model - path, named expectation (enum values verbatim), received value recovered from the original input. Containers suppressed, long strings truncated, multipleOf(0.01) phrased as decimal places. Measured design: naming enum values took retry recovery from 0/30 to 30/30.', category: 'LLM Tooling (v3.3.0)', signature: 'toRetryMessage(failure, opts?): string', example: `const result = schema.safeParse(input)
+if (!result.success) {
+  const retry = toRetryMessage(result, { input })
+  // '/office: must be one of "HAM", "LYO", got "HH"'
+  // '/note: String must be at least 2 characters, got "x"'
+}` },
+  { name: 'describeSchema(schema)', description: 'LLM first-attempt prompts: the schema constraints as prose, derived from the schema so description and enforcement cannot drift (measured 0/30 to 23/30 first-attempt validity vs hand-written). Enum vocabularies listed verbatim; un-walkable kinds render as any.', category: 'LLM Tooling (v3.3.0)', signature: 'describeSchema(schema, opts?): string', example: `describeSchema(v.object({ office: v.enum(['HAM','LYO']) }))
+// '/office: one of "HAM", "LYO"'` },
   { name: 'v.INVALID', description: 'The sentinel a withParser() parser returns to delegate a value back to the runtime parser.', category: 'Zod 4.6 (v3.0.5+)', signature: 'v.INVALID: symbol' },
   { name: 'fromJSONSchema: 4.6 keywords', description: 'fromJSONSchema now enforces the six Zod 4.6 keywords: minProperties, maxProperties (counted on the raw input like Zod), uniqueItems, contains, minContains and maxContains. minItems/maxItems also bind plain arrays.', category: 'Zod 4.6 (v3.0.5+)', signature: 'v.fromJSONSchema(json)', example: `v.fromJSONSchema({
   type: "array", items: { type: "number" },

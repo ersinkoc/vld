@@ -214,7 +214,7 @@ const memoryOverall = [
 ]
 
 // ============================================================================
-// v3.2.0 Drop-in Head-to-Head — VLD vV2 vs Zod 4.6.7 (HONEST, semantic-checked)
+// v3.3.0 Drop-in Head-to-Head — VLD vV2 vs Zod 4.6.7 (HONEST, semantic-checked)
 // ============================================================================
 // Re-measured 2026-10-23: VLD 3.1.0 vs Zod 4.6.7 (npm latest).
 // Source: benchmarks/dropin-vs-zod.cjs
@@ -338,7 +338,7 @@ export function BenchmarkPage() {
             </div>
             <h1 className="font-display text-4xl lg:text-5xl font-bold mb-4">Performance Benchmarks</h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              v3.2.0 honest head-to-head against Zod 4.6. <strong>10 scenarios, same logical schema, same input, semantic-checked</strong> — <strong>2.56x geometric mean</strong> speedup vs Zod 4.6.7 with <strong>10/10 wins</strong>. A dedicated <strong>.validate()</strong> boolean head-to-head follows below, where VLD wins every scenario.
+              v3.3.0 honest head-to-head against Zod 4.6. <strong>10 scenarios, same logical schema, same input, semantic-checked</strong> — <strong>2.56x geometric mean</strong> speedup vs Zod 4.6.7 with <strong>10/10 wins</strong>. A dedicated <strong>.validate()</strong> boolean head-to-head follows below, where VLD wins every scenario.
             </p>
           </div>
 

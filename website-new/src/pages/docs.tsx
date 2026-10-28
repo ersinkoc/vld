@@ -132,7 +132,7 @@ await unique.validateAsync("value") // Promise<boolean>`,
     lang: 'typescript',
     tips: [
       'Short-circuits on the first failed check - no issue accumulation',
-      'The compiled validator is memoized per schema; CSP environments (no new Function) transparently fall back to the runtime parser',
+      'The compiled validator is memoized per schema; CSP environments (no new Function) transparently fall back to the interpreter walker for .validate(), then the runtime parser - verdicts never change',
       'z.promise schemas throw on sync .validate() like Zod - use .validateAsync()',
     ],
   },
@@ -233,7 +233,7 @@ if (result.success) {
 }`,
     lang: 'typescript',
     tips: [
-      'VLD v3.2.0 is checked against Zod 4.6.7 (259/259 exports; every behavioral sweep - formats, container semantics, JSON Schema, error formatting - reports zero divergences)',
+      'VLD v3.3.0 is checked against Zod 4.6.7 (259/259 exports; every behavioral sweep - formats, container semantics, JSON Schema, error formatting - reports zero divergences)',
       '`import { z } from "@oxog/vld"` is a true drop-in for `import { z } from "zod"` — 2.56x faster vs Zod 4.6.7 (10/10 wins, semantic-checked; zero divergences)',
       'Root, mini, v4, v4-mini, v4/core, v4/locales, and compile entry points are covered',
       'Zod 4.6 APIs ship built-in: .validate(), .validateAsync(), z.iban(), z.currencyCode(), z.instanceof().properties(), z.withParser()',
@@ -300,7 +300,7 @@ if (result.success) {
     description: 'VLD was built to address performance limitations while maintaining an ergonomic API and practical Zod replacement paths.',
     code: `// VLD advantages over alternatives:
 
-// 0. TRUE DROP-IN for Zod 4.6 (v3.2.0) — only the import line changes
+// 0. TRUE DROP-IN for Zod 4.6 (v3.3.0) — only the import line changes
 import { z } from "@oxog/vld"   // <- same as: import { z } from "zod"
 //    2.56x faster vs Zod 4.6.7, 10/10 honest wins, semantic-checked
 //    benchmarks/dropin-vs-zod.cjs

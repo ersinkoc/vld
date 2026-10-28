@@ -34,7 +34,7 @@ A complete guide for migrating your codebase to VLD 3.0 with minimal changes, Zo
 
 - **V2 method-memoization**: 21 V2 classes shipped, opt-in via `vV2` / `v.*V2()` / `v.setV2Mode(true)`
 - **ZodError compatibility layer**: `toZodError()` / `ZodLikeError` / `toZodSafeResult()`
-- **Built-in i18n**: 68 languages - every zod locale code - supported out of the box
+- **Built-in i18n**: 27+ languages supported out of the box
 - **Better error formatting**: Tree, pretty, flatten, plus ZodError `.format()` / `.flatten()`
 - **Immutable validators**: Prevent memory leaks
 - **3113/3113 unit tests pass**, 22/22 real-world Zod test, 29/29 Zod 4.6 differential test

@@ -546,6 +546,34 @@ const jsonSchemaSchema: v.VldType<JsonSchema> = v.lazy(() =>
 )`
   },
   {
+    id: 'llm-retry',
+    title: "LLM Structured-Output Retries",
+    description: 'toRetryMessage + describeSchema - measured design (0/30 to 30/30 recovery when enum vocabularies are named)',
+    icon: Sparkles,
+    code: `import { v, toRetryMessage, describeSchema } from "@oxog/vld"
+
+const invoiceSchema = v.object({
+  office: v.enum(["HAM", "LYO"]),
+  amount: v.number().multipleOf(0.01),
+  note: v.string().min(2),
+})
+
+// 1) Put the derived constraints in the first-attempt prompt
+const promptConstraints = describeSchema(invoiceSchema)
+const completions = await model.generate(prompt + promptConstraints)
+
+// 2) On failure, send back the retry string - enum values named verbatim
+const input = JSON.parse(completions[0].text)
+const result = invoiceSchema.safeParse(input)
+if (!result.success) {
+  const retry = toRetryMessage(result, { input })
+  // /office: must be one of "HAM", "LYO", got "HH"
+  // /amount: Number must be a multiple of 0.01, got 10.333
+  // /note: String must be at least 2 characters, got "x"
+  await model.generate(prompt + promptConstraints + retry)
+}`
+  },
+  {
     id: 'i18n',
     title: 'Internationalization',
     description: '68 languages - every zod locale code covered',
