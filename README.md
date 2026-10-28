@@ -8,14 +8,16 @@
 
 ## Highlights
 
-- **Release-Gated Speed**: 11x+ faster runtime throughput and 4.7x+ less memory consumption compared to Zod.
+- **Release-Gated Speed**: CI-enforced performance floors against Zod on every commit - ~5x average guarded ratio, up to 18x on individual scenarios, with ~1.5x less retained heap.
 - **Zero Dependencies**: Pure TypeScript/JavaScript with zero third-party runtime bloat.
-- **Drop-in Zod Compatibility**: Swap imports directly or use subpaths (`@oxog/vld/v4`, `@oxog/vld/mini`, `@oxog/vld/v4/core`, `@oxog/vld/v4/locales`).
+- **Drop-in Zod Compatibility**: Swap imports directly or use subpaths (`@oxog/vld/v4`, `@oxog/vld/mini`, `@oxog/vld/v4/core`, `@oxog/vld/v4/locales`). Ecosystem duck-typing included: `@hookform/resolvers`' `zodResolver` works with vld schemas unchanged, verified in CI against the real npm packages.
+- **CSP-Safe Everywhere**: `new Function` blocked (edge runtimes, MV3 extensions, strict CSP)? `.validate()` automatically falls back from AOT compilation to an interpreter walker that calls the runtime parser's own check closures - rejection allocates nothing (~12M ops/s vs ~0.05M for runtime `safeParse`).
+- **LLM Structured-Output Tooling**: `toRetryMessage()` turns a failed parse into the exact string to send back to a model (enum vocabularies named verbatim - the measured difference between 0/30 and 30/30 recovery), and `describeSchema()` derives the first-attempt prompt constraints from the schema itself.
 - **Full Static Inference**: Automatic type extraction using `v.infer<typeof schema>`.
-- **Tree-Shakeable Mini API**: Build hyper-optimized bundles with `@oxog/vld/mini`.
+- **Tree-Shakeable Mini API**: Build hyper-optimized bundles with `@oxog/vld/mini` - a root `import { NEVER }` tree-shakes to 68.5 KB under esbuild (zod measures 88 KB on the same probe).
 - **Built-in i18n**: Out-of-the-box error localization for 68 languages - every zod locale code, with lazy-loading support (`@oxog/vld/locales/lazy`).
 - **Result Pattern & Codecs**: Functional error handling (`tryCatch`, `match`, `Ok`, `Err`) and bidirectional data transformations.
-- **100% Test Coverage**: Verified across 2500+ tests and drop-in TypeScript application suites.
+- **100% Test Coverage**: Verified across 3500+ tests, 68 locale catalogs, and drop-in TypeScript application suites.
 
 ---
 
@@ -258,7 +260,80 @@ import { v, deepPartial, input, output } from '@oxog/vld';
 ```
 
 - Structured error issues with `expected`, `received`, `minimum`, `maximum`, and `path`.
-- Compatibility tested against latest stable Zod releases.
+- `ZodError` parity: `error.message` is Zod's pretty-printed JSON issue list, `name`/`constructor.name` report `ZodError`.
+- Zod v4 core introspection on every schema (`_zod.def/traits/version/bag`), so ecosystem libraries that duck-type zod schemas work unchanged - `@hookform/resolvers`' `zodResolver` is verified end to end in CI against the real npm packages.
+- Compatibility tested against latest stable Zod releases (`npm run verify:zod` checks every public export - 259 as of zod 4.6.7).
+
+---
+
+## CSP-Safe Validation
+
+`v.compile()` AOT-compiles a schema into a flat validator via `new Function`. In environments where that is blocked - edge runtimes, Manifest V3 extensions, strict CSP headers - vld degrades automatically through a three-step ladder:
+
+```text
+.validate() call
+  1. AOT compiled validator   (new Function - fastest, ~43M ops/s on invalid input)
+  2. interpreter walker        (plain JS - CSP-safe, ~12M ops/s on invalid input)
+  3. runtime safeParse         (always correct, ~0.05M ops/s - allocates issues)
+```
+
+The interpreter walker walks the schema graph and calls the runtime parser's **own check closures**, so its verdicts cannot diverge from `safeParse` by construction; schemas it cannot interpret (strict objects, `unique()`, transforms, refinements, pipes, records) are handed to the runtime parser rather than guessed at.
+
+```typescript
+import { v } from '@oxog/vld';
+
+// Explicit opt-out of JIT (e.g. a locked-down edge runtime):
+const schema = v.compile(v.object({ id: v.string().uuid(), n: v.number() }), { JITless: true });
+
+schema.validate({ id: '123e4567-e89b-12d3-a456-426614174000', n: 1 }); // true - walker path
+schema.parse({ id: '123e4567-e89b-12d3-a456-426614174000', n: 1 });    // runtime parse (output semantics unchanged)
+```
+
+No configuration is needed for the automatic path: when `new Function` throws `EvalError`, `v.compile()` installs the walker for `.validate()` while `parse`/`safeParse` keep the runtime parser (the walker cannot prove output identity for defaults and key stripping).
+
+---
+
+## LLM Structured-Output Tooling
+
+Two functions designed around a measurement (ata-validator's retry-message experiment), not a preference: conventional error text recovers constraints a model can infer from context, and never recovers constraints it cannot - an internal vocabulary above all. A model that reads "must be equal to one of the allowed values" for an enum guesses; it guesses plausibly ("HH" for Hamburg) and is always wrong.
+
+### `toRetryMessage()` - the retry string
+
+```typescript
+import { v, toRetryMessage } from '@oxog/vld';
+
+const schema = v.object({
+  office: v.enum(['HAM', 'LYO']),
+  amount: v.number().multipleOf(0.01),
+  note: v.string().min(2),
+});
+
+const input = { office: 'HH', amount: 10.333, note: 'x' };
+const result = schema.safeParse(input);
+
+if (!result.success) {
+  // One line per issue: where it failed, what was expected, what arrived.
+  const retry = toRetryMessage(result, { input });
+  // /office: must be one of "HAM", "LYO", got "HH"
+  // /amount: Number must be a multiple of 0.01, got 10.333
+  // /note: String must be at least 2 characters, got "x"
+}
+```
+
+Enum values are named verbatim; the received value is recovered by walking each issue's path into the original input (pass it as `{ input }` - vld issues stay allocation-free); container values are suppressed (a model can see its own output, and a serialized object is the most expensive thing that can go into a prompt); `multipleOf(0.01)` is phrased as "rounded to 2 decimal places" because a model acts on that wording where it does not reliably act on the math. Capped at 20 issues by default (`{ limit }`).
+
+### `describeSchema()` - the first-attempt prompt
+
+```typescript
+import { describeSchema } from '@oxog/vld';
+
+describeSchema(schema);
+// /office: one of "HAM", "LYO"
+// /amount: number, rounded to 2 decimal places
+// /note: string, at least 2 characters
+```
+
+Derived from the schema, so the description and the enforcement cannot drift - the measured difference between a careful hand-written description and the derived one was 0/30 vs 23/30 first-attempt validity, failing on exactly the fields whose values are an internal vocabulary.
 
 ---
 
@@ -317,9 +392,9 @@ await preloadLocales(['en', 'de', 'ja']);
 
 VLD 3.0 ships the **V2 pattern** (single-def + check classes) for every chain-heavy
 validator. This matches Zod 4.5's "method memoization" optimization and is
-**3.03x faster** than Zod 4.6.4 on the honest head-to-head (10/10 wins,
-semantic-checked, see `benchmarks/dropin-vs-zod.cjs`) and **1.6-10x smaller**
-in memory.
+**3.03x faster** than Zod 4.6.4 on the honest head-to-head at introduction
+(10/10 wins, semantic-checked, see `benchmarks/dropin-vs-zod.cjs`; against
+zod 4.6.7 the drop-in geomean is 2.56x) and **1.6-10x smaller** in memory.
 
 ### What changed
 
@@ -398,7 +473,7 @@ const s4 = v.object({ a: v.numberV2().int() });   // mixed - V2 child, V1 object
 
 - **28/28 Zod 4.5 parity tests pass.** `import { vV2 as z }` is a drop-in for Zod 4.5.
 - **Zod 4.6 parity is verified per-release** (`npm run verify:zod` checks every public
-  `zod@4.6` export - 259 as of 4.6.4) and `tests/zod-4-6-parity.test.ts` compares behavior against the installed zod.
+  `zod@4.6` export - 259 as of 4.6.7) and `tests/zod-4-6-parity.test.ts` compares behavior against the installed zod.
 - V1 is the default; existing code works unchanged.
 - V2 validators can be children of V1 composites and vice-versa (mixed schemas work).
 
@@ -410,7 +485,7 @@ const s4 = v.object({ a: v.numberV2().int() });   // mixed - V2 child, V1 object
 | `schema.validateAsync(data)` | yes | Async refinements supported |
 | `z.iban()` | yes | ISO 7064 MOD 97-10 checksum in code, pattern inlined for JSON Schema |
 | `z.instanceof(Cls).properties({...})` | yes | Validates instance fields in place; the prototype survives parsing |
-| `z.withParser(schema, parser)` | yes | Install an externally generated parser (`v.INVALID` hands back to the runtime) - the CSP-friendly path when `new Function` is unavailable |
+| `z.withParser(schema, parser)` | yes | Install an externally generated parser (`v.INVALID` hands back to the runtime) - for pre-compiled or native validators; CSP environments are covered automatically by the interpreter walker (see CSP-Safe Validation above) |
 | `fromJSONSchema` new keywords | yes | `minProperties`, `maxProperties`, `uniqueItems`, `contains`, `minContains`, `maxContains` |
 | `z.emoji()` component rejection | yes | 4.6 regex byte-for-byte; keycaps and flags stay valid |
 | `z.regexes.currencyCode` / `anyString` / `iban` | yes | Full 4.6 regex namespace |
@@ -499,17 +574,20 @@ usePlugin(phonePlugin);
 
 ## Performance
 
-VLD is optimized for modern V8 runtimes. CI gates enforce performance floors on every commit against Zod:
+VLD is optimized for modern V8 runtimes. CI gates enforce performance floors on every commit against the installed zod (`npm run benchmark:guard:built`); the ratios below are a representative run against zod 4.6.7:
 
-| Benchmark Case | VLD Throughput | Relative Speedup |
+| Benchmark Case (guarded) | VLD Throughput | vs Zod 4.6.7 |
 |----------------|----------------|------------------|
-| Nullish Parse | ~214M ops/sec | **30.7x faster** |
-| Number / Positive Int | ~253M ops/sec | **9.1x faster** |
-| Discriminated Union | ~35M ops/sec | **4.1x faster** |
-| Optional Parse | ~213M ops/sec | **3.8x faster** |
-| Union Parse | ~39M ops/sec | **3.3x faster** |
-| Simple String | ~620M ops/sec | **3.0x faster** |
-| Array / Object Parse | ~49M ops/sec | **1.7x faster** |
+| Nullish Parse | ~250M ops/sec | **18x faster** |
+| Number / Positive Int | ~235M ops/sec | **10.6x faster** |
+| Optional Parse | ~240M ops/sec | **6.4x faster** |
+| Union (string \| number) | ~34M ops/sec | **3.1x faster** |
+| Simple String | ~230M ops/sec | **2.1x faster** |
+| Array of Numbers | ~52M ops/sec | **2.0x faster** |
+| Simple Object | ~52M ops/sec | **1.7x faster** |
+| Discriminated Union | ~33M ops/sec | **1.6x faster** |
+
+Average guarded ratio ~5x across releases; memory guard shows ~1.5x less retained heap and the `validate()` head-to-head wins every scenario (up to 35x). Bundle-wise, a root `import { NEVER }` tree-shakes to 68.5 KB under esbuild (zod: 88 KB on the same probe).
 
 Explore full benchmark results and interactive visual comparisons at [vld.oxog.dev/benchmark](https://vld.oxog.dev/benchmark).
 
