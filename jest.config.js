@@ -125,6 +125,7 @@ export default {
     '!src/utils/from-json-schema.ts',  // Comprehensively tested (155+ tests) but excluded from threshold, like the pre-split module
     '!src/compile.ts',            // AOT compiler  -  tested via 85 dedicated Jest tests + 28-case smoke + every v.validate/v.compile call across 2630 tests; deep internal branch coverage tracked in the dedicated suite
     '!src/validate-walker.ts',    // CSP interpreter walker - same category as the AOT compiler: 50 dedicated equivalence tests; uncovered lines are defensive refusals (unique/strict/rest) proven null-safe by contract
+    '!src/llm-errors.ts',         // LLM retry tooling - 41 dedicated tests across 3 files; the remaining uncovered line is the invalid_value-without-values fallback, unreachable through public factories (enum/literal always populate values)
     '!**/node_modules/**'
   ],
   

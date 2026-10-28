@@ -28,6 +28,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   null-safety for 11 un-walkable graph kinds, and CSP simulation by
   monkey-patching `globalThis.Function`.
 
+### Added (2026-10-28, unreleased - LLM error tooling)
+
+- **toRetryMessage(failure, { input?, limit? })**: a validation failure
+  as the compact string to send back to a model in a retry loop -
+  where: what was expected, got what arrived. Enum vocabularies named
+  verbatim, object-field wrappers stripped, container values suppressed,
+  long strings truncated, multipleOf(0.01) phrased as rounded to 2
+  decimal places. Design follows ata-validator measured retry-message
+  experiment: 0/30 to 30/30 recovery when internal vocabularies are
+  named. Received values are recovered by walking each issue path into
+  the caller-supplied original input - vld issues stay allocation-free.
+- **describeSchema(schema)**: the constraints as prose for the prompt
+  that asks for the first attempt, derived from the schema so the two
+  cannot drift (ata measurement: 0/30 to 23/30 first-attempt validity
+  vs a careful hand-written description). Un-walkable kinds render as
+  any rather than guessed at.
+- Both exported from the package root; 41 dedicated tests across three
+  files.
+
+### Fixed
+
+- hoist-root-exports build step: the syntax gate used new Function, which
+  cannot parse the ESM dist entry (import statements) - the gate falsely
+  rejected valid output and stopped the build chain mid-way. Now checks
+  via node --check on a temporary .mjs, and the cut-point scanner skips
+  regex literals so a brace inside a pattern can no longer desync the
+  depth counter into a mid-expression splice.
+
 ## [3.2.0] - 2026-10-27
 
 ### Changed (release prep)

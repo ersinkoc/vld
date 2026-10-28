@@ -1476,6 +1476,7 @@ export const z = v;
 
 // ZodError compatibility - drop-in support for error.issues, .format(), .flatten()
 export { toZodError, toZodSafeResult, ZodLikeError } from './zod-error';
+export { toRetryMessage, describeSchema, type RetryMessageOptions, type DescribeSchemaOptions } from './llm-errors';
 export type { ZodLikeIssue } from './zod-error';
 
 /**

@@ -97,10 +97,31 @@ function topLevelCutPoints(text) {
   let i = 0;
   const n = text.length;
   const continuesExpr = (ch) => ',)...:?.=<>+-*/%&|^'.includes(ch) || ch === '' ;
+  // A `/` that follows an identifier/`)`/`]` is division; otherwise (after
+  // `(`, `,`, `=`, `return`, ...) it opens a regex literal whose braces must
+  // not desync the depth counter.
+  let prevMeaningful = '';
+  let inRegex = false;
   while (i < n) {
     const c = text[i];
+    if (inRegex) {
+      if (c === '\\') { i += 2; continue; }
+      if (c === '[') { // character class: brackets nest, `/` inside is literal
+        i++;
+        while (i < n && text[i] !== ']') {
+          if (text[i] === '\\') i++;
+          i++;
+        }
+        i++;
+        continue;
+      }
+      if (c === '/') { inRegex = false; prevMeaningful = '/'; i++; continue; }
+      i++;
+      continue;
+    }
     if (c === '"' || c === "'" || c === '`') {
       i = findStringEnd(text, i);
+      prevMeaningful = '"';
       continue;
     }
     if (c === '/' && text[i + 1] === '/') {
@@ -111,6 +132,11 @@ function topLevelCutPoints(text) {
       i += 2;
       while (i < n && !(text[i] === '*' && text[i + 1] === '/')) i++;
       i += 2;
+      continue;
+    }
+    if (c === '/' && !/[A-Za-z0-9_$)\]]/.test(prevMeaningful)) {
+      inRegex = true;
+      i++;
       continue;
     }
     if (c === '{' || c === '(' || c === '[') depth++;
@@ -124,9 +150,28 @@ function topLevelCutPoints(text) {
         if (!continuesExpr(next)) cuts.push(i + 1);
       }
     } else if (c === ';' && depth === 0) cuts.push(i + 1);
+    if (/\S/.test(c)) prevMeaningful = c;
     i++;
   }
   return cuts;
+}
+
+/** Syntax gate: the transform must never emit unparseable output. The dist
+ * entry is ESM (`import`/`export` statements), which `new Function` cannot
+ * parse - so check via `node --check` on a temporary .mjs file instead. */
+function parsesClean(code) {
+  const os = require('os');
+  const { execFileSync } = require('child_process');
+  const tmp = path.join(fs.realpathSync(os.tmpdir()), 'vld-hoist-check.mjs');
+  try {
+    fs.writeFileSync(tmp, code);
+    execFileSync(process.execPath, ['--check', tmp], { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  } finally {
+    try { fs.unlinkSync(tmp); } catch { /* best effort */ }
+  }
 }
 
 function transformVariant(text) {
@@ -217,6 +262,13 @@ function run(rel) {
   if (!result.out) {
     console.log(`hoist-root-exports: ${rel} internal error (no output)`);
     return false;
+  }
+  // Syntax gate: a mid-expression splice is worse than no hoisting at all.
+  // Fail the build loudly so a parser desync can never ship.
+  if (!parsesClean(result.out)) {
+    console.error(`hoist-root-exports: ${rel} transform produced unparseable output; refusing to write.`);
+    console.error('  The dist layout changed - adjust the anchor/cut rules in scripts/hoist-root-exports.cjs.');
+    process.exit(1);
   }
   fs.writeFileSync(file, result.out);
   console.log(`hoist-root-exports: ${rel} hoisted ${result.hoisted} members of ${result.name}`);

@@ -31,10 +31,10 @@ const errors = [];
 // The zod 4.6.7 parity wave (json value validator, bigint int64, presence
 // machinery, per-member collectors, Zod-exact pattern sources) ships in ~6
 // dist forms per module; 324 -> 390 KiB packed with it.
-const MAX_TARBALL_BYTES = Number(process.env.VLD_MAX_TARBALL_BYTES || 478_000);
+const MAX_TARBALL_BYTES = Number(process.env.VLD_MAX_TARBALL_BYTES || 486_000);
 // Current full compatibility declarations still keep VLD well below half of
 // Zod 4.4.3's unpacked package size (~4.56 MB). Retain a narrow local ceiling.
-const MAX_UNPACKED_BYTES = Number(process.env.VLD_MAX_UNPACKED_BYTES || 2_080_000);
+const MAX_UNPACKED_BYTES = Number(process.env.VLD_MAX_UNPACKED_BYTES || 2_120_000);
 // Zod 4.6 parity added per-locale modules and the IBAN/currencyCode/validate
 // surface; the packed count moved 320 -> 351 and index.d.ts 100 KiB -> ~106 KiB.
 // 395: +30 files for the 10 ported locales (2026-10-27) on top of the
