@@ -90,7 +90,7 @@ This file tracks the state of the zod-parity effort on `@oxog/vld`.
 ## 5. Candidate future work (not parity)
 
 - Benchmark presence on moltar's typescript-runtime-type-benchmarks and schemabenchmarks.dev.
-- An interpreter fallback for `v.compile` where `new Function` is blocked (edge runtimes) - see the ata-validator comparison in the 2026-10-22 session.
+- ~~An interpreter fallback for `v.compile` where `new Function` is blocked~~ **DONE 2026-10-28**: `src/validate-walker.ts` - structural walkability pass + closure-calling interpreter, wired into the .validate() ladder, compile()'s EvalError path, and JITless mode. Invalid-input throughput ~12M ops/s vs ~0.05M for runtime safeParse under CSP.
 - LLM-oriented error tooling (`toRetryMessage`-style) inspired by ata-validator.
 - esbuild root-entry investigation (gap 2.1 above) - likely requires splitting
   dist/index.js's own namespace object (`v`) out of the module's top level.

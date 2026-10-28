@@ -31,7 +31,7 @@ const errors = [];
 // The zod 4.6.7 parity wave (json value validator, bigint int64, presence
 // machinery, per-member collectors, Zod-exact pattern sources) ships in ~6
 // dist forms per module; 324 -> 390 KiB packed with it.
-const MAX_TARBALL_BYTES = Number(process.env.VLD_MAX_TARBALL_BYTES || 475_000);
+const MAX_TARBALL_BYTES = Number(process.env.VLD_MAX_TARBALL_BYTES || 478_000);
 // Current full compatibility declarations still keep VLD well below half of
 // Zod 4.4.3's unpacked package size (~4.56 MB). Retain a narrow local ceiling.
 const MAX_UNPACKED_BYTES = Number(process.env.VLD_MAX_UNPACKED_BYTES || 2_080_000);

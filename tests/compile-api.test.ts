@@ -112,12 +112,17 @@ describe('AOT compile  -  compile()', () => {
     expect(b).toBe(a);
   });
 
-  test('compile({ JITless: true }) skips the compile step', () => {
+  test('compile({ JITless: true }) skips the JIT and installs the interpreter walker', () => {
     const schema = v.object({ a: v.string() });
     const compiled = compileDirect(schema, { JITless: true });
-    // _zod.bag is set but the validator is not populated
-    expect((compiled as any)._zod.bag.validator).toBeUndefined();
+    // _zod.bag is set; the validator is the CSP-safe walker (a plain closure,
+    // never `new Function`), or empty when the graph is not walkable.
+    const bagValidator = (compiled as any)._zod.bag.validator;
+    if (bagValidator !== undefined) {
+      expect((bagValidator as any).__vld_compiled).toBeUndefined();
+    }
     expect(validateDirect(compiled, { a: 'x' })).toBe(true);
+    expect(validateDirect(compiled, { a: 1 })).toBe(false);
   });
 
   test('compile() caches the validator on _zod.bag', () => {

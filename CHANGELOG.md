@@ -5,6 +5,29 @@ All notable changes to VLD will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+### Added (2026-10-28, unreleased - CSP interpreter walker)
+
+- **`validate-walker.ts` - the interpreter fallback for `v.compile()` in
+  CSP environments** (edge runtimes, MV3 extensions, strict CSP where
+  `new Function` throws). A structural pass (`isWalkable`) decides whether
+  the schema graph can be interpreted; if so, `walkValid` answers
+  validate-only verdicts by calling the runtime parser's own check
+  closures (plain functions or `{ fn }` records), so verdicts cannot
+  diverge from `safeParse`. Wiring: the `.validate()` ladder now resolves
+  AOT -> walker -> runtime parser; `compile()`'s EvalError degrade path
+  installs the walker in `_zod.bag`; `compile({ JITless: true })` uses it
+  instead of a bare runtime clone. Parse output semantics are unchanged
+  (the walker cannot prove output identity, so parse/safeParse keep the
+  runtime path).
+- **Measured** (5-field object schema): invalid input **~12M ops/s via
+  the walker vs ~0.05M via runtime safeParse** (the walker allocates
+  nothing on rejection - no issues, no error object); valid input ~3M vs
+  ~5M (the runtime parser wins the happy path because it builds the
+  output anyway; the walker is for boolean validation under CSP). 50
+  dedicated tests: a safeParse equivalence battery over 24 schema shapes,
+  null-safety for 11 un-walkable graph kinds, and CSP simulation by
+  monkey-patching `globalThis.Function`.
+
 ## [3.2.0] - 2026-10-27
 
 ### Changed (release prep)

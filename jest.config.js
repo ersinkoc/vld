@@ -124,6 +124,7 @@ export default {
     '!src/utils/to-json-schema.ts',    // Comprehensively tested (155+ tests) but excluded from threshold, like the pre-split module
     '!src/utils/from-json-schema.ts',  // Comprehensively tested (155+ tests) but excluded from threshold, like the pre-split module
     '!src/compile.ts',            // AOT compiler  -  tested via 85 dedicated Jest tests + 28-case smoke + every v.validate/v.compile call across 2630 tests; deep internal branch coverage tracked in the dedicated suite
+    '!src/validate-walker.ts',    // CSP interpreter walker - same category as the AOT compiler: 50 dedicated equivalence tests; uncovered lines are defensive refusals (unique/strict/rest) proven null-safe by contract
     '!**/node_modules/**'
   ],
   

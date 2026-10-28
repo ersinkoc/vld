@@ -24,6 +24,7 @@ import { VldNull } from './validators/null';
 import { VldObject } from './validators/object';
 import { VldArray } from './validators/array';
 import { VldUnknown } from './validators/unknown';
+import { walkerValidator } from './validate-walker';
 
 /** Keys the runtime record parser skips; mirrors DANGEROUS_KEYS in utils/security. */
 const DANGEROUS_RECORD_KEYS = [
@@ -821,7 +822,16 @@ export function compile<T extends VldBase<any, any>>(
   if (existing) return schema;
   const clone = shallowCloneSchema(schema);
   if (options?.JITless) {
-    Object.defineProperty(clone, '_zod', { value: { bag: {} }, enumerable: false, configurable: true });
+    // No JIT: still install the CSP-safe walker when the graph supports it,
+    // so `.validate()` gets the allocation-free interpreter fast path while
+    // `parse`/`safeParse` keep using the runtime parser (the walker cannot
+    // prove output identity, same contract as `rewritesOutput` schemas).
+    const walker = walkerValidator(clone);
+    Object.defineProperty(clone, '_zod', {
+      value: { bag: walker ? { validator: walker, validatorValidate: walker } : {} },
+      enumerable: false,
+      configurable: true,
+    });
     return clone;
   }
   // The compiled validator is the slim validate-only form: returns true on
@@ -835,10 +845,23 @@ export function compile<T extends VldBase<any, any>>(
     validator = compileFnValidate(clone);
   } catch (error) {
     // CSP environments (edge runtimes, MV3 extensions, strict CSP) block
-    // `new Function`; degrade to the runtime parser - the same schema, the
-    // same verdicts, runtime speed instead of AOT speed - instead of
-    // throwing out of a call that succeeds everywhere else.
+    // `new Function`; degrade to the interpreter walker when the schema
+    // graph is walkable (allocation-free validate, runtime parse), else to
+    // the plain runtime parser - the same schema, the same verdicts, just
+    // runtime speed instead of AOT speed.
     if (error instanceof EvalError) {
+      const walker = walkerValidator(clone);
+      if (walker) {
+        Object.defineProperty(clone, '_zod', {
+          value: { bag: { validator: walker, validatorValidate: walker } },
+          enumerable: false,
+          configurable: true,
+        });
+        // The walker cannot prove parse-output identity, so parse/safeParse
+        // stay on the runtime parser; only validate() takes the fast path.
+      } else {
+        Object.defineProperty(clone, '_zod', { value: { bag: {} }, enumerable: false, configurable: true });
+      }
       return clone;
     }
     throw error;

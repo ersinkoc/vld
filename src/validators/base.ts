@@ -4,6 +4,8 @@ import { VldError, getTypeName, createInvalidTypeIssue, nestIssues, type VldIssu
 import { getMessages } from '../locales/runtime';
 import { isPlainObject } from '../utils/deep-merge';
 import { isDangerousKey } from '../utils/security';
+// Runtime-import-free module (type-only imports), safe to depend on from here.
+import { walkerValidator } from '../validate-walker';
 
 /**
  * Late-bound serializer for `.toJSONSchema()`. Injected by src/index.ts so
@@ -61,8 +63,9 @@ function getLazyValidateCompiler(): LazyValidateCompiler | undefined {
 
 /**
  * Build and memoize the compiled validator used by `.validate()` fast path.
- * Returns `null` (also memoized) when the schema cannot be lowered or when
- * `new Function` is unavailable (CSP) - callers then use the runtime parser.
+ * Resolution order: AOT compile (`new Function`) -> CSP-safe interpreter
+ * walker -> runtime parser. Returns (and memoizes) `null` only when neither
+ * fast path can serve the schema.
  */
 function buildLazyValidator(self: VldBase<any, any>): ((input: unknown) => unknown) | null {
   let fast: ((input: unknown) => unknown) | null = null;
@@ -72,6 +75,11 @@ function buildLazyValidator(self: VldBase<any, any>): ((input: unknown) => unkno
     fast = compiled ?? null;
   } catch {
     fast = null;
+  }
+  if (fast === null) {
+    // CSP (new Function blocked) or an un-lowerable schema: the walker
+    // interprets the graph without allocations whenever it is walkable.
+    fast = walkerValidator(self);
   }
   Object.defineProperty(self, '__vldValidateFn', {
     value: fast,
