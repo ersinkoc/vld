@@ -9,7 +9,7 @@ This file tracks the state of the zod-parity effort on `@oxog/vld`.
 | Item | State |
 |---|---|
 | Parity baseline | **zod 4.6.7** (npm `latest`, lockfile pinned) |
-| Release | **3.2.0 published 2026-10-28** (npm latest + GH release v3.2.0) |
+| Release | **3.3.0 published 2026-10-28** (npm latest + GH release v3.3.0; 3.2.0 same day) |
 | Behavioral divergences | **Zero.** Differential sweeps green; `ZodError.message`/`name` now Zod-parity (JSON issue list), asserted by battery |
 | Ecosystem duck typing | `_zod.def/traits/version/bag` on schemas, `$ZodError` traits on errors; `verify:ecosystem` proves `@hookform/resolvers` `zodResolver` end to end |
 | Tree-shaking | rollup (Vite prod parity): NEVER 70.8 KB / realistic schema 129 KB / mini factory 93.3 KB, guarded by `verify:treeshake`; root-string probe 93.4 KiB vs zod's 182.8 KiB |
