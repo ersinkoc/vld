@@ -73,6 +73,11 @@ This file tracks the state of the zod-parity effort on `@oxog/vld`.
 
 ## 3. When a new zod release lands
 
+Last checked 2026-11-02: zod latest is still **4.6.7** (2026-10-12),
+the canary lane is a stale pre-4.6.0 build (2026-08-28 - older than our
+baseline), and GitHub remote tags end at v4.6.7. A 36-kind x 19-input
+behavioral spot-sweep reports zero divergences. No action needed.
+
 1. `npm view zod version` - if newer than the lockfile, `npm i -D zod@latest`.
 2. Download both tarballs and `diff -rq` the `v4/` dist trees; npm release notes are thin.
 3. Port any behavior changes; keep `.temp_files/sweep_*.ts` green (zero output).
