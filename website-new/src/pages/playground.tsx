@@ -164,7 +164,7 @@ type ContactForm = v.infer<typeof contactFormSchema>`,
     code: `import { vV2, toZodError } from "@oxog/vld"
 
 // vV2 ships the Zod 4.5 method-memoization pattern (matched by VLD V2).
-// Part of the 3.00x drop-in geomean (benchmarks/dropin-vs-zod.cjs, 10/10 wins).
+// Part of the 3.18x drop-in geomean vs Zod 4.6.7 (benchmarks/dropin-vs-zod.cjs, 10/10 wins).
 const userSchema = vV2.object({
   email: vV2.string().email(),
   age: vV2.number().int().positive(),
@@ -220,7 +220,9 @@ const invalidExamples = [
 export function PlaygroundPage() {
   const [code, setCode] = useState(presets[0].code)
   const [data, setData] = useState(presets[0].data)
-  const [output, setOutput] = useState<ValidationOutput | null>(null)
+  const [output, setOutput] = useState<ValidationOutput | null>(() =>
+    runVldValidation(presets[0].code, presets[0].data)
+  )
   const [copied, setCopied] = useState(false)
   const [showPresets, setShowPresets] = useState(false)
   const [activePreset, setActivePreset] = useState(presets[0].name)
@@ -229,11 +231,6 @@ export function PlaygroundPage() {
     const res = runVldValidation(code, data)
     setOutput(res)
   }, [code, data])
-
-  // Run on first load
-  useEffect(() => {
-    runValidation()
-  }, [])
 
   // Keyboard shortcut Ctrl/Cmd + Enter
   useEffect(() => {

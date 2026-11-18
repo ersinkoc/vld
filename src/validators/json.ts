@@ -96,6 +96,15 @@ export class VldJson<T = unknown> extends VldBase<unknown, T> {
   }
 
   /**
+   * Zod: `z.json()` is a union, so it exposes the schema it was built from.
+   * vld's json validator is a single schema - the attached schema when there
+   * is one, otherwise itself.
+   */
+  unwrap(): VldBase<unknown, T> {
+    return this.schema ?? (this as unknown as VldBase<unknown, T>);
+  }
+
+  /**
    * Create a new JSON validator with a schema for validation
    */
   withSchema<U>(schema: VldBase<unknown, U>): VldJson<U> {

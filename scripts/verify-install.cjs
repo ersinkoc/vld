@@ -134,14 +134,19 @@ function packTarball() {
     return null;
   }
 
-  const jsonStart = output.indexOf('[');
-  const jsonEnd = output.lastIndexOf(']');
-  if (jsonStart === -1 || jsonEnd === -1 || jsonEnd < jsonStart) {
+  // npm < 12 printed `[{...}]`; npm >= 12 prints `{ "name": {...} }`.
+  const trimmed = output.trim();
+  const jsonStart = trimmed.search(/[[{]/);
+  const jsonEnd = jsonStart === -1
+    ? -1
+    : trimmed[jsonStart] === '[' ? trimmed.lastIndexOf(']') : trimmed.lastIndexOf('}');
+  if (jsonStart === -1 || jsonEnd <= jsonStart) {
     errors.push(`Unable to find npm pack JSON output:\n${output}`);
     return null;
   }
 
-  const [pack] = JSON.parse(output.slice(jsonStart, jsonEnd + 1));
+  const parsed = JSON.parse(trimmed.slice(jsonStart, jsonEnd + 1));
+  const pack = Array.isArray(parsed) ? parsed[0] : parsed[Object.keys(parsed)[0]];
   return path.join(packDir, pack.filename);
 }
 

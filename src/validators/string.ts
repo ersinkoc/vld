@@ -2,7 +2,7 @@ import { VldBase, ParseResult, VLD_VALIDATOR_TYPES, ValidatorType, type ErrorPar
 import { getMessages } from '../locales/runtime';
 import { codePointLength, hasExactLength, hasMaxLength, hasMinLength } from '../utils/string-length';
 import { isValidIPv6Address, isValidCidrV6 } from '../utils/ip-validation';
-import { regexes as FORMAT_REGEXES, isoDateTimeRegex, isoFormatOptions, isValidJwtToken, type ISODateTimeOptions, type ISOTimeOptions } from './string-formats';
+import { regexes as FORMAT_REGEXES, isoDateTimeRegex, isoFormatOptions, isValidJwtToken, type ISODateTimeOptions, type ISOTimeOptions } from './regexes';
 import { VldError, getTypeName, createInvalidTypeIssue, type VldIssue } from '../errors-core';
 
 /**

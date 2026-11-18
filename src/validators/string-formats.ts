@@ -5,6 +5,7 @@
  */
 
 import { VldBase, VLD_VALIDATOR_TYPES, resolveErrorMessage, type ErrorParam } from './base';
+import { codePointLength, hasExactLength, hasMaxLength, hasMinLength } from '../utils/string-length';
 import { getMessages } from '../locales/runtime';
 import { isValidCidrV6, isValidIPv6Address } from '../utils/ip-validation';
 import { VldError, getTypeName, createInvalidTypeIssue, type VldIssue } from '../errors-core';
@@ -18,196 +19,69 @@ export interface URLFormatOptions {
   protocol?: RegExp;
 }
 
-export interface ISOTimeOptions {
-  precision?: number | null;
+export {
+  isValidJwtToken,
+  isoDateTimeRegex,
+  isoFormatOptions,
+  regexes
+} from './regexes';
+export type { ISODateTimeOptions, ISOTimeOptions, RegexNamespace } from './regexes';
+
+import {
+  isoDateTimeRegex,
+  isValidJwtToken,
+  regexes as REGEXES,
+  testRegex,
+  uuidRegex,
+  type ISODateTimeOptions,
+  type ISOTimeOptions
+} from './regexes';
+
+/** A chained string constraint: the issue to report when `value` fails, else null. */
+export type FormatCheck = (value: string) => VldIssue | null;
+/** A chained string transform (trim, toLowerCase, ...). */
+export type FormatTransform = (value: string) => string;
+
+const NO_CHECKS: ReadonlyArray<FormatCheck> = [];
+const NO_TRANSFORMS: ReadonlyArray<FormatTransform> = [];
+
+function tooSmallIssue(minimum: number, message: string, exact?: number): VldIssue {
+  return {
+    code: 'too_small', path: [], origin: 'string', minimum, inclusive: true,
+    ...(exact === undefined ? {} : { exact }), message
+  };
 }
 
-export interface ISODateTimeOptions extends ISOTimeOptions {
-  local?: boolean;
-  offset?: boolean;
+function tooBigIssue(maximum: number, message: string, exact?: number): VldIssue {
+  return {
+    code: 'too_big', path: [], origin: 'string', maximum, inclusive: true,
+    ...(exact === undefined ? {} : { exact }), message
+  };
 }
 
-const DATE_SOURCE = '(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))';
-
-function testRegex(pattern: RegExp, value: string): boolean {
-  pattern.lastIndex = 0;
-  return pattern.test(value);
-}
-
-function fixedBase64(bodyLength: number, padding: '' | '=' | '=='): RegExp {
-  return new RegExp(`^[A-Za-z0-9+/]{${bodyLength}}${padding}$`);
-}
-
-function fixedBase64Url(length: number): RegExp {
-  return new RegExp(`^[A-Za-z0-9_-]{${length}}$`);
-}
-
-function timeSource(options: ISOTimeOptions): string {
-  const hoursAndMinutes = '(?:[01]\\d|2[0-3]):[0-5]\\d';
-  if (typeof options.precision !== 'number') {
-    return `${hoursAndMinutes}(?::[0-5]\\d(?:\\.\\d+)?)?`;
-  }
-  if (options.precision === -1) return hoursAndMinutes;
-  if (options.precision === 0) return `${hoursAndMinutes}:[0-5]\\d`;
-  return `${hoursAndMinutes}:[0-5]\\d\\.\\d{${options.precision}}`;
-}
-
-function uuidRegex(version?: number): RegExp {
-  if (version === undefined) {
-    return /^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$/;
-  }
-  return new RegExp(`^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-${version}[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$`);
-}
-
-function timeRegex(options: ISOTimeOptions = {}): RegExp {
-  return new RegExp(`^${timeSource(options)}$`);
+function formatCheckIssue(format: string, message: string, pattern?: string): VldIssue {
+  const issue: VldIssue = { code: 'invalid_format', path: [], origin: 'string', format, message };
+  if (pattern !== undefined) issue.pattern = pattern;
+  return issue;
 }
 
 /**
- * Zod's `iso.datetime` / `string().datetime` pattern: RFC 3339 needs seconds
- * wherever the time carries `Z` or an offset, so only the unqualified `local`
- * form may stop at minutes. (`regexes.datetime` keeps its lenient form.)
+ * Generic string format validator.
+ *
+ * Zod's `z.email()`, `z.uuid()` and friends are string schemas, so every
+ * `ZodString` method chains onto them (`z.email().min(5).trim()`). The chained
+ * constraints are kept as plain closures: the format check always runs first,
+ * then the transforms, then the added checks - the same order VldString uses.
  */
-export function isoDateTimeRegex(options: ISODateTimeOptions = {}): RegExp {
-  const zones = ['Z'];
-  if (options.offset) zones.push('([+-](?:[01]\\d|2[0-3]):[0-5]\\d)');
-  const seconds = typeof options.precision === 'number' ? timeSource(options) : '(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?';
-  const qualified = `${seconds}(?:${zones.join('|')})`;
-  return new RegExp(`^${DATE_SOURCE}T(?:${options.local ? `${qualified}|${timeSource(options)}` : qualified})$`);
-}
-
-/** Zod params of `string().time()` / `.datetime()`: options merged with the message. */
-export function isoFormatOptions<T extends object>(params: unknown): T | undefined {
-  return typeof params === 'object' && params !== null ? (params as T) : undefined;
-}
-
-function stringRegex(options?: { minimum?: number; maximum?: number }): RegExp {
-  const body = options
-    ? `[\\s\\S]{${options.minimum ?? 0},${options.maximum ?? ''}}`
-    : '[\\s\\S]*';
-  return new RegExp(`^${body}$`);
-}
-
-function macRegex(delimiter = ':'): RegExp {
-  const escapedDelimiter = delimiter.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return new RegExp(
-    `^(?:[0-9A-F]{2}${escapedDelimiter}){5}[0-9A-F]{2}$|^(?:[0-9a-f]{2}${escapedDelimiter}){5}[0-9a-f]{2}$`
-  );
-}
-
-type StaticRegexName =
-  | 'anyString' | 'base64' | 'base64url' | 'bigint' | 'boolean' | 'browserEmail' | 'cidrv4' | 'cidrv6'
-  | 'creditCard' | 'currencyCode' | 'cuid' | 'cuid2' | 'date' | 'domain' | 'duration' | 'e164' | 'email' | 'extendedDuration'
-  | 'guid' | 'hex' | 'hostname' | 'html5Email' | 'httpProtocol' | 'httpUrl' | 'iban' | 'idnEmail'
-  | 'integer' | 'ipv4' | 'ipv6' | 'jwt' | 'ksuid' | 'lowercase' | 'md5' | 'md5_base64'
-  | 'md5_base64url' | 'md5_hex' | 'nanoid' | 'null' | 'number' | 'rfc5322Email'
-  | 'sha1' | 'sha1_base64' | 'sha1_base64url' | 'sha1_hex' | 'sha256' | 'sha256_base64'
-  | 'sha256_base64url' | 'sha256_hex' | 'sha384' | 'sha384_base64' | 'sha384_base64url'
-  | 'sha384_hex' | 'sha512' | 'sha512_base64' | 'sha512_base64url' | 'sha512_hex'
-  | 'ulid' | 'undefined' | 'unicodeEmail' | 'uppercase' | 'uuid4' | 'uuid6' | 'uuid7' | 'xid';
-
-export type RegexNamespace = Readonly<Record<StaticRegexName, RegExp> & {
-  nanoidOfLength: (length: number) => RegExp;
-  datetime: typeof isoDateTimeRegex;
-  emoji: () => RegExp;
-  mac: typeof macRegex;
-  string: typeof stringRegex;
-  time: typeof timeRegex;
-  uuid: typeof uuidRegex;
-}>;
-
-/** Public regex helpers matching the current Zod 4 namespace. */
-const REGEXES: RegexNamespace = {
-  cuid: /^[cC][0-9a-z]{6,}$/,
-  cuid2: /^[0-9a-z]+$/,
-  // First character is the top of a 48-bit timestamp, so it cannot exceed 7 (Zod 4.6 source).
-  ulid: /^[0-7][0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{25}$/,
-  xid: /^[0-9a-vA-V]{20}$/,
-  ksuid: /^[A-Za-z0-9]{27}$/,
-  nanoid: /^[a-zA-Z0-9_-]{21}$/,
-  nanoidOfLength: (length: number) => new RegExp(`^[a-zA-Z0-9_-]{${length}}$`),
-  duration: /^P(?:(\d+W)|(?!.*W)(?=\d|T\d)(\d+Y)?(\d+M)?(\d+D)?(T(?=\d)(\d+H)?(\d+M)?(\d+([.,]\d+)?S)?)?)$/,
-  extendedDuration: /^[-+]?P(?!$)(?:(?:[-+]?\d+Y)|(?:[-+]?\d+[.,]\d+Y$))?(?:(?:[-+]?\d+M)|(?:[-+]?\d+[.,]\d+M$))?(?:(?:[-+]?\d+W)|(?:[-+]?\d+[.,]\d+W$))?(?:(?:[-+]?\d+D)|(?:[-+]?\d+[.,]\d+D$))?(?:T(?=[\d+-])(?:(?:[-+]?\d+H)|(?:[-+]?\d+[.,]\d+H$))?(?:(?:[-+]?\d+M)|(?:[-+]?\d+[.,]\d+M$))?(?:[-+]?\d+(?:[.,]\d+)?S)?)??$/,
-  guid: /^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$/,
-  // Zod 4.6 IBAN electronic format: 2-letter country, check digits 02-98, 11-30 bban chars.
-  // The ISO 7064 MOD 97-10 checksum is not expressible as a pattern and runs in code.
-  iban: /^[A-Z]{2}(?!00|01|99)\d{2}[A-Z0-9]{11,30}$/,
-  // Zod 4.6 additions to the regex namespace.
-  currencyCode: /^(?:AED|AFN|ALL|AMD|AOA|ARS|AUD|AWG|AZN|BAM|BBD|BDT|BHD|BIF|BMD|BND|BOB|BOV|BRL|BSD|BTN|BWP|BYN|BZD|CAD|CDF|CHE|CHF|CHW|CLF|CLP|CNY|COP|COU|CRC|CUP|CVE|CZK|DJF|DKK|DOP|DZD|EGP|ERN|ETB|EUR|FJD|FKP|GBP|GEL|GHS|GIP|GMD|GNF|GTQ|GYD|HKD|HNL|HTG|HUF|IDR|ILS|INR|IQD|IRR|ISK|JMD|JOD|JPY|KES|KGS|KHR|KMF|KPW|KRW|KWD|KYD|KZT|LAK|LBP|LKR|LRD|LSL|LYD|MAD|MDL|MGA|MKD|MMK|MNT|MOP|MRU|MUR|MVR|MWK|MXN|MXV|MYR|MZN|NAD|NGN|NIO|NOK|NPR|NZD|OMR|PAB|PEN|PGK|PHP|PKR|PLN|PYG|QAR|RON|RSD|RUB|RWF|SAR|SBD|SCR|SDG|SEK|SGD|SHP|SLE|SOS|SRD|SSP|STN|SVC|SYP|SZL|THB|TJS|TMT|TND|TOP|TRY|TTD|TWD|TZS|UAH|UGX|USD|USN|UYI|UYU|UYW|UZS|VED|VES|VND|VUV|WST|XAD|XAF|XAG|XAU|XBA|XBB|XBC|XBD|XCD|XCG|XDR|XOF|XPD|XPF|XPT|XSU|XTS|XUA|XXX|YER|ZAR|ZMW|ZWG)$/,
-  anyString: /^[\s\S]{0,}$/,
-  creditCard: /^\d(?:[ -]?\d){11,18}$/,
-  uuid: uuidRegex,
-  uuid4: uuidRegex(4),
-  uuid6: uuidRegex(6),
-  uuid7: uuidRegex(7),
-  email: /^(?!\.)(?!.*\.\.)([A-Za-z0-9_'+.-]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9-]*\.)+[A-Za-z]{2,}$/,
-  html5Email: /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/,
-  // Keep the official Zod 4.4.3 RFC 5322 source byte-for-byte for differential parity.
-  // eslint-disable-next-line no-useless-escape
-  rfc5322Email: /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}))$/,
-  unicodeEmail: /^[^\s@"]{1,64}@[^\s@]{1,255}$/u,
-  idnEmail: /^[^\s@"]{1,64}@[^\s@]{1,255}$/u,
-  browserEmail: /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/,
-  // Zod 4.6 source byte-for-byte: the lookahead rejects component-only strings
-  // (e.g. "123", U+25AB with a text VS) while keycaps and flags stay accepted.
-  emoji: () => /^(?=[\s\S]*[\p{Extended_Pictographic}\p{Regional_Indicator}\u20E3])[\p{Extended_Pictographic}\p{Emoji_Component}]+$/u,
-  ipv4: /^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$/,
-  ipv6: /^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))$/,
-  mac: macRegex,
-  cidrv4: /^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\/([0-9]|[1-2][0-9]|3[0-2])$/,
-  cidrv6: /^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|::|([0-9a-fA-F]{1,4})?::([0-9a-fA-F]{1,4}:?){0,6})\/(12[0-8]|1[01][0-9]|[1-9]?[0-9])$/,
-  base64: /^$|^(?:[0-9a-zA-Z+/]{4})*(?:(?:[0-9a-zA-Z+/]{2}==)|(?:[0-9a-zA-Z+/]{3}=))?$/,
-  // Zod 4.6 base64url source: charset + mod-4 length (RFC 4648 unpadded).
-  base64url: /^(?:[A-Za-z0-9_-]{4})*(?:[A-Za-z0-9_-]{2,3})?$/,
-  hostname: /^(?=.{1,253}\.?$)[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[-0-9a-zA-Z]{0,61}[0-9a-zA-Z])?)*\.?$/,
-  domain: /^([a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/,
-  httpProtocol: /^https?$/,
-  e164: /^\+[1-9]\d{6,14}$/,
-  date: new RegExp(`^${DATE_SOURCE}$`),
-  time: timeRegex,
-  datetime: isoDateTimeRegex,
-  string: stringRegex,
-  bigint: /^-?\d+n?$/,
-  integer: /^-?\d+$/,
-  number: /^-?\d+(?:\.\d+)?$/,
-  boolean: /^(?:true|false)$/i,
-  null: /^null$/i,
-  undefined: /^undefined$/i,
-  lowercase: /^[^A-Z]*$/,
-  uppercase: /^[^a-z]*$/,
-  hex: /^[0-9a-fA-F]*$/,
-  md5_hex: /^[0-9a-fA-F]{32}$/,
-  md5_base64: fixedBase64(22, '=='),
-  md5_base64url: fixedBase64Url(22),
-  sha1_hex: /^[0-9a-fA-F]{40}$/,
-  sha1_base64: fixedBase64(27, '='),
-  sha1_base64url: fixedBase64Url(27),
-  sha256_hex: /^[0-9a-fA-F]{64}$/,
-  sha256_base64: fixedBase64(43, '='),
-  sha256_base64url: fixedBase64Url(43),
-  sha384_hex: /^[0-9a-fA-F]{96}$/,
-  sha384_base64: fixedBase64(64, ''),
-  sha384_base64url: fixedBase64Url(64),
-  sha512_hex: /^[0-9a-fA-F]{128}$/,
-  sha512_base64: fixedBase64(86, '=='),
-  sha512_base64url: fixedBase64Url(86),
-  jwt: /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*$/,
-  httpUrl: /^https?:\/\/[^\s/$.?#].[^\s]*$/,
-  md5: /^[a-f0-9]{32}$/i,
-  sha1: /^[a-f0-9]{40}$/i,
-  sha256: /^[a-f0-9]{64}$/i,
-  sha384: /^[a-f0-9]{96}$/i,
-  sha512: /^[a-f0-9]{128}$/i
-} as const;
-
-/** Generic string format validator. */
 export class VldStringFormat extends VldBase<unknown, string> {
   public constructor(
     public readonly _format: string,
     public readonly _validator: (value: string) => boolean,
     public readonly _errorMessage?: string,
     private readonly _normalize: (value: string) => string = value => value,
-    private readonly _patternSource?: string
+    private readonly _patternSource?: string,
+    private readonly _checks: ReadonlyArray<FormatCheck> = NO_CHECKS,
+    private readonly _transforms: ReadonlyArray<FormatTransform> = NO_TRANSFORMS
   ) {
     super(VLD_VALIDATOR_TYPES.STRING_FORMAT);
   }
@@ -230,8 +104,115 @@ export class VldStringFormat extends VldBase<unknown, string> {
     if (params === undefined || params === null) return this;
     const message = resolveErrorMessage(params as ErrorParam, '');
     return message
-      ? new VldStringFormat(this._format, this._validator, message, this._normalize, this._patternSource)
+      ? new VldStringFormat(this._format, this._validator, message, this._normalize, this._patternSource, this._checks, this._transforms)
       : this;
+  }
+
+  private _withCheck(check: FormatCheck): VldStringFormat {
+    return new VldStringFormat(
+      this._format, this._validator, this._errorMessage, this._normalize, this._patternSource,
+      [...this._checks, check], this._transforms
+    );
+  }
+
+  private _withTransform(transform: FormatTransform): VldStringFormat {
+    return new VldStringFormat(
+      this._format, this._validator, this._errorMessage, this._normalize, this._patternSource,
+      this._checks, [...this._transforms, transform]
+    );
+  }
+
+  /** Zod: minimum length in code points. */
+  min(length: number, message?: ErrorParam): VldStringFormat {
+    const text = resolveErrorMessage(message, getMessages().stringMin(length));
+    return this._withCheck(value => (hasMinLength(value, length) ? null : tooSmallIssue(length, text)));
+  }
+
+  /** Zod: maximum length in code points. */
+  max(length: number, message?: ErrorParam): VldStringFormat {
+    const text = resolveErrorMessage(message, getMessages().stringMax(length));
+    return this._withCheck(value => (hasMaxLength(value, length) ? null : tooBigIssue(length, text)));
+  }
+
+  /** Zod: exact length in code points. */
+  length(length: number, message?: ErrorParam): VldStringFormat {
+    const text = resolveErrorMessage(message, getMessages().stringLength(length));
+    return this._withCheck(value => {
+      if (hasExactLength(value, length)) return null;
+      return codePointLength(value) < length
+        ? tooSmallIssue(length, text, length)
+        : tooBigIssue(length, text, length);
+    });
+  }
+
+  /** Zod: at least one character. */
+  nonempty(message?: ErrorParam): VldStringFormat {
+    const text = resolveErrorMessage(message, getMessages().stringEmpty);
+    return this._withCheck(value => (value.length > 0 ? null : tooSmallIssue(1, text)));
+  }
+
+  regex(pattern: RegExp, message?: ErrorParam): VldStringFormat {
+    const text = resolveErrorMessage(message, getMessages().stringRegex);
+    const source = pattern.source;
+    return this._withCheck(value => {
+      // A /g or /y pattern keeps lastIndex between calls; reset it so the same
+      // input always gets the same answer.
+      pattern.lastIndex = 0;
+      return pattern.test(value) ? null : formatCheckIssue('regex', text, source);
+    });
+  }
+
+  startsWith(str: string, message?: ErrorParam): VldStringFormat {
+    const text = resolveErrorMessage(message, getMessages().stringStartsWith(str));
+    return this._withCheck(value => (value.startsWith(str) ? null : formatCheckIssue('starts_with', text)));
+  }
+
+  endsWith(str: string, message?: ErrorParam): VldStringFormat {
+    const text = resolveErrorMessage(message, getMessages().stringEndsWith(str));
+    return this._withCheck(value => (value.endsWith(str) ? null : formatCheckIssue('ends_with', text)));
+  }
+
+  includes(str: string, message?: ErrorParam | { position?: number; message?: string }): VldStringFormat {
+    const position = typeof message === 'object' && message !== null && typeof (message as { position?: unknown }).position === 'number'
+      ? (message as { position: number }).position
+      : undefined;
+    const text = resolveErrorMessage(message as ErrorParam, getMessages().stringIncludes(str));
+    return this._withCheck(value => (value.includes(str, position) ? null : formatCheckIssue('includes', text)));
+  }
+
+  /** Zod: a check (invalid_format), unlike toLowerCase() which transforms. */
+  lowercase(): VldStringFormat {
+    return this._withCheck(value => (value === value.toLowerCase() ? null : formatCheckIssue('lowercase', 'Invalid lowercase')));
+  }
+
+  /** Zod: a check (invalid_format), unlike toUpperCase() which transforms. */
+  uppercase(): VldStringFormat {
+    return this._withCheck(value => (value === value.toUpperCase() ? null : formatCheckIssue('uppercase', 'Invalid uppercase')));
+  }
+
+  trim(): VldStringFormat {
+    return this._withTransform(value => value.trim());
+  }
+
+  toLowerCase(): VldStringFormat {
+    return this._withTransform(value => value.toLowerCase());
+  }
+
+  toUpperCase(): VldStringFormat {
+    return this._withTransform(value => value.toUpperCase());
+  }
+
+  normalize(form?: 'NFC' | 'NFD' | 'NFKC' | 'NFKD'): VldStringFormat {
+    return this._withTransform(value => value.normalize(form));
+  }
+
+  slugify(): VldStringFormat {
+    return this._withTransform(value => value
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/[\s_-]+/g, '-')
+      .replace(/^-+|-+$/g, ''));
   }
 
   private _createFormatIssue(): VldError {
@@ -246,12 +227,31 @@ export class VldStringFormat extends VldBase<unknown, string> {
     return new VldError([issue]);
   }
 
+  /**
+   * Format check first, then the chained transforms, then the chained checks -
+   * the same order VldString uses for its own chains.
+   */
+  private _applyChains(value: string): string {
+    let result = value;
+    const transforms = this._transforms;
+    for (let i = 0; i < transforms.length; i++) {
+      result = transforms[i]!(result);
+    }
+    const checks = this._checks;
+    for (let i = 0; i < checks.length; i++) {
+      const issue = checks[i]!(result);
+      if (issue !== null) throw new VldError([issue]);
+    }
+    return this._normalize(result);
+  }
+
   parse(value: unknown): string {
     if (typeof value !== 'string') {
       throw new VldError([createInvalidTypeIssue('string', getTypeName(value), getMessages().invalidString)]);
     }
     if (!this._validator(value)) throw this._createFormatIssue();
-    return this._normalize(value);
+    if (this._checks.length === 0 && this._transforms.length === 0) return this._normalize(value);
+    return this._applyChains(value);
   }
 
   safeParse(value: unknown): ParseResult<string> {
@@ -261,7 +261,19 @@ export class VldStringFormat extends VldBase<unknown, string> {
     if (!this._validator(value)) {
       return { success: false, error: this._createFormatIssue() };
     }
-    return { success: true, data: this._normalize(value) };
+    if (this._checks.length === 0 && this._transforms.length === 0) {
+      return { success: true, data: this._normalize(value) };
+    }
+    try {
+      return { success: true, data: this._applyChains(value) };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof VldError
+          ? error
+          : new VldError([{ code: 'custom', path: [], message: String((error as Error).message) }])
+      };
+    }
   }
 }
 
@@ -316,22 +328,6 @@ export const emoji = (): VldStringFormat => VldStringFormat.create('emoji', valu
 export const base64 = (): VldStringFormat => VldStringFormat.create('base64', value => testRegex(REGEXES.base64, value));
 export const base64url = (): VldStringFormat => VldStringFormat.create('base64url', value => testRegex(REGEXES.base64url, value));
 export const hex = (): VldStringFormat => VldStringFormat.create('hex', value => testRegex(REGEXES.hex, value));
-// Zod's isValidJWT: three segments, a JSON header with an `alg` (and
-// typ "JWT" if present), and - when given - exactly the expected algorithm.
-export const isValidJwtToken = (value: string, algorithm: string | null): boolean => {
-  try {
-    const parts = value.split('.');
-    if (parts.length !== 3 || !parts[0]) return false;
-    const base64 = parts[0].replace(/-/g, '+').replace(/_/g, '/');
-    const header = JSON.parse(atob(base64 + '='.repeat((4 - (base64.length % 4)) % 4)));
-    if (typeof header !== 'object' || header === null) return false;
-    if ('typ' in header && header.typ !== 'JWT') return false;
-    if (!header.alg) return false;
-    return !algorithm || header.alg === algorithm;
-  } catch {
-    return false;
-  }
-};
 export const jwt = (options?: { alg?: string }): VldStringFormat =>
   VldStringFormat.create('jwt', value => isValidJwtToken(value, options?.alg ?? null));
 export const nanoid = (): VldStringFormat => VldStringFormat.create('nanoid', value => testRegex(REGEXES.nanoid, value));
@@ -477,4 +473,3 @@ export const stringFormat = (
   return VldStringFormat.create(name, check);
 };
 
-export { REGEXES as regexes };

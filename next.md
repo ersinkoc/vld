@@ -4,18 +4,19 @@ This file tracks the state of the zod-parity effort on `@oxog/vld`.
 
 ---
 
-## 1. Current state (2026-10-27)
+## 1. Current state (2026-11-18)
 
 | Item | State |
 |---|---|
 | Parity baseline | **zod 4.6.7** (npm `latest`, lockfile pinned) |
-| Release | **3.3.0 published 2026-10-28** (npm latest + GH release v3.3.0; 3.2.0 same day) |
+| Release | **3.3.1 prepared 2026-11-18** (version + CHANGELOG + site; npm publish pending) - 3.3.0 published 2026-10-28 |
 | Behavioral divergences | **Zero.** Differential sweeps green; `ZodError.message`/`name` now Zod-parity (JSON issue list), asserted by battery |
 | Ecosystem duck typing | `_zod.def/traits/version/bag` on schemas, `$ZodError` traits on errors; `verify:ecosystem` proves `@hookform/resolvers` `zodResolver` end to end |
-| Tree-shaking | rollup (Vite prod parity): NEVER 70.8 KB / realistic schema 129 KB / mini factory 93.3 KB, guarded by `verify:treeshake`; root-string probe 93.4 KiB vs zod's 182.8 KiB |
-| Tests | 118 suites, 3380 tests, all passing; coverage 100/99/100/100 |
+| `v.core` surface | 312/312 zod `z.core` names on the root namespace as lazy getters (zero bundle cost until read); every `_*` adapter accepts the optional leading class |
+| Tree-shaking | rollup (Vite prod parity), re-measured 2026-11-18 on 3.3.1: `NEVER` 74.6 KB / realistic schema 134.9 KB / mini factory 95.9 KB; esbuild `NEVER` 72.2 KB / realistic schema 130.5 KB. Guarded by `verify:treeshake`; root-string probe 96.0 KiB vs zod's 182.8 KiB |
+| Tests | 130 suites, 3620 tests, all passing; coverage 100/99/100/100 |
 | Lint / `tsc --noEmit` / build / all verify scripts | clean |
-| `npm run benchmark:guard` | PASS (~5.3x average vs Zod) |
+| `npm run benchmark:guard` | PASS (~5.4x average vs Zod) |
 
 ### 2026-10-27 architecture notes (why base.ts looks like this)
 
@@ -39,8 +40,9 @@ This file tracks the state of the zod-parity effort on `@oxog/vld`.
 ## 2. Known remaining gaps (from the 2026-10-26 audit)
 
 1. **esbuild root entry - SOLVED end to end (2026-10-27, third pass)**:
-   `import { NEVER }` 463.9 -> **68.5 KB** (zod: 88 KB same probe),
-   realistic schema -> **124.8 KB**; guarded at 90/160 KB in
+   `import { NEVER }` 463.9 -> **72.2 KB** (the `v.core` getter object
+   adds ~3.7 KB to the probe even when unread), realistic schema ->
+   **130.5 KB**; guarded at 90/160 KB in
    verify:treeshake (esbuild devDep must stay >= 0.26). The full pin
    chain, for the record:
    - Pin A: `export const {...} = v` destructuring -> hoisted post-build

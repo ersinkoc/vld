@@ -8,13 +8,13 @@
 
 ## Highlights
 
-- **Release-Gated Speed**: CI-enforced performance floors against Zod on every commit - ~5x average guarded ratio, up to 18x on individual scenarios, with ~1.5x less retained heap.
+- **Release-Gated Speed**: CI-enforced performance floors against Zod on every commit - ~5x average guarded ratio, up to 32x peak on the `validate()` head-to-head, with 1.44x less retained heap.
 - **Zero Dependencies**: Pure TypeScript/JavaScript with zero third-party runtime bloat.
 - **Drop-in Zod Compatibility**: Swap imports directly or use subpaths (`@oxog/vld/v4`, `@oxog/vld/mini`, `@oxog/vld/v4/core`, `@oxog/vld/v4/locales`). Ecosystem duck-typing included: `@hookform/resolvers`' `zodResolver` works with vld schemas unchanged, verified in CI against the real npm packages.
 - **CSP-Safe Everywhere**: `new Function` blocked (edge runtimes, MV3 extensions, strict CSP)? `.validate()` automatically falls back from AOT compilation to an interpreter walker that calls the runtime parser's own check closures - rejection allocates nothing (~12M ops/s vs ~0.05M for runtime `safeParse`).
 - **LLM Structured-Output Tooling**: `toRetryMessage()` turns a failed parse into the exact string to send back to a model (enum vocabularies named verbatim - the measured difference between 0/30 and 30/30 recovery), and `describeSchema()` derives the first-attempt prompt constraints from the schema itself.
 - **Full Static Inference**: Automatic type extraction using `v.infer<typeof schema>`.
-- **Tree-Shakeable Mini API**: Build hyper-optimized bundles with `@oxog/vld/mini` - a root `import { NEVER }` tree-shakes to 68.5 KB under esbuild (zod measures 88 KB on the same probe).
+- **Tree-Shakeable Mini API**: Build hyper-optimized bundles with `@oxog/vld/mini` - a root `import { NEVER }` tree-shakes to 72.2 KB under esbuild (minified ESM, `sideEffects: false` probe guarded by `verify:treeshake`; rollup, which keeps a `v.core` getter object it cannot prove unused, measures 74.6 KB).
 - **Built-in i18n**: Out-of-the-box error localization for 68 languages - every zod locale code, with lazy-loading support (`@oxog/vld/locales/lazy`).
 - **Result Pattern & Codecs**: Functional error handling (`tryCatch`, `match`, `Ok`, `Err`) and bidirectional data transformations.
 - **100% Test Coverage**: Verified across 3500+ tests, 68 locale catalogs, and drop-in TypeScript application suites.
@@ -394,7 +394,7 @@ VLD 3.0 ships the **V2 pattern** (single-def + check classes) for every chain-he
 validator. This matches Zod 4.5's "method memoization" optimization and is
 **3.03x faster** than Zod 4.6.4 on the honest head-to-head at introduction
 (10/10 wins, semantic-checked, see `benchmarks/dropin-vs-zod.cjs`; against
-zod 4.6.7 the drop-in geomean is 2.56x) and **1.6-10x smaller** in memory.
+zod 4.6.7 the drop-in geomean is 3.18x, the per-scenario median of 4 suite runs on 3.3.1) and **1.6-10x smaller** in memory.
 
 ### What changed
 
@@ -574,20 +574,27 @@ usePlugin(phonePlugin);
 
 ## Performance
 
-VLD is optimized for modern V8 runtimes. CI gates enforce performance floors on every commit against the installed zod (`npm run benchmark:guard:built`); the ratios below are a representative run against zod 4.6.7:
+VLD is optimized for modern V8 runtimes. CI gates enforce performance floors on every commit against the installed zod (`npm run benchmark:guard:built`). The table below is generated from that guard, so `npm run docs:guarded-table` refreshes it here, in `docs/PERFORMANCE.md` and in the website docs copy at once:
 
+<!-- guarded-table:start -->
 | Benchmark Case (guarded) | VLD Throughput | vs Zod 4.6.7 |
 |----------------|----------------|------------------|
-| Nullish Parse | ~250M ops/sec | **18x faster** |
-| Number / Positive Int | ~235M ops/sec | **10.6x faster** |
-| Optional Parse | ~240M ops/sec | **6.4x faster** |
-| Union (string \| number) | ~34M ops/sec | **3.1x faster** |
-| Simple String | ~230M ops/sec | **2.1x faster** |
-| Array of Numbers | ~52M ops/sec | **2.0x faster** |
-| Simple Object | ~52M ops/sec | **1.7x faster** |
-| Discriminated Union | ~33M ops/sec | **1.6x faster** |
+| Simple String | ~379M ops/sec | **2.2x faster** |
+| Number / Positive Int | ~354M ops/sec | **10.0x faster** |
+| Array of Numbers | ~108M ops/sec | **2.4x faster** |
+| Simple Object | ~228M ops/sec | **4.2x faster** |
+| Union (string \| number) | ~67M ops/sec | **3.4x faster** |
+| Optional Parse | ~391M ops/sec | **5.9x faster** |
+| Nullish Parse | ~386M ops/sec | **12.9x faster** |
+| Discriminated Union | ~78M ops/sec | **1.9x faster** |
+| Mixed Primitive Object | ~114M ops/sec | **3.7x faster** |
+| Optional-Heavy Object | ~136M ops/sec | **3.1x faster** |
+| Config Object (defaults) | ~46M ops/sec | **3.9x faster** |
 
-Average guarded ratio ~5x across releases; memory guard shows ~1.5x less retained heap and the `validate()` head-to-head wins every scenario (up to 35x). Bundle-wise, a root `import { NEVER }` tree-shakes to 68.5 KB under esbuild (zod: 88 KB on the same probe).
+*Generated by `npm run docs:guarded-table` from `benchmark:guard:built`, so it is not hand-edited: per-scenario median of 3 guard runs on 2026-11-18 against Zod 4.6.7, 5 in-process samples each. The ratios swing between runs on shared hardware (Number / Positive Int spanned 8.6x-10.0x, average 4.78x-5.07x), so re-run the script instead of editing the numbers.*
+<!-- guarded-table:end -->
+
+Average guarded ratio ~5x across releases; memory guard shows 1.44x less retained heap and the `validate()` head-to-head wins every scenario (up to 32x). Bundle-wise, a root `import { NEVER }` tree-shakes to 72.2 KB under esbuild (minified ESM; rollup: 74.6 KB).
 
 Explore full benchmark results and interactive visual comparisons at [vld.oxog.dev/benchmark](https://vld.oxog.dev/benchmark).
 

@@ -230,6 +230,31 @@ function verifyNestedNamespaceParity(zod, vld) {
   }
 }
 
+/**
+ * `z.core` is Zod's low-level surface. VLD publishes it on the root namespace
+ * (`v.core`) as well as on the `v4/core` subpath, so both must carry every Zod
+ * core name with a defined value.
+ */
+function verifyCoreSurfaceParity(zod, vld) {
+  const zodCore = zod.core;
+  const vldCore = vld.z?.core;
+  if (!zodCore || !vldCore) {
+    errors.push('VLD z.core surface is missing');
+    return;
+  }
+
+  const keys = Object.keys(zodCore);
+  const missing = keys.filter((key) => !Object.prototype.hasOwnProperty.call(vldCore, key)).sort();
+  if (missing.length > 0) {
+    errors.push(`VLD z.core is missing ${missing.length} Zod entries: ${missing.join(', ')}`);
+  }
+
+  const undefinedEntries = keys.filter((key) => vldCore[key] === undefined).sort();
+  if (undefinedEntries.length > 0) {
+    errors.push(`VLD z.core has ${undefinedEntries.length} undefined entries: ${undefinedEntries.join(', ')}`);
+  }
+}
+
 function verifyNamespaceBehavior(vld) {
   try {
     const schema = vld.z.object({ id: vld.z.string().min(2) });
@@ -412,6 +437,7 @@ if (zod && vld) {
 
   verifyNamespaceParity(zod, vld);
   verifyNestedNamespaceParity(zod, vld);
+  verifyCoreSurfaceParity(zod, vld);
   verifyNamespaceBehavior(vld);
   verifyLatestBehaviorParity(zod, vld);
   verifySharedModuleConfig();

@@ -140,6 +140,34 @@ for (const staleClaim of staleClaims) {
   }
 }
 
+const GUARDED_TABLE_START = '<!-- guarded-table:start -->';
+const GUARDED_TABLE_END = '<!-- guarded-table:end -->';
+
+function guardedTableBlock(filePath, content) {
+  const start = content.indexOf(GUARDED_TABLE_START);
+  const end = start === -1 ? -1 : content.indexOf(GUARDED_TABLE_END, start + GUARDED_TABLE_START.length);
+
+  if (start === -1 || end === -1) {
+    errors.push(`${filePath} is missing the guarded-table markers (run npm run docs:guarded-table)`);
+    return null;
+  }
+
+  // Line endings differ between a fresh checkout (CRLF) and the generator (LF),
+  // so compare the table's content rather than the file's newline style.
+  return content.slice(start, end + GUARDED_TABLE_END.length).replace(/\r\n/g, '\n');
+}
+
+const readmeGuardedTable = guardedTableBlock('README.md', readme);
+for (const [filePath, content] of [
+  ['docs/PERFORMANCE.md', performanceDoc],
+  ['website-new/public/docs/PERFORMANCE.md', websitePerformanceDoc],
+]) {
+  const block = guardedTableBlock(filePath, content);
+  if (readmeGuardedTable && block && block !== readmeGuardedTable) {
+    errors.push(`${filePath} guarded table drifted from README.md (run npm run docs:guarded-table)`);
+  }
+}
+
 for (const scriptName of collectReadmeScriptReferences()) {
   if (!packageJson.scripts?.[scriptName]) {
     errors.push(`README.md references missing npm script: ${scriptName}`);

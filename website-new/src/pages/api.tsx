@@ -44,6 +44,22 @@ const apiMethods: ApiMethod[] = [
   { name: 'v.record()', description: 'Dictionary/record validator', category: 'Objects', signature: 'v.record(valueValidator): VldRecord', methods: ['.partial()', '.loose()'], example: `const schema = v.record(v.string(), v.number())` },
   { name: 'v.partialRecord()', description: 'Partial record with optional values', category: 'Objects', signature: 'v.partialRecord(valueValidator): VldRecord' },
 
+  // Zod core surface (v3.3.1)
+  {
+    name: 'v.core',
+    description: 'Zod z.core mirrored on the root namespace: 312 names (classes, _* factories, checks, helpers, compile surface, JSON Schema pass-throughs). A plain object of getters - a bundle that never reads a core name drops it entirely.',
+    category: 'Zod Core',
+    signature: 'v.core.$ZodString, v.core._array(...), v.core.toDotPath(path), v.core.isValidJWT(value)',
+    example: `const core = v.core\ncore._min(3)                 // bound check schema (number/bigint/Date)\ncore.toDotPath(['a', 0])     // 'a[0]'\ncore.isValidIBAN('DE89370400440532013000') // true`,
+  },
+  {
+    name: 'v.core._*()',
+    description: 'Zod call-shape adapters: every _* factory accepts Zod optional leading class argument, e.g. _array($ZodArray, schema), _record($ZodRecord, key, value) or _check(fn) with the payload-issues contract. Same surface on @oxog/vld/v4/core.',
+    category: 'Zod Core',
+    signature: 'v.core._array(Class?, schema), v.core._record(Class?, key, value), v.core._check(fn)',
+    example: `const { _array, _check, $ZodArray } = v.core\n_array($ZodArray, v.string())\n_check(({ issues }) => issues.push({ message: 'no' }))`,
+  },
+
   // Composition
   { name: 'v.union()', description: 'Union type - matches any of the validators', category: 'Composition', signature: 'v.union(validators): VldUnion', example: `const schema = v.union([v.string(), v.number()])` },
   { name: 'v.intersection()', description: 'Intersection type - must match all validators', category: 'Composition', signature: 'v.intersection(a, b): VldIntersection', example: `const schema = v.intersection(\n  v.object({ name: v.string() }),\n  v.object({ age: v.number() })\n)` },
@@ -220,7 +236,7 @@ const str = v.toZod("hello")              // v.string()` },
   { name: 'ZodCompileUnsupportedError', description: 'Thrown when a schema feature cannot be lowered to an AOT compile body (e.g. custom refinements, async transforms).', category: 'AOT Compile', signature: 'class ZodCompileUnsupportedError extends Error' },
 
   // Zod 4.6 parity (v3.0.5+ NEW) — boolean validate, IBAN, instance properties, external parsers
-  { name: 'schema.validate()', description: 'Zod 4.6 boolean validation with no result objects. Short-circuits on the first failed check, lazily AOT-compiles the schema on first call, and narrows via a type predicate. VLD wins every scenario head-to-head, up to 35.5x.', category: 'Zod 4.6 (v3.0.5+)', signature: 'schema.validate(data): data is TInput', example: `import { v } from "@oxog/vld"
+  { name: 'schema.validate()', description: 'Zod 4.6 boolean validation with no result objects. Short-circuits on the first failed check, lazily AOT-compiles the schema on first call, and narrows via a type predicate. VLD wins every scenario head-to-head, up to 32x.', category: 'Zod 4.6 (v3.0.5+)', signature: 'schema.validate(data): data is TInput', example: `import { v } from "@oxog/vld"
 
 const User = v.object({ name: v.string(), age: v.number().int() })
 User.validate({ name: "ada", age: 36 }) // true
@@ -263,7 +279,7 @@ if (!result.success) {
 })` },
 
   // V2 Method-Memoization (v3.0 NEW) — part of the drop-in speedup story
-  { name: 'vV2', description: 'Drop-in factory that always returns V2 method-memoization classes. Identical surface to v; vV2 powers the drop-in geomean over Zod 4.6.7 (2.56x at release, 10/10 wins) in benchmarks/dropin-vs-zod.cjs.', category: 'V2 (v3.0)', signature: 'vV2: typeof v', example: `import { vV2 } from "@oxog/vld"
+  { name: 'vV2', description: 'Drop-in factory that always returns V2 method-memoization classes. Identical surface to v; vV2 powers the drop-in geomean over Zod 4.6.7 (3.18x on 3.3.1, 10/10 wins) in benchmarks/dropin-vs-zod.cjs.', category: 'V2 (v3.0)', signature: 'vV2: typeof v', example: `import { vV2 } from "@oxog/vld"
 
 const schema = vV2.string().min(1).email()
 schema.parse("user@example.com") // part of the drop-in geomean vs Zod 4.6.7` },
@@ -275,7 +291,7 @@ s.parse("user@example.com")` },
   { name: 'v.dateV2() / v.bigintV2() / v.arrayV2() / v.unionV2()', description: 'V2 method-memoization variants for date, bigint, array, union, tuple, set, map, intersection, record, literal, enum, boolean, optional, nullable, nullish, refine, transform. 21 V2 classes total.', category: 'V2 (v3.0)', signature: 'v.*V2()', example: `vV2.tuple([vV2.string(), vV2.number()])
 vV2.literal("active")
 vV2.union([vV2.string(), vV2.number()])` },
-  { name: 'v.coerce.stringV2() / v.coerce.numberV2()', description: 'V2 coercion variants — same surface as v.coerce.*, included in the 3.00x geomean.', category: 'V2 (v3.0)', signature: 'v.coerce.stringV2() / v.coerce.numberV2()' },
+  { name: 'v.coerce.stringV2() / v.coerce.numberV2()', description: 'V2 coercion variants — same surface as v.coerce.*, included in the 3.18x geomean vs Zod 4.6.7.', category: 'V2 (v3.0)', signature: 'v.coerce.stringV2() / v.coerce.numberV2()' },
   { name: 'v.setV2Mode(true)', description: 'Globally swap v.* factories to V2. No source rewrites needed. Call v.setV2Mode(false) to revert.', category: 'V2 (v3.0)', signature: 'v.setV2Mode(enabled: boolean): void', example: `import { v } from "@oxog/vld"
 
 v.setV2Mode(true)
@@ -295,7 +311,7 @@ S.parse({ name: 'x' })
 // AFTER — only the import line changes
 import { z } from '@oxog/vld'
 const S = z.object({ name: z.string().min(1) })
-S.parse({ name: 'x' })  // 3.00x faster (benchmarks/dropin-vs-zod.cjs)` },
+S.parse({ name: 'x' })  // 3.18x faster (benchmarks/dropin-vs-zod.cjs)` },
   { name: 'z (namespace)', description: '`z.infer<T>` and `z.input<T>` mirror the Zod namespace for type extraction. Same as `v.infer` / `v.input`.', category: 'Drop-in (v3.0)', signature: 'namespace z { type infer<T> = v.infer<T>; type input<T> = v.input<T> }', example: `import { z } from '@oxog/vld'
 const S = z.object({ name: z.string() })
 type User = z.infer<typeof S>  // { name: string }` },
@@ -338,6 +354,7 @@ const categoryIcons: Record<string, React.ElementType> = {
   'Plugin System': Plug,
   'Event Emitter': Activity,
   'Logger': Terminal,
+  'Zod Core': Code2,
 }
 
 export function ApiPage() {

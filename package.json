@@ -1,6 +1,6 @@
 {
   "name": "@oxog/vld",
-  "version": "3.3.0",
+  "version": "3.3.1",
   "description": "Ultra-fast TypeScript-first schema validation with zero dependencies, 68 languages covering every zod locale, plugin system, and CLI tools",
   "type": "module",
   "main": "./dist/cjs/index.cjs",
@@ -185,6 +185,7 @@
     "prepublishOnly": "npm run release:check",
     "verify:zod:canary": "node scripts/verify-zod-parity.cjs --tag canary",
     "verify:treeshake": "node scripts/verify-treeshake.cjs",
+    "docs:guarded-table": "node scripts/sync-guarded-table.cjs",
     "verify:ecosystem": "node scripts/verify-ecosystem.cjs",
     "build:hoist": "node scripts/hoist-root-exports.cjs"
   },

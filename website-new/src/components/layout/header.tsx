@@ -13,7 +13,7 @@ const navigation = [
   { name: 'Benchmark', href: '/benchmark' },
 ]
 
-const versionBadge = { label: 'v3.0', href: 'https://github.com/ersinkoc/vld/releases/tag/v3.0.0' }
+const versionBadge = { label: 'v3.3.1', href: 'https://github.com/ersinkoc/vld/releases/tag/v3.3.1' }
 
 export function Header() {
   const { theme, setTheme, resolvedTheme } = useTheme()

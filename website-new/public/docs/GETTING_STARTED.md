@@ -1,6 +1,6 @@
 # Getting Started with VLD
 
-A comprehensive guide to get you up and running with VLD (v3.0.0), the blazing-fast TypeScript validation library with Zod-compatible root and subpath APIs, V2 method-memoization chains, modular architecture, plugin system, CLI tools, and ZodError compatibility layer.
+A comprehensive guide to get you up and running with VLD (v3.3.1), the blazing-fast TypeScript validation library with Zod-compatible root and subpath APIs, V2 method-memoization chains, modular architecture, plugin system, CLI tools, and ZodError compatibility layer.
 
 ## Table of Contents
 
@@ -42,7 +42,7 @@ VLD provides a simple, chainable API for building validation schemas. The core c
 2. **Composable**: Build complex schemas from simple primitives
 3. **Performant**: Release-gated against the latest stable Zod for runtime, startup, and memory behavior
 4. **Drop-in Focused**: Root, v4, v4-mini, v4/core, and v4/locales entry points are checked against Zod
-5. **V2 Method-Memoization (v3.0)**: 2.56x drop-in geomean vs Zod 4.6.7 (10/10 honest wins, semantic-checked); 1.6-10x less memory per instance
+5. **V2 Method-Memoization (v3.0)**: 3.18x drop-in geomean vs Zod 4.6.7 (10/10 honest wins, semantic-checked, per-scenario median of 4 runs re-measured 2026-11-18 on 3.3.1); 1.6-10x less memory per instance
 6. **ZodError Compatible (v3.0)**: `toZodError()` produces ZodError-shaped errors with `.format()` and `.flatten()`
 7. **Developer-Friendly**: Clear error messages and intuitive API
 
@@ -58,7 +58,7 @@ import { v, vV2, z, toZodError } from '@oxog/vld';
 // v.* uses V1 (legacy, backward compatible)
 const v1Email = v.string().email();
 
-// vV2.* uses V2 (method-memoization, part of 3.00x drop-in geomean)
+// vV2.* uses V2 (method-memoization, part of the 3.18x drop-in geomean vs Zod 4.6.7)
 const v2Email = vV2.string().email();
 
 // z = v — keep the z.* style
@@ -131,7 +131,7 @@ import { v, vV2 } from '@oxog/vld';
 const nameSchema = v.string();
 const name = nameSchema.parse('John'); // 'John'
 
-// V2 (recommended, part of the 3.00x drop-in geomean)
+// V2 (recommended, part of the 3.18x drop-in geomean vs Zod 4.6.7)
 const nameSchemaV2 = vV2.string();
 const name2 = nameSchemaV2.parse('John'); // 'John'
 ```
@@ -504,7 +504,7 @@ if (event.type === 'click') {
 ```typescript
 import { vV2 } from '@oxog/vld';
 
-// Identical surface, part of the 3.00x drop-in geomean
+// Identical surface, part of the 3.18x drop-in geomean vs Zod 4.6.7
 const hotPathSchema = vV2.string().min(1).email();
 ```
 
@@ -600,7 +600,7 @@ Check out our [examples directory](../examples) for more real-world use cases:
 - `react-form.jsx` — React form with vV2 + toZodError
 - `typescript.ts` — Full TypeScript inference with V2 children
 - `codecs.js`, `codecs.ts` — Bidirectional codecs with V2 inner schemas
-- `internationalization.js` — 27+ locales on V1 and V2 paths
+- `internationalization.js` — 68 locales on V1 and V2 paths
 
 ---
 

@@ -1,8 +1,8 @@
 # @oxog/vld - LLM Documentation
 
-> Ultra-fast TypeScript-first schema validation with zero dependencies and 27+ language support
+> Ultra-fast TypeScript-first schema validation with zero dependencies and 68 language catalogs
 
-**Version:** 3.0.5
+**Version:** 3.3.1
 **License:** MIT
 **Repository:** https://github.com/ersinkoc/vld
 **Author:** Ersin Koc
@@ -86,9 +86,9 @@ VLD is a blazing-fast, type-safe validation library for TypeScript and JavaScrip
 - **Blazing Fast**: v2.1.0 release guards measured an 11x+ runtime speed snapshot against Zod 4.4.3
 - **Full TypeScript Support**: Excellent type inference with strict mode
 - **Zod-Compatible Package Shape**: Root, v4, v4-mini, v4/core, and v4/locales imports are checked against Zod
-- **27+ Languages**: Built-in internationalization support
+- **68 Languages**: Built-in internationalization support
 - **19 Built-in Codecs**: Bidirectional data transformations
-- **100% Test Coverage (Stmts / Branch / Funcs / Lines)**: Rigorously tested with 2502 passing tests
+- **100% Test Coverage (Stmts / Branch / Funcs / Lines)**: Rigorously tested with 3620 passing tests across 130 suites
 - **Tree-Shakeable**: Only import what you need
 - **Immutable Validators**: Prevents memory leaks and race conditions
 
@@ -1213,7 +1213,7 @@ const messages = getMessages();
 console.log(messages.invalidString); // 'Se esperaba una cadena de texto'
 ```
 
-### Supported Languages (27+)
+### Supported Languages (68)
 
 **Base Languages:**
 - English (en), Turkish (tr), Spanish (es), French (fr), German (de)
@@ -1232,7 +1232,7 @@ console.log(messages.invalidString); // 'Se esperaba una cadena de texto'
 **American Languages:**
 - Portuguese Brazil (pt-BR), Spanish Mexico (es-MX)
 
-Plus 75+ additional languages with English fallback.
+Plus 41 additional languages with English fallback (68 total, every locale code zod 4.6.7 ships).
 
 ---
 
@@ -1510,6 +1510,6 @@ type SchemaType = Infer<typeof schema>;
 ## Document Metadata
 
 - **Generated:** 2026-09-13
-- **Package Version:** 3.0.5
+- **Package Version:** 3.3.1
 - **Documentation Version:** 1.0
 - **Format:** LLM-Optimized Markdown

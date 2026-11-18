@@ -56,6 +56,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   regex literals so a brace inside a pattern can no longer desync the
   depth counter into a mid-expression splice.
 
+## [3.3.1] - 2026-11-18
+
+### Added
+
+- **The whole `z.core` surface on the root namespace.** `v.core` now carries
+  every name Zod publishes on `z.core` (312 of them) instead of the 14-value
+  base object: classes (`$ZodString`), factories (`_array`, `_check`, ...),
+  checks, helpers (`toDotPath`, `mergeValues`, `standardProps`), the compile
+  surface and the JSON Schema pass-throughs. `verify:zod` gates the parity: a
+  missing name, or one that resolves to `undefined`, fails the release lane.
+- **Zero cost when `v.core` is unused.** The surface is a plain object of
+  getters in `src/v4/core/root-surface.ts` with no imports and no module-scope
+  work, so a bundle that never reads a core name drops it entirely:
+  `verify:bundle` stays at 96.0 KiB root / 78.2 KiB mini (Zod 4.6.7: 182.8
+  KiB). Measured alternatives: a Proxy resolving the same names from `v` cost
+  611 KiB because the whole namespace escaped to the bundler, and a
+  `@__PURE__`-annotated lazy initializer is stripped by terser.
+- **Zod call-shape adapters for the `_*` factories.** `_array($ZodArray, s)`,
+  `_record($ZodRecord, k, v)`, `_check(fn)` (payload-issues form) and the rest
+  accept Zod's optional leading class argument on both `v.core` and
+  `v4/core`, with stable function identity per read.
+
+### Fixed
+
+- `v4/core` `_success` returned a `ParseResult` object instead of a schema; it
+  now builds the always-succeeding schema its Zod name promises.
+- `v4/core` `_iban` dropped the caller's message parameter.
+- `NodeJS.CallSite` no longer leaks into `dist/index.d.ts` through the core
+  surface's error placeholders, which broke consumers without `@types/node`
+  (`TS2503: Cannot find namespace 'NodeJS'`).
+
+### Changed
+
+- The generated object parser keeps its state per parser instead of a shared
+  module-level failure record and writes the failure position only on the
+  reject path (`object-jit.ts`). `object.ts` collapses its three parse paths
+  into one `parseObject` helper and drops the `recordedIssues` sentinel.
+- `tests/root-core-surface.test.ts` holds the root surface and the `v4/core`
+  subpath to identical behavior: helpers, `_min`/`_max` bounds across
+  number/bigint/Date, the `isValid*` formats and every `_*` adapter in both
+  call forms.
+- The memory guard takes **5 fresh-process samples instead of 3** and prints the
+  total/failure ratios to three decimals. One GC-timing outlier can retain a few
+  hundred KiB of extra schema heap and move the aggregate from 1.44x to 1.40x
+  (1.398x actual), which tripped the 1.4x floor on a 3-sample run; a median of 5
+  samples absorbs it and the floor itself is unchanged.
+- The README guarded table now lists all 11 `performance-guard.cjs` scenarios as
+  the per-scenario median of three runs (2026-11-18), and the `.validate()`
+  tables in `docs/PERFORMANCE.md`, `docs/ZOD_COMPATIBILITY.md` and the website
+  share the per-scenario median of four `.validate()` runs on 2026-11-19
+  (2026-11-18 single-run numbers before that). Those four runs put the
+  per-scenario peak at 31.6x (array of 50 objects) against a 29.8x four-run
+  median, so the ceiling claim is **32x** rather than 30x - the old number sat
+  close enough to the observed peak that one warm run could contradict it.
+- That guarded table is generated, not hand-copied: `npm run docs:guarded-table`
+  (`scripts/sync-guarded-table.cjs`) runs `benchmark:guard:built` three times and
+  writes the per-scenario medians between the `guarded-table` markers in
+  `README.md` and `docs/PERFORMANCE.md`, then refreshes the
+  `website-new/public/docs` copy, so the two documents cannot drift.
+
 ## [3.3.0] - 2026-10-28
 
 CSP-safe validation and LLM retry tooling on top of the 3.2.0 drop-in

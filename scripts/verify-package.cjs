@@ -31,21 +31,34 @@ const errors = [];
 // The zod 4.6.7 parity wave (json value validator, bigint int64, presence
 // machinery, per-member collectors, Zod-exact pattern sources) ships in ~6
 // dist forms per module; 324 -> 390 KiB packed with it.
-const MAX_TARBALL_BYTES = Number(process.env.VLD_MAX_TARBALL_BYTES || 486_000);
+// 4.6.7 parity wave 2 (generated object parser, chained string-format checks,
+// z.function input/output) adds the regexes and object-jit modules in all six
+// dist forms: 390 -> 481 KiB packed.
+// The generated root core surface ships in all six dist forms: 481 -> ~499 KiB
+// packed. Consumer bundle cost is unaffected (see the `verify:bundle` note).
+const MAX_TARBALL_BYTES = Number(process.env.VLD_MAX_TARBALL_BYTES || 520_000);
 // Current full compatibility declarations still keep VLD well below half of
 // Zod 4.4.3's unpacked package size (~4.56 MB). Retain a narrow local ceiling.
-const MAX_UNPACKED_BYTES = Number(process.env.VLD_MAX_UNPACKED_BYTES || 2_120_000);
+// The root `v.core` surface (312 Zod core names as getters) adds ~27 KiB
+// unpacked; it is tree-shaken away from consumer bundles that never read it
+// (`verify:bundle` keeps guarding that), so only the shipped size grows.
+const MAX_UNPACKED_BYTES = Number(process.env.VLD_MAX_UNPACKED_BYTES || 2_240_000);
 // Zod 4.6 parity added per-locale modules and the IBAN/currencyCode/validate
 // surface; the packed count moved 320 -> 351 and index.d.ts 100 KiB -> ~106 KiB.
 // 395: +30 files for the 10 ported locales (2026-10-27) on top of the
 // lazy-locale chunk; each locale ships ESM + CJS + d.ts.
 const MAX_PACKED_FILE_COUNT = Number(process.env.VLD_MAX_PACKED_FILE_COUNT || 475);
 const FILE_SIZE_BUDGETS = {
-  'dist/index.js': Number(process.env.VLD_MAX_ESM_INDEX_BYTES || 75_000),
-  'dist/cjs/index.cjs': Number(process.env.VLD_MAX_CJS_INDEX_BYTES || 90_000),
-  'dist/mini.js': Number(process.env.VLD_MAX_ESM_MINI_BYTES || 11_000),
+  // +~6 KiB for the generated root core surface (312 getter entries). The
+  // consumer-facing guarantee is `verify:bundle` (root-string 96.0 KiB), which
+  // is unchanged: an unused `v.core` is dropped entirely.
+  'dist/index.js': Number(process.env.VLD_MAX_ESM_INDEX_BYTES || 84_000),
+  'dist/cjs/index.cjs': Number(process.env.VLD_MAX_CJS_INDEX_BYTES || 92_000),
+  'dist/mini.js': Number(process.env.VLD_MAX_ESM_MINI_BYTES || 11_500),
   'dist/cjs/mini.cjs': Number(process.env.VLD_MAX_CJS_MINI_BYTES || 21_000),
-  'dist/index.d.ts': Number(process.env.VLD_MAX_INDEX_TYPES_BYTES || 112_000),
+  // The core surface publishes one declared getter per Zod core name, plus the
+  // declared return type of each `_*` call-shape adapter.
+  'dist/index.d.ts': Number(process.env.VLD_MAX_INDEX_TYPES_BYTES || 124_000),
 };
 const REQUIRED_FILES = ['dist', 'README.md', 'LICENSE', 'CHANGELOG.md'];
 const RUNTIME_DEPENDENCY_FIELDS = [
@@ -136,18 +149,35 @@ function collectExpectedFiles() {
   return expected;
 }
 
+/**
+ * npm < 12 printed `[{...}]`; npm >= 12 prints `{ "name": {...} }` and can
+ * interleave `npm notice` lines on stdout, so accept both shapes.
+ */
+function parsePackOutput(output) {
+  const trimmed = output.trim();
+  const jsonStart = trimmed.search(/[[{]/);
+  if (jsonStart === -1) return null;
+  const jsonEnd = trimmed[jsonStart] === '[' ? trimmed.lastIndexOf(']') : trimmed.lastIndexOf('}');
+  if (jsonEnd <= jsonStart) return null;
+  try {
+    const parsed = JSON.parse(trimmed.slice(jsonStart, jsonEnd + 1));
+    const pack = Array.isArray(parsed) ? parsed[0] : parsed[Object.keys(parsed)[0]];
+    return pack && Array.isArray(pack.files) ? pack : null;
+  } catch {
+    return null;
+  }
+}
+
 function readPackFileList() {
   const output = execFileCompat('npm', ['pack', '--dry-run', '--json'], {
     cwd: rootDir,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
   });
-  const jsonStart = output.indexOf('[');
-  const jsonEnd = output.lastIndexOf(']');
-  if (jsonStart === -1 || jsonEnd === -1 || jsonEnd < jsonStart) {
+  const pack = parsePackOutput(output);
+  if (!pack) {
     throw new Error(`Unable to find npm pack JSON output:\n${output}`);
   }
-  const [pack] = JSON.parse(output.slice(jsonStart, jsonEnd + 1));
   return {
     pack,
     files: new Map(pack.files.map((file) => [file.path, file])),

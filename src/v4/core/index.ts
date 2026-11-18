@@ -317,7 +317,10 @@ export const _transform = (...args: unknown[]) => root.transform(valueArg<any>(a
 export const _overwrite = (...args: unknown[]) => root.overwrite(valueArg<any>(args));
 export const _pipe = (...args: unknown[]) => root.pipe(schemaArg(args), schemaArg(args, 1));
 export const _catch = (...args: unknown[]) => root.catch(schemaArg(args), valueArg<any>(args, 1));
-export const _success = (...args: unknown[]) => root.success(valueArg<any>(args));
+// Zod's `_success` returns an always-succeeding schema. The root namespace's
+// `success` export is the ParseResult helper, not the factory, so reach for the
+// factory on `v`.
+export const _success = (..._args: unknown[]) => root.v.success();
 export const _property = (...args: unknown[]) => root.property(valueArg<any>(args), schemaArg(args, 1), valueArg<any>(args, 2));
 export const _coercedString = root.coerce.string;
 export const _coercedNumber = root.coerce.number;
@@ -363,7 +366,8 @@ import { isValidCreditCard, isValidIBAN, base64Charset, base64urlCharset, isVali
 export { isValidCreditCard, isValidIBAN, base64Charset, base64urlCharset };
 
 // Zod 4.6 IBAN + instance-properties surface.
-export const _iban = (...args: unknown[]) => root.iban(valueArg<{ message?: string }>(args));
+// The namespace's `iban` export drops the message param; the factory keeps it.
+export const _iban = (...args: unknown[]) => root.v.iban(valueArg<{ message?: string }>(args));
 export { VldStringFormat as $ZodIBAN } from '../../validators/string-formats';
 export { VldCustom as $ZodCheckProperties } from '../../validators/custom';
 

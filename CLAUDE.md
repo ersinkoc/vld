@@ -32,6 +32,7 @@ npm run benchmark:full     # Full performance suite
 npm run benchmark:memory   # Memory usage analysis
 npm run benchmark:startup  # Startup time comparison
 npm run benchmark:all      # Run all benchmarks
+npm run docs:guarded-table # Regenerate the guarded table in README + docs from benchmark:guard:built
 npm run release:check      # Full release gate: lint, source/published types, tests, build, package install, audit, Zod parity, performance guard
 ```
 
@@ -49,7 +50,7 @@ src/
 -  validators/        # Core validator implementations (base, string, number, etc.)
 -  coercion/         # Type coercion validators (string, number, boolean, date, bigint)
 -  codecs/           # Bidirectional codec implementations (19 built-in codecs)
--  locales/          # 27+ language translations (types.ts defines message templates)
+-  locales/          # 68 language translations (types.ts defines message templates)
 -  utils/            # Utilities (deep-merge, ip-validation, security, codec-utils)
 -  errors.ts         # VldError class and formatting utilities (treeify, prettify, flatten)
 -  index.ts          # Main API export with factory methods (the `v` object)
@@ -74,7 +75,7 @@ Three error formats for different use cases:
 
 #### 4. Internationalization
 - Global locale setting via `setLocale()`
-- All error messages support 27+ languages
+- All error messages support 68 languages
 - Fallback to English for unsupported locales
 
 ### Testing Strategy
@@ -118,7 +119,7 @@ VLD includes a comprehensive codec system for bidirectional data transformations
 
 #### Implementation Notes
 - **Circular Dependency Avoidance**: Codecs use direct validator imports to prevent circular references
-- **Error Handling**: Comprehensive error messages in all 27+ supported languages
+- **Error Handling**: Comprehensive error messages in all 68 supported languages
 - **Async Support**: Both sync and async operations with proper error propagation
 - **Memory Safety**: Immutable codec architecture prevents memory leaks
 
@@ -145,5 +146,5 @@ When creating a new validator type:
 3. Add static `create()` factory method for immutability
 4. Export from `src/validators/index.ts`
 5. Add factory method to `v` object in `src/index.ts`
-6. Add error messages to all 27+ locale files in `src/locales/`
+6. Add error messages to all 68 locale files in `src/locales/`
 7. Create tests in `tests/validators/` with edge cases

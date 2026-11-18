@@ -2,7 +2,7 @@
 
 A complete guide for migrating your codebase to VLD 3.0 with minimal changes, Zod-compatible package subpaths, and release-gated parity checks.
 
-**VLD 3.0 is a non-breaking major bump.** Existing `v.*` factories stay V1 by default (backward compatible); use `vV2` or `v.setV2Mode(true)` for the V2 method-memoization path. **2.56x faster** vs Zod 4.6.7 on the honest head-to-head benchmark (`benchmarks/dropin-vs-zod.cjs`, 10/10 wins, semantic-checked; the earlier 3.03x figure was measured against Zod 4.6.4). Zod 4.6 APIs (`.validate()`, `z.iban()`, `z.instanceof().properties()`, `z.withParser()`, new `fromJSONSchema` keywords) are fully supported; `.validate()` wins every scenario head-to-head at up to 35.5x.
+**VLD 3.0 is a non-breaking major bump.** Existing `v.*` factories stay V1 by default (backward compatible); use `vV2` or `v.setV2Mode(true)` for the V2 method-memoization path. **3.18x faster** vs Zod 4.6.7 on the honest head-to-head benchmark (re-measured on 3.3.1, 2026-11-18) (`benchmarks/dropin-vs-zod.cjs`, 10/10 wins, semantic-checked; the earlier 3.03x figure was measured against Zod 4.6.4). Zod 4.6 APIs (`.validate()`, `z.iban()`, `z.instanceof().properties()`, `z.withParser()`, new `fromJSONSchema` keywords) are fully supported; `.validate()` wins every scenario head-to-head at up to 32x.
 
 ## Table of Contents
 
@@ -21,9 +21,9 @@ A complete guide for migrating your codebase to VLD 3.0 with minimal changes, Zo
 
 ## Why Migrate?
 
-### Performance Benefits (v3.0 — V2 method-memoization)
+### Performance Benefits (v3.0 — V2 method-memoization; per-scenario rows vs Zod 4.6.4 are the historical 3.0.5 baseline)
 
-- **3.03x faster** than Zod 4.6.4 on the honest head-to-head (10/10 wins, semantic-checked, `benchmarks/dropin-vs-zod.cjs`)
+- **3.18x faster** than Zod 4.6.7 on the honest head-to-head (10/10 wins, semantic-checked, `benchmarks/dropin-vs-zod.cjs`; per-scenario median of 4 runs re-measured 2026-11-18 on 3.3.1)
 - **1.6-10x less memory** than Zod (per-instance retained heap)
 - **10.3x faster** than Zod 4.6.4 on `number().int().positive().min(1)`
 - **2.0x faster** than Zod 4.6.4 on `string().min(1).email()`
@@ -34,11 +34,11 @@ A complete guide for migrating your codebase to VLD 3.0 with minimal changes, Zo
 
 - **V2 method-memoization**: 21 V2 classes shipped, opt-in via `vV2` / `v.*V2()` / `v.setV2Mode(true)`
 - **ZodError compatibility layer**: `toZodError()` / `ZodLikeError` / `toZodSafeResult()`
-- **Built-in i18n**: 27+ languages supported out of the box
+- **Built-in i18n**: 68 languages supported out of the box
 - **Better error formatting**: Tree, pretty, flatten, plus ZodError `.format()` / `.flatten()`
 - **Immutable validators**: Prevent memory leaks
-- **3113/3113 unit tests pass**, 22/22 real-world Zod test, 29/29 Zod 4.6 differential test
-- **100% statement, branch, function, and line coverage**
+- **130 test suites, 3620/3620 unit tests pass**, 22/22 real-world Zod test, 455+ differential sweep cases against Zod 4.6.7
+- **100% statement / function / line coverage, 99.04% branch** (enforced thresholds)
 - **Plugin system**: Extend VLD with custom validators
 - **CLI tools**: Command-line validation and benchmarking
 - **Event system**: Validation lifecycle hooks
@@ -117,7 +117,7 @@ That's it. VLD is a drop-in replacement for Zod 4.6 (and 4.5). All public API su
 ### When to use V2
 
 - New code, hot paths
-- You want 3.00x drop-in speedup (or 1.6-10x less memory with V2)
+- You want the 3.18x drop-in speedup vs Zod 4.6.7 (or 1.6-10x less memory with V2)
 - You don't read internal fields
 
 ### Mixing V1 and V2
@@ -136,7 +136,7 @@ const schema = v.object({            // V1 object
 
 ## API Compatibility
 
-VLD 3.0 is 100% backward compatible with VLD 2.4.x. All 3031 unit tests (including 2704 carried over from VLD 2.x) pass unchanged.
+VLD 3.0 is 100% backward compatible with VLD 2.4.x. All 3031 unit tests at the 3.0 release (including 2704 carried over from VLD 2.x) passed unchanged; the current 3.3.1 tree runs 130 suites / 3620 tests.
 
 ## Zod 4.5 Package Subpaths
 
@@ -263,7 +263,7 @@ import { v } from '@oxog/vld';
 const User = v.object({ name: v.string() });
 const parsed = User.parse(data);
 const safe = User.safeParse(data);
-// Identical behavior, 3.00x faster (drop-in geomean vs Zod 4.5.4)
+// Identical behavior, 3.18x faster (drop-in geomean vs Zod 4.6.7)
 ```
 
 ### V2 drop-in for hot paths

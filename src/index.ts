@@ -18,6 +18,7 @@
 import { VldCheck, VldBase, configureToJSONSchema, resolveErrorMessage, type ErrorParam, type ParseResult, type SchemaMetadata, type SuperRefineContext } from './validators/base';
 import type { Infer, Input, Output } from './validators';
 import { globalRegistry, registry } from './registry';
+import { rootCoreSurface } from './v4/core/root-surface';
 import { VldError, expandNestedIssues, type VldIssue } from './errors-core';
 
 // Import validators
@@ -352,22 +353,15 @@ export const util = {
  */
 const NEVER_SENTINEL = VldNever.create();
 
-export const core = {
-  util,
-  regexes: stringFormats.regexes,
-  locales: localeNamespace,
-  NEVER: NEVER_SENTINEL,
-  TimePrecision,
-  ZodIssueCode,
-  globalRegistry,
-  config: configure,
-  getErrorMap: getGlobalErrorMap,
-  setErrorMap: setGlobalErrorMap,
-  parse: <T>(schema: VldBase<unknown, T>, value: unknown): T => schema.parse(value),
-  safeParse: <T>(schema: VldBase<unknown, T>, value: unknown): ParseResult<T> => schema.safeParse(value),
-  parseAsync: <T>(schema: VldBase<unknown, T>, value: unknown): Promise<T> => schema.parseAsync(value),
-  safeParseAsync: <T>(schema: VldBase<unknown, T>, value: unknown): Promise<ParseResult<T>> => schema.safeParseAsync(value)
-} as const;
+/**
+ * Zod's `z.core` surface on the root namespace.
+ *
+ * `root-core` is a plain object of getters, so nothing is resolved (or kept in
+ * a consumer's bundle) unless a core name is actually read. It also carries
+ * `util`, `regexes`, `locales`, `NEVER`, `TimePrecision` and the parse helpers,
+ * so `core` needs no separate base object.
+ */
+export const core = rootCoreSurface;
 
 // Re-export types
 export type {
@@ -906,7 +900,15 @@ const vMapFactory = <K, V>(key: VldBase<unknown, K>, value: VldBase<unknown, V>)
 const vInstanceofFactory = <T>(constructor: Constructor<T>, message?: RefinementMessage) =>
   new VldInstance<T>(constructor, messageFromRefinementParam(message));
 const vDefaultFactory = <TInput, TOutput>(schema: VldBase<TInput, TOutput>, defaultValue: TOutput | (() => TOutput)) => new VldDefault(schema, defaultValue);
-const vFunctionFactory = () => functionFn();
+type FunctionParamsArg = { input?: readonly AnySchema[]; output?: AnySchema };
+function vFunctionFactory(): VldFunction;
+function vFunctionFactory<const A extends readonly AnySchema[], R extends AnySchema>(
+  params: { input: A; output: R }
+): VldFunction<A, R>;
+function vFunctionFactory<const A extends readonly AnySchema[]>(params: { input: A }): VldFunction<A, undefined>;
+function vFunctionFactory(params?: FunctionParamsArg): VldFunction<any, any> {
+  return functionFn(params as any);
+}
 const vNeverFactory = () => VldNever.create();
 const vNullFactory = () => VldNull.create();
 const vUndefinedFactory = () => VldUndefined.create();
@@ -1273,7 +1275,8 @@ schema: VldBase<TInput, TOutput>
   registry,
   _default: vDefaultFactory,
   success: <TOutput = unknown>(_val?: TOutput) => customFn<TOutput>({ parse: (val: any) => val as TOutput }),
-  _function: () => functionFn(),
+  // Zod core signature: _function(Class?, params?) - params carries input/output.
+  _function: (...args: unknown[]) => functionFn((args.length > 1 ? args[1] : args[0]) as any),
   ZodType: VldBase,
   ZodTypeAny: VldBase,
   ZodTypeDef: Object,

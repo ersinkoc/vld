@@ -9,8 +9,9 @@ import { cn } from '@/lib/utils'
 // Compiled parse/validate reads `_zod.bag.validator` on the schema; the
 // `parse` body returns the input on success and delegates to the original
 // safeParse on failure (Zod-equivalent Moltar ParseSafe semantic).
-// Note: this is the v2.4.0 release-gate harness. The v3.0.0 headline
-// benchmark is benchmarks/dropin-vs-zod.cjs (10/10 wins, 3.00x geomean).
+// Note: this is the v2.4.0 release-gate harness. The current headline
+// benchmark is benchmarks/dropin-vs-zod.cjs (10/10 wins, 3.18x geomean vs
+// Zod 4.6.7, per-scenario median of 4 runs re-measured 2026-11-18).
 const compileScenarios = [
   {
     name: 'moltarParseSafe',
@@ -75,8 +76,9 @@ const validateWins = compileScenarios.filter((s) => s.vldValidate > s.zodValidat
 
 // ============================================================================
 // v2.1.0 release-gate runtime/startup/memory snapshot (kept for context)
-// Note: v2.1.0 numbers are reference snapshots. The v3.0.0 headline
-// benchmark is benchmarks/dropin-vs-zod.cjs (10/10 wins, 3.00x geomean).
+// Note: v2.1.0 numbers are reference snapshots. The current headline
+// benchmark is benchmarks/dropin-vs-zod.cjs (10/10 wins, 3.18x geomean vs
+// Zod 4.6.7, per-scenario median of 4 runs re-measured 2026-11-18).
 // ============================================================================
 const runtimeStartupBenchmarks = [
   {
@@ -196,43 +198,46 @@ const v2MemoryFootprint = [
 
 const features = [
   { icon: Layers, title: 'V2 Method-Memoization', description: 'vV2.* ships the Zod 4.5 method-memoization pattern — part of the drop-in geomean vs Zod 4.6.7 (10/10 honest wins, semantic-checked)', color: 'text-amber-500', bg: 'bg-amber-500/10' },
-  { icon: Zap, title: 'Up to 35x .validate()', description: 'The Zod 4.6 boolean .validate() API is covered by a dedicated head-to-head: VLD wins every scenario, up to 35.5x on arrays and 28x on wide objects', color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
-  { icon: Cpu, title: '2.56x Drop-in safeParse', description: 'Honest head-to-head geomean vs Zod 4.6.7 on 10 scenarios — the same import-line swap, measured with 1M safeParse ops x 21 runs', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+  { icon: Zap, title: 'Up to 32x .validate()', description: 'The Zod 4.6 boolean .validate() API is covered by a dedicated head-to-head: VLD wins every scenario, 29.8x median on arrays (31.6x peak) and 27.8x on wide objects across four runs', color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
+  { icon: Cpu, title: '3.18x Drop-in safeParse', description: 'Honest head-to-head geomean vs Zod 4.6.7 on 10 scenarios — the same import-line swap, 1M safeParse ops x 21 runs, per-scenario median of 4 suite runs', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
   { icon: HardDrive, title: '259/259 Zod Parity', description: 'Root, mini, v4, v4-mini, v4/core, v4/locales, compile, and nested exports verified against Zod 4.6.7 - every behavioral differential sweep battery reports zero divergences', color: 'text-blue-500', bg: 'bg-blue-500/10' },
   { icon: Clock, title: 'Zero Dependencies', description: 'No runtime dependencies. V2 single-def + check classes; AOT compile emits a flat `if/typeof` chain that V8 inlines to a single guard', color: 'text-purple-500', bg: 'bg-purple-500/10' },
 ]
 
 const bundleComparison = [
-  { library: 'VLD NEVER (esbuild)', size: '68.5 KiB', raw: 'tree-shaken', percentage: 37 },
-  { library: 'VLD realistic schema (esbuild)', size: '124.8 KiB', raw: 'tree-shaken', percentage: 68 },
+  { library: 'VLD NEVER (esbuild)', size: '72.2 KiB', raw: 'tree-shaken', percentage: 39 },
+  { library: 'VLD realistic schema (esbuild)', size: '130.5 KiB', raw: 'tree-shaken', percentage: 71 },
   { library: 'Zod 4.6.7 root', size: '182.8 KiB', raw: 'tree-shaken', percentage: 100 },
 ]
 
 const memoryOverall = [
   { library: 'VLD', heap: '1.00x', percentage: 28 },
-  { library: 'Zod 4.6', heap: '3.56x', percentage: 100 },
+  { library: 'Zod 4.6', heap: '3.37x', percentage: 100 },
 ]
 
 // ============================================================================
-// v3.3.0 Drop-in Head-to-Head — VLD vV2 vs Zod 4.6.7 (HONEST, semantic-checked)
+// v3.3.1 Drop-in Head-to-Head — VLD vV2 vs Zod 4.6.7 (HONEST, semantic-checked)
 // ============================================================================
-// Re-measured 2026-10-23: VLD 3.1.0 vs Zod 4.6.7 (npm latest).
+// Re-measured 2026-11-18: VLD 3.3.1 vs Zod 4.6.7 (npm latest), Node 26.13.0 / win32 x64.
+// The numbers below are the PER-SCENARIO MEDIAN of 4 full suite runs: single
+// runs are noisy (the four geomeans spanned 3.06x-3.23x), so the median is the
+// conservative figure. VLD won 10/10 scenarios in every one of the four runs.
 // Source: benchmarks/dropin-vs-zod.cjs
 // Methodology: SAME logical schema built in BOTH libraries using public API,
 // 1M safeParse ops, 21 runs median, 10k warmup. Every input is verified
 // to produce identical accept/reject in both libraries before timing.
 // This is the "I just changed `import { z }` to `import { v }`" benchmark.
 const dropinScenarios = [
-  { name: '1. string().min(1).email()',            vV2Ms: 45.49, v1Ms: 45.35, zodMs: 53.50 },
-  { name: '2. number().int().positive().min(1)',   vV2Ms: 11.43, v1Ms: 21.20, zodMs: 71.23 },
-  { name: '3. object({ a: string, b: number })',   vV2Ms: 16.63, v1Ms: 17.18, zodMs: 37.12 },
-  { name: '4. tuple([string, number, boolean])',   vV2Ms: 39.37, v1Ms: 20.30, zodMs: 78.79 },
-  { name: '5. array(string()).min(1).max(100)',    vV2Ms: 29.16, v1Ms: 24.27, zodMs: 125.44 },
-  { name: '6. union([string, number])',            vV2Ms: 15.00, v1Ms: 14.57, zodMs: 41.25 },
-  { name: '7. discriminatedUnion (cat | dog)',     vV2Ms: 37.20, v1Ms: 53.49, zodMs: 52.11 },
-  { name: '8. nested object (3 levels)',           vV2Ms: 174.34, v1Ms: 177.28, zodMs: 223.14 },
-  { name: '9. record(string())',                   vV2Ms: 66.26, v1Ms: 72.77, zodMs: 378.63 },
-  { name: '10. literal("active")',                 vV2Ms: 10.93, v1Ms: 12.43, zodMs: 38.41 },
+  { name: '1. string().min(1).email()',            vV2Ms: 44.59, v1Ms: 47.08, zodMs: 58.56 },
+  { name: '2. number().int().positive().min(1)',   vV2Ms: 11.33, v1Ms: 21.55, zodMs: 77.17 },
+  { name: '3. object({ a: string, b: number })',   vV2Ms: 11.91, v1Ms: 12.00, zodMs: 41.23 },
+  { name: '4. tuple([string, number, boolean])',   vV2Ms: 34.89, v1Ms: 20.93, zodMs: 88.36 },
+  { name: '5. array(string()).min(1).max(100)',    vV2Ms: 28.21, v1Ms: 24.03, zodMs: 150.66 },
+  { name: '6. union([string, number])',            vV2Ms: 15.27, v1Ms: 15.47, zodMs: 37.90 },
+  { name: '7. discriminatedUnion (cat | dog)',     vV2Ms: 19.41, v1Ms: 25.02, zodMs: 55.05 },
+  { name: '8. nested object (3 levels)',           vV2Ms: 83.77, v1Ms: 49.54, zodMs: 230.60 },
+  { name: '9. record(string())',                   vV2Ms: 80.44, v1Ms: 76.40, zodMs: 356.15 },
+  { name: '10. literal("active")',                 vV2Ms: 13.45, v1Ms: 15.86, zodMs: 39.71 },
 ]
 
 // Compute the geometric mean speedup over Zod
@@ -246,18 +251,19 @@ const dropinV2Wins = dropinScenarios.filter((s) => s.vV2Ms < s.zodMs).length
 const dropinV1Wins = dropinScenarios.filter((s) => s.v1Ms < s.zodMs).length
 
 // ============================================================================
-// v3.0.9 Zod 4.6 `.validate()` head-to-head — boolean validation, no result objects
+// v3.3.1 Zod 4.6 `.validate()` head-to-head — boolean validation, no result objects
 // ============================================================================
 // Source: benchmarks/validate-vs-zod.cjs
 // Same call on both libraries: schema.validate(input). 500k ops, median of 15
-// runs, 10k warmup. Both libraries must agree on accept/reject before timing.
+// runs, 10k warmup, per-scenario median of four full runs re-measured 2026-11-19
+// (Node 26.13.0 / win32 x64). Both libraries must agree on accept/reject before timing.
 const validateScenarios = [
-  { name: 'string().min(3).max(64).regex()',      zodMs: 24.53, vldMs: 8.88,  speedup: '2.8x' },
-  { name: 'wide object (12 string fields)',       zodMs: 306.13, vldMs: 10.91, speedup: '28.1x' },
-  { name: 'nested object (3 levels)',             zodMs: 204.66, vldMs: 21.37, speedup: '9.6x' },
-  { name: 'array of 50 objects',                  zodMs: 2356.67, vldMs: 66.33, speedup: '35.5x' },
-  { name: 'config object (defaults/optionals)',   zodMs: 94.94, vldMs: 3.44,  speedup: '27.6x' },
-  { name: 'z.iban() checksum (Zod 4.6 format)',   zodMs: 86.83, vldMs: 57.65, speedup: '1.5x' },
+  { name: 'string().min(3).max(64).regex()',      zodMs: 29.94,  vldMs: 10.27, speedup: '2.9x' },
+  { name: 'wide object (12 string fields)',       zodMs: 339.22, vldMs: 12.21, speedup: '27.8x' },
+  { name: 'nested object (3 levels)',             zodMs: 218.50, vldMs: 37.59, speedup: '5.8x' },
+  { name: 'array of 50 objects',                  zodMs: 2218.39, vldMs: 74.47, speedup: '29.8x' },
+  { name: 'config object (defaults/optionals)',   zodMs: 90.17,  vldMs: 3.21,  speedup: '28.1x' },
+  { name: 'z.iban() checksum (Zod 4.6 format)',   zodMs: 83.47,  vldMs: 59.24, speedup: '1.4x' },
 ]
 
 // ============================================================================
@@ -338,7 +344,7 @@ export function BenchmarkPage() {
             </div>
             <h1 className="font-display text-4xl lg:text-5xl font-bold mb-4">Performance Benchmarks</h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              v3.3.0 honest head-to-head against Zod 4.6. <strong>10 scenarios, same logical schema, same input, semantic-checked</strong> — <strong>2.56x geometric mean</strong> speedup vs Zod 4.6.7 with <strong>10/10 wins</strong>. A dedicated <strong>.validate()</strong> boolean head-to-head follows below, where VLD wins every scenario.
+              v3.3.1 honest head-to-head against Zod 4.6. <strong>10 scenarios, same logical schema, same input, semantic-checked</strong> — <strong>3.18x geometric mean</strong> speedup vs Zod 4.6.7 with <strong>10/10 wins</strong>, reported as the per-scenario median of 4 full suite runs. A dedicated <strong>.validate()</strong> boolean head-to-head follows below, where VLD wins every scenario.
             </p>
           </div>
 
@@ -620,7 +626,7 @@ if (!u.success) console.log(u.error.format())  // Zod-compatible`}
                   `.validate()` — VLD vs Zod 4.6 (boolean, no result objects)
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  The same <code className="font-mono">schema.validate(input)</code> call on both libraries. 500k ops × 15 runs median — <code className="font-mono">benchmarks/validate-vs-zod.cjs</code> is a release gate that fails if VLD loses any scenario.
+                  The same <code className="font-mono">schema.validate(input)</code> call on both libraries. 500k ops × 15 runs median, per-scenario median of four full runs on 2026-11-19 — <code className="font-mono">benchmarks/validate-vs-zod.cjs</code> is a release gate that fails if VLD loses any scenario.
                 </p>
               </div>
               <div className="hidden sm:flex items-center gap-4 text-xs">
@@ -1001,7 +1007,7 @@ if (!u.success) console.log(u.error.format())  // Zod-compatible`}
                   </div>
                 ))}
                 <p className="text-xs text-muted-foreground mt-4">
-                  * VLD rows measured 2026-10-27 by <code className="font-mono">verify:treeshake</code> (esbuild probes, 3.2.0 pin-fix baseline); Zod row by the release bundle gate. Before the 3.2.0 pin fixes every vld root import measured ~464 KB under esbuild. Package sizes are gate-checked too.
+                  * VLD rows re-measured 2026-11-18 on 3.3.1 by <code className="font-mono">verify:treeshake</code> (esbuild probes); Zod row by the release bundle gate. Before the 3.2.0 pin fixes every vld root import measured ~464 KB under esbuild. Package sizes are gate-checked too.
                 </p>
               </div>
             </div>
@@ -1032,7 +1038,7 @@ if (!u.success) console.log(u.error.format())  // Zod-compatible`}
                   </div>
                 ))}
                 <p className="text-xs text-muted-foreground mt-4">
-                  VLD schema-creation retained heap is <strong className="text-vld-success">3.56x lower</strong> than Zod 4.6 (release-gated, median of 3 fresh-process samples); total retained heap across parse scenarios is 1.45x lower
+                  VLD schema-creation retained heap is <strong className="text-vld-success">3.37x lower</strong> than Zod 4.6 (release-gated, median of 5 fresh-process samples); total retained heap across parse scenarios is 1.44x lower
                 </p>
               </div>
             </div>
@@ -1079,7 +1085,7 @@ if (!u.success) console.log(u.error.format())  // Zod-compatible`}
             <p className="text-sm text-muted-foreground">
               <strong className="text-foreground">Note:</strong> Benchmark results may vary based on hardware, Node.js version, and system load.
               All guards are measured against Zod 4.6.7 (npm <code className="font-mono">latest</code> at audit time). The drop-in
-              head-to-head is in <code className="font-mono">benchmarks/dropin-vs-zod.cjs</code> (10/10 wins, 2.56x geomean vs Zod 4.6.7) and the
+              head-to-head is in <code className="font-mono">benchmarks/dropin-vs-zod.cjs</code> (10/10 wins, 3.18x geomean vs Zod 4.6.7, median of 4 suite runs) and the
               boolean .validate() head-to-head in <code className="font-mono">benchmarks/validate-vs-zod.cjs</code> (wins every scenario).
               The release gate compares against the installed latest stable Zod and must pass before publishing.
             </p>

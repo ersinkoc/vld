@@ -1,6 +1,6 @@
-# VLD Performance Guide (v3.3.0)
+# VLD Performance Guide (v3.3.1)
 
-Comprehensive guide to understanding and optimizing VLD's performance in your applications. As of 3.3.0 against Zod 4.6.7 the honest head-to-head is 2.56x geomean (10/10 wins, semantic-checked); the 3.03x figure below was measured against Zod 4.6.4. On top of that, Zod 4.6's `.validate()` boolean API is covered by a dedicated head-to-head where VLD wins every scenario at up to 35.5x. V2 method-memoization is opt-in via `vV2` or `v.setV2Mode(true)`; 1.6-10x smaller per instance.
+Comprehensive guide to understanding and optimizing VLD's performance in your applications. As of 3.3.1 against Zod 4.6.7 the honest head-to-head is 3.18x geomean (10/10 wins, semantic-checked; per-scenario median of 4 full runs on 2026-11-18, Node 26.13.0; the individual runs spanned 3.06x-3.23x); the 3.03x figure below is the historical v3.0.5 measurement against Zod 4.6.4. On top of that, Zod 4.6's `.validate()` boolean API is covered by a dedicated head-to-head where VLD wins every scenario at up to 32x. V2 method-memoization is opt-in via `vV2` or `v.setV2Mode(true)`; 1.6-10x smaller per instance.
 
 ## Table of Contents
 
@@ -32,7 +32,9 @@ VLD 3.0 is built from the ground up with performance as a primary goal. The rele
 
 ## V2 vs V1 vs Zod 4.6 — Headline Numbers
 
-### Runtime (1M `safeParse` operations, pre-built schemas)
+The runtime and memory tables in this section are the **historical v3.0.5 baseline**, measured against Zod 4.6.4 / 4.5. The current 3.3.1 re-measurement against Zod 4.6.7 (3.18x geomean, 10/10 wins, per-scenario median of 4 runs on 2026-11-18) is in [Release-Gated Snapshot](#release-gated-snapshot).
+
+### Runtime — historical v3.0.5 baseline (1M `safeParse` operations, pre-built schemas, Zod 4.6.4)
 
 | Schema | v.* (V1) | vV2 | Zod 4.6.4 | V2 vs Zod |
 |---|---:|---:|---:|---:|
@@ -43,20 +45,20 @@ VLD 3.0 is built from the ground up with performance as a primary goal. The rele
 | `record(string())` | 93ms | **72ms** | 472ms | **6.5x faster** |
 | `literal("active")` | 17ms | **14ms** | 40ms | **2.8x faster** |
 
-*1M `safeParse` operations, pre-built schemas, Node v24.13.0. Lower is better.*
+*Historical v3.0.5 measurement against Zod 4.6.4: 1M `safeParse` operations, pre-built schemas, Node v24.13.0. Lower is better.*
 
-### Memory (N=100k, 3-pass GC)
+### Memory — historical v3.0.5 baseline (N=100k, 3-pass GC, Zod 4.5)
 
 | Schema | v.* (V1) | vV2 | Zod 4.5 | V2 vs Zod |
 |---|---:|---:|---:|---:|
 | `string().email()` | 704 B/instance | **400 B/instance** | 4210 B/instance | ~10x smaller |
 | Realistic API 10 fields | 7354 B/instance | **4980 B/instance** | ~50 KB/instance | ~10x smaller |
 
-*Per-instance retained heap, lower is better.*
+*Historical v3.0.5 measurement against Zod 4.5: per-instance retained heap, lower is better.*
 
 ### Test Coverage
 
-- **116 test suites, 3314/3314 tests pass** (statement 100% / branch 99% / function 100% / line 100%)
+- **130 test suites, 3620/3620 tests pass** (statement 100% / branch 99.04% / function 100% / line 100%)
 - **22/22 real-world Zod pattern test** (discriminated union, lazy, preprocess, pipe, brand, pick/omit, merge, extend, catch, default, transform, refine, etc.)
 - **455+ differential sweep cases** against the installed Zod 4.6.7 report zero divergences
 
@@ -66,30 +68,52 @@ Zod 4.6 introduced `.validate()` — boolean validation without building result 
 
 | Schema | Zod validate | VLD validate | VLD vs Zod |
 |---|---:|---:|---:|
-| `string().min(3).max(64).regex()` | 25ms | 9ms | **2.8x faster** |
-| Wide object (12 string fields) | 306ms | 11ms | **28x faster** |
-| Nested object (3 levels) | 205ms | 21ms | **9.6x faster** |
-| Array of 50 objects | 2357ms | 66ms | **35.5x faster** |
-| Config object (defaults/optionals) | 95ms | 3ms | **27.6x faster** |
-| `z.iban()` checksum | 87ms | 58ms | **1.5x faster** |
+| `string().min(3).max(64).regex()` | 30ms | 10ms | **2.9x faster** |
+| Wide object (12 string fields) | 339ms | 12ms | **27.8x faster** |
+| Nested object (3 levels) | 219ms | 38ms | **5.8x faster** |
+| Array of 50 objects | 2218ms | 74ms | **29.8x faster** |
+| Config object (defaults/optionals) | 90ms | 3ms | **28.1x faster** |
+| `z.iban()` checksum | 83ms | 59ms | **1.4x faster** |
 
-*500k ops, median of 15 runs, 10k warmup, Node v24.13.0.*
+*The table is the per-scenario median of four guarded runs of `npm run benchmark:validate` on 2026-11-19 (500k ops, median of 15 runs each, 10k warmup, win32 x64, Node 26.13.0); the website benchmark page reports the same medians. Within those four runs the array ratio reached a 31.6x single-run peak (25.4x-31.6x across runs; wide object 25.6x-29.7x), so the release note claims at most 32x.*
 
 ## Benchmark Results
 
 ### Release-Gated Snapshot
 
-| Guard | v3.3.0 Snapshot | Release Threshold |
+| Guard | v3.3.1 Snapshot | Release Threshold |
 |-------|------------------|-------------------|
-| Runtime throughput (drop-in) | **2.56x faster than Zod 4.6.7** (10/10 wins, semantic-checked; 3.03x vs 4.6.4) | Must stay faster |
-| `.validate()` head-to-head | **Faster than `zod.validate()` on every scenario**, up to 35.5x | Must stay faster |
+| Runtime throughput (drop-in) | **3.18x faster than Zod 4.6.7** (10/10 wins, semantic-checked on 3.3.1; 3.03x vs 4.6.4) | Must stay faster |
+| `.validate()` head-to-head | **Faster than `zod.validate()` on every scenario**, up to 32x | Must stay faster |
 | Memory (V2) | **1.6-10x less than Zod 4.6** | Must stay below |
 | Startup | **1.5x+ faster** | >= 1.10x |
-| 3314 unit tests | **PASS** | No regressions |
+| 3620 unit tests | **PASS** | No regressions |
 | 22/22 real-world Zod test | **PASS** | All must pass |
-| Bundle size | **91.6 KiB root / 60.8 KiB mini** (Zod 4.6.7 root: 182.8 KiB) | Release-gated |
+| Bundle size | **96.0 KiB root / 78.2 KiB mini** string probes (Zod 4.6.7 root: 182.8 KiB) | Release-gated |
 
-### Memory Usage vs Zod 4.5
+#### Guarded parse scenarios (`benchmark:guard:built`)
+
+All 11 cases from `benchmarks/performance-guard.cjs`, VLD against the installed Zod 4.6.7. CI requires every case to stay faster (floor 1.2x) and the average ratio to stay at 3x or above. The table is generated from the guard by `npm run docs:guarded-table`, which also re-runs `sync-docs` for `website-new/public/docs`; it is byte-identical to the one in the README:
+
+<!-- guarded-table:start -->
+| Benchmark Case (guarded) | VLD Throughput | vs Zod 4.6.7 |
+|----------------|----------------|------------------|
+| Simple String | ~379M ops/sec | **2.2x faster** |
+| Number / Positive Int | ~354M ops/sec | **10.0x faster** |
+| Array of Numbers | ~108M ops/sec | **2.4x faster** |
+| Simple Object | ~228M ops/sec | **4.2x faster** |
+| Union (string \| number) | ~67M ops/sec | **3.4x faster** |
+| Optional Parse | ~391M ops/sec | **5.9x faster** |
+| Nullish Parse | ~386M ops/sec | **12.9x faster** |
+| Discriminated Union | ~78M ops/sec | **1.9x faster** |
+| Mixed Primitive Object | ~114M ops/sec | **3.7x faster** |
+| Optional-Heavy Object | ~136M ops/sec | **3.1x faster** |
+| Config Object (defaults) | ~46M ops/sec | **3.9x faster** |
+
+*Generated by `npm run docs:guarded-table` from `benchmark:guard:built`, so it is not hand-edited: per-scenario median of 3 guard runs on 2026-11-18 against Zod 4.6.7, 5 in-process samples each. The ratios swing between runs on shared hardware (Number / Positive Int spanned 8.6x-10.0x, average 4.78x-5.07x), so re-run the script instead of editing the numbers.*
+<!-- guarded-table:end -->
+
+### Memory Usage vs Zod 4.5 — historical v3.0.5 baseline
 
 | Metric | vV2 | v.* (V1) | Zod 4.5 | Improvement (V2) |
 |--------|-----|----------|---------|------------------|
@@ -97,13 +121,15 @@ Zod 4.6 introduced `.validate()` — boolean validation without building result 
 | Realistic API per instance | 4980 B | 7354 B | ~50 KB | **10x smaller** |
 | Composite wins | 30-40% over V1 | baseline | 3-10x more | **30-40%** |
 
-### Startup Performance
+### Startup Performance — historical v3.0.5 baseline (Zod 4.5)
 
 | Metric | Improvement |
 |--------|-------------|
 | Library Import | **1.32x faster than Zod 4.5** |
 | Total Startup | **1.55x faster** |
 | Warm Parse | **2.90x faster** |
+
+*Historical v3.0.5 measurement against Zod 4.5. The 3.3.1 release gate still requires total startup at 1.10x+ versus Zod 4.6.7 and measures 1.5x+.*
 
 ## V2 Method-Memoization Internals
 
@@ -200,7 +226,7 @@ if (result.success) {
 ```javascript
 import { vV2 } from '@oxog/vld';
 
-// part of the 3.00x drop-in geomean
+// part of the 3.18x drop-in geomean vs Zod 4.6.7
 const hotPathSchema = vV2.string().min(1).email();
 ```
 
@@ -366,17 +392,19 @@ VLD has zero dependencies, resulting in smaller bundle sizes:
 
 | Library | Minified | Dependencies |
 |---------|----------|--------------|
-| VLD root string bundle (rollup probe) | 93.3 KiB | 0 |
-| VLD root NEVER probe (esbuild) | 68.5 KiB | 0 |
-| VLD realistic schema (esbuild) | 124.8 KiB | 0 |
-| VLD mini string bundle | 60.8 KiB | 0 |
-| Zod 4.6.7 root string bundle | 182.8 KiB | 0 |
-| Yup | 145 KB | 15 deps |
-| Joi | 218 KB | 12 deps |
+| VLD root string probe (`verify:bundle`, rollup) | 96.0 KiB | 0 |
+| VLD mini string probe (`verify:bundle`, rollup) | 78.2 KiB | 0 |
+| VLD root `NEVER` probe (`verify:treeshake`, rollup) | 74.6 KiB | 0 |
+| VLD realistic schema (`verify:treeshake`, rollup) | 134.9 KiB | 0 |
+| VLD root `NEVER` probe (`verify:treeshake`, esbuild) | 72.2 KiB | 0 |
+| VLD realistic schema (`verify:treeshake`, esbuild) | 130.5 KiB | 0 |
+| Zod 4.6.7 root string probe (`verify:bundle`, rollup) | 182.8 KiB | 0 |
+| Yup (library's own published build, reference only) | 145 KB | 15 deps |
+| Joi (library's own published build, reference only) | 218 KB | 12 deps |
 
-*Same tree-shaken `string().min(2)` probe bundled for every library; rollup row measured by the release bundle gate (`npm run verify:bundle`), esbuild rows by `verify:treeshake` (2026-10-27; before the pin fixes every root import was ~464 KB under esbuild).*
+*Same tree-shaken `string().min(2)` probe for the VLD/Zod rows, re-measured on 3.3.1 (2026-11-18, Node 26.13.0) and enforced by `npm run verify:bundle` / `npm run verify:treeshake`; rollup mirrors Vite production builds and keeps a `v.core` getter object it cannot prove unused, esbuild drops it. The Yup/Joi rows are 3.0-era reference sizes from those libraries' own builds and are not re-measured here.*
 
-The release gate checks bundle output and package size on every release. The v3.0.0 package check produced a 295 KiB tarball with 1,674 KiB unpacked size and 299 files.
+The release gate checks bundle output and package size on every release. The 3.3.1 package check packs a 501.5 KiB tarball with 2,163.3 KiB unpacked across 473 files (historical: the v3.0.0 check produced 295 KiB / 1,674 KiB / 299 files).
 
 ### Tree Shaking
 
@@ -409,11 +437,11 @@ const schema = vV2.string().email();
 npm run benchmark
 ```
 
-### V2 vs V1 vs Zod 4.5 (v3.0 new)
+### V2 vs V1 vs Zod (v3.0 new)
 
 ```bash
 npm run benchmark:full
-# Runs benchmarks/performance.cjs — full suite including V2 scenarios
+# Runs benchmarks/performance.cjs — full suite including V2 scenarios (baseline: installed zod)
 ```
 
 ### Memory Benchmark
@@ -434,13 +462,13 @@ npm run benchmark:startup
 npm run release:check
 ```
 
-This runs linting, TypeScript checks, the full Jest suite (3314 tests), build, ASCII/docs/export/bundle/type/package/install/security verification, Zod parity checks against the installed npm-latest Zod (4.6.7), real app drop-in verification, and runtime/startup/memory performance guards.
+This runs linting, TypeScript checks, the full Jest suite (3620 tests), build, ASCII/docs/export/bundle/type/package/install/security verification, Zod parity checks against the installed npm-latest Zod (4.6.7), real app drop-in verification, and runtime/startup/memory performance guards.
 
 ## Performance Tips Summary (v3.0)
 
 1. **Reuse schemas** — Create once, use many times
 2. **Use safeParse** — Avoid exception overhead
-3. **Use vV2 for hot paths** — part of the 2.56x drop-in geomean vs Zod 4.6.7
+3. **Use vV2 for hot paths** — part of the 3.18x drop-in geomean vs Zod 4.6.7
 4. **Use v.setV2Mode(true)** — One-line global V2 swap
 5. **Optimize unions** — Most common types first
 6. **Flatten structures** — Avoid deep nesting

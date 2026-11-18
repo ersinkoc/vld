@@ -3,11 +3,17 @@
  *
  * Each sample runs in a fresh Node.js process with --expose-gc so heap deltas are
  * comparable and require cache effects do not leak between VLD and Zod.
+ *
+ * The default sample count is 5, not 3: a single fresh process can retain a few
+ * hundred KiB of extra schema heap from GC timing, which moved the aggregate
+ * ratio from 1.44x to 1.40x (1.398x actual) and tripped the 1.4x floor on one
+ * 3-sample run. A median of 5 samples absorbs one such outlier; the floor
+ * itself is unchanged. Override with VLD_MEMORY_GUARD_SAMPLES.
  */
 
 const { execFileSync } = require('child_process');
 
-const samples = Number(process.env.VLD_MEMORY_GUARD_SAMPLES || 3);
+const samples = Number(process.env.VLD_MEMORY_GUARD_SAMPLES || 5);
 // v2.4.0 added the AOT compile module (~700 LOC) to the published bundle, so
 // VLD retained heap grew past the 2x ratio established in v2.1.0. The 1.5x
 // minimum still asserted a meaningful win over Zod (see v2.4.0 release notes).
@@ -206,15 +212,15 @@ for (let i = 0; i < cases.length; i++) {
 }
 
 console.log(
-  `Total ratios: ${totalMemoryRatio.toFixed(2)}x less retained heap, ` +
-    `${totalSpeedRatio.toFixed(2)}x aggregate speed`
+  `Total ratios: ${totalMemoryRatio.toFixed(3)}x less retained heap, ` +
+    `${totalSpeedRatio.toFixed(3)}x aggregate speed`
 );
 
 if (totalMemoryRatio < minTotalMemoryRatio) {
-  failures.push(`total memory ratio ${totalMemoryRatio.toFixed(2)}x is below ${minTotalMemoryRatio}x`);
+  failures.push(`total memory ratio ${totalMemoryRatio.toFixed(3)}x is below ${minTotalMemoryRatio}x`);
 }
 if (totalSpeedRatio < minTotalSpeedRatio) {
-  failures.push(`total speed ratio ${totalSpeedRatio.toFixed(2)}x is below ${minTotalSpeedRatio}x`);
+  failures.push(`total speed ratio ${totalSpeedRatio.toFixed(3)}x is below ${minTotalSpeedRatio}x`);
 }
 
 if (failures.length > 0) {

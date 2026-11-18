@@ -112,7 +112,7 @@ interface DocContent {
 const docContent: Record<string, DocContent> = {
   'boolean-validate': {
     title: 'Boolean .validate()',
-    description: 'Zod 4.6 boolean validation: check validity without building result objects or errors. VLD lazily AOT-compiles each schema on its first .validate() call and wins every scenario head-to-head (up to 35.5x).',
+    description: 'Zod 4.6 boolean validation: check validity without building result objects or errors. VLD lazily AOT-compiles each schema on its first .validate() call and wins every scenario head-to-head (up to 32x).',
     code: `import { v } from "@oxog/vld"
 
 const User = v.object({ name: v.string(), age: v.number().int() })
@@ -233,12 +233,14 @@ if (result.success) {
 }`,
     lang: 'typescript',
     tips: [
-      'VLD v3.3.0 is checked against Zod 4.6.7 (259/259 exports; every behavioral sweep - formats, container semantics, JSON Schema, error formatting - reports zero divergences)',
-      '`import { z } from "@oxog/vld"` is a true drop-in for `import { z } from "zod"` — 2.56x faster vs Zod 4.6.7 (10/10 wins, semantic-checked; zero divergences)',
+      'VLD v3.3.1 is checked against Zod 4.6.7 (259/259 exports; every behavioral sweep - formats, container semantics, JSON Schema, error formatting - reports zero divergences)',
+      '`import { z } from "@oxog/vld"` is a true drop-in for `import { z } from "zod"` — 3.18x faster vs Zod 4.6.7 (10/10 wins, per-scenario median of 4 runs, semantic-checked; zero divergences)',
+      '`v.core` mirrors Zod\'s whole `z.core` surface (312 names: classes, `_*` factories, checks, `toDotPath`, `mergeValues`, compile). It is a plain object of getters, so a bundle that never reads it drops it entirely (root entry stays 96.0 KiB vs Zod 182.8 KiB); `@oxog/vld/v4/core` carries the same surface as a subpath',
+      'Every `v.core._*` factory accepts Zod\'s optional leading class argument, e.g. `_array($ZodArray, schema)` or `_check(fn)` with the payload-issues contract',
       'Root, mini, v4, v4-mini, v4/core, v4/locales, and compile entry points are covered',
       'Zod 4.6 APIs ship built-in: .validate(), .validateAsync(), z.iban(), z.currencyCode(), z.instanceof().properties(), z.withParser()',
       'Full TypeScript inference',
-      '3314 tests with 100% statement, 99% branch, 100% function and line coverage',
+      '3620 tests with 100% statement, 99% branch, 100% function and line coverage',
     ],
   },
   installation: {
@@ -300,9 +302,10 @@ if (result.success) {
     description: 'VLD was built to address performance limitations while maintaining an ergonomic API and practical Zod replacement paths.',
     code: `// VLD advantages over alternatives:
 
-// 0. TRUE DROP-IN for Zod 4.6 (v3.3.0) — only the import line changes
+// 0. TRUE DROP-IN for Zod 4.6 (v3.3.1) — only the import line changes
 import { z } from "@oxog/vld"   // <- same as: import { z } from "zod"
-//    2.56x faster vs Zod 4.6.7, 10/10 honest wins, semantic-checked
+//    3.18x faster vs Zod 4.6.7, 10/10 honest wins, semantic-checked
+//    v.core mirrors the whole z.core surface (312 names), zero cost until read
 //    benchmarks/dropin-vs-zod.cjs
 const schema = z.object({ name: z.string().min(2) })
 

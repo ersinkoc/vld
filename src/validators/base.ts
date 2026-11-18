@@ -1235,6 +1235,11 @@ export class VldReadonly<TInput, TOutput> extends VldBase<TInput, Readonly<TOutp
     return Object.freeze(this.baseValidator.parse(value));
   }
 
+  /** Zod: the schema this one wraps. */
+  unwrap(): VldBase<TInput, TOutput> {
+    return this.baseValidator;
+  }
+
   // Encode through the wrapper, so a codec inside it runs its encoder.
   override encode(value: any): any {
     return this.baseValidator.encode(value as any);
@@ -1855,6 +1860,11 @@ export class VldDefault<TInput, TOutput> extends VldBase<TInput | undefined, TOu
 
   unwrap(): VldBase<TInput, TOutput> {
     return this.baseValidator;
+  }
+
+  /** @internal Default value or factory, read by the generated object parser. */
+  get _defaultValue(): ValueOrFactory<TOutput> {
+    return this.defaultValue;
   }
 
   removeDefault(): VldBase<TInput, TOutput> {

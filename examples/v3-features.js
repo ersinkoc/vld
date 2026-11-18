@@ -5,8 +5,8 @@
 // VLD 3.0 ships the V2 pattern across every chain-heavy validator, matching
 // Zod 4.5's "method memoization" optimization and beating it on both the
 // valid path (2-6x faster) and the per-instance memory footprint (1.6-10x
-// smaller). The 22/22 real-world Zod test passes and 2704/2704 unit tests
-// stay green.
+// smaller). The 22/22 real-world Zod test passes and 3620/3620 unit tests
+// across 130 suites stay green.
 
 import {
   v,
@@ -130,7 +130,7 @@ if (zodResult.success) {
 // ===========================================================================
 // 6. V2 + i18n — locale-aware V2 chains
 // ===========================================================================
-console.log('\n6. V2 + i18n (27+ locales, including V2 error paths):');
+console.log('\n6. V2 + i18n (68 locales, including V2 error paths):');
 
 setLocale('en');
 try {
@@ -201,6 +201,6 @@ console.log('     Realistic API 10 fields       : 4980 B/instance vs Zod ~50kB (
 
 console.log('\nv3.0 feature showcase complete.');
 console.log('   21 V2 classes shipped');
-console.log('   95 test suites, 2704/2704 tests passing');
+console.log('   130 test suites, 3620/3620 tests passing');
 console.log('   22/22 real-world Zod pattern test passing');
 console.log('   Zero dependencies, 100% TypeScript strict mode');

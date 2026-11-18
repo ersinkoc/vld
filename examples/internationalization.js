@@ -1,11 +1,11 @@
 // VLD v3.0 — Internationalization example
-// 27+ language support for validation errors, including V2 error paths.
+// 68 language catalogs for validation errors, including V2 error paths.
 // VLD's V2 path (vV2) reuses the same locale templates as V1.
 
 import { v, vV2, setLocale, getLocale } from '../dist/index.js';
 
 console.log('VLD v3.0 Internationalization Examples\n');
-console.log('27+ languages supported on both V1 and V2 paths\n');
+console.log('68 languages supported on both V1 and V2 paths\n');
 
 const testSchema = v.object({
   name: v.string().min(3),
@@ -186,5 +186,5 @@ setLocale('en');
 console.log(`\nFinal locale: ${getLocale()}`);
 
 console.log('\nInternationalization demo complete.');
-console.log('27+ languages supported on V1 and V2 paths.');
+console.log('68 languages supported on V1 and V2 paths.');
 console.log('Tip: vV2 chains for hot paths, v.setLocale for global locale.');

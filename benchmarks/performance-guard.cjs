@@ -108,6 +108,30 @@ const vldUnion = v.union(v.string(), v.number());
 const zodUnion = z.union([z.string(), z.number()]);
 const vldOptional = v.string().optional();
 const zodOptional = z.string().optional();
+// Shapes where the generated object parser does the work: plain mixed
+// primitives, optional-heavy configs and default-heavy configs.
+const vldMixed = v.object({ a: v.string(), b: v.number(), c: v.boolean(), d: v.number(), e: v.string(), f: v.number() });
+const zodMixed = z.object({ a: z.string(), b: z.number(), c: z.boolean(), d: z.number(), e: z.string(), f: z.number() });
+const mixedValue = { a: 'x', b: 1, c: true, d: 2, e: 'y', f: 3 };
+const vldOptionalHeavy = v.object({ a: v.string().optional(), b: v.number().optional(), c: v.string().optional() });
+const zodOptionalHeavy = z.object({ a: z.string().optional(), b: z.number().optional(), c: z.string().optional() });
+const vldConfig = v.object({
+  host: v.string().default('localhost'),
+  port: v.number().int().min(1).max(65535).default(8080),
+  debug: v.boolean().optional(),
+  retries: v.number().int().min(0).optional(),
+  ca: v.string().optional(),
+  timeout: v.number().optional(),
+});
+const zodConfig = z.object({
+  host: z.string().default('localhost'),
+  port: z.number().int().min(1).max(65535).default(8080),
+  debug: z.boolean().optional(),
+  retries: z.number().int().min(0).optional(),
+  ca: z.string().optional(),
+  timeout: z.number().optional(),
+});
+const configValue = { host: 'example.com', port: 443 };
 const vldNullish = v.boolean().nullish();
 const zodNullish = z.boolean().nullish();
 const vldDiscUnion = v.discriminatedUnion(
@@ -153,6 +177,9 @@ const results = [
     zodNullish.parse(null);
   }),
   guardedCase('discriminated union parse', 50000, () => vldDiscUnion.parse(discValue), () => zodDiscUnion.parse(discValue)),
+  guardedCase('mixed primitive object parse', 100000, () => vldMixed.parse(mixedValue), () => zodMixed.parse(mixedValue)),
+  guardedCase('optional-heavy object parse', 100000, () => vldOptionalHeavy.parse({}), () => zodOptionalHeavy.parse({})),
+  guardedCase('config object with defaults parse', 100000, () => vldConfig.parse(configValue), () => zodConfig.parse(configValue)),
 ];
 
 const averageRatio = results.reduce((sum, result) => sum + result.ratio, 0) / results.length;

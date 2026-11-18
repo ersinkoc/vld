@@ -4,6 +4,7 @@ import { VldEnum } from './enum';
 import { isDangerousKey, isProtoKey } from '../utils/security';
 import { VldError, VldIssue, stringifyForMessage, createInvalidTypeIssue, getTypeName } from '../errors-core';
 import { isRecordLike } from './record';
+import { buildObjectParser, createParserState, type ObjectParser, type ObjectParserOp, type ObjectParserState } from './object-jit';
 
 /**
  * Assign a shape field onto a parse result. A shape key named "__proto__" must
@@ -70,6 +71,10 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
   private readonly _canUseSimpleObjectFastPath: boolean;
   private readonly _canUseSafeParseFastPath: boolean;
   private readonly _hasProtoKey: boolean;
+  /** Lazily built generated parser; undefined = not built yet, null = unavailable. */
+  private _generatedParser: ObjectParser | null | undefined = undefined;
+  /** Where the last generated-parser run stopped (read right after a rejection). */
+  private readonly _parserState: ObjectParserState = createParserState();
 
 
   /** Zod: after .required(), a defaulted / caught key must be present. */
@@ -110,6 +115,26 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
       path: fieldKey !== undefined ? [fieldKey] : [],
       ...(expected !== undefined ? { expected } : {}),
       message: fieldKey !== undefined && !message.startsWith('Invalid field') ? getMessages().objectField(String(fieldKey), message) : message
+    }]);
+  }
+
+  /**
+   * The error `parse()` reports when a field throws: the field key is added to
+   * every issue path and to the message, as parseObjectValue's catch does.
+   */
+  private fieldParseError(error: unknown, fieldKey: string): VldError {
+    if (error instanceof VldError) {
+      return new VldError(error.issues.map(iss => ({
+        ...iss,
+        path: iss.path ? [fieldKey, ...iss.path] : [fieldKey],
+        message: getMessages().objectField(fieldKey, iss.message.startsWith('Invalid field') ? iss.message.replace(/^Invalid field "[^"]+": /, '') : iss.message)
+      })));
+    }
+    const message = error instanceof Error ? error.message : String(error);
+    return new VldError([{
+      code: 'invalid_type',
+      path: [fieldKey],
+      message: message.startsWith('Invalid field') ? message : getMessages().objectField(fieldKey, message)
     }]);
   }
 
@@ -204,6 +229,85 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
       throw new Error(`Invalid validator for field "${key}"`);
     }
     return validator;
+  }
+
+  /**
+   * Ops for the generated parser, or null when this shape cannot be expressed
+   * as a straight-line check (strict / passthrough / catchall / presence
+   * rules / a `__proto__` key).
+   */
+  private buildParserOps(): ObjectParserOp[] | null {
+    const ops: ObjectParserOp[] = [];
+
+    for (let i = 0; i < this._shapeKeys.length; i++) {
+      const key = this._shapeKeys[i]!;
+      const mode = this._simpleFieldModes[i];
+      if (mode !== undefined) {
+        ops.push({ kind: 'copy', key, mode, literal: this._simpleFieldValues[i] });
+        continue;
+      }
+
+      const validator = this._validators[i];
+      // Absent keys and non-VldBase validators are presence/aggregation rules
+      // the generated parser does not model: the interpreter handles the shape.
+      if (
+        validator === undefined ||
+        validator instanceof VldExactOptional ||
+        typeof (validator as { parse?: unknown }).parse !== 'function'
+      ) {
+        return null;
+      }
+
+      if (validator instanceof VldOptional) {
+        const inner = validator.unwrap();
+        const innerMode = this.getSimpleFieldMode(inner, inner.validatorType);
+        if (innerMode !== undefined) {
+          ops.push({ kind: 'optional', key, mode: innerMode, literal: (inner as any).literal });
+          continue;
+        }
+      }
+
+      if (validator instanceof VldDefault) {
+        const inner = validator.unwrap();
+        const innerMode = this.getSimpleFieldMode(inner, inner.validatorType);
+        if (innerMode !== undefined) {
+          ops.push({
+            kind: 'default', key, mode: innerMode, literal: (inner as any).literal,
+            defaultValue: validator._defaultValue
+          });
+          continue;
+        }
+      }
+
+      ops.push({ kind: 'generic', key, parse: value => validator.parse(value) });
+    }
+
+    return ops;
+  }
+
+  /**
+   * The generated parser for this shape, built once on first use. Null when
+   * code generation is unavailable (CSP) or the shape is not expressible.
+   */
+  private objectParser(): ObjectParser | null {
+    const cached = this._generatedParser;
+    if (cached !== undefined) return cached;
+
+    let parser: ObjectParser | null = null;
+    if (
+      !this._config.strict &&
+      !this._config.passthrough &&
+      !this._config.catchall &&
+      this._config.requiredPresence === undefined &&
+      !this._hasProtoKey &&
+      this._shapeKeys.length > 0
+    ) {
+      const ops = this.buildParserOps();
+      parser = ops === null ? null : buildObjectParser(ops);
+    }
+
+    this._generatedParser = parser;
+    return parser;
   }
 
   private getValidatorType(key: string): string {
@@ -589,11 +693,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
       throw new VldError([createInvalidTypeIssue('object', getTypeName(value), this._config.errorMessage || getMessages().invalidObject)]);
     }
 
-    try {
-      return this.parseObjectValue(value as Record<string, unknown>);
-    } catch (error) {
-      return this.rethrowWithIssues(value, error);
-    }
+    return this.parseObject(value as Record<string, unknown>);
   }
 
   /**
@@ -601,11 +701,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
    * @internal Used by discriminated unions after discriminator lookup.
    */
   parseKnownObject(value: Record<string, unknown>, trustedKey?: string): T {
-    try {
-      return this.parseObjectValue(value, trustedKey);
-    } catch (error) {
-      return this.rethrowWithIssues(value, error);
-    }
+    return this.parseObject(value, trustedKey);
   }
 
   /**
@@ -614,8 +710,27 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
    * @internal
    */
   parseTrustedKnownObject(value: Record<string, unknown>, trustedKey: string): T {
+    return this.parseObject(value, trustedKey, true);
+  }
+
+  /**
+   * Run the generated parser, then the interpreter. A rejected run records the
+   * field it stopped at, so that field's issues are reported from the error it
+   * threw instead of running it (and its transforms) a second time.
+   */
+  private parseObject(value: Record<string, unknown>, trustedKey?: string, trusted = false): T {
+    const parser = this.objectParser();
+    if (parser !== null) {
+      const parsed = parser(value, this._parserState);
+      if (parsed !== null) return parsed as T;
+      const { index, error } = this._parserState;
+      if (error !== null) {
+        throw this.fieldParseError(error, this._shapeKeys[index]!);
+      }
+    }
+
     try {
-      return this.parseObjectValue(value, trustedKey, true);
+      return this.parseObjectValue(value, trustedKey, trusted);
     } catch (error) {
       return this.rethrowWithIssues(value, error);
     }
@@ -637,11 +752,12 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
     skipTrustedLiteralCheck = false,
     progress?: { result: any; index: number }
   ): T {
-    if (this._canUseSimpleObjectFastPath) {
+    // A resumed parse already owns a partial result: start from that field.
+    if (this._canUseSimpleObjectFastPath && progress === undefined) {
       return this.parseSimpleObjectValue(obj, trustedKey, skipTrustedLiteralCheck);
     }
 
-    const result: any = {};
+    const result: any = progress?.result ?? {};
     if (progress) progress.result = result;
 
     // Zod: after .required(), a defaulted / caught key must be present. Check
@@ -657,7 +773,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
     // Validate fields directly on parse() to avoid safeParse result allocation
     // in the successful hot path.
     let currentKey = '';
-    let i = 0;
+    let i = progress?.index ?? 0;
     try {
       for (; i < this._shapeKeys.length; i++) {
         currentKey = this._shapeKeys[i]!;
@@ -754,19 +870,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
       // Fields before `i` already succeeded: safeParse resumes from here
       // instead of running their transforms / refinements a second time.
       if (progress) progress.index = i;
-      if (error instanceof VldError) {
-        throw new VldError(error.issues.map(iss => ({
-          ...iss,
-          path: iss.path ? [currentKey, ...iss.path] : [currentKey],
-          message: getMessages().objectField(currentKey, iss.message.startsWith('Invalid field') ? iss.message.replace(/^Invalid field "[^"]+": /, '') : iss.message)
-        })));
-      }
-      const message = error instanceof Error ? error.message : String(error);
-      throw new VldError([{
-        code: 'invalid_type',
-        path: [currentKey],
-        message: message.startsWith('Invalid field') ? message : getMessages().objectField(currentKey, message)
-      }]);
+      throw this.fieldParseError(error, currentKey);
     }
 
     if (progress) progress.index = this._shapeKeys.length;
@@ -836,7 +940,26 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
 
     const obj = value as Record<string, unknown>;
 
-    if (this._canUseSimpleObjectFastPath) {
+    let result: any = {};
+    let resumeFrom = 0;
+    const issues: VldIssue[] = [];
+
+    const parser = this.objectParser();
+    if (parser !== null) {
+      const parsed = parser(obj, this._parserState);
+      if (parsed !== null) return { success: true, data: parsed as T };
+      const { index, data, error } = this._parserState;
+      result = data;
+      resumeFrom = index;
+      if (error !== null) {
+        // That field already ran and failed: report its issues, then keep
+        // collecting the fields after it.
+        issues.push(...this.createSafeParseError(error, this._shapeKeys[resumeFrom]).issues);
+        resumeFrom += 1;
+      }
+    }
+
+    if (issues.length === 0 && resumeFrom === 0 && this._canUseSimpleObjectFastPath) {
       try {
         return { success: true, data: this.parseSimpleObjectValue(obj) };
       } catch {
@@ -844,10 +967,8 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
       }
     }
 
-    let result: any = {};
-    let resumeFrom = 0;
-    if (this._canUseSafeParseFastPath) {
-      const progress = { result: undefined as any, index: 0 };
+    if (issues.length === 0 && this._canUseSafeParseFastPath) {
+      const progress = { result, index: resumeFrom };
       try {
         return { success: true, data: this.parseObjectValue(obj, undefined, false, progress) };
       } catch {
@@ -859,8 +980,6 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
         }
       }
     }
-
-    const issues: VldIssue[] = [];
 
     // Ultra-optimized field validation - use pre-computed validatorTypes in hot path
     for (let i = resumeFrom; i < this._shapeKeys.length; i++) {

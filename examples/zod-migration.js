@@ -262,5 +262,5 @@ console.log('   Catch invalid input:', withCatchSchema.parse('invalid'));
 
 console.log('\nMigration Complete!');
 console.log('VLD provides 100% Zod compatibility + V2 chains (2-6x faster)');
-console.log('Plus: toZodError, vV2 drop-in, 27+ locales, codecs, i18n, plugin system');
+console.log('Plus: toZodError, vV2 drop-in, 68 locales, codecs, i18n, plugin system');
 console.log('Tip: replace z with v (or import { v as z }) and run as-is.');

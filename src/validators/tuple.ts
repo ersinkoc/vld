@@ -3,7 +3,8 @@ import { itemShape, type ItemShape } from './item-shape';
 export { itemShape };
 export type { ItemShape };
 import { VldBase, ParseResult, VLD_VALIDATOR_TYPES, isAsyncRequiredError } from './base';
-import type { VldOptional, VldExactOptional, VldNullish } from './base';
+import { VldOptional } from './base';
+import type { VldExactOptional, VldNullish } from './base';
 import type { VldOptionalV2, VldNullishV2 } from './wrapper-v2';
 import { getMessages } from '../locales/runtime';
 import { VldError, nestIssues, createInvalidTypeIssue, getTypeName, type VldIssue } from '../errors-core';
@@ -148,6 +149,15 @@ export class VldTuple<
 
   rest<TSchema extends VldBase<any, any>>(validator: TSchema): VldTuple<T, TSchema> {
     return new VldTuple<T, TSchema>(this.validators, this.errorMessage, validator);
+  }
+
+  /**
+   * Zod: every item becomes optional, so any prefix of the tuple parses. A
+   * rest schema is kept as is.
+   */
+  partial(): VldTuple<{ [K in keyof T]: VldOptional<any, ItemOutput<T[K]>> }, TRest> {
+    const optionalItems = this.validators.map(validator => VldOptional.create(validator));
+    return new VldTuple(optionalItems as any, this.errorMessage, this.restValidator) as any;
   }
   
   /**
