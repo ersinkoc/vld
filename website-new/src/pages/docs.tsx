@@ -112,7 +112,7 @@ interface DocContent {
 const docContent: Record<string, DocContent> = {
   'boolean-validate': {
     title: 'Boolean .validate()',
-    description: 'Zod 4.6 boolean validation: check validity without building result objects or errors. VLD lazily AOT-compiles each schema on its first .validate() call and wins every scenario head-to-head (up to 32x).',
+    description: 'Zod 4.6 boolean validation: check validity without building result objects or errors. VLD lazily AOT-compiles each schema on its first .validate() call and wins every scenario head-to-head (34.9x observed peak).',
     code: `import { v } from "@oxog/vld"
 
 const User = v.object({ name: v.string(), age: v.number().int() })

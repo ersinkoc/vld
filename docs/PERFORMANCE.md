@@ -1,6 +1,6 @@
 # VLD Performance Guide (v3.3.1)
 
-Comprehensive guide to understanding and optimizing VLD's performance in your applications. As of 3.3.1 against Zod 4.6.7 the honest head-to-head is 3.18x geomean (10/10 wins, semantic-checked; per-scenario median of 4 full runs on 2026-11-18, Node 26.13.0; the individual runs spanned 3.06x-3.23x); the 3.03x figure below is the historical v3.0.5 measurement against Zod 4.6.4. On top of that, Zod 4.6's `.validate()` boolean API is covered by a dedicated head-to-head where VLD wins every scenario at up to 32x. V2 method-memoization is opt-in via `vV2` or `v.setV2Mode(true)`; 1.6-10x smaller per instance.
+Comprehensive guide to understanding and optimizing VLD's performance in your applications. As of 3.3.1 against Zod 4.6.7 the honest head-to-head is 3.18x geomean (10/10 wins, semantic-checked; per-scenario median of 4 full runs on 2026-11-18, Node 26.13.0; the individual runs spanned 3.06x-3.23x); the 3.03x figure below is the historical v3.0.5 measurement against Zod 4.6.4. On top of that, Zod 4.6's `.validate()` boolean API is covered by a dedicated head-to-head where VLD wins every scenario, with an observed peak of 34.9x on the config object. V2 method-memoization is opt-in via `vV2` or `v.setV2Mode(true)`; 1.6-10x smaller per instance.
 
 ## Table of Contents
 
@@ -68,14 +68,14 @@ Zod 4.6 introduced `.validate()` — boolean validation without building result 
 
 | Schema | Zod validate | VLD validate | VLD vs Zod |
 |---|---:|---:|---:|
-| `string().min(3).max(64).regex()` | 30ms | 10ms | **2.9x faster** |
-| Wide object (12 string fields) | 339ms | 12ms | **27.8x faster** |
-| Nested object (3 levels) | 219ms | 38ms | **5.8x faster** |
-| Array of 50 objects | 2218ms | 74ms | **29.8x faster** |
-| Config object (defaults/optionals) | 90ms | 3ms | **28.1x faster** |
+| `string().min(3).max(64).regex()` | 28ms | 9ms | **3.2x faster** |
+| Wide object (12 string fields) | 333ms | 12ms | **27.2x faster** |
+| Nested object (3 levels) | 217ms | 38ms | **5.7x faster** |
+| Array of 50 objects | 2173ms | 73ms | **29.7x faster** |
+| Config object (defaults/optionals) | 87ms | 3ms | **27.8x faster** |
 | `z.iban()` checksum | 83ms | 59ms | **1.4x faster** |
 
-*The table is the per-scenario median of four guarded runs of `npm run benchmark:validate` on 2026-11-19 (500k ops, median of 15 runs each, 10k warmup, win32 x64, Node 26.13.0); the website benchmark page reports the same medians. Within those four runs the array ratio reached a 31.6x single-run peak (25.4x-31.6x across runs; wide object 25.6x-29.7x), so the release note claims at most 32x.*
+*The table is the per-scenario median of five guarded runs of `npm run benchmark:validate` on 2026-11-19 (500k ops, median of 15 runs each, 10k warmup, win32 x64, Node 26.13.0); the website benchmark page reports the same medians. Across those five runs the per-scenario peak is 34.9x (config object; 26.5x-34.9x across runs) and 31.6x (array of 50 objects; 25.4x-31.6x; wide object 20.5x-29.7x), so the docs quote the observed 34.9x peak rather than rounding up to a ceiling.*
 
 ## Benchmark Results
 
@@ -84,7 +84,7 @@ Zod 4.6 introduced `.validate()` — boolean validation without building result 
 | Guard | v3.3.1 Snapshot | Release Threshold |
 |-------|------------------|-------------------|
 | Runtime throughput (drop-in) | **3.18x faster than Zod 4.6.7** (10/10 wins, semantic-checked on 3.3.1; 3.03x vs 4.6.4) | Must stay faster |
-| `.validate()` head-to-head | **Faster than `zod.validate()` on every scenario**, up to 32x | Must stay faster |
+| `.validate()` head-to-head | **Faster than `zod.validate()` on every scenario**, 34.9x observed peak | Must stay faster |
 | Memory (V2) | **1.6-10x less than Zod 4.6** | Must stay below |
 | Startup | **1.5x+ faster** | >= 1.10x |
 | 3620 unit tests | **PASS** | No regressions |

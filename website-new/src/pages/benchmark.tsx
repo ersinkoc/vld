@@ -198,7 +198,7 @@ const v2MemoryFootprint = [
 
 const features = [
   { icon: Layers, title: 'V2 Method-Memoization', description: 'vV2.* ships the Zod 4.5 method-memoization pattern — part of the drop-in geomean vs Zod 4.6.7 (10/10 honest wins, semantic-checked)', color: 'text-amber-500', bg: 'bg-amber-500/10' },
-  { icon: Zap, title: 'Up to 32x .validate()', description: 'The Zod 4.6 boolean .validate() API is covered by a dedicated head-to-head: VLD wins every scenario, 29.8x median on arrays (31.6x peak) and 27.8x on wide objects across four runs', color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
+  { icon: Zap, title: '34.9x peak .validate()', description: 'The Zod 4.6 boolean .validate() API is covered by a dedicated head-to-head: VLD wins every scenario, 29.7x median on arrays (31.6x peak), 27.8x on config objects (34.9x peak) and 27.2x on wide objects across five runs', color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
   { icon: Cpu, title: '3.18x Drop-in safeParse', description: 'Honest head-to-head geomean vs Zod 4.6.7 on 10 scenarios — the same import-line swap, 1M safeParse ops x 21 runs, per-scenario median of 4 suite runs', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
   { icon: HardDrive, title: '259/259 Zod Parity', description: 'Root, mini, v4, v4-mini, v4/core, v4/locales, compile, and nested exports verified against Zod 4.6.7 - every behavioral differential sweep battery reports zero divergences', color: 'text-blue-500', bg: 'bg-blue-500/10' },
   { icon: Clock, title: 'Zero Dependencies', description: 'No runtime dependencies. V2 single-def + check classes; AOT compile emits a flat `if/typeof` chain that V8 inlines to a single guard', color: 'text-purple-500', bg: 'bg-purple-500/10' },
@@ -255,15 +255,15 @@ const dropinV1Wins = dropinScenarios.filter((s) => s.v1Ms < s.zodMs).length
 // ============================================================================
 // Source: benchmarks/validate-vs-zod.cjs
 // Same call on both libraries: schema.validate(input). 500k ops, median of 15
-// runs, 10k warmup, per-scenario median of four full runs re-measured 2026-11-19
+// runs, 10k warmup, per-scenario median of five full runs re-measured 2026-11-19
 // (Node 26.13.0 / win32 x64). Both libraries must agree on accept/reject before timing.
 const validateScenarios = [
-  { name: 'string().min(3).max(64).regex()',      zodMs: 29.94,  vldMs: 10.27, speedup: '2.9x' },
-  { name: 'wide object (12 string fields)',       zodMs: 339.22, vldMs: 12.21, speedup: '27.8x' },
-  { name: 'nested object (3 levels)',             zodMs: 218.50, vldMs: 37.59, speedup: '5.8x' },
-  { name: 'array of 50 objects',                  zodMs: 2218.39, vldMs: 74.47, speedup: '29.8x' },
-  { name: 'config object (defaults/optionals)',   zodMs: 90.17,  vldMs: 3.21,  speedup: '28.1x' },
-  { name: 'z.iban() checksum (Zod 4.6 format)',   zodMs: 83.47,  vldMs: 59.24, speedup: '1.4x' },
+  { name: 'string().min(3).max(64).regex()',      zodMs: 27.54,  vldMs: 8.72,  speedup: '3.2x' },
+  { name: 'wide object (12 string fields)',       zodMs: 333.47, vldMs: 12.27, speedup: '27.2x' },
+  { name: 'nested object (3 levels)',             zodMs: 216.62, vldMs: 37.79, speedup: '5.7x' },
+  { name: 'array of 50 objects',                  zodMs: 2173.18, vldMs: 73.05, speedup: '29.7x' },
+  { name: 'config object (defaults/optionals)',   zodMs: 87.14,  vldMs: 3.14,  speedup: '27.8x' },
+  { name: 'z.iban() checksum (Zod 4.6 format)',   zodMs: 83.20,  vldMs: 58.82, speedup: '1.4x' },
 ]
 
 // ============================================================================
@@ -626,7 +626,7 @@ if (!u.success) console.log(u.error.format())  // Zod-compatible`}
                   `.validate()` — VLD vs Zod 4.6 (boolean, no result objects)
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  The same <code className="font-mono">schema.validate(input)</code> call on both libraries. 500k ops × 15 runs median, per-scenario median of four full runs on 2026-11-19 — <code className="font-mono">benchmarks/validate-vs-zod.cjs</code> is a release gate that fails if VLD loses any scenario.
+                  The same <code className="font-mono">schema.validate(input)</code> call on both libraries. 500k ops × 15 runs median, per-scenario median of five full runs on 2026-11-19 — <code className="font-mono">benchmarks/validate-vs-zod.cjs</code> is a release gate that fails if VLD loses any scenario.
                 </p>
               </div>
               <div className="hidden sm:flex items-center gap-4 text-xs">

@@ -6,7 +6,7 @@ VLD 3.3.1 is a **drop-in replacement for Zod 4.6** (and remains a drop-in for 4.
 
 ## v3.0.5 highlights — Zod 4.6 parity
 
-- **`.validate()` / `.validateAsync()` on every schema**: boolean validation with no result objects, short-circuiting on the first failed check. Three-tier fast path: explicitly compiled validator -> lazily AOT-compiled (memoized on first call, CSP-safe) -> bound runtime parser. Up to **32x faster than `zod.validate()`** (`npm run benchmark:validate`).
+- **`.validate()` / `.validateAsync()` on every schema**: boolean validation with no result objects, short-circuiting on the first failed check. Three-tier fast path: explicitly compiled validator -> lazily AOT-compiled (memoized on first call, CSP-safe) -> bound runtime parser. An observed peak of **34.9x faster than `zod.validate()`** (`npm run benchmark:validate`).
 - **`z.iban()`**: electronic IBAN with the ISO 7064 MOD 97-10 checksum (no BigInt), byte-compatible accept/reject set with Zod 4.6.
 - **`z.instanceof(Cls).properties(shape)`**: validates class-instance fields in place; the prototype survives parsing.
 - **`z.withParser(schema, parser)`**: install an externally generated parser (`INVALID` hands back to the runtime) - the CSP-friendly escape hatch.
@@ -125,14 +125,14 @@ Current head-to-head: **3.18x geomean vs Zod 4.6.7** (10/10 wins, semantic-check
 
 | Schema | Zod validate | VLD validate | VLD vs Zod |
 |---|---:|---:|---:|
-| `string().min(3).max(64).regex()` | 30ms | 10ms | **2.9x faster** |
-| Wide object (12 string fields) | 339ms | 12ms | **27.8x faster** |
-| Nested object (3 levels) | 219ms | 38ms | **5.8x faster** |
-| Array of 50 objects | 2218ms | 74ms | **29.8x faster** |
-| Config object (defaults/optionals) | 90ms | 3ms | **28.1x faster** |
+| `string().min(3).max(64).regex()` | 28ms | 9ms | **3.2x faster** |
+| Wide object (12 string fields) | 333ms | 12ms | **27.2x faster** |
+| Nested object (3 levels) | 217ms | 38ms | **5.7x faster** |
+| Array of 50 objects | 2173ms | 73ms | **29.7x faster** |
+| Config object (defaults/optionals) | 87ms | 3ms | **27.8x faster** |
 | `z.iban()` checksum | 83ms | 59ms | **1.4x faster** |
 
-*Current guarded measurement (`npm run benchmark:validate`, re-checked on 3.3.1): per-scenario median of four runs on 2026-11-19 (500k ops, median of 15 runs each, 10k warmup, win32 x64, Node 26.13.0); the same medians populate the table on the website benchmark page and in `docs/PERFORMANCE.md`. The array ratio reached a 31.6x single-run peak in those runs (25.4x-31.6x), so the release note claims at most 32x.*
+*Current guarded measurement (`npm run benchmark:validate`, re-checked on 3.3.1): per-scenario median of five runs on 2026-11-19 (500k ops, median of 15 runs each, 10k warmup, win32 x64, Node 26.13.0); the same medians populate the table on the website benchmark page and in `docs/PERFORMANCE.md`. Across those five runs the peak is 34.9x on the config object (26.5x-34.9x) and 31.6x on the array (25.4x-31.6x), so the docs quote the observed 34.9x peak rather than a ceiling.*
 
 | Schema | VLD vV2 | Zod 4.5 | V2 vs Zod |
 |---|---:|---:|---:|

@@ -150,7 +150,7 @@ const comparisons = [
   { feature: 'Drop-in Replacement', vld: '3.18x faster vs Zod 4.6.7 (10/10)', zod: 'baseline', winner: 'vld' },
   { feature: 'True z Alias', vld: 'import { z } from "@oxog/vld"', zod: 'native', winner: 'tie' },
   { feature: 'V2 Method-Memoization', vld: 'opt-in via vV2 / setV2Mode', zod: 'baseline', winner: 'vld' },
-  { feature: '.validate() (Zod 4.6 API)', vld: 'faster in every scenario, up to 32x', zod: 'baseline', winner: 'vld' },
+  { feature: '.validate() (Zod 4.6 API)', vld: 'faster in every scenario, 34.9x observed peak', zod: 'baseline', winner: 'vld' },
   { feature: 'Zod 4.6 API surface', vld: 'validate / iban / properties / withParser', zod: 'native', winner: 'tie' },
   { feature: 'V2 Memory Footprint', vld: '1.6-10x smaller', zod: 'baseline', winner: 'vld' },
   { feature: 'Zod 4.6 Parity', vld: '259/259 exports + 1400-case behavior sweep', zod: 'reference', winner: 'vld' },
@@ -186,7 +186,7 @@ export function HomePage() {
               </h1>
 
               <p className="animate-fade-in stagger-2 text-lg text-muted-foreground mb-8 leading-relaxed">
-                A lightning-fast, type-safe validation library with zero dependencies. V3.3.1 is a <strong>true drop-in replacement for Zod 4.6.7</strong> (every differential sweep reports zero divergences, and the CSP ladder resolves AOT compile {'->'} interpreter walker {'->'} runtime parser automatically when <code className="font-mono text-vld-primary">new Function</code> is blocked) — just change <code className="font-mono text-vld-primary">import {'{ z }'}</code> from <code className="font-mono">"zod"</code> to <code className="font-mono text-vld-primary">"@oxog/vld"</code> and you&apos;re done.                 <strong>3.18x faster</strong> geometric mean vs Zod 4.6.7 (10/10 scenarios, 1M safeParse ops × 21 runs, per-scenario median of 4 full suite runs, semantic-checked), and the Zod 4.6 <strong>.validate()</strong> boolean API wins every scenario head-to-head (up to 32x). <code className="font-mono text-vld-primary">toZodError()</code> returns ZodError-shaped errors with <code className="font-mono">.format()</code> and <code className="font-mono">.flatten()</code>.
+                A lightning-fast, type-safe validation library with zero dependencies. V3.3.1 is a <strong>true drop-in replacement for Zod 4.6.7</strong> (every differential sweep reports zero divergences, and the CSP ladder resolves AOT compile {'->'} interpreter walker {'->'} runtime parser automatically when <code className="font-mono text-vld-primary">new Function</code> is blocked) — just change <code className="font-mono text-vld-primary">import {'{ z }'}</code> from <code className="font-mono">"zod"</code> to <code className="font-mono text-vld-primary">"@oxog/vld"</code> and you&apos;re done.                 <strong>3.18x faster</strong> geometric mean vs Zod 4.6.7 (10/10 scenarios, 1M safeParse ops × 21 runs, per-scenario median of 4 full suite runs, semantic-checked), and the Zod 4.6 <strong>.validate()</strong> boolean API wins every scenario head-to-head (34.9x observed peak). <code className="font-mono text-vld-primary">toZodError()</code> returns ZodError-shaped errors with <code className="font-mono">.format()</code> and <code className="font-mono">.flatten()</code>.
               </p>
 
               <div className="animate-fade-in stagger-3 flex flex-wrap items-center gap-4 mb-10">

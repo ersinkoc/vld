@@ -105,11 +105,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The README guarded table now lists all 11 `performance-guard.cjs` scenarios as
   the per-scenario median of three runs (2026-11-18), and the `.validate()`
   tables in `docs/PERFORMANCE.md`, `docs/ZOD_COMPATIBILITY.md` and the website
-  share the per-scenario median of four `.validate()` runs on 2026-11-19
-  (2026-11-18 single-run numbers before that). Those four runs put the
-  per-scenario peak at 31.6x (array of 50 objects) against a 29.8x four-run
-  median, so the ceiling claim is **32x** rather than 30x - the old number sat
-  close enough to the observed peak that one warm run could contradict it.
+  share the per-scenario median of five `.validate()` runs on 2026-11-19
+  (2026-11-18 single-run numbers before that). Those five runs put the
+  per-scenario peak at 34.9x (config object) against a 29.7x five-run
+  median, so the docs quote the **34.9x observed peak** instead of a rounded
+  ceiling: a round number sat close enough to the measured peak that one warm
 - That guarded table is generated, not hand-copied: `npm run docs:guarded-table`
   (`scripts/sync-guarded-table.cjs`) runs `benchmark:guard:built` three times and
   writes the per-scenario medians between the `guarded-table` markers in

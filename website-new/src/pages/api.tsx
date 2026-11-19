@@ -236,7 +236,7 @@ const str = v.toZod("hello")              // v.string()` },
   { name: 'ZodCompileUnsupportedError', description: 'Thrown when a schema feature cannot be lowered to an AOT compile body (e.g. custom refinements, async transforms).', category: 'AOT Compile', signature: 'class ZodCompileUnsupportedError extends Error' },
 
   // Zod 4.6 parity (v3.0.5+ NEW) — boolean validate, IBAN, instance properties, external parsers
-  { name: 'schema.validate()', description: 'Zod 4.6 boolean validation with no result objects. Short-circuits on the first failed check, lazily AOT-compiles the schema on first call, and narrows via a type predicate. VLD wins every scenario head-to-head, up to 32x.', category: 'Zod 4.6 (v3.0.5+)', signature: 'schema.validate(data): data is TInput', example: `import { v } from "@oxog/vld"
+  { name: 'schema.validate()', description: 'Zod 4.6 boolean validation with no result objects. Short-circuits on the first failed check, lazily AOT-compiles the schema on first call, and narrows via a type predicate. VLD wins every scenario head-to-head, 34.9x observed peak.', category: 'Zod 4.6 (v3.0.5+)', signature: 'schema.validate(data): data is TInput', example: `import { v } from "@oxog/vld"
 
 const User = v.object({ name: v.string(), age: v.number().int() })
 User.validate({ name: "ada", age: 36 }) // true
