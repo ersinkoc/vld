@@ -1,6 +1,6 @@
 # VLD Performance Guide (v3.3.2)
 
-Comprehensive guide to understanding and optimizing VLD's performance in your applications. As of 3.3.2 against Zod 4.6.7 the honest head-to-head is 3.11x geomean (10/10 wins, semantic-checked; per-scenario median of five full runs on 2026-11-19, Node 26.13.0; the individual runs spanned 3.01x-3.17x); the 3.03x figure below is the historical v3.0.5 measurement against Zod 4.6.4. On top of that, Zod 4.6's `.validate()` boolean API is covered by a dedicated head-to-head where VLD wins every scenario — a per-scenario median of five full runs on 2026-11-19, with an observed peak of 34.9x on the config object (26.5x-34.9x across those five runs). V2 method-memoization is opt-in via `vV2` or `v.setV2Mode(true)`; 1.6-10x smaller per instance.
+Comprehensive guide to understanding and optimizing VLD's performance in your applications. As of 3.3.2 against Zod 4.6.7 the honest head-to-head is 3.11x geomean (10/10 wins, semantic-checked; per-scenario median of five full runs (`npm run benchmark:dropin-median`) on 2026-11-19, Node 26.13.0; the individual runs spanned 3.01x-3.17x); the 3.03x figure below is the historical v3.0.5 measurement against Zod 4.6.4. On top of that, Zod 4.6's `.validate()` boolean API is covered by a dedicated head-to-head where VLD wins every scenario — a per-scenario median of five full runs on 2026-11-19, with an observed peak of 34.9x on the config object (26.5x-34.9x across those five runs). V2 method-memoization is opt-in via `vV2` or `v.setV2Mode(true)`; 1.6-10x smaller per instance.
 
 ## Table of Contents
 
@@ -32,7 +32,7 @@ VLD 3.0 is built from the ground up with performance as a primary goal. The rele
 
 ## V2 vs V1 vs Zod 4.6 — Headline Numbers
 
-The runtime and memory tables in this section are the **historical v3.0.5 baseline**, measured against Zod 4.6.4 / 4.5. The current 3.3.2 re-measurement against Zod 4.6.7 (3.11x geomean, 10/10 wins, per-scenario median of five drop-in runs on 2026-11-19) is in [Release-Gated Snapshot](#release-gated-snapshot); the adjacent `.validate()` head-to-head is a per-scenario median of five full runs on 2026-11-19 with a 34.9x observed peak.
+The runtime and memory tables in this section are the **historical v3.0.5 baseline**, measured against Zod 4.6.4 / 4.5. The current 3.3.2 re-measurement against Zod 4.6.7 (3.11x geomean, 10/10 wins, per-scenario median of five drop-in runs on 2026-11-19 via `npm run benchmark:dropin-median`) is in [Release-Gated Snapshot](#release-gated-snapshot); the adjacent `.validate()` head-to-head is a per-scenario median of five full runs on 2026-11-19 with a 34.9x observed peak.
 
 ### Runtime — historical v3.0.5 baseline (1M `safeParse` operations, pre-built schemas, Zod 4.6.4)
 

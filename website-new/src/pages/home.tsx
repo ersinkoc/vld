@@ -74,7 +74,7 @@ const features = [
 
 const quickExample = `// v3.3.2 — true drop-in for Zod 4.6.7 (zero divergences)
 //   import { z } from "@oxog/vld"   // literally the same as import { z } from "zod"
-//   benchmarks/dropin-vs-zod.cjs  — 10/10 wins, 3.11x geomean vs Zod 4.6.7
+//   benchmarks/dropin-median.cjs — 10/10 wins, 3.11x geomean vs Zod 4.6.7
 
 import { z } from "@oxog/vld"
 import { toZodError } from "@oxog/vld"

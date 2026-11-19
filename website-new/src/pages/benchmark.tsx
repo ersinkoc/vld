@@ -226,7 +226,7 @@ const memoryOverall = [
 // The numbers below are the PER-SCENARIO MEDIAN of five full suite runs: single
 // runs are noisy (the five geomeans spanned 3.01x-3.17x), so the median is the
 // conservative figure. VLD won 10/10 scenarios in every one of the five runs.
-// Source: benchmarks/dropin-vs-zod.cjs
+// Source: benchmarks/dropin-median.cjs (five runs of benchmarks/dropin-vs-zod.cjs)
 // Methodology: SAME logical schema built in BOTH libraries using public API,
 // 1M safeParse ops, 21 runs median, 10k warmup. Every input is verified
 // to produce identical accept/reject in both libraries before timing.
@@ -274,6 +274,12 @@ const validateScenarios = [
 // Reproducible benchmark scripts (root /benchmarks directory)
 // ============================================================================
 const benchmarkScripts = [
+  {
+    name: 'dropin-median.cjs (five-run median)',
+    path: 'benchmarks/dropin-median.cjs',
+    description: 'Runs the drop-in suite five times and prints the per-scenario median plus the geometric mean over those medians - the figure quoted on this page.',
+    command: 'npm run benchmark:dropin-median',
+  },
   {
     name: 'dropin-vs-zod.cjs (v3.0 HONEST head-to-head)',
     path: 'benchmarks/dropin-vs-zod.cjs',
@@ -572,7 +578,7 @@ if (!u.success) console.log(u.error.format())  // Zod-compatible`}
 
             <div className="bg-vld-primary/5 border-t border-vld-primary/20 px-6 py-3 text-sm text-muted-foreground rounded-b-xl">
               <CheckCircle2 className="w-4 h-4 inline mr-1.5 text-vld-success" />
-              <strong>Run it yourself:</strong> <code className="font-mono text-vld-primary">node benchmarks/dropin-vs-zod.cjs</code> — full output, both libraries installed, semantic check per scenario.
+              <strong>Run it yourself:</strong> <code className="font-mono text-vld-primary">npm run benchmark:dropin-median</code> — full output, both libraries installed, semantic check per scenario.
             </div>
           </div>
 
@@ -1089,7 +1095,7 @@ if (!u.success) console.log(u.error.format())  // Zod-compatible`}
             <p className="text-sm text-muted-foreground">
               <strong className="text-foreground">Note:</strong> Benchmark results may vary based on hardware, Node.js version, and system load.
               All guards are measured against Zod 4.6.7 (npm <code className="font-mono">latest</code> at audit time). The drop-in
-              head-to-head is in <code className="font-mono">benchmarks/dropin-vs-zod.cjs</code> (10/10 wins, 3.11x geomean vs Zod 4.6.7) and the
+              five-run median head-to-head is in <code className="font-mono">benchmarks/dropin-median.cjs</code> (10/10 wins, 3.11x geomean vs Zod 4.6.7) and the
               boolean .validate() head-to-head in <code className="font-mono">benchmarks/validate-vs-zod.cjs</code> (wins every scenario).
               The release gate compares against the installed latest stable Zod and must pass before publishing.
             </p>

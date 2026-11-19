@@ -108,7 +108,7 @@ The bundle gate also compares equivalent tree-shaken root-string probes. The cur
 
 ## Performance — historical baseline (v3.0.5 vs Zod 4.6.4)
 
-Current head-to-head: **3.11x geomean vs Zod 4.6.7** (10/10 wins, semantic-checked on 3.3.2, per-scenario median of five full runs; `benchmarks/dropin-vs-zod.cjs` — see `PERFORMANCE.md`), while the adjacent `.validate()` head-to-head is a per-scenario median of five full runs on 2026-11-19 with a 34.9x observed peak. The tables below are the v3.0.5 measurement against Zod 4.6.4.
+Current head-to-head: **3.11x geomean vs Zod 4.6.7** (10/10 wins, semantic-checked on 3.3.2, per-scenario median of five full runs; `benchmarks/dropin-median.cjs` — see `PERFORMANCE.md`), while the adjacent `.validate()` head-to-head is a per-scenario median of five full runs on 2026-11-19 with a 34.9x observed peak. The tables below are the v3.0.5 measurement against Zod 4.6.4.
 
 | Schema | VLD vV2 | Zod 4.6.4 | V2 vs Zod |
 |---|---:|---:|---:|

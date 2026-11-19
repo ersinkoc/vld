@@ -170,6 +170,7 @@
     "benchmark:guard": "npm run build && npm run benchmark:guard:built",
     "benchmark:guard:built": "node benchmarks/performance-guard.cjs",
     "benchmark:validate": "node benchmarks/validate-vs-zod.cjs",
+    "benchmark:dropin-median": "npm run build && node benchmarks/dropin-median.cjs",
     "benchmark:startup:guard": "node benchmarks/startup-guard.cjs",
     "benchmark:memory:guard": "node benchmarks/memory-guard.cjs",
     "benchmark:truth": "npm run build && node benchmarks/performance.cjs",

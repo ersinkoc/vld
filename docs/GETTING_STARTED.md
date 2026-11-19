@@ -42,7 +42,7 @@ VLD provides a simple, chainable API for building validation schemas. The core c
 2. **Composable**: Build complex schemas from simple primitives
 3. **Performant**: Release-gated against the latest stable Zod for runtime, startup, and memory behavior
 4. **Drop-in Focused**: Root, v4, v4-mini, v4/core, and v4/locales entry points are checked against Zod
-5. **V2 Method-Memoization (v3.0)**: 3.11x drop-in geomean vs Zod 4.6.7 (10/10 honest wins, semantic-checked, per-scenario median of five full runs re-measured 2026-11-19 on 3.3.2); the adjacent `.validate()` head-to-head is a per-scenario median of five full runs on 2026-11-19 with a 34.9x observed peak; 1.6-10x less memory per instance
+5. **V2 Method-Memoization (v3.0)**: 3.11x drop-in geomean vs Zod 4.6.7 (10/10 honest wins, semantic-checked, per-scenario median of five full runs (`benchmarks/dropin-median.cjs`) re-measured 2026-11-19 on 3.3.2); the adjacent `.validate()` head-to-head is a per-scenario median of five full runs on 2026-11-19 with a 34.9x observed peak; 1.6-10x less memory per instance
 6. **ZodError Compatible (v3.0)**: `toZodError()` produces ZodError-shaped errors with `.format()` and `.flatten()`
 7. **Developer-Friendly**: Clear error messages and intuitive API
 
