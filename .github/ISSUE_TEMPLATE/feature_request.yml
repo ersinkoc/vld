@@ -1,0 +1,81 @@
+name: Feature Request
+description: Propose a new validator, codec, locale, plugin primitive, or compatibility addition.
+title: "[feature] "
+labels: ["enhancement"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form to propose a new public API surface — a validator, codec,
+        locale, plugin primitive, or a Zod-compatibility addition. For bug
+        reports, please use the **Bug Report** template instead.
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: API surface
+      description: Where the change would live.
+      options:
+        - Validator (v.string(), v.number(), etc.)
+        - Codec (codecs/index.ts)
+        - Coercion (coercion/)
+        - Locale (src/locales/)
+        - Plugin primitive (plugins/, kernel.ts)
+        - Result / compat (compat/result.ts, compat/emitter.ts)
+        - JSON Schema (utils/json-schema.ts)
+        - CLI (cli/)
+        - Zod parity — root export or subpath alias
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: zod-mirror
+    attributes:
+      label: Mirror of Zod (if parity-related)
+      description: If this is a parity addition, paste the relevant Zod API path. The parity script lives at `scripts/verify-zod-parity.cjs`.
+      placeholder: "z.treeifyError() / z.toJSONSchema() / z.discriminatedUnion() overload"
+    validations:
+      required: false
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: What real-world problem does this solve? Who benefits, and how?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed API
+      description: Sketch the proposed surface — function signatures, options bag, error shape, type-level behaviour. A short code block is fine.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What other shapes were considered, and why this one? Include the trade-offs.
+    validations:
+      required: false
+
+  - type: textarea
+    id: compatibility-impact
+    attributes:
+      label: Compatibility impact
+      description: Does this change anything that currently exports from `@oxog/vld` or any subpath? If yes, describe the deprecation path. The release pipeline requires the published types to remain binary-compatible for non-breaking changes.
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Related PRs, discussions, benchmarks, or links.
+    validations:
+      required: false

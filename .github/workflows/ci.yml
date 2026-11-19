@@ -1,0 +1,143 @@
+name: CI
+
+# Runs the full release gate set on every PR so `release:check` failures
+# surface at review time instead of publish time. Job layout:
+# - gates:      lint, typecheck, full tests, build, and every verify:* gate
+#               across the supported Node matrix (mirrors engines >= 18 claim
+#               for 20/22/24).
+# - benchmarks: performance/startup/memory guards once per PR (single lane:
+#               ratios are machine-relative, extra versions only add flake).
+# - windows:    path-sensitive gates on windows-latest. verify:bundle was
+#               broken on Windows for shipped releases because nothing ever
+#               ran it there; this lane keeps that bug class caught.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gates:
+    name: Gates (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run test:types
+
+      - name: Test (full suite, coverage thresholds enforced)
+        run: npm test -- --runInBand
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify ASCII
+        run: npm run verify:ascii
+
+      - name: Verify docs
+        run: npm run verify:docs
+
+      - name: Verify exports
+        run: npm run verify:exports
+
+      - name: Verify bundle
+        run: npm run verify:bundle
+
+      - name: Verify published types
+        run: npm run verify:types
+
+      - name: Verify package
+        run: npm run verify:package
+
+      - name: Verify install
+        run: npm run verify:install
+
+      - name: Verify security
+        run: npm run verify:security
+
+      - name: Verify Zod parity
+        run: npm run verify:zod
+
+      - name: Verify drop-in app
+        run: npm run verify:drop-in
+
+  benchmarks:
+    name: Performance guards
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Build
+        run: npm run build
+
+      - name: Runtime performance guard
+        run: npm run benchmark:guard:built
+
+      - name: Startup guard
+        run: npm run benchmark:startup:guard
+
+      - name: Memory guard
+        run: npm run benchmark:memory:guard
+
+  windows:
+    name: Windows path-sensitive gates
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify bundle
+        run: npm run verify:bundle
+
+      - name: Verify package
+        run: npm run verify:package
+
+      - name: Verify install
+        run: npm run verify:install
+
+      - name: Verify drop-in app
+        run: npm run verify:drop-in

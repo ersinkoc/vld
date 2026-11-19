@@ -1,0 +1,99 @@
+name: Bug Report
+description: Report a bug in @oxog/vld — incorrect validation, a runtime error, a coverage regression, or a Zod-parity drift.
+title: "[bug] "
+labels: ["bug"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report.
+        Please fill in the sections below — they help us reproduce and triage the issue quickly.
+
+  - type: input
+    id: vld-version
+    attributes:
+      label: @oxog/vld version
+      description: The exact version you observed the bug on (e.g. `2.2.1`).
+      placeholder: "2.2.1"
+    validations:
+      required: true
+
+  - type: input
+    id: zod-version
+    attributes:
+      label: Zod version (if parity-related)
+      description: Only needed if the bug is a behavioural difference from Zod. Run `npm view zod version` to find the current version.
+      placeholder: "4.4.3"
+    validations:
+      required: false
+
+  - type: input
+    id: node-version
+    attributes:
+      label: Node version
+      description: Output of `node --version`.
+      placeholder: "v24.0.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How bad is this for your use case?
+      options:
+        - Critical (validation bypass / wrong result / data corruption)
+        - High (crash on valid input / unusable for a real schema)
+        - Medium (works around but blocks a release)
+        - Low (cosmetic / docs / edge case)
+    validations:
+      required: true
+
+  - type: code-group
+    attributes:
+      label: Reproduction
+      description: |
+        Minimal reproduction — the schema, the input, the actual vs. expected result.
+        Wrap each as a separate code block so it renders cleanly.
+      placeholder: |
+        import { v } from '@oxog/vld';
+
+        const schema = v.object({
+          email: v.string().email(),
+          age:   v.number().min(18),
+        });
+
+        const result = schema.safeParse({ email: 'foo@bar', age: 20 });
+        // result.success should be `false` (foo@bar is not a valid email)
+        // but VLD reports success.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+      description: What you expected to happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: What actually happened — error output, stack trace, and anything else you observed.
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: |
+        Anything else that may help — `tsconfig.json` strictness, bundler
+        (Vite / esbuild / Rollup), ESM vs CJS, `engines` overrides, related
+        issue numbers.
+    validations:
+      required: false
