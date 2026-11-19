@@ -9,8 +9,7 @@
     "build": "npm run sync-docs && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
+    "deploy": "gh workflow run deploy-website.yml --ref main"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
