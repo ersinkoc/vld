@@ -7,7 +7,7 @@ const features = [
   {
     icon: Zap,
     title: '3.18x Faster Drop-in',
-    description: '`import { z } from "@oxog/vld"` is a true drop-in for Zod 4.6.7 - every differential sweep reports zero divergences. 3.18x geomean (10/10 honest wins, semantic-checked, per-scenario median of 4 runs).',
+    description: '`import { z } from "@oxog/vld"` is a true drop-in for Zod 4.6.7 - every differential sweep reports zero divergences. 3.18x geomean (10/10 honest wins, semantic-checked); the `.validate()` head-to-head is a five-run per-scenario median with a 34.9x observed peak.',
     color: 'from-amber-500 to-orange-500',
   },
   {
@@ -72,9 +72,9 @@ const features = [
   },
 ]
 
-const quickExample = `// v3.3.1 — true drop-in for Zod 4.6.7 (zero divergences)
+const quickExample = `// v3.3.2 — true drop-in for Zod 4.6.7 (zero divergences)
 //   import { z } from "@oxog/vld"   // literally the same as import { z } from "zod"
-//   benchmarks/dropin-vs-zod.cjs  — 10/10 wins, 3.18x geomean vs Zod 4.6.7 (per-scenario median of 4 runs)
+//   benchmarks/dropin-vs-zod.cjs  — 10/10 wins, 3.18x geomean vs Zod 4.6.7
 
 import { z } from "@oxog/vld"
 import { toZodError } from "@oxog/vld"
@@ -107,8 +107,8 @@ const schema = z.object({
   email: z.string().email(),
 })
 
-// VLD v3.3.1 — true drop-in: only the import line changes
-//   3.18x faster vs Zod 4.6.7 (10/10 wins, median of 4 runs, semantic-checked)
+// VLD v3.3.2 — true drop-in: only the import line changes
+//   3.18x faster vs Zod 4.6.7 (10/10 wins, semantic-checked)
 //   + Zod 4.6.7 semantics: z.json(), bigint int64/uint64, exactOptional,
 //     .check() ctx contract, CSP-safe v.compile() (runtime fallback)
 import { z } from "@oxog/vld"   // <- THAT'S IT
@@ -176,7 +176,7 @@ export function HomePage() {
               <div className="animate-fade-in">
                 <div className="tag mb-6">
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>v3.3.1 — true Zod 4.6.7 drop-in with zero behavioral divergences, 3.18x faster median (10/10 honest head-to-head), full <code>v.core</code> (312 names, zero bundle cost until read), 68 languages, CSP-safe validation, LLM retry tooling</span>
+                  <span>v3.3.2 — true Zod 4.6.7 drop-in with zero behavioral divergences, 3.18x faster median (10/10 honest head-to-head), full <code>v.core</code> (312 names, zero bundle cost until read), 68 languages, CSP-safe validation, LLM retry tooling</span>
                 </div>
               </div>
 
@@ -186,7 +186,7 @@ export function HomePage() {
               </h1>
 
               <p className="animate-fade-in stagger-2 text-lg text-muted-foreground mb-8 leading-relaxed">
-                A lightning-fast, type-safe validation library with zero dependencies. V3.3.1 is a <strong>true drop-in replacement for Zod 4.6.7</strong> (every differential sweep reports zero divergences, and the CSP ladder resolves AOT compile {'->'} interpreter walker {'->'} runtime parser automatically when <code className="font-mono text-vld-primary">new Function</code> is blocked) — just change <code className="font-mono text-vld-primary">import {'{ z }'}</code> from <code className="font-mono">"zod"</code> to <code className="font-mono text-vld-primary">"@oxog/vld"</code> and you&apos;re done.                 <strong>3.18x faster</strong> geometric mean vs Zod 4.6.7 (10/10 scenarios, 1M safeParse ops × 21 runs, per-scenario median of 4 full suite runs, semantic-checked), and the Zod 4.6 <strong>.validate()</strong> boolean API wins every scenario head-to-head (34.9x observed peak). <code className="font-mono text-vld-primary">toZodError()</code> returns ZodError-shaped errors with <code className="font-mono">.format()</code> and <code className="font-mono">.flatten()</code>.
+                A lightning-fast, type-safe validation library with zero dependencies. V3.3.2 is a <strong>true drop-in replacement for Zod 4.6.7</strong> (every differential sweep reports zero divergences, and the CSP ladder resolves AOT compile {'->'} interpreter walker {'->'} runtime parser automatically when <code className="font-mono text-vld-primary">new Function</code> is blocked) — just change <code className="font-mono text-vld-primary">import {'{ z }'}</code> from <code className="font-mono">"zod"</code> to <code className="font-mono text-vld-primary">"@oxog/vld"</code> and you&apos;re done.                 <strong>3.18x faster</strong> geometric mean vs Zod 4.6.7 (10/10 scenarios, 1M safeParse ops × 21 runs, semantic-checked), and the Zod 4.6 <strong>.validate()</strong> boolean API wins every scenario head-to-head — a per-scenario median of five full runs (2026-11-19) with an observed <strong>34.9x</strong> peak. <code className="font-mono text-vld-primary">toZodError()</code> returns ZodError-shaped errors with <code className="font-mono">.format()</code> and <code className="font-mono">.flatten()</code>.
               </p>
 
               <div className="animate-fade-in stagger-3 flex flex-wrap items-center gap-4 mb-10">

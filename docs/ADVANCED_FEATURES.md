@@ -1,4 +1,4 @@
-# VLD Advanced Features (v3.3.1)
+# VLD Advanced Features (v3.3.2)
 
 Deep dive into VLD's advanced features: V2 method-memoization, ZodError compatibility, type coercion, custom validation, data transformation, preprocessing, complex types, and more.
 

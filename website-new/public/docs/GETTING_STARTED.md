@@ -1,6 +1,6 @@
 # Getting Started with VLD
 
-A comprehensive guide to get you up and running with VLD (v3.3.1), the blazing-fast TypeScript validation library with Zod-compatible root and subpath APIs, V2 method-memoization chains, modular architecture, plugin system, CLI tools, and ZodError compatibility layer.
+A comprehensive guide to get you up and running with VLD (v3.3.2), the blazing-fast TypeScript validation library with Zod-compatible root and subpath APIs, V2 method-memoization chains, modular architecture, plugin system, CLI tools, and ZodError compatibility layer.
 
 ## Table of Contents
 

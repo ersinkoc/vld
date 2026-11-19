@@ -204,7 +204,7 @@ type Order = v.infer<typeof orderSchema>`
     title: 'Zod → VLD Drop-in',
     description: 'True drop-in: same API, same semantics, 3.18x faster vs Zod 4.6.7',
     icon: Repeat,
-    code: `// Zod 4.6.7 and VLD 3.3.1 share the exact same public API.
+    code: `// Zod 4.6.7 and VLD 3.3.2 share the exact same public API.
 // You can switch with a single import line change.
 // See: examples/zod-vs-vld-dropin.js for the verified equivalent.
 
@@ -246,8 +246,8 @@ if (!u.success) {
 // Verified: 10/10 scenarios accept/reject the same inputs in both
 // benchmarks/dropin-vs-zod.cjs — same logical schema, same input,
 // 1M safeParse ops, 21 runs median, semantic-checked first.
-// Result: 3.18x geometric mean speedup over Zod 4.6.7 (per-scenario
-// median of 4 suite runs; single runs spanned 3.06x-3.23x).`
+// Result: 3.18x geometric mean speedup over Zod 4.6.7 (10/10 wins;
+// single runs spanned 3.06x-3.23x).`
   },
   {
     id: 'auth-jwt',

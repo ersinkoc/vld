@@ -46,11 +46,11 @@ export function Footer() {
             </Link>
             <p className="text-sm text-muted-foreground mb-6 max-w-xs leading-relaxed">
               Ultra-fast, type-safe validation for TypeScript.
-              v3.3.1 is a true drop-in for Zod 4.6.7 — 3.18x faster (10/10 honest wins) with zero dependencies.
+              v3.3.2 is a true drop-in for Zod 4.6.7 — 3.18x faster (10/10 honest wins) with zero dependencies.
             </p>
             <div className="mb-6 inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-vld-primary/10 border border-vld-primary/20 text-xs font-medium text-vld-primary">
               <Sparkles className="w-3 h-3" />
-              v3.3.1 — full v.core parity
+              v3.3.2 — full v.core parity
             </div>
             <div className="flex items-center gap-3">
               <a

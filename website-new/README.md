@@ -19,7 +19,7 @@ The build runs `npm run sync-docs` first, replacing `public/docs` with the root 
 
 ## Release Notes
 
-The website copy tracks VLD v3.3.1:
+The website copy tracks VLD v3.3.2:
 
 - Zod-compatible root and subpath APIs
 - AOT compile (`v.compile`, `v.validate`, `v.validateAsync`, `v.properties`, `v.getDiscriminatedOption`, `v.memoizer`, `v.toZod`, `ZodCompileError`, `ZodCompileAsyncError`, `ZodCompileUnsupportedError`)

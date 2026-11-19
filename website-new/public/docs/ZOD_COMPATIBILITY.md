@@ -2,7 +2,7 @@
 
 Last audited: 2026-11-18 against Zod 4.6.7 (`latest` on npm); **259/259 public Zod exports covered**, 130 test suites / 3620 tests pass, and every behavioral differential sweep (string formats, container semantics, coercion edges, JSON Schema emission, error formatting) reports **zero divergences**.
 
-VLD 3.3.1 is a **drop-in replacement for Zod 4.6** (and remains a drop-in for 4.5). The release gate checks the exact npm `latest` version, all public package subpaths, root, subpath, and nested namespace exports, a compiled drop-in application, and a behavior suite covering the latest upstream fixes. A scheduled canary lane installs npm's current `canary` tag without changing the lockfile so upcoming surface changes are visible before they become stable.
+VLD 3.3.2 is a **drop-in replacement for Zod 4.6** (and remains a drop-in for 4.5). The release gate checks the exact npm `latest` version, all public package subpaths, root, subpath, and nested namespace exports, a compiled drop-in application, and a behavior suite covering the latest upstream fixes. A scheduled canary lane installs npm's current `canary` tag without changing the lockfile so upcoming surface changes are visible before they become stable.
 
 ## v3.0.5 highlights — Zod 4.6 parity
 

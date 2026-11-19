@@ -1,4 +1,4 @@
-# VLD API Reference (v3.3.1)
+# VLD API Reference (v3.3.2)
 
 Complete API documentation for the VLD validation library — Zod-compatible root and subpath APIs, V2 method-memoization, modular architecture, plugin system, CLI tools, and ZodError compatibility layer.
 
