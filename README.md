@@ -481,7 +481,7 @@ const s4 = v.object({ a: v.numberV2().int() });   // mixed - V2 child, V1 object
 
 | Zod 4.6 API | VLD | Notes |
 |---|---|---|
-| `schema.validate(data)` | yes | Boolean check, no result object; lazily AOT-compiles on first call - **3.2-34.9x faster than `zod.validate()`** (`node benchmarks/validate-vs-zod.cjs`) |
+| `schema.validate(data)` | yes | Boolean check, no result object; lazily AOT-compiles on first call - **3.2-34.9x faster than `zod.validate()`** across the five 2026-11-19 runs, excluding the `z.iban()` checksum pair, which is the 1.4x outlier outside that range (`node benchmarks/validate-vs-zod.cjs`) |
 | `schema.validateAsync(data)` | yes | Async refinements supported |
 | `z.iban()` | yes | ISO 7064 MOD 97-10 checksum in code, pattern inlined for JSON Schema |
 | `z.instanceof(Cls).properties({...})` | yes | Validates instance fields in place; the prototype survives parsing |
