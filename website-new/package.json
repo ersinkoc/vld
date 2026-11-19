@@ -6,7 +6,7 @@
   "scripts": {
     "sync-docs": "node scripts/sync-docs.js",
     "dev": "vite",
-    "build": "npm run sync-docs && tsc -b && vite build",
+    "build": "npm run sync-docs && tsc -b && vite build && node scripts/spa-routes.js",
     "lint": "eslint .",
     "preview": "vite preview",
     "deploy": "gh workflow run deploy-website.yml --ref main"
