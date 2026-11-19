@@ -56,6 +56,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   regex literals so a brace inside a pattern can no longer desync the
   depth counter into a mid-expression splice.
 
+## [3.3.2] - 2026-11-19
+
+### Changed
+
+- Documentation-only patch. npm snapshots the README at publish time, so the
+  3.3.1 package page still carried the pre-3.3.1 wording: "up to 32x peak on
+  the `validate()` head-to-head" in the feature list and closing summary, and
+  "2.8-33x faster than `zod.validate()`" in the API table. This release
+  publishes the corrected text - the **34.9x observed peak** from the five
+  2026-11-19 runs, and the 3.2-34.9x spread with the `z.iban()` checksum pair
+  named as the 1.4x outlier outside it. No runtime, type or packaging change.
+
 ## [3.3.1] - 2026-11-18
 
 ### Added
