@@ -23,7 +23,7 @@ A complete guide for migrating your codebase to VLD 3.0 with minimal changes, Zo
 
 ### Performance Benefits (v3.0 — V2 method-memoization; per-scenario rows vs Zod 4.6.4 are the historical 3.0.5 baseline)
 
-- **3.18x faster** than Zod 4.6.7 on the honest head-to-head (10/10 wins, semantic-checked, `benchmarks/dropin-vs-zod.cjs`; per-scenario median of 4 runs re-measured 2026-11-18 on 3.3.1)
+- **3.18x faster** than Zod 4.6.7 on the honest head-to-head (10/10 wins, semantic-checked, `benchmarks/dropin-vs-zod.cjs`; per-scenario median of 4 runs re-measured 2026-11-18 on 3.3.1, and the adjacent `.validate()` head-to-head is a per-scenario median of five full runs on 2026-11-19 with a 34.9x observed peak)
 - **1.6-10x less memory** than Zod (per-instance retained heap)
 - **10.3x faster** than Zod 4.6.4 on `number().int().positive().min(1)`
 - **2.0x faster** than Zod 4.6.4 on `string().min(1).email()`

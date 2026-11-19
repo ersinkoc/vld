@@ -11,7 +11,9 @@ import { cn } from '@/lib/utils'
 // safeParse on failure (Zod-equivalent Moltar ParseSafe semantic).
 // Note: this is the v2.4.0 release-gate harness. The current headline
 // benchmark is benchmarks/dropin-vs-zod.cjs (10/10 wins, 3.18x geomean vs
-// Zod 4.6.7, per-scenario median of 4 runs re-measured 2026-11-18).
+// Zod 4.6.7, per-scenario median of 4 runs re-measured 2026-11-18; the
+// .validate() suite beside it is a five-run per-scenario median on 2026-11-19
+// with a 34.9x observed peak).
 const compileScenarios = [
   {
     name: 'moltarParseSafe',
@@ -78,7 +80,9 @@ const validateWins = compileScenarios.filter((s) => s.vldValidate > s.zodValidat
 // v2.1.0 release-gate runtime/startup/memory snapshot (kept for context)
 // Note: v2.1.0 numbers are reference snapshots. The current headline
 // benchmark is benchmarks/dropin-vs-zod.cjs (10/10 wins, 3.18x geomean vs
-// Zod 4.6.7, per-scenario median of 4 runs re-measured 2026-11-18).
+// Zod 4.6.7, per-scenario median of 4 runs re-measured 2026-11-18; the
+// .validate() suite beside it is a five-run per-scenario median on 2026-11-19
+// with a 34.9x observed peak).
 // ============================================================================
 const runtimeStartupBenchmarks = [
   {

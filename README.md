@@ -394,7 +394,7 @@ VLD 3.0 ships the **V2 pattern** (single-def + check classes) for every chain-he
 validator. This matches Zod 4.5's "method memoization" optimization and is
 **3.03x faster** than Zod 4.6.4 on the honest head-to-head at introduction
 (10/10 wins, semantic-checked, see `benchmarks/dropin-vs-zod.cjs`; against
-zod 4.6.7 the drop-in geomean is 3.18x, the per-scenario median of 4 suite runs on 3.3.1) and **1.6-10x smaller** in memory.
+zod 4.6.7 the drop-in geomean is 3.18x, the per-scenario median of 4 suite runs on 3.3.1; the adjacent `.validate()` head-to-head is a per-scenario median of five full runs on 2026-11-19 with a 34.9x observed peak) and **1.6-10x smaller** in memory.
 
 ### What changed
 
