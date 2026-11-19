@@ -110,6 +110,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   per-scenario peak at 34.9x (config object) against a 29.7x five-run
   median, so the docs quote the **34.9x observed peak** instead of a rounded
   ceiling: a round number sat close enough to the measured peak that one warm
+  run could contradict it.
+
 - That guarded table is generated, not hand-copied: `npm run docs:guarded-table`
   (`scripts/sync-guarded-table.cjs`) runs `benchmark:guard:built` three times and
   writes the per-scenario medians between the `guarded-table` markers in
