@@ -1,4 +1,4 @@
-# VLD Performance Guide (v3.3.1)
+# VLD Performance Guide (v3.3.2)
 
 Comprehensive guide to understanding and optimizing VLD's performance in your applications. As of 3.3.1 against Zod 4.6.7 the honest head-to-head is 3.18x geomean (10/10 wins, semantic-checked; per-scenario median of 4 full runs on 2026-11-18, Node 26.13.0; the individual runs spanned 3.06x-3.23x); the 3.03x figure below is the historical v3.0.5 measurement against Zod 4.6.4. On top of that, Zod 4.6's `.validate()` boolean API is covered by a dedicated head-to-head where VLD wins every scenario, with an observed peak of 34.9x on the config object. V2 method-memoization is opt-in via `vV2` or `v.setV2Mode(true)`; 1.6-10x smaller per instance.
 
