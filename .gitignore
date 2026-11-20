@@ -135,3 +135,6 @@ last-*.txt
 test-output/
 test-results/
 .mavis-trash/
+
+
+.freebuff/
