@@ -277,7 +277,7 @@ const benchmarkScripts = [
   {
     name: 'dropin-median.cjs (five-run median)',
     path: 'benchmarks/dropin-median.cjs',
-    description: 'Runs the drop-in suite five times and prints the per-scenario median plus the geometric mean over those medians - the figure quoted on this page.',
+    description: 'Runs the drop-in suite five times, prints the per-scenario median plus the geometric mean over those medians, writes benchmarks/dropin-median.json, and applies those figures to README, docs and this page - so the numbers here are never hand-edited.',
     command: 'npm run benchmark:dropin-median',
   },
   {

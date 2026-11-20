@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "measuredAt": "2026-11-20",
+  "runs": 5,
+  "environment": {
+    "node": "v26.13.0",
+    "platform": "win32 x64",
+    "vld": "3.3.2",
+    "zod": "4.6.7"
+  },
+  "geomean": 3.024849908407041,
+  "v1Geomean": 3.2447632057263327,
+  "wins": 10,
+  "scenarioCount": 10,
+  "v1Wins": 10,
+  "perScenario": {
+    "min": 1.1585544182160017,
+    "max": 6.573883161512027
+  },
+  "perRun": {
+    "min": 3.02,
+    "max": 3.13,
+    "geomeans": [
+      3.1,
+      3.02,
+      3.11,
+      3.11,
+      3.13
+    ]
+  },
+  "totals": {
+    "v1Ms": 301.24,
+    "v2Ms": 346.01,
+    "zodMs": 1095.23,
+    "speedup": 3.1653131412386926
+  },
+  "scenarios": [
+    {
+      "name": "1. string().min(1).email()",
+      "v1Ms": 47.64,
+      "v2Ms": 47.87,
+      "zodMs": 55.46,
+      "speedup": 1.1585544182160017
+    },
+    {
+      "name": "2. number().int().positive().min(1)",
+      "v1Ms": 20.27,
+      "v2Ms": 11.64,
+      "zodMs": 76.52,
+      "speedup": 6.573883161512027
+    },
+    {
+      "name": "3. object({ a: string(), b: number() })",
+      "v1Ms": 11.21,
+      "v2Ms": 12.13,
+      "zodMs": 39,
+      "speedup": 3.215169002473207
+    },
+    {
+      "name": "4. tuple([string, number, boolean])",
+      "v1Ms": 19.19,
+      "v2Ms": 34.67,
+      "zodMs": 83.67,
+      "speedup": 2.4133256417652147
+    },
+    {
+      "name": "5. array(string()).min(1).max(100)",
+      "v1Ms": 22.07,
+      "v2Ms": 26.92,
+      "zodMs": 140.56,
+      "speedup": 5.221396731054978
+    },
+    {
+      "name": "6. union([string, number])",
+      "v1Ms": 14.62,
+      "v2Ms": 16.02,
+      "zodMs": 38.03,
+      "speedup": 2.373907615480649
+    },
+    {
+      "name": "7. discriminatedUnion (cat | dog)",
+      "v1Ms": 25.36,
+      "v2Ms": 20.16,
+      "zodMs": 53.98,
+      "speedup": 2.677579365079365
+    },
+    {
+      "name": "8. nested object (3 levels)",
+      "v1Ms": 44.28,
+      "v2Ms": 80.56,
+      "zodMs": 217.36,
+      "speedup": 2.69811320754717
+    },
+    {
+      "name": "9. record(string())",
+      "v1Ms": 81.17,
+      "v2Ms": 81.89,
+      "zodMs": 350.6,
+      "speedup": 4.281353034558554
+    },
+    {
+      "name": "10. literal(\"active\")",
+      "v1Ms": 15.43,
+      "v2Ms": 14.15,
+      "zodMs": 40.05,
+      "speedup": 2.830388692579505
+    }
+  ]
+}

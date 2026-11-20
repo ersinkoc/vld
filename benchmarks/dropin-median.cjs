@@ -3,8 +3,11 @@
  *
  * Runs benchmarks/dropin-vs-zod.cjs N times (default 5), then reports the
  * PER-SCENARIO MEDIAN of those runs plus the geometric mean over the medians.
- * That is the figure quoted in README.md, docs/ and the website (3.11x on
- * 3.3.2, 2026-11-19), because a single suite run is noisy.
+ * That is the figure quoted in README.md, docs/ and the website, because a
+ * single suite run is noisy. The harness writes benchmarks/dropin-median.json
+ * and `npm run benchmark:dropin-median` then runs
+ * benchmarks/sync-dropin-figures.cjs, which applies those numbers to the prose
+ * and the site table. Never hand-edit the published figures.
  *
  * Run: node benchmarks/dropin-median.cjs        (or: npm run benchmark:dropin-median)
  *      RUNS=7 node benchmarks/dropin-median.cjs
@@ -17,6 +20,7 @@
 const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
+const { buildFigures, localDate, round2 } = require('./dropin-figures.cjs');
 
 const RUNS = Number(process.env.RUNS || 5);
 const suitePath = path.resolve(__dirname, 'dropin-vs-zod.cjs');
@@ -101,10 +105,12 @@ for (let run = 1; run <= RUNS; run++) {
 }
 
 const scenarioNames = runs[0].scenarios.map(s => s.name);
+// Round to the two decimals that get published, so the JSON artifact, the
+// printed table and the site table all describe the same measurement.
 const rows = scenarioNames.map((name, index) => {
-  const v1Ms = median(runs.map(r => r.scenarios[index].v1Ms));
-  const v2Ms = median(runs.map(r => r.scenarios[index].v2Ms));
-  const zodMs = median(runs.map(r => r.scenarios[index].zodMs));
+  const v1Ms = round2(median(runs.map(r => r.scenarios[index].v1Ms)));
+  const v2Ms = round2(median(runs.map(r => r.scenarios[index].v2Ms)));
+  const zodMs = round2(median(runs.map(r => r.scenarios[index].zodMs)));
   return { name, v1Ms, v2Ms, zodMs, speedup: zodMs / v2Ms };
 });
 
@@ -138,3 +144,28 @@ console.log(`Per-scenario median of ${RUNS} full runs: ${v2Geomean.toFixed(2)}x 
 console.log(`Individual run geomeans: ${perRunGeomeans.map(g => g.toFixed(2) + 'x').join(', ')} (${Math.min(...perRunGeomeans).toFixed(2)}x-${Math.max(...perRunGeomeans).toFixed(2)}x).`);
 console.log(`v.* V1 geomean: ${v1Geomean.toFixed(2)}x, ${v1Wins}/${rows.length} wins.`);
 console.log(`Total-time speedup: ${(zodTotal / v2Total).toFixed(2)}x (${v1Total.toFixed(0)} ms V1 | ${v2Total.toFixed(0)} ms V2 | ${zodTotal.toFixed(0)} ms Zod).`);
+
+const vldVersion = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8')).version;
+let zodVersion = 'unknown';
+try {
+  zodVersion = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'node_modules', 'zod', 'package.json'), 'utf8')).version;
+} catch {
+  // zod is a devDependency; the guard below keeps the artifact honest.
+}
+
+const figures = buildFigures({
+  rows,
+  perRunGeomeans,
+  runs: RUNS,
+  date: localDate(),
+  node: process.version,
+  platform: `${process.platform} ${process.arch}`,
+  vld: vldVersion,
+  zod: zodVersion,
+});
+
+fs.writeFileSync(path.resolve(__dirname, 'dropin-median.json'), `${JSON.stringify(figures, null, 2)}\n`);
+console.log(
+  `Figures written to benchmarks/dropin-median.json (${figures.geomean.toFixed(2)}x, ${figures.measuredAt}); ` +
+    'run `npm run benchmark:dropin-median` to publish them.'
+);
