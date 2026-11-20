@@ -10,8 +10,8 @@ import { cn } from '@/lib/utils'
 // `parse` body returns the input on success and delegates to the original
 // safeParse on failure (Zod-equivalent Moltar ParseSafe semantic).
 // Note: this is the v2.4.0 release-gate harness. The current headline
-// benchmark is benchmarks/dropin-vs-zod.cjs (10/10 wins, 3.11x geomean vs
-// Zod 4.6.7, per-scenario median of five full runs re-measured 2026-11-19; the
+// benchmark is benchmarks/dropin-vs-zod.cjs (10/10 wins, 3.02x geomean vs
+// Zod 4.6.7, per-scenario median of five full runs re-measured 2026-11-20; the
 // .validate() suite beside it is a five-run per-scenario median on 2026-11-19
 // with a 34.9x observed peak).
 const compileScenarios = [
@@ -79,8 +79,8 @@ const validateWins = compileScenarios.filter((s) => s.vldValidate > s.zodValidat
 // ============================================================================
 // v2.1.0 release-gate runtime/startup/memory snapshot (kept for context)
 // Note: v2.1.0 numbers are reference snapshots. The current headline
-// benchmark is benchmarks/dropin-vs-zod.cjs (10/10 wins, 3.11x geomean vs
-// Zod 4.6.7, per-scenario median of five full runs re-measured 2026-11-19; the
+// benchmark is benchmarks/dropin-vs-zod.cjs (10/10 wins, 3.02x geomean vs
+// Zod 4.6.7, per-scenario median of five full runs re-measured 2026-11-20; the
 // .validate() suite beside it is a five-run per-scenario median on 2026-11-19
 // with a 34.9x observed peak).
 // ============================================================================
@@ -203,7 +203,7 @@ const v2MemoryFootprint = [
 const features = [
   { icon: Layers, title: 'V2 Method-Memoization', description: 'vV2.* ships the Zod 4.5 method-memoization pattern — part of the drop-in geomean vs Zod 4.6.7 (10/10 honest wins, semantic-checked)', color: 'text-amber-500', bg: 'bg-amber-500/10' },
   { icon: Zap, title: '34.9x peak .validate()', description: 'The Zod 4.6 boolean .validate() API is covered by a dedicated head-to-head: VLD wins every scenario, 29.7x median on arrays (31.6x peak), 27.8x on config objects (34.9x peak) and 27.2x on wide objects across five runs', color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
-  { icon: Cpu, title: '3.11x Drop-in safeParse', description: 'Honest head-to-head geomean vs Zod 4.6.7 on 10 scenarios — the same import-line swap, 1M safeParse ops x 21 runs, semantic-checked', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+  { icon: Cpu, title: '3.02x Drop-in safeParse', description: 'Honest head-to-head geomean vs Zod 4.6.7 on 10 scenarios — the same import-line swap, 1M safeParse ops x 21 runs, semantic-checked', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
   { icon: HardDrive, title: '259/259 Zod Parity', description: 'Root, mini, v4, v4-mini, v4/core, v4/locales, compile, and nested exports verified against Zod 4.6.7 - every behavioral differential sweep battery reports zero divergences', color: 'text-blue-500', bg: 'bg-blue-500/10' },
   { icon: Clock, title: 'Zero Dependencies', description: 'No runtime dependencies. V2 single-def + check classes; AOT compile emits a flat `if/typeof` chain that V8 inlines to a single guard', color: 'text-purple-500', bg: 'bg-purple-500/10' },
 ]
@@ -222,9 +222,9 @@ const memoryOverall = [
 // ============================================================================
 // v3.3.2 Drop-in Head-to-Head — VLD vV2 vs Zod 4.6.7 (HONEST, semantic-checked)
 // ============================================================================
-// Re-measured 2026-11-19: VLD 3.3.2 vs Zod 4.6.7 (npm latest), Node 26.13.0 / win32 x64.
+// Re-measured 2026-11-20: VLD 3.3.2 vs Zod 4.6.7 (npm latest), Node 26.13.0 / win32 x64.
 // The numbers below are the PER-SCENARIO MEDIAN of five full suite runs: single
-// runs are noisy (the five geomeans spanned 3.01x-3.17x), so the median is the
+// runs are noisy (the five geomeans spanned 3.02x-3.13x), so the median is the
 // conservative figure. VLD won 10/10 scenarios in every one of the five runs.
 // Source: benchmarks/dropin-median.cjs (five runs of benchmarks/dropin-vs-zod.cjs)
 // Methodology: SAME logical schema built in BOTH libraries using public API,
@@ -232,16 +232,16 @@ const memoryOverall = [
 // to produce identical accept/reject in both libraries before timing.
 // This is the "I just changed `import { z }` to `import { v }`" benchmark.
 const dropinScenarios = [
-  { name: '1. string().min(1).email()',            vV2Ms: 42.47, v1Ms: 43.26, zodMs: 51.58 },
-  { name: '2. number().int().positive().min(1)',   vV2Ms: 7.10, v1Ms: 13.54, zodMs: 49.66 },
-  { name: '3. object({ a: string, b: number })',   vV2Ms: 7.69, v1Ms: 7.54, zodMs: 25.08 },
-  { name: '4. tuple([string, number, boolean])',   vV2Ms: 26.15, v1Ms: 12.94, zodMs: 55.87 },
-  { name: '5. array(string()).min(1).max(100)',    vV2Ms: 17.84, v1Ms: 14.85, zodMs: 98.62 },
-  { name: '6. union([string, number])',            vV2Ms: 10.86, v1Ms: 10.72, zodMs: 27.07 },
-  { name: '7. discriminatedUnion (cat | dog)',     vV2Ms: 13.11, v1Ms: 17.39, zodMs: 39.50 },
-  { name: '8. nested object (3 levels)',           vV2Ms: 55.28, v1Ms: 30.36, zodMs: 144.76 },
-  { name: '9. record(string())',                   vV2Ms: 50.78, v1Ms: 49.47, zodMs: 216.53 },
-  { name: '10. literal("active")',                 vV2Ms: 8.67, v1Ms: 9.77, zodMs: 26.53 },
+  { name: '1. string().min(1).email()',            vV2Ms: 47.87, v1Ms: 47.64, zodMs: 55.46 },
+  { name: '2. number().int().positive().min(1)',   vV2Ms: 11.64, v1Ms: 20.27, zodMs: 76.52 },
+  { name: '3. object({ a: string, b: number })',   vV2Ms: 12.13, v1Ms: 11.21, zodMs: 39.00 },
+  { name: '4. tuple([string, number, boolean])',   vV2Ms: 34.67, v1Ms: 19.19, zodMs: 83.67 },
+  { name: '5. array(string()).min(1).max(100)',    vV2Ms: 26.92, v1Ms: 22.07, zodMs: 140.56 },
+  { name: '6. union([string, number])',            vV2Ms: 16.02, v1Ms: 14.62, zodMs: 38.03 },
+  { name: '7. discriminatedUnion (cat | dog)',     vV2Ms: 20.16, v1Ms: 25.36, zodMs: 53.98 },
+  { name: '8. nested object (3 levels)',           vV2Ms: 80.56, v1Ms: 44.28, zodMs: 217.36 },
+  { name: '9. record(string())',                   vV2Ms: 81.89, v1Ms: 81.17, zodMs: 350.60 },
+  { name: '10. literal("active")',                 vV2Ms: 14.15, v1Ms: 15.43, zodMs: 40.05 },
 ]
 
 // Compute the geometric mean speedup over Zod
@@ -354,7 +354,7 @@ export function BenchmarkPage() {
             </div>
             <h1 className="font-display text-4xl lg:text-5xl font-bold mb-4">Performance Benchmarks</h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              v3.3.2 honest head-to-head against Zod 4.6. <strong>10 scenarios, same logical schema, same input, semantic-checked</strong> — <strong>3.11x geometric mean</strong> speedup vs Zod 4.6.7 with <strong>10/10 wins</strong>. A dedicated <strong>.validate()</strong> boolean head-to-head follows below: a per-scenario median of five full runs (2026-11-19) with an observed <strong>34.9x</strong> peak, where VLD wins every scenario.
+              v3.3.2 honest head-to-head against Zod 4.6. <strong>10 scenarios, same logical schema, same input, semantic-checked</strong> — <strong>3.02x geometric mean</strong> speedup vs Zod 4.6.7 with <strong>10/10 wins</strong>. A dedicated <strong>.validate()</strong> boolean head-to-head follows below: a per-scenario median of five full runs (2026-11-19) with an observed <strong>34.9x</strong> peak, where VLD wins every scenario.
             </p>
           </div>
 
@@ -1095,7 +1095,7 @@ if (!u.success) console.log(u.error.format())  // Zod-compatible`}
             <p className="text-sm text-muted-foreground">
               <strong className="text-foreground">Note:</strong> Benchmark results may vary based on hardware, Node.js version, and system load.
               All guards are measured against Zod 4.6.7 (npm <code className="font-mono">latest</code> at audit time). The drop-in
-              five-run median head-to-head is in <code className="font-mono">benchmarks/dropin-median.cjs</code> (10/10 wins, 3.11x geomean vs Zod 4.6.7) and the
+              five-run median head-to-head is in <code className="font-mono">benchmarks/dropin-median.cjs</code> (10/10 wins, 3.02x geomean vs Zod 4.6.7) and the
               boolean .validate() head-to-head in <code className="font-mono">benchmarks/validate-vs-zod.cjs</code> (wins every scenario).
               The release gate compares against the installed latest stable Zod and must pass before publishing.
             </p>
