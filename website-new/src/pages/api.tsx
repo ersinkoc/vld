@@ -44,7 +44,7 @@ const apiMethods: ApiMethod[] = [
   { name: 'v.record()', description: 'Dictionary/record validator', category: 'Objects', signature: 'v.record(valueValidator): VldRecord', methods: ['.partial()', '.loose()'], example: `const schema = v.record(v.string(), v.number())` },
   { name: 'v.partialRecord()', description: 'Partial record with optional values', category: 'Objects', signature: 'v.partialRecord(valueValidator): VldRecord' },
 
-  // Zod core surface (v3.3.1)
+  // Zod core surface (v3.3.2)
   {
     name: 'v.core',
     description: 'Zod z.core mirrored on the root namespace: 312 names (classes, _* factories, checks, helpers, compile surface, JSON Schema pass-throughs). A plain object of getters - a bundle that never reads a core name drops it entirely.',

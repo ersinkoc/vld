@@ -302,7 +302,7 @@ if (result.success) {
     description: 'VLD was built to address performance limitations while maintaining an ergonomic API and practical Zod replacement paths.',
     code: `// VLD advantages over alternatives:
 
-// 0. TRUE DROP-IN for Zod 4.6 (v3.3.1) — only the import line changes
+// 0. TRUE DROP-IN for Zod 4.6 (v3.3.2) — only the import line changes
 import { z } from "@oxog/vld"   // <- same as: import { z } from "zod"
 //    3.11x faster vs Zod 4.6.7, 10/10 honest wins, semantic-checked
 //    v.core mirrors the whole z.core surface (312 names), zero cost until read

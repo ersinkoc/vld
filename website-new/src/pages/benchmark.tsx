@@ -371,7 +371,7 @@ export function BenchmarkPage() {
               <div className="text-xs text-vld-success mt-1">{validateWins}/{compileScenarios.length} scenarios won</div>
             </div>
             <div className="p-6 rounded-xl bg-card border border-border">
-              <div className="text-4xl font-bold text-vld-accent mb-1">253</div>
+              <div className="text-4xl font-bold text-vld-accent mb-1">259</div>
               <div className="text-sm text-muted-foreground">Zod 4.6 Exports</div>
               <div className="text-xs text-vld-success mt-1">100% parity</div>
             </div>
@@ -1064,7 +1064,7 @@ if (!u.success) console.log(u.error.format())  // Zod-compatible`}
               <div>
                 <p className="font-medium text-foreground mb-1">Environment</p>
                 <ul className="space-y-1">
-                  <li>• Node.js v24.13.0 (all benchmarks), v20 LTS (legacy guard)</li>
+                  <li>• Node.js 26.13.0 (current suites), v24.13.0 (historical v2.x tables), v20 LTS (legacy guard)</li>
                   <li>• Windows 11 / macOS / Linux</li>
                   <li>• Zod 4.6.7 (all release guards)</li>
                 </ul>

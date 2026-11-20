@@ -10,8 +10,8 @@ A complete guide for migrating your codebase to VLD 3.0 with minimal changes, Zo
 - [Quick Migration](#quick-migration)
 - [V2 vs V1 (v3.0 new)](#v2-vs-v1-v30-new)
 - [API Compatibility](#api-compatibility)
-- [Zod 4.5 Package Subpaths](#zod-45-package-subpaths)
-- [Zod 4.5 API Parity](#zod-45-api-parity)
+- [Zod 4.6 Package Subpaths](#zod-46-package-subpaths)
+- [Zod 4.6 API Parity](#zod-46-api-parity)
 - [ZodError Compatibility (v3.0 new)](#zoderror-compatibility-v30-new)
 - [Breaking Changes](#breaking-changes)
 - [Migration Strategies](#migration-strategies)
@@ -136,11 +136,11 @@ const schema = v.object({            // V1 object
 
 ## API Compatibility
 
-VLD 3.0 is 100% backward compatible with VLD 2.4.x. All 3031 unit tests at the 3.0 release (including 2704 carried over from VLD 2.x) passed unchanged; the current 3.3.1 tree runs 130 suites / 3620 tests.
+VLD 3.0 is 100% backward compatible with VLD 2.4.x. All 3031 unit tests at the 3.0 release (including 2704 carried over from VLD 2.x) passed unchanged; the current 3.3.2 tree runs 130 suites / 3620 tests.
 
-## Zod 4.5 Package Subpaths
+## Zod 4.6 Package Subpaths
 
-VLD mirrors every Zod 4.5 subpath. Drop-in replacement is a one-line import change:
+VLD mirrors every Zod 4.6 subpath. Drop-in replacement is a one-line import change:
 
 | Zod | VLD |
 |---|---|
@@ -150,16 +150,16 @@ VLD mirrors every Zod 4.5 subpath. Drop-in replacement is a one-line import chan
 | `import { z } from 'zod/v4/core'` | `import * as core from '@oxog/vld/v4/core'` |
 | `import { z } from 'zod/v4/locales'` | `import * as locales from '@oxog/vld/v4/locales'` |
 
-## Zod 4.5 API Parity
+## Zod 4.6 API Parity
 
-VLD matches Zod 4.5's public API surface across:
+VLD matches Zod 4.6's public API surface across:
 
-- 28/28 Zod 4.5 parity test
+- 28/28 Zod 4.6 parity test
 - 22/22 real-world Zod pattern test (discriminated union, lazy, preprocess, pipe, brand, pick/omit, merge, extend, catch, default, transform, refine, etc.)
-- 253/253 Zod public exports across root, `./mini`, `./v4`, `./v4-mini`, `./v4/core`, `./v4/locales`, `./compile`, and nested namespace entry points
+- 259/259 Zod public exports across root, `./mini`, `./v4`, `./v4-mini`, `./v4/core`, `./v4/locales`, `./compile`, and nested namespace entry points
 - 339 VLD exports across all entry points
 
-Notable Zod 4.5 features supported:
+Notable Zod 4.6 features supported:
 - `z.pipe(a, b)` (alias: `v.pipeline(a, b)`)
 - `z.codec(input, output, { decode, encode })`
 - `z.preprocess(fn, schema)`
@@ -210,8 +210,8 @@ const zodResult = toZodSafeResult(result);
 - `v.*` factories still return V1 (legacy) by default
 - All VLD 2.x tests pass unchanged (2704 carried over + 327 new V2 / drop-in tests)
 - 22/22 real-world Zod test passes
-- 28/28 Zod 4.5 parity test passes
-- Zod 4.5 subpath exports are unchanged
+- 28/28 Zod 4.6 parity test passes
+- Zod 4.6 subpath exports are unchanged
 
 V2 (`vV2`, `v.*V2()`) is opt-in. If you don't import V2, your code is byte-identical to VLD 2.4.x behavior.
 

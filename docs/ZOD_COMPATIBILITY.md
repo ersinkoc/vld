@@ -132,7 +132,7 @@ Current head-to-head: **3.11x geomean vs Zod 4.6.7** (10/10 wins, semantic-check
 | Config object (defaults/optionals) | 87ms | 3ms | **27.8x faster** |
 | `z.iban()` checksum | 83ms | 59ms | **1.4x faster** |
 
-*Current guarded measurement (`npm run benchmark:validate`, re-checked on 3.3.1): per-scenario median of five runs on 2026-11-19 (500k ops, median of 15 runs each, 10k warmup, win32 x64, Node 26.13.0); the same medians populate the table on the website benchmark page and in `docs/PERFORMANCE.md`. Across those five runs the peak is 34.9x on the config object (26.5x-34.9x) and 31.6x on the array (25.4x-31.6x), so the docs quote the observed 34.9x peak rather than a ceiling.*
+*Current guarded measurement (`npm run benchmark:validate`, re-measured for the 3.3.2 docs): per-scenario median of five runs on 2026-11-19 (500k ops, median of 15 runs each, 10k warmup, win32 x64, Node 26.13.0); the same medians populate the table on the website benchmark page and in `docs/PERFORMANCE.md`. Across those five runs the peak is 34.9x on the config object (26.5x-34.9x) and 31.6x on the array (25.4x-31.6x), so the docs quote the observed 34.9x peak rather than a ceiling.*
 
 | Schema | VLD vV2 | Zod 4.5 | V2 vs Zod |
 |---|---:|---:|---:|
@@ -157,7 +157,7 @@ npm run verify:zod:canary
 
 `verify:zod` fails unless the installed comparison version exactly matches npm `latest`, when a public path/root/subpath/nested export is missing or has the wrong runtime type, or when the differential behavior suite diverges. The scheduled `.github/workflows/zod-parity.yml` stable job is blocking; its canary job is an early-warning signal for maintainers to evaluate before promoting support.
 
-## Test results (v3.3.1)
+## Test results (v3.3.2)
 
 - **130 test suites, 3620/3620 tests pass** (no regressions); statement 100% / branch 99.04% / function 100% / line 100% coverage
 - **22/22 real-world Zod pattern test** (discriminated union, lazy, preprocess, pipe, brand, pick/omit, merge, extend, catch, default, transform, refine, etc.)

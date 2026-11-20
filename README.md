@@ -471,7 +471,7 @@ const s4 = v.object({ a: v.numberV2().int() });   // mixed - V2 child, V1 object
 
 ### API compatibility
 
-- **28/28 Zod 4.5 parity tests pass.** `import { vV2 as z }` is a drop-in for Zod 4.5.
+- **28/28 Zod 4.6 parity tests pass.** `import { vV2 as z }` is a drop-in for Zod 4.6.
 - **Zod 4.6 parity is verified per-release** (`npm run verify:zod` checks every public
   `zod@4.6` export - 259 as of 4.6.7) and `tests/zod-4-6-parity.test.ts` compares behavior against the installed zod.
 - V1 is the default; existing code works unchanged.

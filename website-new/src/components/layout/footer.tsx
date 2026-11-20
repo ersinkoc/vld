@@ -11,7 +11,7 @@ const footerLinks: Record<string, FooterLink[]> = {
     { name: 'Playground', href: '/playground' },
   ],
   Resources: [
-    { name: "What's new in v3.3", href: 'https://github.com/ersinkoc/vld/releases/tag/v3.3.0', external: true },
+    { name: "What's new in v3.3.2", href: 'https://github.com/ersinkoc/vld/releases/tag/v3.3.2', external: true },
     { name: 'Benchmarks', href: '/benchmark' },
     { name: 'Changelog', href: 'https://github.com/ersinkoc/vld/releases', external: true },
     { name: 'Contributing', href: 'https://github.com/ersinkoc/vld/blob/main/CONTRIBUTING.md', external: true },

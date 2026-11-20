@@ -129,7 +129,7 @@ All 11 cases from `benchmarks/performance-guard.cjs`, VLD against the installed 
 | Total Startup | **1.55x faster** |
 | Warm Parse | **2.90x faster** |
 
-*Historical v3.0.5 measurement against Zod 4.5. The 3.3.1 release gate still requires total startup at 1.10x+ versus Zod 4.6.7 and measures 1.5x+.*
+*Historical v3.0.5 measurement against Zod 4.5. The 3.3.2 release gate still requires total startup at 1.10x+ versus Zod 4.6.7 and measures 1.5x+.*
 
 ## V2 Method-Memoization Internals
 
