@@ -1,4 +1,4 @@
-# VLD Advanced Features (v3.3.2)
+# VLD Advanced Features (v3.3.3)
 
 Deep dive into VLD's advanced features: V2 method-memoization, ZodError compatibility, type coercion, custom validation, data transformation, preprocessing, complex types, and more.
 
@@ -108,7 +108,7 @@ schema.parse([1, 2, 3]);  // '1,2,3'
 
 // V2 path
 const v2Schema = vV2.coerce.string();
-v2Schema.parse(123); // '123' (part of the 3.20x drop-in geomean vs Zod 4.6.7)
+v2Schema.parse(123); // '123' (part of the 3.18x drop-in geomean vs Zod 4.6.7)
 ```
 
 ### Number Coercion

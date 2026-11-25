@@ -56,6 +56,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   regex literals so a brace inside a pattern can no longer desync the
   depth counter into a mid-expression splice.
 
+## [3.3.3] - 2026-11-25
+
+### Changed
+
+- **Email validation no longer pays for two lookaheads.** The published pattern
+  carried `(?!^[.])` and `(?!.*\.\.)` in front of a fully general
+  `[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+` local part. That shape was the 1.22x
+  bottleneck of the drop-in email scenario, and both lookaheads were doing work
+  the quantifier structure can express: the local part is now the dot-atom
+  `(?:[A-Za-z0-9_'+-]+\.)*[A-Za-z0-9_'+-]*[A-Za-z0-9_+-]`, which cannot start or
+  end on a dot and cannot contain two dots in a row, with no scanning ahead.
+  Raw regex cost fell from ~40.8 to ~20.5 ns/op.
+- **Zod parity is unchanged, which is the point.** zod 4.6.7 rejects
+  `.user@x.com`, `us..er@x.com`, `user..name@x.com` and `user@ex..ample.com`
+  exactly like the old pattern did, so simply deleting the lookaheads would have
+  bought 1.70x at the price of three divergences. The structural rewrite keeps
+  them rejected: a 30-address sweep (apostrophes, edge dots, leading/trailing
+  dots, double dots on both sides) against Zod 4.6.7 reports zero divergences,
+  and the divergent A/B variant stays in `benchmarks` history as the rejected
+  option. `COMPILABLE_FORMATS` derives from the same object, so the AOT compiler
+  picked the new pattern up without a change.
+- **Measured** (five full drop-in runs, 2026-11-25): the email scenario is
+  **34.64 ms against Zod's 52.12 ms (1.50x)**; deleting the lookaheads without
+  the structural rewrite measured 1.70x but rejected three addresses Zod
+  accepts/refuses differently, so the parity-keeping form is what shipped. The
+  same five-run set reports a **3.18x** geomean with 10/10 wins, run-to-run
+  3.02x-3.27x, per-scenario 1.50x-6.57x and 3.28x on total time (315 vs 1033
+  ms). No API, type or packaging change.
+
 ## [3.3.2] - 2026-11-19
 
 ### Changed

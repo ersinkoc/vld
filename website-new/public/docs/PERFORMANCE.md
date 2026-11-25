@@ -1,6 +1,6 @@
-# VLD Performance Guide (v3.3.2)
+# VLD Performance Guide (v3.3.3)
 
-Comprehensive guide to understanding and optimizing VLD's performance in your applications. As of 3.3.2 against Zod 4.6.7 the honest head-to-head is 3.20x geomean (10/10 wins, semantic-checked; per-scenario median of five full runs (`npm run benchmark:dropin-median`) on 2026-11-25, Node 26.13.0; the individual runs spanned 3.15x-3.33x); the 3.03x figure below is the historical v3.0.5 measurement against Zod 4.6.4. On top of that, Zod 4.6's `.validate()` boolean API is covered by a dedicated head-to-head where VLD wins every scenario — a per-scenario median of five full runs on 2026-11-19, with an observed peak of 34.9x on the config object (26.5x-34.9x across those five runs). V2 method-memoization is opt-in via `vV2` or `v.setV2Mode(true)`; 1.6-10x smaller per instance.
+Comprehensive guide to understanding and optimizing VLD's performance in your applications. As of 3.3.3 against Zod 4.6.7 the honest head-to-head is 3.18x geomean (10/10 wins, semantic-checked; per-scenario median of five full runs (`npm run benchmark:dropin-median`) on 2026-11-25, Node 26.13.0; the individual runs spanned 3.02x-3.27x); the 3.03x figure below is the historical v3.0.5 measurement against Zod 4.6.4. On top of that, Zod 4.6's `.validate()` boolean API is covered by a dedicated head-to-head where VLD wins every scenario — a per-scenario median of five full runs on 2026-11-19, with an observed peak of 34.9x on the config object (26.5x-34.9x across those five runs). V2 method-memoization is opt-in via `vV2` or `v.setV2Mode(true)`; 1.6-10x smaller per instance.
 
 These figures are not hand-edited: `npm run benchmark:dropin-median` runs the five-run median, writes `benchmarks/dropin-median.json`, and then applies the numbers to `README.md`, `docs/` and the website with `benchmarks/sync-dropin-figures.cjs`. Re-run that command after a measurement, and `node benchmarks/sync-dropin-figures.cjs --check` fails if any published value drifts from the JSON.
 
@@ -34,7 +34,7 @@ VLD 3.0 is built from the ground up with performance as a primary goal. The rele
 
 ## V2 vs V1 vs Zod 4.6 — Headline Numbers
 
-The runtime and memory tables in this section are the **historical v3.0.5 baseline**, measured against Zod 4.6.4 / 4.5. The current 3.3.2 re-measurement against Zod 4.6.7 (3.20x geomean, 10/10 wins, per-scenario median of five drop-in runs on 2026-11-25 via `npm run benchmark:dropin-median`) is in [Release-Gated Snapshot](#release-gated-snapshot); the adjacent `.validate()` head-to-head is a per-scenario median of five full runs on 2026-11-19 with a 34.9x observed peak.
+The runtime and memory tables in this section are the **historical v3.0.5 baseline**, measured against Zod 4.6.4 / 4.5. The current 3.3.3 re-measurement against Zod 4.6.7 (3.18x geomean, 10/10 wins, per-scenario median of five drop-in runs on 2026-11-25 via `npm run benchmark:dropin-median`) is in [Release-Gated Snapshot](#release-gated-snapshot); the adjacent `.validate()` head-to-head is a per-scenario median of five full runs on 2026-11-19 with a 34.9x observed peak.
 
 ### Runtime — historical v3.0.5 baseline (1M `safeParse` operations, pre-built schemas, Zod 4.6.4)
 
@@ -85,7 +85,7 @@ Zod 4.6 introduced `.validate()` — boolean validation without building result 
 
 | Guard | v3.3.1 Snapshot | Release Threshold |
 |-------|------------------|-------------------|
-| Runtime throughput (drop-in) | **3.20x faster than Zod 4.6.7** (10/10 wins, semantic-checked on 3.3.2; 3.03x vs 4.6.4) | Must stay faster |
+| Runtime throughput (drop-in) | **3.18x faster than Zod 4.6.7** (10/10 wins, semantic-checked on 3.3.3; 3.03x vs 4.6.4) | Must stay faster |
 | `.validate()` head-to-head | **Faster than `zod.validate()` on every scenario**, 34.9x observed peak | Must stay faster |
 | Memory (V2) | **1.6-10x less than Zod 4.6** | Must stay below |
 | Startup | **1.5x+ faster** | >= 1.10x |
@@ -131,7 +131,7 @@ All 11 cases from `benchmarks/performance-guard.cjs`, VLD against the installed 
 | Total Startup | **1.55x faster** |
 | Warm Parse | **2.90x faster** |
 
-*Historical v3.0.5 measurement against Zod 4.5. The 3.3.2 release gate still requires total startup at 1.10x+ versus Zod 4.6.7 and measures 1.5x+.*
+*Historical v3.0.5 measurement against Zod 4.5. The 3.3.3 release gate still requires total startup at 1.10x+ versus Zod 4.6.7 and measures 1.5x+.*
 
 ## V2 Method-Memoization Internals
 
@@ -228,7 +228,7 @@ if (result.success) {
 ```javascript
 import { vV2 } from '@oxog/vld';
 
-// part of the 3.20x drop-in geomean vs Zod 4.6.7
+// part of the 3.18x drop-in geomean vs Zod 4.6.7
 const hotPathSchema = vV2.string().min(1).email();
 ```
 
@@ -470,7 +470,7 @@ This runs linting, TypeScript checks, the full Jest suite (3620 tests), build, A
 
 1. **Reuse schemas** — Create once, use many times
 2. **Use safeParse** — Avoid exception overhead
-3. **Use vV2 for hot paths** — part of the 3.20x drop-in geomean vs Zod 4.6.7
+3. **Use vV2 for hot paths** — part of the 3.18x drop-in geomean vs Zod 4.6.7
 4. **Use v.setV2Mode(true)** — One-line global V2 swap
 5. **Optimize unions** — Most common types first
 6. **Flatten structures** — Avoid deep nesting
