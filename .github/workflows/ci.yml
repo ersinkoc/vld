@@ -61,6 +61,9 @@ jobs:
       - name: Verify docs
         run: npm run verify:docs
 
+      - name: Verify published drop-in figures
+        run: npm run verify:dropin-figures
+
       - name: Verify exports
         run: npm run verify:exports
 
