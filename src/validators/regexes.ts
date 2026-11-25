@@ -128,7 +128,11 @@ export const regexes: RegexNamespace = {
   uuid4: uuidRegex(4),
   uuid6: uuidRegex(6),
   uuid7: uuidRegex(7),
-  email: /^(?!\.)(?!.*\.\.)([A-Za-z0-9_'+.-]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9-]*\.)+[A-Za-z]{2,}$/,
+  // Zod 4.6's email rule without its `(?!\.)` / `(?!.*\.\.)` lookaheads: the
+  // dot-atom local part rejects leading, trailing and consecutive dots by
+  // structure, so accept/reject stays identical (checked against
+  // z.string().email()) while the pattern costs less per call.
+  email: /^((?:[A-Za-z0-9_'+-]+\.)*[A-Za-z0-9_'+-]*[A-Za-z0-9_+-])@([A-Za-z0-9][A-Za-z0-9-]*\.)+[A-Za-z]{2,}$/,
   html5Email: /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/,
   // Keep the official Zod 4.4.3 RFC 5322 source byte-for-byte for differential parity.
   // eslint-disable-next-line no-useless-escape
