@@ -234,7 +234,7 @@ if (result.success) {
     lang: 'typescript',
     tips: [
       'VLD v3.3.2 is checked against Zod 4.6.7 (259/259 exports; every behavioral sweep - formats, container semantics, JSON Schema, error formatting - reports zero divergences)',
-      '`import { z } from "@oxog/vld"` is a true drop-in for `import { z } from "zod"` — 3.02x faster vs Zod 4.6.7 (10/10 wins, semantic-checked; zero divergences)',
+      '`import { z } from "@oxog/vld"` is a true drop-in for `import { z } from "zod"` — 3.11x faster vs Zod 4.6.7 (10/10 wins, semantic-checked; zero divergences)',
       '`v.core` mirrors Zod\'s whole `z.core` surface (312 names: classes, `_*` factories, checks, `toDotPath`, `mergeValues`, compile). It is a plain object of getters, so a bundle that never reads it drops it entirely (root entry stays 96.0 KiB vs Zod 182.8 KiB); `@oxog/vld/v4/core` carries the same surface as a subpath',
       'Every `v.core._*` factory accepts Zod\'s optional leading class argument, e.g. `_array($ZodArray, schema)` or `_check(fn)` with the payload-issues contract',
       'Root, mini, v4, v4-mini, v4/core, v4/locales, and compile entry points are covered',
@@ -304,7 +304,7 @@ if (result.success) {
 
 // 0. TRUE DROP-IN for Zod 4.6 (v3.3.2) — only the import line changes
 import { z } from "@oxog/vld"   // <- same as: import { z } from "zod"
-//    3.02x faster vs Zod 4.6.7, 10/10 honest wins, semantic-checked
+//    3.11x faster vs Zod 4.6.7, 10/10 honest wins, semantic-checked
 //    v.core mirrors the whole z.core surface (312 names), zero cost until read
 //    benchmarks/dropin-vs-zod.cjs
 const schema = z.object({ name: z.string().min(2) })

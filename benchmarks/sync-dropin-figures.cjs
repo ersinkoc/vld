@@ -74,8 +74,26 @@ const NOT_A_GEOMEAN = /^\s*(?:lower|less|smaller|higher|aggregate|peak|observed|
 const MEMORY_SLOT = /(?:vldHeap|zodHeap|heap|percentage|ratio):\s*'?$/;
 const RUN_RANGE_CONTEXT = /individual runs|five geomeans|single runs/;
 const DATE_EXCLUDE =
-  /validate|34\.9x|observed peak|3\.3\.1|guarded-table|guard runs|Last audited|verify:bundle|verify:treeshake|bundle/i;
+  /validate|34\.9x|observed peak|500k ops|3\.3\.1|guarded-table|guard runs|Last audited|verify:bundle|verify:treeshake|bundle/i;
 const DATE_CONTEXT = /re-measured|dropin-median|drop-in runs|five full runs|dropin-vs-zod/i;
+const VALIDATE_MARKER = /validate\(\)|benchmark:validate|500k ops|34\.9x|observed peak|10k warmup/gi;
+const DROPIN_MARKER = /drop-?in|dropin-median/i;
+const LAST_VALIDATE_MARKER = {
+  test(before) {
+    let blocker = -1;
+    VALIDATE_MARKER.lastIndex = 0;
+    let match;
+    while ((match = VALIDATE_MARKER.exec(before)) !== null) blocker = match.index;
+    if (blocker < 0) return false;
+    const dropin = before.search(DROPIN_MARKER);
+    let lastDropin = -1;
+    for (let index = dropin; index >= 0; index = before.slice(index + 1).search(DROPIN_MARKER) + index + 1) {
+      lastDropin = index;
+      if (index + 1 >= before.length) break;
+    }
+    return blocker > lastDropin;
+  },
+};
 
 // One row of the harness's printed median table, e.g.
 // "1. string().min(1).email()     47.64     47.87     55.46    1.16x"
@@ -161,7 +179,8 @@ function isHistorical(text, index, token) {
   // A historical marker that opens the same sentence, e.g. "Historical v3.0.5
   // measurement ... geomean 3.03x": protect unless a newer version is named
   // between the marker and the figure.
-  const before = text.slice(Math.max(0, index - 220), index);
+  const lineStart = text.lastIndexOf('\n', index - 1) + 1;
+  const before = text.slice(lineStart, index);
   const marker = new RegExp(HISTORICAL_MARKER.source, 'gi');
   let last = -1;
   let match;
@@ -181,6 +200,31 @@ function classifyGeomean(text, index, token) {
   if (NOT_A_GEOMEAN.test(after)) return 'other';
   if (CLAIM_CONTEXT.test(before + token + after)) return 'claim';
   return 'other';
+}
+
+// The clause that contains [index, index + length): bounded by commas,
+// semicolons, colons, sentence ends and line breaks.
+function segmentAround(text, index, length) {
+  const isBreak = (position) => {
+    const char = text[position];
+    if (char === '\n' || char === ';' || char === ',') return true;
+    return (char === '.' || char === ':') && /\s/.test(text[position + 1] || '');
+  };
+  let start = 0;
+  for (let position = index - 1; position >= 0; position--) {
+    if (isBreak(position)) {
+      start = position + 1;
+      break;
+    }
+  }
+  let end = text.length;
+  for (let position = index + length; position < text.length; position++) {
+    if (isBreak(position)) {
+      end = position;
+      break;
+    }
+  }
+  return text.slice(start, end);
 }
 
 function fixedWidth(value, previous) {
@@ -263,11 +307,18 @@ function rewrite(text, figures, file) {
   });
   text = text.replace(/\u0000R(\d+)\u0000/g, (ignored, index) => masked[Number(index)]);
 
-  // 3. Measurement date, skipping the .validate() head-to-head dates.
+  // 3. Measurement date, skipping the .validate() head-to-head dates. Look at
+  // the enclosing clause only: a line often carries the drop-in date and the
+  // .validate() date side by side, and the latter's "validate"/"34.9x"/
+  // "500k ops" markers must not protect the former.
   text = text.replace(/\b20\d\d-\d\d-\d\d\b/g, (match, offset) => {
-    const window = text.slice(Math.max(0, offset - 120), offset + match.length + 120);
+    const window = segmentAround(text, offset, match.length);
     if (DATE_EXCLUDE.test(window)) return match;
     if (!DATE_CONTEXT.test(window)) return match;
+    // The .validate() suite dates sit next to the phrase that introduces them
+    // ("500k ops", "10k warmup", its script name), which is usually in the
+    // previous line: skip when the nearest marker before the date is that one.
+    if (LAST_VALIDATE_MARKER.test(text.slice(Math.max(0, offset - 200), offset))) return match;
     claims += 1;
     if (match !== format.date) report.push(`${file}: measurement date ${match} -> ${format.date}`);
     return format.date;

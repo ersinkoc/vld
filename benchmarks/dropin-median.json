@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "measuredAt": "2026-11-20",
+  "measuredAt": "2026-11-25",
   "runs": 5,
   "environment": {
     "node": "v26.13.0",
@@ -8,102 +8,102 @@
     "vld": "3.3.2",
     "zod": "4.6.7"
   },
-  "geomean": 3.024849908407041,
-  "v1Geomean": 3.2447632057263327,
+  "geomean": 3.111278288504429,
+  "v1Geomean": 3.1977450636599025,
   "wins": 10,
   "scenarioCount": 10,
   "v1Wins": 10,
   "perScenario": {
-    "min": 1.1585544182160017,
-    "max": 6.573883161512027
+    "min": 1.218531889290012,
+    "max": 6.476793248945147
   },
   "perRun": {
     "min": 3.02,
-    "max": 3.13,
+    "max": 3.18,
     "geomeans": [
-      3.1,
+      3.16,
+      3.04,
       3.02,
-      3.11,
-      3.11,
-      3.13
+      3.07,
+      3.18
     ]
   },
   "totals": {
-    "v1Ms": 301.24,
-    "v2Ms": 346.01,
-    "zodMs": 1095.23,
-    "speedup": 3.1653131412386926
+    "v1Ms": 257.4800000000001,
+    "v2Ms": 285.54,
+    "zodMs": 919.8900000000001,
+    "speedup": 3.2215801638999793
   },
   "scenarios": [
     {
       "name": "1. string().min(1).email()",
-      "v1Ms": 47.64,
-      "v2Ms": 47.87,
-      "zodMs": 55.46,
-      "speedup": 1.1585544182160017
+      "v1Ms": 42.92,
+      "v2Ms": 41.55,
+      "zodMs": 50.63,
+      "speedup": 1.218531889290012
     },
     {
       "name": "2. number().int().positive().min(1)",
-      "v1Ms": 20.27,
-      "v2Ms": 11.64,
-      "zodMs": 76.52,
-      "speedup": 6.573883161512027
+      "v1Ms": 17.26,
+      "v2Ms": 9.48,
+      "zodMs": 61.4,
+      "speedup": 6.476793248945147
     },
     {
       "name": "3. object({ a: string(), b: number() })",
-      "v1Ms": 11.21,
-      "v2Ms": 12.13,
-      "zodMs": 39,
-      "speedup": 3.215169002473207
+      "v1Ms": 9.62,
+      "v2Ms": 10.03,
+      "zodMs": 32.94,
+      "speedup": 3.284147557328016
     },
     {
       "name": "4. tuple([string, number, boolean])",
-      "v1Ms": 19.19,
-      "v2Ms": 34.67,
-      "zodMs": 83.67,
-      "speedup": 2.4133256417652147
+      "v1Ms": 16.21,
+      "v2Ms": 27.38,
+      "zodMs": 71.13,
+      "speedup": 2.597881665449233
     },
     {
       "name": "5. array(string()).min(1).max(100)",
-      "v1Ms": 22.07,
-      "v2Ms": 26.92,
-      "zodMs": 140.56,
-      "speedup": 5.221396731054978
+      "v1Ms": 18.84,
+      "v2Ms": 23.52,
+      "zodMs": 126.26,
+      "speedup": 5.368197278911565
     },
     {
       "name": "6. union([string, number])",
-      "v1Ms": 14.62,
-      "v2Ms": 16.02,
-      "zodMs": 38.03,
-      "speedup": 2.373907615480649
+      "v1Ms": 13.71,
+      "v2Ms": 13.66,
+      "zodMs": 31.36,
+      "speedup": 2.2957540263543192
     },
     {
       "name": "7. discriminatedUnion (cat | dog)",
-      "v1Ms": 25.36,
-      "v2Ms": 20.16,
-      "zodMs": 53.98,
-      "speedup": 2.677579365079365
+      "v1Ms": 20.91,
+      "v2Ms": 16.04,
+      "zodMs": 47.48,
+      "speedup": 2.960099750623441
     },
     {
       "name": "8. nested object (3 levels)",
-      "v1Ms": 44.28,
-      "v2Ms": 80.56,
-      "zodMs": 217.36,
-      "speedup": 2.69811320754717
+      "v1Ms": 39.11,
+      "v2Ms": 69.78,
+      "zodMs": 189.61,
+      "speedup": 2.7172542275723703
     },
     {
       "name": "9. record(string())",
-      "v1Ms": 81.17,
-      "v2Ms": 81.89,
-      "zodMs": 350.6,
-      "speedup": 4.281353034558554
+      "v1Ms": 66.05,
+      "v2Ms": 62.98,
+      "zodMs": 276.87,
+      "speedup": 4.396157510320737
     },
     {
       "name": "10. literal(\"active\")",
-      "v1Ms": 15.43,
-      "v2Ms": 14.15,
-      "zodMs": 40.05,
-      "speedup": 2.830388692579505
+      "v1Ms": 12.85,
+      "v2Ms": 11.12,
+      "zodMs": 32.21,
+      "speedup": 2.89658273381295
     }
   ]
 }

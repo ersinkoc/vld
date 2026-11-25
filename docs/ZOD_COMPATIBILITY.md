@@ -61,7 +61,7 @@ Closed in 3.0.8/3.0.9: `'~standard'` now returns full issue objects, and
 
 ## v3.0 highlights (historical baseline)
 
-- **V2 method-memoization**: 21 V2 classes shipped, matching Zod 4.5's "method memoization" optimization. The 3.0.0 head-to-head on `benchmarks/dropin-vs-zod.cjs` showed 3.03x geomean vs Zod 4.6.4 (10/10 wins, semantic-checked); 1.6-10x smaller per instance. The current 3.3.2 re-measurement is 3.02x geomean vs Zod 4.6.7.
+- **V2 method-memoization**: 21 V2 classes shipped, matching Zod 4.5's "method memoization" optimization. The 3.0.0 head-to-head on `benchmarks/dropin-vs-zod.cjs` showed 3.03x geomean vs Zod 4.6.4 (10/10 wins, semantic-checked); 1.6-10x smaller per instance. The current 3.3.2 re-measurement is 3.11x geomean vs Zod 4.6.7.
 - **ZodError compatibility layer**: `toZodError()` / `ZodLikeError` / `toZodSafeResult()` for ZodError-shaped errors with `.format()` and `.flatten()`
 - **vV2 drop-in factory**: `import { vV2 as v } from '@oxog/vld'` for one-line V2 swap
 - **v.setV2Mode(true)** global toggle: no source rewrites needed
@@ -76,7 +76,7 @@ Closed in 3.0.8/3.0.9: `'~standard'` now returns full issue objects, and
 | Modern factories | Array-based `union`, `tuple`, `xor`, `discriminatedUnion`, `enum`, multi-value `literal`, two-schema `record`, and empty `object()` calls are supported. VLD's older rest-argument forms remain available as extensions. |
 | String formats | `regexes` mirrors Zod's nested public namespace, UUID versions v1-v8 are supported, URL protocol/hostname filters and normalization use WHATWG `URL`, and `iso.datetime()`/precision/offset/local options are available. |
 | Direction API | Every schema exposes `decode`, `encode`, safe variants, async variants, and `spa`; codecs override the backward direction with their inverse transform. Object, array, and tuple schemas recursively encode nested codecs. |
-| V2 method-memoization (v3.0) | `vV2.*` and `v.*V2()` ship the Zod 4.5 method-memoization pattern. Part of the 3.02x drop-in geomean vs Zod 4.6.7 (measured on 3.3.2); 1.6-10x smaller per instance. Use `v.setV2Mode(true)` for a global swap. |
+| V2 method-memoization (v3.0) | `vV2.*` and `v.*V2()` ship the Zod 4.5 method-memoization pattern. Part of the 3.11x drop-in geomean vs Zod 4.6.7 (measured on 3.3.2); 1.6-10x smaller per instance. Use `v.setV2Mode(true)` for a global swap. |
 | ZodError adapter (v3.0) | `toZodError()` returns a `ZodLikeError` with `.name === 'ZodError'`, `.issues`, `.format()`, `.flatten()`. `toZodSafeResult()` wraps a `safeParse` result in one call. |
 | Defaults | Constant arrays, objects, maps, and sets are shallow-cloned per parse. Factory defaults and direct `.prefault(value)` follow Zod 4 behavior. |
 | Records | Key schemas run and may transform keys; non-enumerable and unsafe prototype keys are skipped; invalid keys use the `invalid_key` issue code. |
@@ -108,7 +108,7 @@ The bundle gate also compares equivalent tree-shaken root-string probes. The cur
 
 ## Performance — historical baseline (v3.0.5 vs Zod 4.6.4)
 
-Current head-to-head: **3.02x geomean vs Zod 4.6.7** (10/10 wins, semantic-checked on 3.3.2, per-scenario median of five full runs; `benchmarks/dropin-median.cjs` — see `PERFORMANCE.md`), while the adjacent `.validate()` head-to-head is a per-scenario median of five full runs on 2026-11-19 with a 34.9x observed peak. The tables below are the v3.0.5 measurement against Zod 4.6.4.
+Current head-to-head: **3.11x geomean vs Zod 4.6.7** (10/10 wins, semantic-checked on 3.3.2, per-scenario median of five full runs; `benchmarks/dropin-median.cjs` — see `PERFORMANCE.md`), while the adjacent `.validate()` head-to-head is a per-scenario median of five full runs on 2026-11-19 with a 34.9x observed peak. The tables below are the v3.0.5 measurement against Zod 4.6.4.
 
 | Schema | VLD vV2 | Zod 4.6.4 | V2 vs Zod |
 |---|---:|---:|---:|
@@ -119,7 +119,7 @@ Current head-to-head: **3.02x geomean vs Zod 4.6.7** (10/10 wins, semantic-check
 | `record(string())` | 72ms | 472ms | **6.5x faster** |
 | `literal("active")` | 14ms | 40ms | **2.8x faster** |
 
-*Historical v3.0.5 measurement against Zod 4.6.4: 1M `safeParse` ops, pre-built schemas, Node v24.13.0; geomean 3.03x, 10/10 wins. The 3.3.2 re-measurement against Zod 4.6.7 is 3.02x.*
+*Historical v3.0.5 measurement against Zod 4.6.4: 1M `safeParse` ops, pre-built schemas, Node v24.13.0; geomean 3.03x, 10/10 wins. The 3.3.2 re-measurement against Zod 4.6.7 is 3.11x.*
 
 `.validate()` (boolean, no result object) versus Zod 4.6's own `.validate()`:
 

@@ -56,7 +56,7 @@ const v2Schema = vV2.string().min(1); // V2 (recommended)
 
 ```typescript
 import { vV2 as v } from '@oxog/vld';
-// Every call below is on the V2 path (part of the 3.02x drop-in geomean vs Zod 4.6.7)
+// Every call below is on the V2 path (part of the 3.11x drop-in geomean vs Zod 4.6.7)
 const schema = v.object({ email: v.string().email() });
 ```
 
@@ -121,7 +121,7 @@ const user = z.object({
 |---|---|---|
 | `v.*` | V1 (legacy) | Backward compatibility, reading internal VldString/VldNumber fields |
 | `v.*V2()` | V2 single-class | Mixed V1/V2, granular opt-in |
-| `vV2.*` | V2 (always) | New code, hot paths, 3.02x drop-in geomean vs Zod 4.6.7 |
+| `vV2.*` | V2 (always) | New code, hot paths, 3.11x drop-in geomean vs Zod 4.6.7 |
 | `v.setV2Mode(true)` | V2 globally | One-line global swap |
 | `z.*` (= `v.*`) | V1 (legacy) | Drop-in for `z` import alias |
 | `vV2 as z` | V2 (always) | New code, keep z.* style |
@@ -135,7 +135,7 @@ import { v, vV2 } from '@oxog/vld';
 const nameSchema = v.string();
 const name = nameSchema.parse('John');
 
-// V2 (recommended, part of the 3.02x drop-in geomean vs Zod 4.6.7)
+// V2 (recommended, part of the 3.11x drop-in geomean vs Zod 4.6.7)
 const nameSchemaV2 = vV2.string();
 const name2 = nameSchemaV2.parse('John');
 ```

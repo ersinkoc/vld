@@ -279,7 +279,7 @@ if (!result.success) {
 })` },
 
   // V2 Method-Memoization (v3.0 NEW) — part of the drop-in speedup story
-  { name: 'vV2', description: 'Drop-in factory that always returns V2 method-memoization classes. Identical surface to v; vV2 powers the drop-in geomean over Zod 4.6.7 (3.02x on 3.3.2, 10/10 wins) in benchmarks/dropin-median.cjs.', category: 'V2 (v3.0)', signature: 'vV2: typeof v', example: `import { vV2 } from "@oxog/vld"
+  { name: 'vV2', description: 'Drop-in factory that always returns V2 method-memoization classes. Identical surface to v; vV2 powers the drop-in geomean over Zod 4.6.7 (3.11x on 3.3.2, 10/10 wins) in benchmarks/dropin-median.cjs.', category: 'V2 (v3.0)', signature: 'vV2: typeof v', example: `import { vV2 } from "@oxog/vld"
 
 const schema = vV2.string().min(1).email()
 schema.parse("user@example.com") // part of the drop-in geomean vs Zod 4.6.7` },
@@ -291,7 +291,7 @@ s.parse("user@example.com")` },
   { name: 'v.dateV2() / v.bigintV2() / v.arrayV2() / v.unionV2()', description: 'V2 method-memoization variants for date, bigint, array, union, tuple, set, map, intersection, record, literal, enum, boolean, optional, nullable, nullish, refine, transform. 21 V2 classes total.', category: 'V2 (v3.0)', signature: 'v.*V2()', example: `vV2.tuple([vV2.string(), vV2.number()])
 vV2.literal("active")
 vV2.union([vV2.string(), vV2.number()])` },
-  { name: 'v.coerce.stringV2() / v.coerce.numberV2()', description: 'V2 coercion variants — same surface as v.coerce.*, included in the 3.02x geomean vs Zod 4.6.7.', category: 'V2 (v3.0)', signature: 'v.coerce.stringV2() / v.coerce.numberV2()' },
+  { name: 'v.coerce.stringV2() / v.coerce.numberV2()', description: 'V2 coercion variants — same surface as v.coerce.*, included in the 3.11x geomean vs Zod 4.6.7.', category: 'V2 (v3.0)', signature: 'v.coerce.stringV2() / v.coerce.numberV2()' },
   { name: 'v.setV2Mode(true)', description: 'Globally swap v.* factories to V2. No source rewrites needed. Call v.setV2Mode(false) to revert.', category: 'V2 (v3.0)', signature: 'v.setV2Mode(enabled: boolean): void', example: `import { v } from "@oxog/vld"
 
 v.setV2Mode(true)
@@ -311,7 +311,7 @@ S.parse({ name: 'x' })
 // AFTER — only the import line changes
 import { z } from '@oxog/vld'
 const S = z.object({ name: z.string().min(1) })
-S.parse({ name: 'x' })  // 3.02x faster (benchmarks/dropin-vs-zod.cjs)` },
+S.parse({ name: 'x' })  // 3.11x faster (benchmarks/dropin-vs-zod.cjs)` },
   { name: 'z (namespace)', description: '`z.infer<T>` and `z.input<T>` mirror the Zod namespace for type extraction. Same as `v.infer` / `v.input`.', category: 'Drop-in (v3.0)', signature: 'namespace z { type infer<T> = v.infer<T>; type input<T> = v.input<T> }', example: `import { z } from '@oxog/vld'
 const S = z.object({ name: z.string() })
 type User = z.infer<typeof S>  // { name: string }` },
