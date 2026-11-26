@@ -74,7 +74,7 @@ function buildLazyValidator(self: VldBase<any, any>): ((input: unknown) => unkno
     const compiled = compiler ? compiler(self) : null;
     fast = compiled ?? null;
   } catch {
-    fast = null;
+    // Leave `fast` as null; the walker fallback below takes over.
   }
   if (fast === null) {
     // CSP (new Function blocked) or an un-lowerable schema: the walker

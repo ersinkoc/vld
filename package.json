@@ -227,28 +227,34 @@
   },
   "homepage": "https://github.com/ersinkoc/vld#readme",
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@rollup/plugin-terser": "^1.0.0",
     "@rollup/plugin-typescript": "^12.1.4",
     "@types/jest": "^30.0.0",
     "@types/node": "^20.19.43",
-    "@typescript-eslint/eslint-plugin": "^8.61.0",
-    "@typescript-eslint/parser": "^8.61.0",
+    "@typescript-eslint/eslint-plugin": "^8.74.0",
+    "@typescript-eslint/parser": "^8.74.0",
     "benchmark": "^2.1.4",
     "esbuild": "^0.28.2",
-    "eslint": "^8.56.0",
+    "eslint": "^10.15.0",
     "fast-glob": "^3.3.3",
-    "jest": "^30.4.2",
+    "globals": "^17.14.0",
+    "jest": "^30.5.2",
     "jest-junit": "^17.0.0",
     "prettier": "^3.8.4",
     "rollup": "^4.62.0",
-    "ts-jest": "^29.4.11",
+    "ts-jest": "^29.4.15",
     "tslib": "^2.8.1",
     "typescript": "^5.3.3",
     "zod": "^4.6.7"
   },
   "overrides": {
     "@babel/core": "^7.29.7",
-    "brace-expansion": "^2.0.2",
-    "js-yaml": "^4.2.1"
+    "js-yaml": "^4.3.2",
+    "serialize-javascript": "^7.1.4",
+    "browserslist": "^4.29.6",
+    "test-exclude": "^8.0.0",
+    "glob": "^14.0.6",
+    "minimatch": "^11.0.9"
   }
 }

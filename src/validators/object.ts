@@ -1415,7 +1415,7 @@ export class VldObject<T extends Record<string, any>> extends VldBase<unknown, T
   pick<K extends keyof T>(...keys: K[]): VldObject<Pick<T, K>>;
   pick(...args: any[]): any {
     const pickedShape: any = {};
-    let keyList: string[] = [];
+    let keyList: string[];
     if (args.length === 1 && typeof args[0] === 'object' && args[0] !== null && !Array.isArray(args[0])) {
       keyList = [...this._maskedKeys(args[0])!];
     } else {
