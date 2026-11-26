@@ -21,7 +21,9 @@ name: Release
 #    packed tarball through verify:package;
 # 3. reports the npm registry state for this version as a warning when the
 #    version is not published/latest yet (tag-first publishing is allowed);
-# 4. creates the GitHub Release from the matching CHANGELOG section.
+# 4. creates the GitHub Release from the matching CHANGELOG section, keeping
+#    the title an existing release already has (a re-run must not overwrite a
+#    hand-written title with the bare tag name).
 #
 # workflow_dispatch runs the same job against an existing tag: `tag` selects
 # the tag (the ref is a branch there, so `github.ref_name` cannot be used) and
@@ -180,12 +182,60 @@ jobs:
           console.log('Release notes: ' + body.split('\n').length + ' lines from ' + heading);
           "
 
+      # The action rewrites `name` on every run, so re-running against an
+      # existing release used to reset a hand-edited title (v3.3.3 lost
+      # "v3.3.3 - email regex without the lookaheads") to the tag name. Read
+      # the current title first and feed it back: new releases still get the
+      # tag, existing ones keep whatever title they have.
+      - name: Resolve release title
+        id: title
+        if: ${{ !inputs.dry_run }}
+        env:
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
+          REPOSITORY: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node -e "
+          (async () => {
+            const fs = require('fs');
+            const tag = process.env.RELEASE_TAG;
+            let title = tag;
+            try {
+              const response = await fetch(
+                'https://api.github.com/repos/' + process.env.REPOSITORY + '/releases/tags/' + tag,
+                {
+                  headers: {
+                    accept: 'application/vnd.github+json',
+                    authorization: 'Bearer ' + process.env.GITHUB_TOKEN,
+                    'x-github-api-version': '2022-11-28'
+                  }
+                }
+              );
+              if (response.status === 200) {
+                const release = await response.json();
+                const existing = (release.name || '').split(String.fromCharCode(10)).join(' ').trim();
+                if (existing) title = existing;
+                console.log('Keeping existing release title: ' + title);
+              } else if (response.status === 404) {
+                console.log('No release for ' + tag + ' yet; using the tag as the title.');
+              } else {
+                console.error('Release lookup failed with status ' + response.status);
+                process.exit(1);
+              }
+            } catch (error) {
+              console.error('Release lookup failed: ' + error.message);
+              process.exit(1);
+            }
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, 'name=' + title + String.fromCharCode(10));
+          })();
+          "
+
       - name: Create GitHub Release
         if: ${{ !inputs.dry_run }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
-          name: ${{ steps.tag.outputs.tag }}
+          name: ${{ steps.title.outputs.name }}
           body_path: release-notes.md
           draft: false
           prerelease: ${{ contains(steps.tag.outputs.tag, '-') }}
