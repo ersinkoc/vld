@@ -66,6 +66,9 @@ jobs:
           # A dispatch run is on a branch; check out the tag it names so the
           # build and the tag/version guards all see the released tree.
           ref: ${{ inputs.tag || github.ref }}
+          # The release notes resolve the previous release tag with
+          # git describe and list its commits; a shallow clone has neither.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -163,21 +166,58 @@ jobs:
           })();
           "
 
+      # Notes are the CHANGELOG section for this version plus the commits the
+      # tag carries since the previous release tag, so a release page shows
+      # what actually changed without the manual backfill v3.3.1/v3.3.2 needed.
       # Written to a file and passed with body_path: percent-escaping the
-      # Markdown into a step output (the previous approach) is not decoded by
+      # Markdown into a step output (an earlier approach) is not decoded by
       # Actions, so the release body shipped literal %0A instead of newlines.
       - name: Extract release notes from CHANGELOG.md
         if: ${{ !inputs.dry_run }}
+        env:
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
         run: |
           node -e "
           const fs = require('fs');
+          const { execFileSync } = require('child_process');
           const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
           const changelog = fs.readFileSync('CHANGELOG.md', 'utf8');
           const heading = '## [' + pkg.version + ']';
           const start = changelog.indexOf(heading);
           if (start === -1) { console.error('No changelog entry'); process.exit(1); }
           const next = changelog.indexOf('\n## [', start + heading.length);
-          const body = (next === -1 ? changelog.slice(start) : changelog.slice(start, next)).trim();
+          let body = (next === -1 ? changelog.slice(start) : changelog.slice(start, next)).trim();
+          const tag = process.env.RELEASE_TAG || ('v' + pkg.version);
+          // The previous release tag, not just the previous commit: describe
+          // walks back to the newest v* tag reachable from the tag.
+          let previous = '';
+          try {
+            previous = execFileSync(
+              'git',
+              ['describe', '--tags', '--match', 'v[0-9]*', '--abbrev=0', tag + '^'],
+              // The first release has no tag to describe; do not print git's
+              // fatal line into an otherwise green run.
+              { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }
+            ).trim();
+          } catch (error) {
+            previous = '';
+          }
+          if (previous && previous !== tag) {
+            const log = execFileSync(
+              'git',
+              ['log', '--no-merges', '--reverse', '--pretty=%h %s', previous + '..' + tag],
+              { encoding: 'utf8' }
+            ).trim();
+            const commits = log ? log.split('\n') : [];
+            if (commits.length > 0) {
+              body += '\n\n### Commits\n\n' + commits.map((line) => '- ' + line).join('\n');
+              console.log('Commits since ' + previous + ': ' + commits.length);
+            } else {
+              console.log('No commits between ' + previous + ' and ' + tag);
+            }
+          } else {
+            console.log('No previous release tag found; omitting the commits section');
+          }
           fs.writeFileSync('release-notes.md', body + '\n');
           console.log('Release notes: ' + body.split('\n').length + ' lines from ' + heading);
           "
