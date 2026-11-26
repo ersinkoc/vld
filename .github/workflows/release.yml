@@ -1,22 +1,35 @@
 name: Release
 
-# Publishes to npm on tag push (vX.Y.Z) with OIDC-based provenance and
-# creates the matching GitHub Release.
+# Opens the GitHub Release for a vX.Y.Z tag.
 #
-# Gate strategy: package.json hooks stay the single source of truth —
-# `prepack` runs the build and `prepublishOnly` runs `release:check`
-# (lint, types, full test suite, all verify gates, benchmark guards).
-# This workflow therefore publishes *through* those hooks instead of
-# re-listing every gate, so CI and local publishing can never drift.
-# The explicit `npm publish --provenance` is belt-and-braces; the
-# package.json publishConfig already sets provenance: true.
+# npm publishing is deliberately NOT part of this workflow. Releases are
+# published from the maintainer machine (`npm run release`, or an explicit
+# `npm publish`), because:
+# - `release:check` includes the machine-relative benchmark guards, which are
+#   noise on shared CI runners and would make tag pushes flaky;
+# - the repo .npmrc sets ignore-scripts=true, so npm lifecycle hooks
+#   (prepack/prepublishOnly) never run on publish anyway - scripts/release.cjs
+#   runs the gate and a fresh build explicitly instead.
+# The previous version of this file published from CI as a second publisher,
+# which raced the local publish and went red on every tag with
+# "You cannot publish over the previously published versions".
 #
-# Required repository secrets/config:
-# - NPM_TOKEN: an automation/granular npm token with publish rights to
-#   @oxog/vld (granular tokens must also allow provenance attestation).
-# - Repository Settings -> Actions -> General -> Workflow permissions:
-#   "Read and write permissions" (for Release creation), plus the
-#   id-token: write granted to this job below (for npm OIDC).
+# What a tag push does now:
+# 1. installs deps and builds dist (the old job installed with
+#    --ignore-scripts and packed a 4-file tarball with no runtime code);
+# 2. validates the tag against package.json, the CHANGELOG entry, and the
+#    packed tarball through verify:package;
+# 3. reports the npm registry state for this version as a warning when the
+#    version is not published/latest yet (tag-first publishing is allowed);
+# 4. creates the GitHub Release from the matching CHANGELOG section.
+#
+# workflow_dispatch runs the same job against an existing tag: `tag` selects
+# the tag (the ref is a branch there, so `github.ref_name` cannot be used) and
+# `dry_run` (default true) stops before the release is created/updated.
+#
+# Required config: repository Settings -> Actions -> General -> Workflow
+# permissions "Read and write permissions" (for Release creation). No npm
+# token and no id-token permission are needed.
 
 on:
   push:
@@ -24,49 +37,70 @@ on:
       - 'v*.*.*'
   workflow_dispatch:
     inputs:
+      tag:
+        description: 'Existing vX.Y.Z tag to release'
+        type: string
+        required: true
       dry_run:
-        description: 'Validate everything but skip npm publish and GitHub Release'
+        description: 'Validate only - build, checks and release notes, no GitHub Release'
         type: boolean
-        default: false
+        default: true
 
 permissions:
   contents: write
-  id-token: write
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ inputs.tag || github.ref }}
   cancel-in-progress: false
 
 jobs:
   release:
-    name: Publish + GitHub Release
+    name: GitHub Release
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
-          # Full history so the tag can be validated against package.json.
-          fetch-depth: 0
+          # A dispatch run is on a branch; check out the tag it names so the
+          # build and the tag/version guards all see the released tree.
+          ref: ${{ inputs.tag || github.ref }}
 
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-          registry-url: https://registry.npmjs.org/
 
       - name: Install dependencies
         run: npm ci --ignore-scripts
 
-      - name: Verify tag matches package.json version
-        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+      - name: Resolve release tag
+        id: tag
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
         # Plain single-quoted JS strings only: no $, backticks, or double
         # quotes inside the node payload, so bash double-quoting needs no
         # escapes and YAML block scalars keep the text verbatim.
         run: |
           node -e "
           const fs = require('fs');
+          const isTagPush = process.env.GITHUB_REF.startsWith('refs/tags/');
+          const tag = isTagPush ? process.env.GITHUB_REF_NAME : (process.env.INPUT_TAG || '').trim();
+          if (!/^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$/.test(tag)) {
+            console.error('No usable release tag: ' + (tag || '(empty)') + '. Pass the tag input as vX.Y.Z.');
+            process.exit(1);
+          }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, 'tag=' + tag + '\n');
+          console.log('Release tag: ' + tag);
+          "
+
+      - name: Verify tag matches package.json version
+        env:
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          node -e "
+          const fs = require('fs');
           const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-          const tag = process.env.GITHUB_REF.replace('refs/tags/', '');
+          const tag = process.env.RELEASE_TAG;
           if (tag !== 'v' + pkg.version) {
             console.error('Tag ' + tag + ' does not match package.json version ' + pkg.version + '. Aborting.');
             process.exit(1);
@@ -75,7 +109,6 @@ jobs:
           "
 
       - name: Verify CHANGELOG has an entry for this version
-        if: ${{ startsWith(github.ref, 'refs/tags/') }}
         run: |
           node -e "
           const fs = require('fs');
@@ -89,13 +122,44 @@ jobs:
           console.log('CHANGELOG.md contains ' + heading);
           "
 
-      # Runs prepublishOnly -> release:check (lint, types, tests, build,
-      # every verify gate, benchmark guards) and prepack -> build.
-      - name: Publish to npm
-        if: ${{ !inputs.dry_run }}
+      # A tag push must ship real runtime code: build dist before packing, then
+      # let verify:package assert every exports/bin target is in the tarball.
+      - name: Build
+        run: npm run build
+
+      - name: Verify packed tarball
+        run: npm run verify:package
+
+      # Publishing is manual, so this never fails the tag: it only makes the
+      # gap visible on the run summary and as an annotation.
+      - name: Report npm registry state
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --provenance --access public
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          node -e "
+          (async () => {
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            const url = 'https://registry.npmjs.org/' + pkg.name.replace('/', '%2F') + '/latest';
+            let latest = 'unknown';
+            try {
+              const response = await fetch(url, { headers: { accept: 'application/json' } });
+              latest = response.ok ? (await response.json()).version : 'not published';
+            } catch (error) {
+              latest = 'lookup failed (' + error.message + ')';
+            }
+            console.log('npm latest: ' + latest + ' | release tag: ' + process.env.RELEASE_TAG);
+            if (latest !== pkg.version) {
+              console.log('::warning::' + pkg.name + '@' + pkg.version + ' is not npm latest (found ' + latest + '). The GitHub Release still opens; publish it from the maintainer machine with npm publish --access public.');
+            }
+            if (process.env.GITHUB_STEP_SUMMARY) {
+              fs.appendFileSync(
+                process.env.GITHUB_STEP_SUMMARY,
+                '### ' + pkg.name + '@' + pkg.version + '\n\n- npm registry latest: ' + latest + '\n- published from: maintainer machine (this workflow does not publish)\n'
+              );
+            }
+          })();
+          "
 
       - name: Extract release notes from CHANGELOG.md
         if: ${{ !inputs.dry_run }}
@@ -118,10 +182,10 @@ jobs:
         if: ${{ !inputs.dry_run }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: ${{ steps.tag.outputs.tag }}
           body: ${{ steps.notes.outputs.notes }}
           draft: false
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          prerelease: ${{ contains(steps.tag.outputs.tag, '-') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
