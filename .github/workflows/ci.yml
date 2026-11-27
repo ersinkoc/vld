@@ -10,6 +10,10 @@ name: CI
 # - windows:    path-sensitive gates on windows-latest. verify:bundle was
 #               broken on Windows for shipped releases because nothing ever
 #               ran it there; this lane keeps that bug class caught.
+# - website:    installs, lints and builds website-new, the way
+#               deploy-website.yml does, so Dependabot PRs against the site
+#               are verified before they land instead of only after the
+#               merge-triggered Pages deploy.
 #
 # Advisory auditing for both npm manifests lives in dependency-audit.yml so it
 # can also run on a daily schedule; see scripts/verify-audit.cjs.
@@ -117,6 +121,41 @@ jobs:
 
       - name: Memory guard
         run: npm run benchmark:memory:guard
+
+  website:
+    name: Website build (website-new)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            website-new/package-lock.json
+
+      # The site aliases @oxog/vld to ../dist, so the root package has to be
+      # built before the website typechecks or bundles.
+      - name: Install root dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Build root package
+        run: npm run build
+
+      - name: Install website dependencies
+        working-directory: website-new
+        run: npm ci
+
+      - name: Lint website
+        working-directory: website-new
+        run: npm run lint
+
+      - name: Build website
+        working-directory: website-new
+        run: npm run build
 
   windows:
     name: Windows path-sensitive gates
