@@ -1,0 +1,72 @@
+# Dependabot version updates.
+#
+# Vulnerability alerts alone were not enough: the open-alert list was misread as
+# 20 live advisories long after bd10d86 had fixed them. Alerts still cover new
+# disclosures, this file keeps scheduled upgrade PRs flowing for the two npm
+# manifests we actually ship (the library and website-new), and
+# .github/workflows/dependency-audit.yml prints the authoritative audit counts
+# for both lockfiles on every push, PR and once a day.
+#
+# Several `uses:` versions are pinned a major behind current; the
+# github-actions entry below is what raises those.
+version: 2
+updates:
+  # Library. Every dependency here is a devDependency (the package ships with
+  # zero runtime dependencies), so routine minor/patch work stays in one PR.
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore"
+      include: scope
+    labels:
+      - dependencies
+    groups:
+      dev-dependencies:
+        patterns:
+          - "*"
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+
+  # Static site. Mixes runtime (react, react-router-dom) and build tooling
+  # (vite, eslint, typescript-eslint); the vite/react-router advisories that
+  # started this came from this manifest's lockfile.
+  - package-ecosystem: npm
+    directory: "/website-new"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore"
+      include: scope
+    labels:
+      - dependencies
+      - website
+    groups:
+      minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+
+  # Actions used by ci.yml, release.yml, deploy-website.yml and zod-parity.yml.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci"
+      include: scope
+    labels:
+      - dependencies
+      - github-actions
+    groups:
+      actions:
+        patterns:
+          - "*"

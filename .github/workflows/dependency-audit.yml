@@ -1,0 +1,59 @@
+name: Dependency audit
+
+# Authoritative advisory count for both shipped npm manifests, so an open-alert
+# list can be checked against a fresh run instead of guessed at. No install is
+# needed: `npm audit` resolves the tree from the committed lockfiles (this also
+# matches what Dependabot evaluates), which keeps the job to seconds.
+#
+# The daily schedule matters because advisories are published after a lockfile
+# is last touched; push/PR events alone would only re-check when someone
+# happens to commit.
+on:
+  pull_request:
+    paths:
+      - '.github/dependabot.yml'
+      - '.github/workflows/dependency-audit.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/verify-audit.cjs'
+      - 'website-new/package.json'
+      - 'website-new/package-lock.json'
+  push:
+    branches: [main]
+    paths:
+      - '.github/dependabot.yml'
+      - '.github/workflows/dependency-audit.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/verify-audit.cjs'
+      - 'website-new/package.json'
+      - 'website-new/package-lock.json'
+  schedule:
+    - cron: '23 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependency-audit-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    name: Audit root + website-new lockfiles
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            website-new/package-lock.json
+
+      - name: npm audit (fails on high/critical)
+        run: npm run verify:audit

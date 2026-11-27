@@ -10,6 +10,9 @@ name: CI
 # - windows:    path-sensitive gates on windows-latest. verify:bundle was
 #               broken on Windows for shipped releases because nothing ever
 #               ran it there; this lane keeps that bug class caught.
+#
+# Advisory auditing for both npm manifests lives in dependency-audit.yml so it
+# can also run on a daily schedule; see scripts/verify-audit.cjs.
 on:
   pull_request:
   push:
