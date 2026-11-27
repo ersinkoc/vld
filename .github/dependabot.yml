@@ -23,6 +23,20 @@ updates:
       include: scope
     labels:
       - dependencies
+    # Two upgrade lines are known-broken here, not merely untested:
+    # - typescript >=6: typescript-eslint 8 peers typescript ">=4.8.4 <6.1.0",
+    #   so `npm ci` dies with ERESOLVE before anything can run (PR #17).
+    # - @types/node >=26: the DOM/Node libs redefine File.bytes, which breaks
+    #   tests/validators/file.test.ts MockFile and the coverage gate (PR #18).
+    # Both were closed as blocked. Drop each entry once the blocker is cleared
+    # upstream or the local code is fixed; the 24.x line stays available.
+    ignore:
+      - dependency-name: "typescript"
+        versions:
+          - ">=6.0.0"
+      - dependency-name: "@types/node"
+        versions:
+          - ">=26.0.0"
     groups:
       dev-dependencies:
         patterns:
